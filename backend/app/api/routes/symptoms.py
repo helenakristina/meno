@@ -7,6 +7,7 @@ from supabase import AsyncClient
 
 from app.core.supabase import get_client
 from app.models.symptoms import SymptomLogCreate, SymptomLogList, SymptomLogResponse
+from app.services.symptoms import validate_symptom_ids
 
 logger = logging.getLogger(__name__)
 
@@ -93,10 +94,13 @@ async def create_symptom_log(
     database level as a second layer of defence.
 
     Raises:
+        HTTPException: 400 if any symptom ID is not found in symptoms_reference.
         HTTPException: 401 if the request is not authenticated.
         HTTPException: 422 if the payload violates model constraints.
         HTTPException: 500 if the database insert fails.
     """
+    await validate_symptom_ids(payload.symptoms, client)
+
     row: dict = {
         "user_id": user_id,
         "symptoms": payload.symptoms,

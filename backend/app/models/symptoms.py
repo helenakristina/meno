@@ -5,9 +5,10 @@ from pydantic import BaseModel, Field, model_validator
 
 
 class SymptomLogCreate(BaseModel):
+    # UUIDs from symptoms_reference.id — validated against the table on create.
     symptoms: list[str] = Field(
         default_factory=list,
-        description="Array of symptom tag IDs from symptoms_reference",
+        description="Array of symptom UUIDs from symptoms_reference.id",
     )
     free_text_entry: str | None = Field(
         default=None,

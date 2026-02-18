@@ -37,6 +37,9 @@ class MockQueryBuilder:
     def eq(self, *_, **__):
         return self
 
+    def in_(self, *_, **__):
+        return self
+
     def gte(self, *_, **__):
         return self
 
@@ -56,9 +59,15 @@ class MockQueryBuilder:
         return result
 
 
+def make_ref_data(symptom_ids: list[str]) -> list[dict]:
+    """Build mock symptoms_reference rows matching the given IDs (all valid)."""
+    return [{"id": sid} for sid in set(symptom_ids)]
+
+
 def make_mock_client(
     user_id: str = "test-user-uuid",
     data=None,
+    symptoms_ref_data=None,
     auth_error: Exception | None = None,
 ) -> MagicMock:
     mock = MagicMock()
@@ -70,7 +79,14 @@ def make_mock_client(
             return_value=MagicMock(user=MagicMock(id=user_id))
         )
 
-    mock.table.return_value = MockQueryBuilder(data=data)
+    # Dispatch different builders per table so validation and insert
+    # queries can return independent data.
+    def table_side_effect(table_name):
+        if table_name == "symptoms_reference":
+            return MockQueryBuilder(data=symptoms_ref_data or [])
+        return MockQueryBuilder(data=data or [])
+
+    mock.table.side_effect = table_side_effect
     return mock
 
 
@@ -120,7 +136,11 @@ def override(mock_client):
 
 class TestCreateSymptomLog:
     def test_returns_201_when_source_is_cards(self):
-        mock = make_mock_client(user_id=USER_ID, data=[STORED_LOG])
+        mock = make_mock_client(
+            user_id=USER_ID,
+            data=[STORED_LOG],
+            symptoms_ref_data=make_ref_data(CARDS_PAYLOAD["symptoms"]),
+        )
         cleanup = override(mock)
         try:
             with TestClient(app) as client:
@@ -161,7 +181,11 @@ class TestCreateSymptomLog:
 
     def test_returns_201_when_source_is_both(self):
         stored = {**STORED_LOG, **BOTH_PAYLOAD}
-        mock = make_mock_client(user_id=USER_ID, data=[stored])
+        mock = make_mock_client(
+            user_id=USER_ID,
+            data=[stored],
+            symptoms_ref_data=make_ref_data(BOTH_PAYLOAD["symptoms"]),
+        )
         cleanup = override(mock)
         try:
             with TestClient(app) as client:
@@ -180,7 +204,11 @@ class TestCreateSymptomLog:
         logged_at = "2024-01-01T08:00:00+00:00"
         payload = {**CARDS_PAYLOAD, "logged_at": logged_at}
         stored = {**STORED_LOG, "logged_at": logged_at}
-        mock = make_mock_client(user_id=USER_ID, data=[stored])
+        mock = make_mock_client(
+            user_id=USER_ID,
+            data=[stored],
+            symptoms_ref_data=make_ref_data(CARDS_PAYLOAD["symptoms"]),
+        )
         cleanup = override(mock)
         try:
             with TestClient(app) as client:
@@ -300,6 +328,47 @@ class TestCreateSymptomLog:
             cleanup()
 
         assert response.status_code == 422
+
+    # Symptom ID validation tests
+
+    def test_returns_400_when_symptom_ids_not_in_reference(self):
+        # symptoms_ref_data returns 0 rows → all IDs invalid
+        mock = make_mock_client(symptoms_ref_data=[])
+        cleanup = override(mock)
+        try:
+            with TestClient(app) as client:
+                response = client.post(
+                    "/api/symptoms/logs",
+                    json=CARDS_PAYLOAD,
+                    headers=AUTH_HEADER,
+                )
+        finally:
+            cleanup()
+
+        assert response.status_code == 400
+        assert "Invalid symptom IDs" in response.json()["detail"]
+
+    def test_returns_400_when_some_symptom_ids_not_in_reference(self):
+        # Only one of the two IDs exists in the reference table
+        mock = make_mock_client(
+            symptoms_ref_data=[{"id": CARDS_PAYLOAD["symptoms"][0]}]
+        )
+        cleanup = override(mock)
+        try:
+            with TestClient(app) as client:
+                response = client.post(
+                    "/api/symptoms/logs",
+                    json=CARDS_PAYLOAD,
+                    headers=AUTH_HEADER,
+                )
+        finally:
+            cleanup()
+
+        assert response.status_code == 400
+        detail = response.json()["detail"]
+        assert "Invalid symptom IDs" in detail
+        # The missing ID should be named in the error
+        assert CARDS_PAYLOAD["symptoms"][1] in detail
 
 
 # ---------------------------------------------------------------------------
