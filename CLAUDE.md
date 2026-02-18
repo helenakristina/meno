@@ -225,6 +225,90 @@ async function handleSubmit() {
 
 ---
 
+## Documentation Standards
+
+### When to Write Docstrings
+
+**Write docstrings when they add information the code doesn't already convey.**
+
+**✅ Always document:**
+- Public API endpoints (what they do, params, returns, raises)
+- Complex business logic (co-occurrence calculation, pattern analysis)
+- LLM integration points (prompt assembly, RAG retrieval, anonymization)
+- Non-obvious caching or performance optimizations
+- Anything where the "why" matters more than the "what"
+
+**Example - Good docstring:**
+```python
+async def calculate_symptom_cooccurrence(logs: list[SymptomLog]) -> dict[tuple[str, str], float]:
+    """
+    Calculate co-occurrence rates between all symptom pairs.
+    
+    Returns a dict mapping symptom pairs to their co-occurrence percentage.
+    Example: {('fatigue', 'brain_fog'): 0.78} means they occurred together 78% of the time.
+    
+    Used by the dashboard to show "symptoms that travel together" insight card.
+    """
+```
+
+**❌ Skip docstrings for:**
+- Self-explanatory functions (name + types say it all)
+- Simple CRUD operations
+- Test functions (use descriptive test names instead: `test_X_when_Y_then_Z`)
+- Pydantic models (fields are self-documenting)
+- Private helper functions only called internally
+
+**Example - No docstring needed:**
+```python
+async def get_user(user_id: str) -> User:
+    # Name and types are clear, no docstring needed
+    return await supabase.from_("users").select("*").eq("id", user_id).execute()
+```
+
+### Test Documentation
+
+**Use descriptive test names instead of docstrings:**
+```python
+# Good - test name is self-documenting
+async def test_create_symptom_log_returns_401_when_missing_auth():
+    ...
+
+# Bad - unnecessary docstring
+async def test_auth():
+    """Test that endpoint requires authentication."""  # Redundant
+    ...
+```
+
+**Group related tests with comments when helpful:**
+```python
+# Authentication tests
+async def test_create_log_requires_valid_token():
+    ...
+
+async def test_create_log_rejects_expired_token():
+    ...
+
+# Validation tests
+async def test_create_log_requires_at_least_one_symptom():
+    ...
+```
+
+### Code Comments
+
+**Use comments sparingly for "why" not "what":**
+```python
+# Good - explains why
+# We cache summaries for 24 hours because regenerating them on every
+# Ask Meno query would cost ~$0.02 per query and slow response time
+cache_ttl = 86400
+
+# Bad - restates the code
+# Set cache TTL to 86400 seconds
+cache_ttl = 86400
+```
+
+---
+
 ## Development Workflow
 
 ### Running Locally
