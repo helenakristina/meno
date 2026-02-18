@@ -1,9 +1,11 @@
-<script>
+<script lang="ts">
+	import type { Snippet } from 'svelte';
 	import { page } from '$app/state';
 	import { user } from '$lib/stores/auth';
 	import { goto } from '$app/navigation';
 	import { supabase } from '$lib/supabase/client';
 
+	let { children }: { children: Snippet } = $props();
 	let loading = $state(true);
 
 	// Check initial auth state
@@ -95,7 +97,7 @@
 			</div>
 		</nav>
 		<main class="mx-auto max-w-7xl py-6 sm:px-6 lg:px-8">
-			<slot />
+			{@render children()}
 		</main>
 	</div>
 {/if}
