@@ -630,3 +630,199 @@ class TestGetSymptomLogs:
         assert len(symptoms) == 1
         assert symptoms[0]["id"] == "orphan-id"
         assert symptoms[0]["category"] == "unknown"
+
+
+# ---------------------------------------------------------------------------
+# GET /api/symptoms/stats/frequency
+# ---------------------------------------------------------------------------
+
+SID_HOT_FLASH = "uuid-hot-flash"
+SID_BRAIN_FOG = "uuid-brain-fog"
+SID_FATIGUE = "uuid-fatigue"
+
+SYMPTOM_LOGS_DATA = [
+    {"symptoms": [SID_HOT_FLASH, SID_BRAIN_FOG]},
+    {"symptoms": [SID_HOT_FLASH, SID_FATIGUE]},
+    {"symptoms": [SID_HOT_FLASH]},
+]
+
+SYMPTOMS_REF_DATA = [
+    {"id": SID_HOT_FLASH, "name": "Hot flashes", "category": "vasomotor"},
+    {"id": SID_BRAIN_FOG, "name": "Brain fog", "category": "cognitive"},
+    {"id": SID_FATIGUE, "name": "Fatigue", "category": "sleep"},
+]
+
+
+class TestGetFrequencyStats:
+    def test_frequency_stats_success(self):
+        mock = make_mock_client(
+            user_id=USER_ID,
+            data=SYMPTOM_LOGS_DATA,
+            symptoms_ref_data=SYMPTOMS_REF_DATA,
+        )
+        cleanup = override(mock)
+        try:
+            with TestClient(app) as client:
+                response = client.get(
+                    "/api/symptoms/stats/frequency", headers=AUTH_HEADER
+                )
+        finally:
+            cleanup()
+
+        assert response.status_code == 200
+        body = response.json()
+        assert body["total_logs"] == 3
+        assert "date_range_start" in body
+        assert "date_range_end" in body
+
+        stats = body["stats"]
+        assert len(stats) == 3
+        # Hot flashes appeared 3 times — must be first
+        assert stats[0]["symptom_name"] == "Hot flashes"
+        assert stats[0]["count"] == 3
+        assert stats[0]["category"] == "vasomotor"
+        # Remaining two each appeared once
+        counts = {s["symptom_name"]: s["count"] for s in stats}
+        assert counts["Brain fog"] == 1
+        assert counts["Fatigue"] == 1
+
+    def test_frequency_stats_with_date_range(self):
+        mock = make_mock_client(
+            user_id=USER_ID,
+            data=SYMPTOM_LOGS_DATA,
+            symptoms_ref_data=SYMPTOMS_REF_DATA,
+        )
+        cleanup = override(mock)
+        try:
+            with TestClient(app) as client:
+                response = client.get(
+                    "/api/symptoms/stats/frequency",
+                    params={"start_date": "2024-01-01", "end_date": "2024-01-31"},
+                    headers=AUTH_HEADER,
+                )
+        finally:
+            cleanup()
+
+        assert response.status_code == 200
+        body = response.json()
+        assert body["date_range_start"] == "2024-01-01"
+        assert body["date_range_end"] == "2024-01-31"
+
+    def test_frequency_stats_requires_auth(self):
+        mock = make_mock_client()
+        cleanup = override(mock)
+        try:
+            with TestClient(app) as client:
+                response = client.get("/api/symptoms/stats/frequency")
+        finally:
+            cleanup()
+
+        assert response.status_code == 401
+
+    def test_frequency_stats_invalid_token_returns_401(self):
+        mock = make_mock_client(auth_error=Exception("Token invalid"))
+        cleanup = override(mock)
+        try:
+            with TestClient(app) as client:
+                response = client.get(
+                    "/api/symptoms/stats/frequency",
+                    headers={"Authorization": "Bearer bad-token"},
+                )
+        finally:
+            cleanup()
+
+        assert response.status_code == 401
+
+    def test_frequency_stats_invalid_date_format_returns_422(self):
+        mock = make_mock_client()
+        cleanup = override(mock)
+        try:
+            with TestClient(app) as client:
+                response = client.get(
+                    "/api/symptoms/stats/frequency",
+                    params={"start_date": "not-a-date"},
+                    headers=AUTH_HEADER,
+                )
+        finally:
+            cleanup()
+
+        assert response.status_code == 422
+
+    def test_frequency_stats_start_after_end_returns_400(self):
+        mock = make_mock_client(user_id=USER_ID, data=[])
+        cleanup = override(mock)
+        try:
+            with TestClient(app) as client:
+                response = client.get(
+                    "/api/symptoms/stats/frequency",
+                    params={"start_date": "2024-02-01", "end_date": "2024-01-01"},
+                    headers=AUTH_HEADER,
+                )
+        finally:
+            cleanup()
+
+        assert response.status_code == 400
+        assert "start_date" in response.json()["detail"]
+
+    def test_frequency_stats_empty_result(self):
+        mock = make_mock_client(user_id=USER_ID, data=[], symptoms_ref_data=[])
+        cleanup = override(mock)
+        try:
+            with TestClient(app) as client:
+                response = client.get(
+                    "/api/symptoms/stats/frequency", headers=AUTH_HEADER
+                )
+        finally:
+            cleanup()
+
+        assert response.status_code == 200
+        body = response.json()
+        assert body["stats"] == []
+        assert body["total_logs"] == 0
+
+    def test_frequency_stats_sorted_by_count_descending(self):
+        # Three logs: fatigue appears twice, brain_fog once
+        logs = [
+            {"symptoms": [SID_FATIGUE]},
+            {"symptoms": [SID_FATIGUE, SID_BRAIN_FOG]},
+        ]
+        ref = [
+            {"id": SID_FATIGUE, "name": "Fatigue", "category": "sleep"},
+            {"id": SID_BRAIN_FOG, "name": "Brain fog", "category": "cognitive"},
+        ]
+        mock = make_mock_client(user_id=USER_ID, data=logs, symptoms_ref_data=ref)
+        cleanup = override(mock)
+        try:
+            with TestClient(app) as client:
+                response = client.get(
+                    "/api/symptoms/stats/frequency", headers=AUTH_HEADER
+                )
+        finally:
+            cleanup()
+
+        assert response.status_code == 200
+        stats = response.json()["stats"]
+        assert stats[0]["symptom_name"] == "Fatigue"
+        assert stats[0]["count"] == 2
+        assert stats[1]["symptom_name"] == "Brain fog"
+        assert stats[1]["count"] == 1
+
+    def test_frequency_stats_omits_unknown_symptom_ids(self):
+        # Symptom ID in logs but absent from reference — should not appear in output
+        orphan_id = "orphan-uuid-not-in-ref"
+        logs = [{"symptoms": [SID_HOT_FLASH, orphan_id]}]
+        ref = [{"id": SID_HOT_FLASH, "name": "Hot flashes", "category": "vasomotor"}]
+        mock = make_mock_client(user_id=USER_ID, data=logs, symptoms_ref_data=ref)
+        cleanup = override(mock)
+        try:
+            with TestClient(app) as client:
+                response = client.get(
+                    "/api/symptoms/stats/frequency", headers=AUTH_HEADER
+                )
+        finally:
+            cleanup()
+
+        assert response.status_code == 200
+        stats = response.json()["stats"]
+        assert len(stats) == 1
+        assert stats[0]["symptom_id"] == SID_HOT_FLASH

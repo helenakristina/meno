@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import date, datetime
 from typing import Literal
 
 from pydantic import BaseModel, Field, model_validator
@@ -54,3 +54,17 @@ class SymptomLogList(BaseModel):
     logs: list[SymptomLogResponse]
     count: int
     limit: int
+
+
+class SymptomFrequency(BaseModel):
+    symptom_id: str
+    symptom_name: str
+    category: str
+    count: int
+
+
+class FrequencyStatsResponse(BaseModel):
+    stats: list[SymptomFrequency]
+    date_range_start: date
+    date_range_end: date
+    total_logs: int

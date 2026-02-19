@@ -1,5 +1,6 @@
 import logging
-from datetime import date, datetime, timezone
+from collections import Counter
+from datetime import date, datetime, timedelta, timezone
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Query, status
@@ -7,7 +8,9 @@ from supabase import AsyncClient
 
 from app.core.supabase import get_client
 from app.models.symptoms import (
+    FrequencyStatsResponse,
     SymptomDetail,
+    SymptomFrequency,
     SymptomLogCreate,
     SymptomLogList,
     SymptomLogResponse,
@@ -299,3 +302,165 @@ async def get_symptom_logs(
     logs = [_enrich_log(row, lookup) for row in rows]
     logger.info("Retrieved %d symptom logs for user %s", len(logs), user_id)
     return SymptomLogList(logs=logs, count=len(logs), limit=limit)
+
+
+# ---------------------------------------------------------------------------
+# GET /api/symptoms/stats/frequency
+# ---------------------------------------------------------------------------
+
+
+@router.get(
+    "/stats/frequency",
+    response_model=FrequencyStatsResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Symptom frequency statistics",
+    description=(
+        "Return how often each symptom was logged in the given date range, "
+        "sorted most-to-least frequent. Defaults to the last 30 days."
+    ),
+)
+async def get_frequency_stats(
+    user_id: CurrentUser,
+    client: SupabaseClient,
+    start_date: date | None = Query(
+        default=None,
+        description="Start of date range (UTC, ISO 8601). Defaults to 30 days ago.",
+    ),
+    end_date: date | None = Query(
+        default=None,
+        description="End of date range (UTC, ISO 8601). Defaults to today.",
+    ),
+) -> FrequencyStatsResponse:
+    """Return per-symptom occurrence counts for the authenticated user.
+
+    Counts are total occurrences across all logs in the date range — not
+    unique days. A symptom appearing in 3 separate logs contributes 3 to its
+    count. Results are sorted by count descending.
+
+    Raises:
+        HTTPException: 400 if start_date is after end_date.
+        HTTPException: 401 if the request is not authenticated.
+        HTTPException: 422 if any query parameter fails validation.
+        HTTPException: 500 if the database query fails.
+    """
+    today = date.today()
+    effective_end = end_date or today
+    effective_start = start_date or (today - timedelta(days=30))
+
+    if effective_start > effective_end:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="start_date must be on or before end_date",
+        )
+
+    try:
+        start_dt = datetime(
+            effective_start.year,
+            effective_start.month,
+            effective_start.day,
+            tzinfo=timezone.utc,
+        )
+        end_dt = datetime(
+            effective_end.year,
+            effective_end.month,
+            effective_end.day,
+            23,
+            59,
+            59,
+            tzinfo=timezone.utc,
+        )
+        response = (
+            await client.table("symptom_logs")
+            .select("symptoms")
+            .eq("user_id", user_id)
+            .gte("logged_at", start_dt.isoformat())
+            .lte("logged_at", end_dt.isoformat())
+            .execute()
+        )
+        rows = response.data or []
+    except Exception as exc:
+        logger.error(
+            "DB query failed fetching logs for frequency stats (user %s): %s",
+            user_id,
+            exc,
+            exc_info=True,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to retrieve symptom statistics",
+        )
+
+    total_logs = len(rows)
+    counts: Counter[str] = Counter(
+        sid for row in rows for sid in (row.get("symptoms") or [])
+    )
+
+    if not counts:
+        logger.info(
+            "No symptoms found for user %s in range %s–%s",
+            user_id,
+            effective_start,
+            effective_end,
+        )
+        return FrequencyStatsResponse(
+            stats=[],
+            date_range_start=effective_start,
+            date_range_end=effective_end,
+            total_logs=total_logs,
+        )
+
+    try:
+        ref_response = (
+            await client.table("symptoms_reference")
+            .select("id, name, category")
+            .in_("id", list(counts.keys()))
+            .execute()
+        )
+        ref_rows = ref_response.data or []
+    except Exception as exc:
+        logger.error(
+            "DB query failed fetching symptoms_reference for user %s: %s",
+            user_id,
+            exc,
+            exc_info=True,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to retrieve symptom statistics",
+        )
+
+    ref_lookup = {row["id"]: row for row in ref_rows}
+
+    stats: list[SymptomFrequency] = []
+    for symptom_id, count in counts.most_common():
+        ref = ref_lookup.get(symptom_id)
+        if ref:
+            stats.append(
+                SymptomFrequency(
+                    symptom_id=symptom_id,
+                    symptom_name=ref["name"],
+                    category=ref["category"],
+                    count=count,
+                )
+            )
+        else:
+            # Data-integrity anomaly: log ID present in logs but not in reference
+            logger.warning(
+                "Symptom ID %s not found in symptoms_reference (data integrity issue)",
+                symptom_id,
+            )
+
+    logger.info(
+        "Frequency stats: user=%s range=%s–%s distinct_symptoms=%d total_logs=%d",
+        user_id,
+        effective_start,
+        effective_end,
+        len(stats),
+        total_logs,
+    )
+    return FrequencyStatsResponse(
+        stats=stats,
+        date_range_start=effective_start,
+        date_range_end=effective_end,
+        total_logs=total_logs,
+    )

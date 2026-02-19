@@ -23,6 +23,13 @@
 		source: string;
 	}
 
+	interface SymptomFrequency {
+		symptom_id: string;
+		symptom_name: string;
+		category: string;
+		count: number;
+	}
+
 	interface FreeTextEntry {
 		text: string;
 		time: string;
@@ -112,10 +119,18 @@
 	let loading = $state(true);
 	let error = $state('');
 	let logs: Log[] = $state([]);
+
+	let frequencyLoading = $state(true);
+	let frequencyError = $state('');
+	let frequencyStats: SymptomFrequency[] = $state([]);
+
 	let selectedRange = $state('7');
 	let expandedNotes = $state<Record<string, boolean>>({});
 
 	let dayGroups: DayGroup[] = $derived(groupByDay(logs));
+	let topSymptoms: SymptomFrequency[] = $derived(frequencyStats.slice(0, 10));
+	// Avoid division by zero for the bar-width calculation
+	let maxCount: number = $derived(topSymptoms[0]?.count ?? 1);
 
 	const rangeLabels: Record<string, string> = {
 		'7': 'Last 7 days',
@@ -124,35 +139,41 @@
 	};
 
 	// -------------------------------------------------------------------------
-	// Data fetch — reactive to selectedRange
+	// Data fetch — reactive to selectedRange, both calls run in parallel
 	// -------------------------------------------------------------------------
 
 	$effect(() => {
-		fetchLogs(selectedRange);
+		fetchAll(selectedRange);
 	});
 
-	async function fetchLogs(range: string) {
+	async function fetchAll(range: string) {
 		loading = true;
+		frequencyLoading = true;
 		error = '';
+		frequencyError = '';
 		expandedNotes = {};
 
+		const { data: sessionData } = await supabase.auth.getSession();
+		const token = sessionData.session?.access_token;
+
+		if (!token) {
+			error = 'Please sign in to view your history.';
+			frequencyError = 'Please sign in to view your history.';
+			loading = false;
+			frequencyLoading = false;
+			return;
+		}
+
+		const startDate = new Date();
+		startDate.setDate(startDate.getDate() - (parseInt(range) - 1));
+		const startDateStr = startDate.toLocaleDateString('en-CA');
+
+		await Promise.all([fetchLogs(token, startDateStr), fetchFrequencyStats(token, startDateStr)]);
+	}
+
+	async function fetchLogs(token: string, startDateStr: string) {
 		try {
-			const { data: sessionData } = await supabase.auth.getSession();
-			const token = sessionData.session?.access_token;
-
-			if (!token) {
-				error = 'Please sign in to view your history.';
-				return;
-			}
-
-			const startDate = new Date();
-			startDate.setDate(startDate.getDate() - (parseInt(range) - 1));
-
-			const params = new URLSearchParams({
-				start_date: startDate.toLocaleDateString('en-CA'),
-				limit: '100'
-			});
-
+			const params = new URLSearchParams({ start_date: startDateStr, limit: '100' });
 			const response = await fetch(`${API_BASE}/api/symptoms/logs?${params}`, {
 				headers: { Authorization: `Bearer ${token}` }
 			});
@@ -168,6 +189,27 @@
 			console.error('Dashboard fetch error:', e);
 		} finally {
 			loading = false;
+		}
+	}
+
+	async function fetchFrequencyStats(token: string, startDateStr: string) {
+		try {
+			const params = new URLSearchParams({ start_date: startDateStr });
+			const response = await fetch(`${API_BASE}/api/symptoms/stats/frequency?${params}`, {
+				headers: { Authorization: `Bearer ${token}` }
+			});
+
+			if (!response.ok) {
+				frequencyError = `Failed to load statistics (${response.status}). Please try again.`;
+			} else {
+				const data = await response.json();
+				frequencyStats = data.stats ?? [];
+			}
+		} catch (e) {
+			frequencyError = 'Network error. Please check your connection and try again.';
+			console.error('Frequency stats fetch error:', e);
+		} finally {
+			frequencyLoading = false;
 		}
 	}
 
@@ -193,6 +235,59 @@
 			<option value="30">Last 30 days</option>
 		</select>
 	</div>
+
+	<!-- Frequency Chart -->
+	<section
+		class="mb-8 rounded-2xl border border-slate-200 bg-white px-6 py-5 shadow-sm"
+		aria-labelledby="freq-chart-heading"
+	>
+		<h2 id="freq-chart-heading" class="mb-5 text-base font-semibold text-slate-800">
+			Most Frequent Symptoms
+		</h2>
+
+		{#if frequencyLoading}
+			<div class="flex items-center justify-center py-10">
+				<div class="text-sm text-slate-400">Loading...</div>
+			</div>
+		{:else if frequencyError}
+			<div class="rounded-xl border border-red-200 bg-red-50 px-5 py-4 text-sm text-red-700">
+				{frequencyError}
+			</div>
+		{:else if topSymptoms.length === 0}
+			<p class="py-6 text-center text-sm text-slate-400">No symptoms logged in this period.</p>
+		{:else}
+			<ol class="space-y-3" aria-label="Symptom frequency chart">
+				{#each topSymptoms as stat (stat.symptom_id)}
+					<li class="flex items-center gap-3">
+						<!-- Name: right-aligned, fixed width, truncated if very long -->
+						<span
+							class="w-36 shrink-0 truncate text-right text-sm text-slate-700"
+							title={stat.symptom_name}
+						>
+							{stat.symptom_name}
+						</span>
+
+						<!-- Bar track -->
+						<div class="relative h-5 flex-1 overflow-hidden rounded bg-teal-50">
+							<div
+								class="absolute inset-y-0 left-0 rounded bg-teal-500"
+								style="width: {(stat.count / maxCount) * 100}%"
+								aria-hidden="true"
+							></div>
+						</div>
+
+						<!-- Count -->
+						<span class="w-6 shrink-0 text-right text-sm font-medium tabular-nums text-slate-500">
+							{stat.count}
+						</span>
+					</li>
+				{/each}
+			</ol>
+		{/if}
+	</section>
+
+	<!-- Section separator -->
+	<hr class="mb-8 border-slate-100" />
 
 	<!-- Loading -->
 	{#if loading}
@@ -280,7 +375,7 @@
 
 					<!-- Edge case: text-only day with no symptoms -->
 					{#if group.symptoms.length === 0 && noteCount === 0}
-						<p class="text-sm text-slate-400 italic">No details recorded</p>
+						<p class="text-sm italic text-slate-400">No details recorded</p>
 					{/if}
 				</li>
 			{/each}
