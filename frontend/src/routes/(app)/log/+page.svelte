@@ -176,7 +176,7 @@
 						>
 							<button
 								onclick={() => selectCard(card)}
-								class="w-full rounded-xl border border-slate-200 bg-white px-4 py-4 text-left text-sm font-medium text-slate-700 shadow-sm transition-all duration-150 hover:border-violet-300 hover:bg-violet-50 hover:text-violet-800 hover:shadow focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-400"
+								class="w-full rounded-xl border border-slate-200 bg-white px-4 py-4 text-left text-sm font-medium text-slate-700 shadow-sm transition-all duration-150 hover:border-teal-300 hover:bg-teal-50 hover:text-teal-800 hover:shadow focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-400"
 							>
 								{card.name}
 							</button>
@@ -221,10 +221,10 @@
 		{#if selectedSymptoms.length > 0}
 			<section
 				in:fly={{ y: 6, duration: 200 }}
-				class="mb-5 rounded-xl border border-violet-100 bg-violet-50/60 p-4"
+				class="mb-5 rounded-xl border border-teal-100 bg-teal-50/60 p-4"
 				aria-label="Selected symptoms"
 			>
-				<p class="mb-3 text-xs font-semibold uppercase tracking-wide text-violet-600">
+				<p class="mb-3 text-xs font-semibold uppercase tracking-wide text-teal-600">
 					{selectedSymptoms.length} symptom{selectedSymptoms.length === 1 ? '' : 's'} selected
 				</p>
 				<div class="flex flex-wrap gap-2">
@@ -232,13 +232,13 @@
 						<span
 							in:fly={{ x: -4, duration: 150 }}
 							out:fade={{ duration: 100 }}
-							class="flex items-center gap-1.5 rounded-full bg-violet-100 py-1 pl-3 pr-2 text-sm font-medium text-violet-800"
+							class="flex items-center gap-1.5 rounded-full bg-teal-100 py-1 pl-3 pr-2 text-sm font-medium text-teal-800"
 						>
 							{symptom.name}
 							<button
 								onclick={() => deselectChip(symptom)}
 								aria-label="Remove {symptom.name}"
-								class="flex h-4 w-4 items-center justify-center rounded-full text-violet-400 transition-colors hover:bg-violet-200 hover:text-violet-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-400"
+								class="flex h-4 w-4 items-center justify-center rounded-full text-teal-400 transition-colors hover:bg-teal-200 hover:text-teal-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-400"
 							>
 								<svg
 									xmlns="http://www.w3.org/2000/svg"
@@ -266,7 +266,7 @@
 				bind:value={freeText}
 				placeholder="Describe anything else in your own words..."
 				rows="3"
-				class="w-full resize-none rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700 shadow-sm transition-colors placeholder:text-slate-400 focus:border-violet-300 focus:outline-none focus:ring-2 focus:ring-violet-200"
+				class="w-full resize-none rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700 shadow-sm transition-colors placeholder:text-slate-400 focus:border-teal-300 focus:outline-none focus:ring-2 focus:ring-teal-200"
 			></textarea>
 		</div>
 

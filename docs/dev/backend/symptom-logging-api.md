@@ -7,10 +7,10 @@
 | File | Purpose |
 |---|---|
 | `backend/app/models/symptoms.py` | Pydantic request/response models |
-| `backend/app/api/routes/symptoms.py` | Route handlers + auth dependency |
+| `backend/app/api/routes/symptoms.py` | Route handlers, auth dependency, enrichment helpers |
 | `backend/app/services/symptoms.py` | `validate_symptom_ids` business logic |
 | `backend/app/core/supabase.py` | Async Supabase client singleton |
-| `backend/tests/api/routes/test_symptoms.py` | 25 pytest tests |
+| `backend/tests/api/routes/test_symptoms.py` | 27 pytest tests |
 
 ---
 
@@ -48,7 +48,10 @@ Create a new symptom log entry for the authenticated user.
   "id": "uuid",
   "user_id": "uuid",
   "logged_at": "2024-03-15T10:00:00+00:00",
-  "symptoms": ["fatigue", "brain_fog"],
+  "symptoms": [
+    {"id": "uuid", "name": "Fatigue", "category": "general"},
+    {"id": "uuid", "name": "Brain fog", "category": "cognitive"}
+  ],
   "free_text_entry": null,
   "source": "cards"
 }
@@ -80,9 +83,12 @@ Retrieve symptom logs for the authenticated user, ordered newest-first.
       "id": "uuid",
       "user_id": "uuid",
       "logged_at": "2024-03-15T10:00:00+00:00",
-      "symptoms": ["fatigue", "brain_fog"],
-      "free_text_entry": null,
-      "source": "cards"
+      "symptoms": [
+        {"id": "uuid", "name": "Hot flashes", "category": "vasomotor"},
+        {"id": "uuid", "name": "Brain fog", "category": "cognitive"}
+      ],
+      "free_text_entry": "Felt terrible during meeting",
+      "source": "both"
     }
   ],
   "count": 1,
@@ -91,6 +97,8 @@ Retrieve symptom logs for the authenticated user, ordered newest-first.
 ```
 
 Note: `count` reflects the number of logs returned in this response, not the total in the database. It will be ≤ `limit`.
+
+**Breaking change from v1:** `symptoms` was previously a `string[]` of raw UUIDs. It is now an array of `SymptomDetail` objects (`id`, `name`, `category`). The POST request format (array of UUIDs) is unchanged.
 
 ---
 
@@ -163,6 +171,18 @@ The `user_id` in every DB operation is **always** derived from the validated JWT
 
 ## Pydantic Models
 
+### `SymptomDetail`
+
+Represents an enriched symptom entry resolved from `symptoms_reference`:
+
+| Field | Type | Notes |
+|---|---|---|
+| `id` | `str` | UUID from `symptoms_reference.id` |
+| `name` | `str` | Human-readable symptom name, e.g. `"Hot flashes"` |
+| `category` | `str` | Symptom category, e.g. `"vasomotor"`, `"cognitive"` |
+
+If a symptom ID stored in a log is absent from `symptoms_reference` (data integrity anomaly), a fallback `SymptomDetail` is used: `name` equals the raw ID and `category` is `"unknown"`. A `WARNING` is logged.
+
 ### `SymptomLogCreate` (request)
 
 Cross-field validation enforced by `@model_validator(mode="after")`:
@@ -175,9 +195,11 @@ Cross-field validation enforced by `@model_validator(mode="after")`:
 
 Violations return `422` with Pydantic's standard error format.
 
+The `symptoms` field accepts an array of UUID strings (unchanged from before — the enrichment is response-only).
+
 ### `SymptomLogResponse` (response)
 
-Returned from both endpoints. Configured with `from_attributes = True` so it can be constructed directly from Supabase row dicts.
+Returned from both `POST` and `GET` endpoints. The `symptoms` field is now `list[SymptomDetail]` enriched via a join against `symptoms_reference`.
 
 ### `SymptomLogList` (GET response wrapper)
 
@@ -214,29 +236,33 @@ cd backend
 uv run pytest tests/api/routes/test_symptoms.py -v
 ```
 
-**Coverage: 25 tests across two classes**
+**Coverage: 27 tests across two classes**
 
 `TestCreateSymptomLog` (13 tests):
-- Happy path for all three `source` values (`cards`, `text`, `both`)
+- Happy path for all three `source` values (`cards`, `text`, `both`) — response `symptoms` verified as enriched objects
 - Explicit `logged_at` timestamp accepted
 - 401 for missing header, malformed header, invalid/expired token
 - 422 for each invalid `source`/content combination and missing required fields
 - 400 when all symptom IDs are absent from `symptoms_reference`
 - 400 when a subset of symptom IDs are absent (partial failure); missing ID named in error
 
-`TestGetSymptomLogs` (12 tests):
-- Happy path with default params
+`TestGetSymptomLogs` (14 tests):
+- Happy path with default params; `symptoms` verified as `SymptomDetail` objects
 - Empty result returns `[]` not an error
 - `start_date`, `end_date`, and both filters accepted
 - Custom `limit` reflected in response
 - 401/422 for auth and param validation failures
 - Ordering verified (newest-first asserted on multi-log response)
+- Enrichment verified end-to-end with explicit `name` and `category` field assertions
+- Fallback for orphaned symptom IDs (absent from `symptoms_reference`): returns `category="unknown"` instead of failing
 
 **Mock strategy:**
 
 Tests use `app.dependency_overrides[get_client]` to inject a `MagicMock` client. `MockQueryBuilder` implements the full Supabase fluent query builder interface (every method — including `.in_()` — returns `self`, `execute()` is `async`) so arbitrary chains work without maintaining separate mocks per query shape.
 
-`make_mock_client` uses `mock.table.side_effect` to dispatch different `MockQueryBuilder` instances by table name. This lets the `symptoms_reference` query and the `symptom_logs` insert return independent data in the same test. `make_ref_data(ids)` is a helper that builds a list of `{"id": ...}` dicts matching a set of symptom IDs, producing a "all valid" response for the validation query.
+`make_mock_client` uses `mock.table.side_effect` to dispatch different `MockQueryBuilder` instances by table name. This lets the `symptoms_reference` query and the `symptom_logs` query return independent data in the same test.
+
+`make_ref_data(ids)` builds `{"id": ..., "name": "Symptom <id>", "category": "general"}` rows for a set of IDs, covering both the validation query (POST) and the enrichment lookup (GET/POST). Tests that verify enriched field values supply their own explicit `symptoms_ref_data`.
 
 Cleanup always runs in `finally` blocks to prevent override leakage between tests.
 

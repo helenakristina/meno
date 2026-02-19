@@ -54,7 +54,7 @@
 		</div>
 
 		<div class="rounded-lg border border-slate-200 bg-white p-8 shadow-sm">
-			<form class="space-y-4" on:submit|preventDefault={handleLogin}>
+			<form class="space-y-4" onsubmit={(e) => { e.preventDefault(); handleLogin(); }}>
 				<div>
 					<label for="email" class="mb-1 block text-sm font-medium text-slate-700"> Email </label>
 					<input
@@ -98,7 +98,7 @@
 					</button>
 					<button
 						type="button"
-						on:click={handleSignup}
+						onclick={handleSignup}
 						disabled={loading}
 						class="flex-1 rounded-md border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:bg-slate-100"
 					>
