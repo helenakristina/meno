@@ -91,7 +91,7 @@ async def create_symptom_log(
 
     The user_id is always derived from the validated JWT — callers cannot
     log on behalf of another user. Supabase RLS enforces this at the
-    database level as a second layer of defence.
+    database level as a second layer of defense.
 
     Raises:
         HTTPException: 400 if any symptom ID is not found in symptoms_reference.
@@ -125,9 +125,7 @@ async def create_symptom_log(
         )
 
     if not response.data:
-        logger.error(
-            "Supabase returned no data after insert for user %s", user_id
-        )
+        logger.error("Supabase returned no data after insert for user %s", user_id)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to create symptom log",
@@ -178,23 +176,25 @@ async def get_symptom_logs(
         HTTPException: 500 if the database query fails.
     """
     try:
-        query = (
-            client.table("symptom_logs")
-            .select("*")
-            .eq("user_id", user_id)
-        )
+        query = client.table("symptom_logs").select("*").eq("user_id", user_id)
 
         if start_date is not None:
             start_dt = datetime(
-                start_date.year, start_date.month, start_date.day,
+                start_date.year,
+                start_date.month,
+                start_date.day,
                 tzinfo=timezone.utc,
             )
             query = query.gte("logged_at", start_dt.isoformat())
 
         if end_date is not None:
             end_dt = datetime(
-                end_date.year, end_date.month, end_date.day,
-                23, 59, 59,
+                end_date.year,
+                end_date.month,
+                end_date.day,
+                23,
+                59,
+                59,
                 tzinfo=timezone.utc,
             )
             query = query.lte("logged_at", end_dt.isoformat())
