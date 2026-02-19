@@ -826,3 +826,251 @@ class TestGetFrequencyStats:
         stats = response.json()["stats"]
         assert len(stats) == 1
         assert stats[0]["symptom_id"] == SID_HOT_FLASH
+
+
+# ---------------------------------------------------------------------------
+# GET /api/symptoms/stats/cooccurrence
+# ---------------------------------------------------------------------------
+
+# Three symptoms that will form pairs across multiple logs
+SID_A = "uuid-aaa-hot-flashes"
+SID_B = "uuid-bbb-brain-fog"
+SID_C = "uuid-ccc-fatigue"
+
+# Logs designed so (A,B) co-occurs 3×, (A,C) 2×, (B,C) 1×
+# A appears in 4 logs total, B in 3, C in 2
+COOCC_LOGS = [
+    {"symptoms": [SID_A, SID_B]},        # pair (A,B)
+    {"symptoms": [SID_A, SID_B]},        # pair (A,B)
+    {"symptoms": [SID_A, SID_B, SID_C]}, # pairs (A,B), (A,C), (B,C)
+    {"symptoms": [SID_A, SID_C]},        # pair (A,C)
+    {"symptoms": [SID_A]},               # single — no pairs
+]
+
+COOCC_REF = [
+    {"id": SID_A, "name": "Hot flashes", "category": "vasomotor"},
+    {"id": SID_B, "name": "Brain fog",   "category": "cognitive"},
+    {"id": SID_C, "name": "Fatigue",     "category": "sleep"},
+]
+
+
+class TestGetCooccurrenceStats:
+    def test_cooccurrence_stats_success(self):
+        mock = make_mock_client(
+            user_id=USER_ID, data=COOCC_LOGS, symptoms_ref_data=COOCC_REF
+        )
+        cleanup = override(mock)
+        try:
+            with TestClient(app) as client:
+                response = client.get(
+                    "/api/symptoms/stats/cooccurrence", headers=AUTH_HEADER
+                )
+        finally:
+            cleanup()
+
+        assert response.status_code == 200
+        body = response.json()
+        assert body["total_logs"] == 5
+        assert body["min_threshold"] == 2  # default
+        assert "date_range_start" in body
+        assert "date_range_end" in body
+        pairs = body["pairs"]
+        # (A,B) count=3, (A,C) count=2 — both above default threshold of 2
+        # (B,C) count=1 — below threshold, excluded
+        names = {(p["symptom1_name"], p["symptom2_name"]) for p in pairs}
+        assert ("Hot flashes", "Brain fog") in names
+        assert ("Hot flashes", "Fatigue") in names
+        assert all(p["symptom2_name"] != "Fatigue" or p["symptom1_name"] != "Brain fog"
+                   for p in pairs), "(B,C) pair should be excluded at threshold=2"
+
+    def test_cooccurrence_stats_calculates_rate_correctly(self):
+        # A appears in all 5 logs, co-occurs with B in 3 → rate = 3/5 = 0.6
+        mock = make_mock_client(
+            user_id=USER_ID, data=COOCC_LOGS, symptoms_ref_data=COOCC_REF
+        )
+        cleanup = override(mock)
+        try:
+            with TestClient(app) as client:
+                response = client.get(
+                    "/api/symptoms/stats/cooccurrence",
+                    params={"min_threshold": "1"},
+                    headers=AUTH_HEADER,
+                )
+        finally:
+            cleanup()
+
+        assert response.status_code == 200
+        pairs = response.json()["pairs"]
+        ab = next(
+            p for p in pairs
+            if p["symptom1_name"] == "Hot flashes" and p["symptom2_name"] == "Brain fog"
+        )
+        assert ab["cooccurrence_count"] == 3
+        assert ab["total_occurrences_symptom1"] == 5
+        assert abs(ab["cooccurrence_rate"] - 0.6) < 1e-3
+
+    def test_cooccurrence_stats_with_threshold(self):
+        # Raise threshold to 3 — only (A,B) qualifies
+        mock = make_mock_client(
+            user_id=USER_ID, data=COOCC_LOGS, symptoms_ref_data=COOCC_REF
+        )
+        cleanup = override(mock)
+        try:
+            with TestClient(app) as client:
+                response = client.get(
+                    "/api/symptoms/stats/cooccurrence",
+                    params={"min_threshold": "3"},
+                    headers=AUTH_HEADER,
+                )
+        finally:
+            cleanup()
+
+        assert response.status_code == 200
+        pairs = response.json()["pairs"]
+        assert len(pairs) == 1
+        assert pairs[0]["symptom1_name"] == "Hot flashes"
+        assert pairs[0]["symptom2_name"] == "Brain fog"
+        assert pairs[0]["cooccurrence_count"] == 3
+
+    def test_cooccurrence_stats_filters_single_symptom_logs(self):
+        # Logs with only one symptom contribute nothing to pair counts
+        logs = [
+            {"symptoms": [SID_A]},
+            {"symptoms": [SID_B]},
+            {"symptoms": [SID_A]},
+        ]
+        mock = make_mock_client(
+            user_id=USER_ID, data=logs, symptoms_ref_data=COOCC_REF
+        )
+        cleanup = override(mock)
+        try:
+            with TestClient(app) as client:
+                response = client.get(
+                    "/api/symptoms/stats/cooccurrence",
+                    params={"min_threshold": "1"},
+                    headers=AUTH_HEADER,
+                )
+        finally:
+            cleanup()
+
+        assert response.status_code == 200
+        assert response.json()["pairs"] == []
+
+    def test_cooccurrence_stats_requires_auth(self):
+        mock = make_mock_client()
+        cleanup = override(mock)
+        try:
+            with TestClient(app) as client:
+                response = client.get("/api/symptoms/stats/cooccurrence")
+        finally:
+            cleanup()
+
+        assert response.status_code == 401
+
+    def test_cooccurrence_stats_invalid_token_returns_401(self):
+        mock = make_mock_client(auth_error=Exception("Token invalid"))
+        cleanup = override(mock)
+        try:
+            with TestClient(app) as client:
+                response = client.get(
+                    "/api/symptoms/stats/cooccurrence",
+                    headers={"Authorization": "Bearer bad-token"},
+                )
+        finally:
+            cleanup()
+
+        assert response.status_code == 401
+
+    def test_cooccurrence_stats_start_after_end_returns_400(self):
+        mock = make_mock_client(user_id=USER_ID, data=[])
+        cleanup = override(mock)
+        try:
+            with TestClient(app) as client:
+                response = client.get(
+                    "/api/symptoms/stats/cooccurrence",
+                    params={"start_date": "2024-02-01", "end_date": "2024-01-01"},
+                    headers=AUTH_HEADER,
+                )
+        finally:
+            cleanup()
+
+        assert response.status_code == 400
+        assert "start_date" in response.json()["detail"]
+
+    def test_cooccurrence_stats_threshold_zero_returns_422(self):
+        # ge=1 constraint on min_threshold
+        mock = make_mock_client()
+        cleanup = override(mock)
+        try:
+            with TestClient(app) as client:
+                response = client.get(
+                    "/api/symptoms/stats/cooccurrence",
+                    params={"min_threshold": "0"},
+                    headers=AUTH_HEADER,
+                )
+        finally:
+            cleanup()
+
+        assert response.status_code == 422
+
+    def test_cooccurrence_stats_empty_result(self):
+        mock = make_mock_client(user_id=USER_ID, data=[], symptoms_ref_data=[])
+        cleanup = override(mock)
+        try:
+            with TestClient(app) as client:
+                response = client.get(
+                    "/api/symptoms/stats/cooccurrence", headers=AUTH_HEADER
+                )
+        finally:
+            cleanup()
+
+        assert response.status_code == 200
+        body = response.json()
+        assert body["pairs"] == []
+        assert body["total_logs"] == 0
+        assert body["min_threshold"] == 2
+
+    def test_cooccurrence_stats_sorted_by_rate_descending(self):
+        # (A,C): A appears 2×, co-occurs with C 2× → rate 1.0
+        # (A,B): A appears 2×, co-occurs with B 1× → rate 0.5
+        logs = [
+            {"symptoms": [SID_A, SID_B, SID_C]},
+            {"symptoms": [SID_A, SID_C]},
+        ]
+        mock = make_mock_client(
+            user_id=USER_ID, data=logs, symptoms_ref_data=COOCC_REF
+        )
+        cleanup = override(mock)
+        try:
+            with TestClient(app) as client:
+                response = client.get(
+                    "/api/symptoms/stats/cooccurrence",
+                    params={"min_threshold": "1"},
+                    headers=AUTH_HEADER,
+                )
+        finally:
+            cleanup()
+
+        assert response.status_code == 200
+        pairs = response.json()["pairs"]
+        rates = [p["cooccurrence_rate"] for p in pairs]
+        assert rates == sorted(rates, reverse=True)
+
+    def test_cooccurrence_stats_omits_pairs_with_unknown_symptom_ids(self):
+        # One symptom in logs but absent from reference → pair silently dropped
+        logs = [{"symptoms": [SID_A, "unknown-uuid"]}, {"symptoms": [SID_A, "unknown-uuid"]}]
+        ref = [{"id": SID_A, "name": "Hot flashes", "category": "vasomotor"}]
+        mock = make_mock_client(user_id=USER_ID, data=logs, symptoms_ref_data=ref)
+        cleanup = override(mock)
+        try:
+            with TestClient(app) as client:
+                response = client.get(
+                    "/api/symptoms/stats/cooccurrence",
+                    params={"min_threshold": "1"},
+                    headers=AUTH_HEADER,
+                )
+        finally:
+            cleanup()
+
+        assert response.status_code == 200
+        assert response.json()["pairs"] == []

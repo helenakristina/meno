@@ -1,5 +1,6 @@
+import itertools
 import logging
-from collections import Counter
+from collections import Counter, defaultdict
 from datetime import date, datetime, timedelta, timezone
 from typing import Annotated
 
@@ -8,12 +9,14 @@ from supabase import AsyncClient
 
 from app.core.supabase import get_client
 from app.models.symptoms import (
+    CooccurrenceStatsResponse,
     FrequencyStatsResponse,
     SymptomDetail,
     SymptomFrequency,
     SymptomLogCreate,
     SymptomLogList,
     SymptomLogResponse,
+    SymptomPair,
 )
 from app.services.symptoms import validate_symptom_ids
 
@@ -463,4 +466,239 @@ async def get_frequency_stats(
         date_range_start=effective_start,
         date_range_end=effective_end,
         total_logs=total_logs,
+    )
+
+
+# ---------------------------------------------------------------------------
+# GET /api/symptoms/stats/cooccurrence
+# ---------------------------------------------------------------------------
+
+# Maximum pairs returned — keeps the response manageable and the dashboard card
+# readable.  All filtering (min_threshold) is applied first; we then take the
+# top N by rate.
+_MAX_PAIRS = 10
+
+
+@router.get(
+    "/stats/cooccurrence",
+    response_model=CooccurrenceStatsResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Symptom co-occurrence statistics",
+    description=(
+        "Return symptom pairs that occur together above a minimum threshold, "
+        "sorted by co-occurrence rate descending. Defaults to the last 30 days."
+    ),
+)
+async def get_cooccurrence_stats(
+    user_id: CurrentUser,
+    client: SupabaseClient,
+    start_date: date | None = Query(
+        default=None,
+        description="Start of date range (UTC, ISO 8601). Defaults to 30 days ago.",
+    ),
+    end_date: date | None = Query(
+        default=None,
+        description="End of date range (UTC, ISO 8601). Defaults to today.",
+    ),
+    min_threshold: int = Query(
+        default=2,
+        ge=1,
+        description="Minimum number of co-occurrences required to include a pair.",
+    ),
+) -> CooccurrenceStatsResponse:
+    """Return symptom pairs that appear together above a minimum count threshold.
+
+    For each qualifying pair (A, B) the rate is A's perspective:
+    co-occurrences / total logs containing A.  Pairs are ordered consistently
+    by sorting the two IDs so (A, B) and (B, A) are never double-counted.
+
+    Only logs with two or more symptoms contribute to pair counts; single-
+    symptom logs are ignored.  Returns at most 10 pairs (highest rate first).
+
+    Raises:
+        HTTPException: 400 if start_date is after end_date.
+        HTTPException: 401 if the request is not authenticated.
+        HTTPException: 422 if any query parameter fails validation.
+        HTTPException: 500 if the database query fails.
+    """
+    today = date.today()
+    effective_end = end_date or today
+    effective_start = start_date or (today - timedelta(days=30))
+
+    if effective_start > effective_end:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="start_date must be on or before end_date",
+        )
+
+    # ------------------------------------------------------------------
+    # 1. Fetch symptom arrays for the date range
+    # ------------------------------------------------------------------
+    try:
+        start_dt = datetime(
+            effective_start.year,
+            effective_start.month,
+            effective_start.day,
+            tzinfo=timezone.utc,
+        )
+        end_dt = datetime(
+            effective_end.year,
+            effective_end.month,
+            effective_end.day,
+            23,
+            59,
+            59,
+            tzinfo=timezone.utc,
+        )
+        response = (
+            await client.table("symptom_logs")
+            .select("symptoms")
+            .eq("user_id", user_id)
+            .gte("logged_at", start_dt.isoformat())
+            .lte("logged_at", end_dt.isoformat())
+            .execute()
+        )
+        rows = response.data or []
+    except Exception as exc:
+        logger.error(
+            "DB query failed fetching logs for co-occurrence stats (user %s): %s",
+            user_id,
+            exc,
+            exc_info=True,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to retrieve symptom statistics",
+        )
+
+    total_logs = len(rows)
+    logger.debug(
+        "Co-occurrence: fetched %d logs for user %s range %s–%s",
+        total_logs,
+        user_id,
+        effective_start,
+        effective_end,
+    )
+
+    # ------------------------------------------------------------------
+    # 2. Count individual symptom occurrences and pair co-occurrences
+    # ------------------------------------------------------------------
+    # symptom_counts[id] = number of logs that contain this symptom
+    symptom_counts: Counter[str] = Counter()
+    # pair_counts[(id_a, id_b)] = number of logs that contain both
+    # Keys are always (min_id, max_id) to avoid double-counting.
+    pair_counts: Counter[tuple[str, str]] = Counter()
+
+    for row in rows:
+        symptoms = row.get("symptoms") or []
+        if not symptoms:
+            continue
+        unique_symptoms = list(dict.fromkeys(symptoms))  # deduplicate, preserve order
+        for sid in unique_symptoms:
+            symptom_counts[sid] += 1
+        if len(unique_symptoms) >= 2:
+            for a, b in itertools.combinations(sorted(unique_symptoms), 2):
+                pair_counts[(a, b)] += 1
+
+    logger.debug(
+        "Co-occurrence: %d distinct symptoms, %d unique pairs found",
+        len(symptom_counts),
+        len(pair_counts),
+    )
+
+    # ------------------------------------------------------------------
+    # 3. Filter by min_threshold and resolve names from symptoms_reference
+    # ------------------------------------------------------------------
+    qualifying = {
+        pair: count
+        for pair, count in pair_counts.items()
+        if count >= min_threshold
+    }
+
+    if not qualifying:
+        logger.info(
+            "Co-occurrence: no pairs above threshold=%d for user %s",
+            min_threshold,
+            user_id,
+        )
+        return CooccurrenceStatsResponse(
+            pairs=[],
+            date_range_start=effective_start,
+            date_range_end=effective_end,
+            total_logs=total_logs,
+            min_threshold=min_threshold,
+        )
+
+    all_ids = {sid for pair in qualifying for sid in pair}
+    try:
+        ref_response = (
+            await client.table("symptoms_reference")
+            .select("id, name, category")
+            .in_("id", list(all_ids))
+            .execute()
+        )
+        ref_rows = ref_response.data or []
+    except Exception as exc:
+        logger.error(
+            "DB query failed fetching symptoms_reference for co-occurrence (user %s): %s",
+            user_id,
+            exc,
+            exc_info=True,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to retrieve symptom statistics",
+        )
+
+    ref_lookup = {row["id"]: row for row in ref_rows}
+
+    # ------------------------------------------------------------------
+    # 4. Build pairs, calculate rates, sort and cap
+    # ------------------------------------------------------------------
+    pairs: list[SymptomPair] = []
+    for (id_a, id_b), co_count in qualifying.items():
+        ref_a = ref_lookup.get(id_a)
+        ref_b = ref_lookup.get(id_b)
+        if not ref_a or not ref_b:
+            logger.warning(
+                "Co-occurrence: symptom ID(s) missing from symptoms_reference "
+                "(%s, %s) — skipping pair",
+                id_a,
+                id_b,
+            )
+            continue
+        total_a = symptom_counts[id_a]
+        rate = co_count / total_a if total_a else 0.0
+        pairs.append(
+            SymptomPair(
+                symptom1_id=id_a,
+                symptom1_name=ref_a["name"],
+                symptom2_id=id_b,
+                symptom2_name=ref_b["name"],
+                cooccurrence_count=co_count,
+                cooccurrence_rate=round(rate, 4),
+                total_occurrences_symptom1=total_a,
+            )
+        )
+
+    # Sort by rate descending; cap at _MAX_PAIRS
+    pairs.sort(key=lambda p: p.cooccurrence_rate, reverse=True)
+    pairs = pairs[:_MAX_PAIRS]
+
+    logger.info(
+        "Co-occurrence stats: user=%s range=%s–%s threshold=%d "
+        "qualifying_pairs=%d returned=%d",
+        user_id,
+        effective_start,
+        effective_end,
+        min_threshold,
+        len(qualifying),
+        len(pairs),
+    )
+    return CooccurrenceStatsResponse(
+        pairs=pairs,
+        date_range_start=effective_start,
+        date_range_end=effective_end,
+        total_logs=total_logs,
+        min_threshold=min_threshold,
     )

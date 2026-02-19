@@ -27,7 +27,8 @@ In the top-right corner of the page, there's a dropdown to choose how far back t
 
 When you change the range, both the chart and the history list update immediately.
 
-![Date range dropdown](screenshots/11-dashboard-date-range.png)
+![Date range dropdown](screenshots/11-dashboard-date-
+.png)
 
 ---
 

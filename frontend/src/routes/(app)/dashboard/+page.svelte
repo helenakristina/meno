@@ -30,6 +30,16 @@
 		count: number;
 	}
 
+	interface SymptomPair {
+		symptom1_id: string;
+		symptom1_name: string;
+		symptom2_id: string;
+		symptom2_name: string;
+		cooccurrence_count: number;
+		cooccurrence_rate: number;
+		total_occurrences_symptom1: number;
+	}
+
 	interface FreeTextEntry {
 		text: string;
 		time: string;
@@ -124,6 +134,10 @@
 	let frequencyError = $state('');
 	let frequencyStats: SymptomFrequency[] = $state([]);
 
+	let cooccurrenceLoading = $state(true);
+	let cooccurrenceError = $state('');
+	let cooccurrenceStats: SymptomPair[] = $state([]);
+
 	let selectedRange = $state('7');
 	let expandedNotes = $state<Record<string, boolean>>({});
 
@@ -131,6 +145,7 @@
 	let topSymptoms: SymptomFrequency[] = $derived(frequencyStats.slice(0, 10));
 	// Avoid division by zero for the bar-width calculation
 	let maxCount: number = $derived(topSymptoms[0]?.count ?? 1);
+	let topPairs: SymptomPair[] = $derived(cooccurrenceStats.slice(0, 6));
 
 	const rangeLabels: Record<string, string> = {
 		'7': 'Last 7 days',
@@ -139,7 +154,7 @@
 	};
 
 	// -------------------------------------------------------------------------
-	// Data fetch — reactive to selectedRange, both calls run in parallel
+	// Data fetch — reactive to selectedRange, all three calls run in parallel
 	// -------------------------------------------------------------------------
 
 	$effect(() => {
@@ -149,8 +164,10 @@
 	async function fetchAll(range: string) {
 		loading = true;
 		frequencyLoading = true;
+		cooccurrenceLoading = true;
 		error = '';
 		frequencyError = '';
+		cooccurrenceError = '';
 		expandedNotes = {};
 
 		const { data: sessionData } = await supabase.auth.getSession();
@@ -159,8 +176,10 @@
 		if (!token) {
 			error = 'Please sign in to view your history.';
 			frequencyError = 'Please sign in to view your history.';
+			cooccurrenceError = 'Please sign in to view your history.';
 			loading = false;
 			frequencyLoading = false;
+			cooccurrenceLoading = false;
 			return;
 		}
 
@@ -168,7 +187,11 @@
 		startDate.setDate(startDate.getDate() - (parseInt(range) - 1));
 		const startDateStr = startDate.toLocaleDateString('en-CA');
 
-		await Promise.all([fetchLogs(token, startDateStr), fetchFrequencyStats(token, startDateStr)]);
+		await Promise.all([
+			fetchLogs(token, startDateStr),
+			fetchFrequencyStats(token, startDateStr),
+			fetchCooccurrenceStats(token, startDateStr)
+		]);
 	}
 
 	async function fetchLogs(token: string, startDateStr: string) {
@@ -210,6 +233,27 @@
 			console.error('Frequency stats fetch error:', e);
 		} finally {
 			frequencyLoading = false;
+		}
+	}
+
+	async function fetchCooccurrenceStats(token: string, startDateStr: string) {
+		try {
+			const params = new URLSearchParams({ start_date: startDateStr, min_threshold: '2' });
+			const response = await fetch(`${API_BASE}/api/symptoms/stats/cooccurrence?${params}`, {
+				headers: { Authorization: `Bearer ${token}` }
+			});
+
+			if (!response.ok) {
+				cooccurrenceError = `Failed to load patterns (${response.status}). Please try again.`;
+			} else {
+				const data = await response.json();
+				cooccurrenceStats = data.pairs ?? [];
+			}
+		} catch (e) {
+			cooccurrenceError = 'Network error. Please check your connection and try again.';
+			console.error('Co-occurrence stats fetch error:', e);
+		} finally {
+			cooccurrenceLoading = false;
 		}
 	}
 
@@ -280,6 +324,77 @@
 						<span class="w-6 shrink-0 text-right text-sm font-medium tabular-nums text-slate-500">
 							{stat.count}
 						</span>
+					</li>
+				{/each}
+			</ol>
+		{/if}
+	</section>
+
+	<!-- Co-occurrence Section -->
+	<section
+		class="mb-8 rounded-2xl border border-slate-200 bg-white px-6 py-5 shadow-sm"
+		aria-labelledby="coocc-heading"
+	>
+		<div class="mb-5 flex items-start justify-between gap-2">
+			<div>
+				<h2 id="coocc-heading" class="text-base font-semibold text-slate-800">
+					Symptoms That Travel Together
+				</h2>
+				<p class="mt-0.5 text-sm text-slate-400">Patterns in your symptom logs</p>
+			</div>
+			<!-- Info tooltip -->
+			<button
+				title="When two symptoms appear together often, it's worth noting — it can help you spot triggers and have more informed conversations with your provider."
+				aria-label="About co-occurrence patterns"
+				class="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-slate-200 text-xs text-slate-400 transition-colors hover:border-teal-300 hover:text-teal-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-300"
+			>
+				?
+			</button>
+		</div>
+
+		{#if cooccurrenceLoading}
+			<div class="flex items-center justify-center py-10">
+				<div class="text-sm text-slate-400">Loading...</div>
+			</div>
+		{:else if cooccurrenceError}
+			<div class="rounded-xl border border-red-200 bg-red-50 px-5 py-4 text-sm text-red-700">
+				{cooccurrenceError}
+			</div>
+		{:else if topPairs.length === 0}
+			<p class="py-6 text-center text-sm text-slate-400">
+				Not enough data yet to identify patterns. Keep logging to see connections.
+			</p>
+		{:else}
+			<ol class="divide-y divide-slate-50" aria-label="Symptom co-occurrence patterns">
+				{#each topPairs as pair (`${pair.symptom1_id}-${pair.symptom2_id}`)}
+					<li class="flex items-center justify-between gap-4 py-3 first:pt-0 last:pb-0">
+						<!-- Symptom names -->
+						<div class="flex min-w-0 flex-wrap items-center gap-1.5">
+							<span
+								class="rounded-full border border-teal-100 bg-teal-50 px-2.5 py-0.5 text-sm font-medium text-teal-700"
+							>
+								{pair.symptom1_name}
+							</span>
+							<span class="text-xs text-slate-400">and</span>
+							<span
+								class="rounded-full border border-teal-100 bg-teal-50 px-2.5 py-0.5 text-sm font-medium text-teal-700"
+							>
+								{pair.symptom2_name}
+							</span>
+						</div>
+
+						<!-- Stats -->
+						<div class="shrink-0 text-right">
+							<span class="text-lg font-bold tabular-nums text-teal-600">
+								{Math.round(pair.cooccurrence_rate * 100)}%
+							</span>
+							<span class="ml-1 text-xs text-slate-400">
+								of the time
+							</span>
+							<div class="text-xs text-slate-400">
+								{pair.cooccurrence_count} {pair.cooccurrence_count === 1 ? 'time' : 'times'} together
+							</div>
+						</div>
 					</li>
 				{/each}
 			</ol>

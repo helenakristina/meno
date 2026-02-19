@@ -68,3 +68,24 @@ class FrequencyStatsResponse(BaseModel):
     date_range_start: date
     date_range_end: date
     total_logs: int
+
+
+class SymptomPair(BaseModel):
+    symptom1_id: str
+    symptom1_name: str
+    symptom2_id: str
+    symptom2_name: str
+    # How many logs contain both symptoms
+    cooccurrence_count: int
+    # cooccurrence_count / total logs containing symptom1 (symptom1's perspective)
+    cooccurrence_rate: float
+    total_occurrences_symptom1: int
+
+
+class CooccurrenceStatsResponse(BaseModel):
+    pairs: list[SymptomPair]
+    date_range_start: date
+    date_range_end: date
+    total_logs: int
+    # Pairs with fewer co-occurrences than this were excluded
+    min_threshold: int
