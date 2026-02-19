@@ -34,7 +34,7 @@ _Version 1.0 | Living Document - Not Carved in Marble_
 
 **Meno** is a web application that helps women navigate perimenopause and menopause with clarity, evidence-based information, and compassionate support.
 
-The core emotional promise is: **You are not crazy. You don't have to just live with it. Help is available.**
+The core emotional promise is: **Your symptoms are real. You don't have to just live with it. Help is available.**
 
 Perimenopause and menopause produce a constellation of symptoms that are frequently dismissed, misdiagnosed, or attributed to unrelated causes. Meno helps women track their symptoms over time, understand patterns, access current research, and arrive at healthcare appointments prepared and informed.
 
@@ -494,7 +494,7 @@ Initial state: 6-8 symptom cards visible, ordered by:
 - Calculated in Python/SQL: co-occurrence matrix across all symptom pairs
 - Display threshold: only show pairs with >2 co-occurrences (avoid noise)
 - Example display: "Sleep disruption + Brain fog occurred together 78% of the time"
-- This is the "you are not crazy" feature
+- This is the "validate your experience" feature — seeing real patterns validates that symptoms and their connections are real
 
 **Bottom row - two cards side by side:**
 

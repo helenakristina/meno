@@ -9,7 +9,7 @@
 
 **Meno** is a web application that helps women navigate perimenopause and menopause with clarity, evidence-based information, and compassionate support.
 
-**Core Mission:** You are not crazy. You don't have to just live with it. Help is available.
+**Core Mission:** Your symptoms are real. You don't have to just live with it. Help is available.
 
 **What Meno Is:**
 - A personal symptom tracking tool

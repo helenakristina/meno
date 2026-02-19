@@ -47,7 +47,7 @@ Each row shows:
 
 This chart is calculated entirely from your data — no AI is involved. It's just a straightforward count.
 
-> **This is the "you are not crazy" feature.** Seeing "Hot flashes: 18" or "Brain fog: 12" in black and white is often the first time a pattern becomes undeniable.
+> **This is the feature that validates your experience.** Seeing "Hot flashes: 18" or "Brain fog: 12" in black and white is often the first time a pattern becomes undeniable — proof that what you're feeling is real and worth taking seriously.
 
 ---
 
