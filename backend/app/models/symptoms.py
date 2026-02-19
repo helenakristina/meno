@@ -4,6 +4,12 @@ from typing import Literal
 from pydantic import BaseModel, Field, model_validator
 
 
+class SymptomDetail(BaseModel):
+    id: str
+    name: str
+    category: str
+
+
 class SymptomLogCreate(BaseModel):
     # UUIDs from symptoms_reference.id — validated against the table on create.
     symptoms: list[str] = Field(
@@ -39,11 +45,9 @@ class SymptomLogResponse(BaseModel):
     id: str
     user_id: str
     logged_at: datetime
-    symptoms: list[str]
+    symptoms: list[SymptomDetail]
     free_text_entry: str | None
     source: str
-
-    model_config = {"from_attributes": True}
 
 
 class SymptomLogList(BaseModel):

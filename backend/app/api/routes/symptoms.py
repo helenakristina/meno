@@ -6,7 +6,12 @@ from fastapi import APIRouter, Depends, Header, HTTPException, Query, status
 from supabase import AsyncClient
 
 from app.core.supabase import get_client
-from app.models.symptoms import SymptomLogCreate, SymptomLogList, SymptomLogResponse
+from app.models.symptoms import (
+    SymptomDetail,
+    SymptomLogCreate,
+    SymptomLogList,
+    SymptomLogResponse,
+)
 from app.services.symptoms import validate_symptom_ids
 
 logger = logging.getLogger(__name__)
@@ -71,6 +76,62 @@ SupabaseClient = Annotated[AsyncClient, Depends(get_client)]
 
 
 # ---------------------------------------------------------------------------
+# Symptom enrichment helpers
+# ---------------------------------------------------------------------------
+
+
+async def _fetch_symptom_lookup(
+    symptom_ids: list[str], client: AsyncClient
+) -> dict[str, SymptomDetail]:
+    """Query symptoms_reference for the given IDs and return an id → SymptomDetail map.
+
+    Missing IDs are silently omitted from the result; callers handle the
+    fallback so we avoid a tight coupling between this helper and logging policy.
+    """
+    if not symptom_ids:
+        return {}
+    response = (
+        await client.table("symptoms_reference")
+        .select("id, name, category")
+        .in_("id", symptom_ids)
+        .execute()
+    )
+    return {
+        row["id"]: SymptomDetail(
+            id=row["id"], name=row["name"], category=row["category"]
+        )
+        for row in (response.data or [])
+    }
+
+
+def _enrich_log(row: dict, lookup: dict[str, SymptomDetail]) -> SymptomLogResponse:
+    """Build a SymptomLogResponse, resolving symptom IDs to SymptomDetail objects.
+
+    Any ID not present in the lookup is a data-integrity anomaly: a warning is
+    logged and a fallback SymptomDetail with name=id and category="unknown" is
+    used so the log is never silently dropped.
+    """
+    enriched: list[SymptomDetail] = []
+    for sid in row.get("symptoms") or []:
+        if sid in lookup:
+            enriched.append(lookup[sid])
+        else:
+            logger.warning(
+                "Symptom ID %s not found in symptoms_reference (data integrity issue)",
+                sid,
+            )
+            enriched.append(SymptomDetail(id=sid, name=sid, category="unknown"))
+    return SymptomLogResponse(
+        id=row["id"],
+        user_id=row["user_id"],
+        logged_at=row["logged_at"],
+        symptoms=enriched,
+        free_text_entry=row.get("free_text_entry"),
+        source=row["source"],
+    )
+
+
+# ---------------------------------------------------------------------------
 # POST /api/symptoms/logs
 # ---------------------------------------------------------------------------
 
@@ -132,8 +193,21 @@ async def create_symptom_log(
         )
 
     created = response.data[0]
+    try:
+        lookup = await _fetch_symptom_lookup(created.get("symptoms") or [], client)
+    except Exception as exc:
+        logger.error(
+            "Failed to enrich symptom data for log %s: %s",
+            created["id"],
+            exc,
+            exc_info=True,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to create symptom log",
+        )
     logger.info("Symptom log created: id=%s user=%s", created["id"], user_id)
-    return SymptomLogResponse(**created)
+    return _enrich_log(created, lookup)
 
 
 # ---------------------------------------------------------------------------
@@ -175,6 +249,8 @@ async def get_symptom_logs(
         HTTPException: 422 if any query parameter fails validation.
         HTTPException: 500 if the database query fails.
     """
+    rows: list[dict] = []
+    lookup: dict[str, SymptomDetail] = {}
     try:
         query = client.table("symptom_logs").select("*").eq("user_id", user_id)
 
@@ -202,6 +278,12 @@ async def get_symptom_logs(
         query = query.order("logged_at", desc=True).limit(limit)
         response = await query.execute()
 
+        rows = response.data or []
+        unique_ids = list(
+            {sid for row in rows for sid in (row.get("symptoms") or [])}
+        )
+        lookup = await _fetch_symptom_lookup(unique_ids, client)
+
     except Exception as exc:
         logger.error(
             "DB query failed for user %s: %s",
@@ -214,6 +296,6 @@ async def get_symptom_logs(
             detail="Failed to retrieve symptom logs",
         )
 
-    logs = [SymptomLogResponse(**row) for row in (response.data or [])]
+    logs = [_enrich_log(row, lookup) for row in rows]
     logger.info("Retrieved %d symptom logs for user %s", len(logs), user_id)
     return SymptomLogList(logs=logs, count=len(logs), limit=limit)

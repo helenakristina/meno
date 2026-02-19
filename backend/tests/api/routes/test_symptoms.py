@@ -61,7 +61,10 @@ class MockQueryBuilder:
 
 def make_ref_data(symptom_ids: list[str]) -> list[dict]:
     """Build mock symptoms_reference rows matching the given IDs (all valid)."""
-    return [{"id": sid} for sid in set(symptom_ids)]
+    return [
+        {"id": sid, "name": f"Symptom {sid}", "category": "general"}
+        for sid in set(symptom_ids)
+    ]
 
 
 def make_mock_client(
@@ -156,7 +159,9 @@ class TestCreateSymptomLog:
         body = response.json()
         assert body["id"] == STORED_LOG["id"]
         assert body["user_id"] == USER_ID
-        assert body["symptoms"] == CARDS_PAYLOAD["symptoms"]
+        # symptoms are now enriched SymptomDetail objects, not raw ID strings
+        assert [s["id"] for s in body["symptoms"]] == CARDS_PAYLOAD["symptoms"]
+        assert all("name" in s and "category" in s for s in body["symptoms"])
         assert body["source"] == "cards"
         assert body["free_text_entry"] is None
 
@@ -378,7 +383,11 @@ class TestCreateSymptomLog:
 
 class TestGetSymptomLogs:
     def test_returns_200_with_logs_list(self):
-        mock = make_mock_client(user_id=USER_ID, data=[STORED_LOG])
+        mock = make_mock_client(
+            user_id=USER_ID,
+            data=[STORED_LOG],
+            symptoms_ref_data=make_ref_data(STORED_LOG["symptoms"]),
+        )
         cleanup = override(mock)
         try:
             with TestClient(app) as client:
@@ -394,8 +403,12 @@ class TestGetSymptomLogs:
         assert body["count"] == 1
         assert body["limit"] == 50  # default
         assert len(body["logs"]) == 1
-        assert body["logs"][0]["id"] == STORED_LOG["id"]
-        assert body["logs"][0]["user_id"] == USER_ID
+        log = body["logs"][0]
+        assert log["id"] == STORED_LOG["id"]
+        assert log["user_id"] == USER_ID
+        # symptoms must be enriched objects, not raw strings
+        assert isinstance(log["symptoms"], list)
+        assert all("id" in s and "name" in s and "category" in s for s in log["symptoms"])
 
     def test_returns_empty_list_when_user_has_no_logs(self):
         mock = make_mock_client(user_id=USER_ID, data=[])
@@ -570,3 +583,50 @@ class TestGetSymptomLogs:
         assert len(body["logs"]) == 3
         # First log in response should be the most recent
         assert body["logs"][0]["id"] == "log-1"
+
+    def test_get_logs_enriches_symptom_data(self):
+        """Verify symptom IDs are resolved to name+category objects via symptoms_reference."""
+        symptom_ids = ["symptom-uuid-1", "symptom-uuid-2"]
+        log = {**STORED_LOG, "symptoms": symptom_ids}
+        ref_data = [
+            {"id": "symptom-uuid-1", "name": "Hot flashes", "category": "vasomotor"},
+            {"id": "symptom-uuid-2", "name": "Brain fog", "category": "cognitive"},
+        ]
+        mock = make_mock_client(user_id=USER_ID, data=[log], symptoms_ref_data=ref_data)
+        cleanup = override(mock)
+        try:
+            with TestClient(app) as client:
+                response = client.get("/api/symptoms/logs", headers=AUTH_HEADER)
+        finally:
+            cleanup()
+
+        assert response.status_code == 200
+        symptoms = response.json()["logs"][0]["symptoms"]
+        assert len(symptoms) == 2
+        assert symptoms[0] == {
+            "id": "symptom-uuid-1",
+            "name": "Hot flashes",
+            "category": "vasomotor",
+        }
+        assert symptoms[1] == {
+            "id": "symptom-uuid-2",
+            "name": "Brain fog",
+            "category": "cognitive",
+        }
+
+    def test_get_logs_uses_fallback_for_unknown_symptom_id(self):
+        """An ID absent from symptoms_reference falls back to id/unknown rather than failing."""
+        log = {**STORED_LOG, "symptoms": ["orphan-id"]}
+        mock = make_mock_client(user_id=USER_ID, data=[log], symptoms_ref_data=[])
+        cleanup = override(mock)
+        try:
+            with TestClient(app) as client:
+                response = client.get("/api/symptoms/logs", headers=AUTH_HEADER)
+        finally:
+            cleanup()
+
+        assert response.status_code == 200
+        symptoms = response.json()["logs"][0]["symptoms"]
+        assert len(symptoms) == 1
+        assert symptoms[0]["id"] == "orphan-id"
+        assert symptoms[0]["category"] == "unknown"
