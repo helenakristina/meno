@@ -404,6 +404,81 @@ PostgreSQL (RLS enforces user isolation)
 3. Behavioral guardrails (soft redirects, no medical advice, current HRT evidence)
 4. Dynamic context (user journey stage, age, cached summary, RAG chunks)
 
+### LLM Provider Strategy (Development vs Production)
+
+#### Current Approach: OpenAI for Development
+
+**Why OpenAI for V1:**
+- Free API tier during development (no training data usage)
+- Cost-effective while building and iterating
+- Functionally equivalent to Claude for our use cases
+- Same embedding model (text-embedding-3-small) for RAG
+
+**Models Used:**
+- **Chat completions:** gpt-4o-mini (development) or gpt-4o (if needed)
+- **Embeddings:** text-embedding-3-small (development and production)
+
+#### Future Migration to Claude (Production)
+
+**When to migrate:**
+- App is ready for production/monetization
+- Need Claude's superior reasoning for complex medical context
+- Budget allows for Claude API costs
+
+**Migration is straightforward** — the APIs are very similar:
+```python
+# OpenAI (current)
+from openai import OpenAI
+client = OpenAI(api_key=settings.OPENAI_API_KEY)
+response = client.chat.completions.create(
+    model="gpt-4o-mini",
+    messages=[{"role": "user", "content": prompt}]
+)
+text = response.choices[0].message.content
+
+# Claude (future)
+from anthropic import Anthropic
+client = Anthropic(api_key=settings.ANTHROPIC_API_KEY)
+response = client.messages.create(
+    model="claude-sonnet-4-20250514",
+    max_tokens=1024,
+    messages=[{"role": "user", "content": prompt}]
+)
+text = response.content[0].text
+```
+
+**Key differences:**
+- Response structure: `.choices[0].message.content` vs `.content[0].text`
+- Claude requires `max_tokens` parameter (OpenAI has a default)
+- Otherwise identical message format and behavior
+
+**Abstraction strategy:**
+Create a thin wrapper in `backend/app/services/llm.py` that provides a unified interface:
+```python
+def chat_completion(messages: list[dict], max_tokens: int = 1024) -> str:
+    if settings.LLM_PROVIDER == "openai":
+        # OpenAI logic
+    elif settings.LLM_PROVIDER == "claude":
+        # Claude logic
+```
+
+This way the migration is a single environment variable change + updating one wrapper file.
+
+**Files that will need updates during migration:**
+- `backend/app/services/llm.py` (wrapper implementation)
+- `backend/app/core/config.py` (add `LLM_PROVIDER` setting)
+- `.env` files (keep both API keys during transition)
+- Tests (mock the wrapper, not the provider directly)
+
+#### Why Claude for Production?
+
+- **Better reasoning:** Claude excels at nuanced medical context and multi-step reasoning
+- **Stronger guardrails:** Better at following complex system prompts (medical advice boundary)
+- **Citation handling:** More reliable at maintaining inline citations throughout responses
+- **Safety alignment:** Anthropic's focus on AI safety aligns with health data sensitivity
+
+The design of Meno (Python calculates, LLM narrates) means the LLM provider is a swappable component, not a fundamental architecture decision.
+
 ### RAG Pipeline
 
 **Knowledge Sources:**
