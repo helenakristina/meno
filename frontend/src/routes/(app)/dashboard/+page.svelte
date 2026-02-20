@@ -309,7 +309,7 @@
 				<h2 id="coocc-heading" class="text-base font-semibold text-slate-800">
 					Symptoms That Travel Together
 				</h2>
-				<p class="mt-0.5 text-sm text-slate-400">Patterns in your symptom logs</p>
+				<p class="mt-0.5 text-sm text-slate-400">How often symptoms appear together in your logs</p>
 			</div>
 			<!-- Info tooltip -->
 			<button
@@ -336,33 +336,35 @@
 		{:else}
 			<ol class="divide-y divide-slate-50" aria-label="Symptom co-occurrence patterns">
 				{#each topPairs as pair (`${pair.symptom1_id}-${pair.symptom2_id}`)}
-					<li class="flex items-center justify-between gap-4 py-3 first:pt-0 last:pb-0">
-						<!-- Symptom names -->
-						<div class="flex min-w-0 flex-wrap items-center gap-1.5">
-							<span
-								class="rounded-full border border-teal-100 bg-teal-50 px-2.5 py-0.5 text-sm font-medium text-teal-700"
-							>
-								{pair.symptom1_name}
-							</span>
-							<span class="text-xs text-slate-400">and</span>
-							<span
-								class="rounded-full border border-teal-100 bg-teal-50 px-2.5 py-0.5 text-sm font-medium text-teal-700"
-							>
-								{pair.symptom2_name}
-							</span>
+					<li class="flex items-start justify-between gap-4 py-3 first:pt-0 last:pb-0">
+						<!-- Symptom names + subtext -->
+						<div class="min-w-0">
+							<div class="flex flex-wrap items-center gap-1.5">
+								<span class="text-sm text-slate-500">When you logged</span>
+								<span
+									class="rounded-full border border-teal-100 bg-teal-50 px-2.5 py-0.5 text-sm font-medium text-teal-700"
+								>
+									{pair.symptom1_name}
+								</span>
+								<span class="text-sm text-slate-500">, you also logged</span>
+								<span
+									class="rounded-full border border-teal-100 bg-teal-50 px-2.5 py-0.5 text-sm font-medium text-teal-700"
+								>
+									{pair.symptom2_name}
+								</span>
+							</div>
+							<p class="mt-1 pl-0.5 text-sm text-slate-400">
+								({pair.cooccurrence_count}
+								{pair.cooccurrence_count === 1 ? 'time' : 'times'} together out of {pair.total_occurrences_symptom1}
+								{pair.symptom1_name} logs)
+							</p>
 						</div>
 
-						<!-- Stats -->
+						<!-- Percentage -->
 						<div class="shrink-0 text-right">
 							<span class="text-lg font-bold tabular-nums text-teal-600">
 								{Math.round(pair.cooccurrence_rate * 100)}%
 							</span>
-							<span class="ml-1 text-xs text-slate-400">
-								of the time
-							</span>
-							<div class="text-xs text-slate-400">
-								{pair.cooccurrence_count} {pair.cooccurrence_count === 1 ? 'time' : 'times'} together
-							</div>
 						</div>
 					</li>
 				{/each}
