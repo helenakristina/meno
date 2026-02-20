@@ -3,23 +3,26 @@
 No DB or network access; all inputs are constructed inline.
 """
 
+from typing import Dict, List, Optional
 from app.services.stats import calculate_cooccurrence_stats, calculate_frequency_stats
 
 # ---------------------------------------------------------------------------
 # Shared fixtures
 # ---------------------------------------------------------------------------
 
-REF = {
+REF: Dict[str, Dict[str, str]] = {
     "id-a": {"id": "id-a", "name": "Hot flashes", "category": "vasomotor"},
     "id-b": {"id": "id-b", "name": "Fatigue", "category": "energy"},
     "id-c": {"id": "id-c", "name": "Brain fog", "category": "cognitive"},
 }
 
-LOG_AB = {"symptoms": ["id-a", "id-b"]}
-LOG_AC = {"symptoms": ["id-a", "id-c"]}
-LOG_A = {"symptoms": ["id-a"]}
-LOG_EMPTY = {"symptoms": []}
-LOG_NONE = {"symptoms": None}
+LogType = Dict[str, Optional[List[str]]]
+
+LOG_AB: LogType = {"symptoms": ["id-a", "id-b"]}
+LOG_AC: LogType = {"symptoms": ["id-a", "id-c"]}
+LOG_A: LogType = {"symptoms": ["id-a"]}
+LOG_EMPTY: LogType = {"symptoms": []}
+LOG_NONE: LogType = {"symptoms": None}
 
 
 # ---------------------------------------------------------------------------
