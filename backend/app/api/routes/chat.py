@@ -3,7 +3,6 @@
 Each request is independent (no conversation history sent to OpenAI) to keep
 costs low while still storing the full conversation in Supabase for UX continuity.
 """
-import json
 import logging
 import re
 from datetime import date
@@ -211,13 +210,11 @@ async def _save_conversation(
     client: AsyncClient,
 ) -> UUID:
     """Upsert conversation messages. Returns the (possibly new) conversation UUID."""
-    messages_json = json.dumps(messages)
-
     if conversation_id is not None:
         try:
             await (
                 client.table("conversations")
-                .update({"messages": messages_json})
+                .update({"messages": messages})
                 .eq("id", str(conversation_id))
                 .eq("user_id", user_id)
                 .execute()
@@ -239,7 +236,7 @@ async def _save_conversation(
     try:
         response = (
             await client.table("conversations")
-            .insert({"user_id": user_id, "messages": messages_json})
+            .insert({"user_id": user_id, "messages": messages})
             .execute()
         )
     except Exception as exc:
