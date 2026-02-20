@@ -309,6 +309,72 @@ cache_ttl = 86400
 
 ---
 
+## Architecture Patterns
+
+### Backend Service Layer
+
+Business logic lives in `backend/app/services/`, separate from route handlers.
+
+**Stats calculations** — `backend/app/services/stats.py`:
+- `calculate_frequency_stats(logs, symptoms_reference)` → `list[SymptomFrequency]`
+- `calculate_cooccurrence_stats(logs, symptoms_reference, min_threshold=2)` → `list[SymptomPair]`
+- `MAX_COOCCURRENCE_PAIRS = 10` — cap exported as a constant so tests can reference it
+
+**Division of responsibilities:**
+- **Routes** handle HTTP concerns: auth, query params, DB fetches, response formatting, error codes
+- **Services** handle business logic: calculations, transformations, data shaping — no DB access
+- **Services are pure functions** — stateless, no side effects, easy to unit-test
+
+**Testing services directly** — `backend/tests/services/`:
+```python
+# No mocking needed — pass constructed dicts, assert on returned models
+from app.services.stats import calculate_frequency_stats
+
+def test_counts_sorted_descending():
+    logs = [{"symptoms": ["id-a", "id-b"]}, {"symptoms": ["id-a"]}]
+    ref = {"id-a": {"name": "Hot flashes", "category": "vasomotor"}, ...}
+    stats = calculate_frequency_stats(logs, ref)
+    assert stats[0].symptom_id == "id-a"
+    assert stats[0].count == 2
+```
+
+---
+
+### Frontend API Client
+
+All backend API calls go through `frontend/src/lib/api/client.ts`. Never call `fetch()` directly for backend requests.
+
+**Import and use:**
+```typescript
+import { apiClient } from '$lib/api/client';
+
+// GET with query params
+const data = await apiClient.get<{ logs: Log[] }>('/api/symptoms/logs', { start_date: '2026-01-01', limit: 50 });
+
+// POST with body
+await apiClient.post('/api/symptoms/logs', { symptoms: ['id-a'], source: 'cards' });
+
+// File download
+const blob = await apiClient.get('/api/export/pdf', {}, { responseType: 'blob' });
+```
+
+**What the client handles automatically:**
+- Auth token from `supabase.auth.getSession()` — throws `"Not authenticated"` if missing
+- `Authorization: Bearer <token>` header on every request
+- `Content-Type: application/json` for POST/PUT
+- Error body parsing — surfaces `detail` field from FastAPI error responses
+- Network errors — throws `"Network error. Please check your connection..."`
+
+**What callers handle:**
+- Catching errors and setting `error` state for display
+- Typing the response with generics (`apiClient.get<MyType>(...)`)
+
+**Base URL:** Reads `VITE_API_BASE_URL` env var, falls back to `http://localhost:8000`. Set this in `.env` for staging/production.
+
+**Do not:** manually fetch the auth token, set Authorization headers, or call `fetch()` for backend API endpoints. Use the client.
+
+---
+
 ## Development Workflow
 
 ### Running Locally
