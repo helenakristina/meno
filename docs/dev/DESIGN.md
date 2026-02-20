@@ -128,9 +128,12 @@ The 2002 Women's Health Initiative study has been substantially reanalyzed and i
 | Backend hosting   | Railway                       | Simple deploys, $5/month free credit covers a personal project              |
 | Embeddings (dev)  | sentence-transformers         | Free, runs locally, good for development                                    |
 | Embeddings (prod) | OpenAI text-embedding-3-small | Cost-effective, high quality, industry standard                             |
-| LLM               | Claude (Anthropic API)        | Best-in-class reasoning, strong instruction following for guardrails        |
+| LLM (dev)         | OpenAI (gpt-4o-mini)          | Free tier for development, cost-effective                                   |
+| LLM (prod)        | Claude (Anthropic API)        | Best-in-class reasoning for production, superior medical context handling   |
 | Component library | shadcn-svelte                 | Clean modern foundation, TypeScript first, strong community                 |
 | Version control   | GitHub                        | Portfolio-ready, automatic Vercel/Railway deploys                           |
+
+### Section 7 - Architecture Overview (replace Deployment Architecture diagram)
 
 ### Deployment Architecture
 
@@ -145,7 +148,7 @@ Railway (FastAPI backend)
   │
   ├──▶ Supabase (PostgreSQL + pgvector + Auth)
   │
-  └──▶ Anthropic API (Claude)
+  └──▶ OpenAI API (gpt-4o-mini, dev) / Claude API (prod)
 ```
 
 ---
@@ -501,7 +504,7 @@ Initial state: 6-8 symptom cards visible, ordered by:
 _AI Insight Card:_
 
 - "Generate My Insight" button
-- On click: Python calculates current stats → sends calculated findings + RAG chunks to Claude → Claude writes narrative with inline citations
+- On click: Python calculates current stats → sends calculated findings + RAG chunks to OpenAI → OpenAI writes narrative with inline citations
 - Shows date last generated
 - "Regenerate" option
 - Never auto-generates on page load (cost conscious)
@@ -580,7 +583,7 @@ Every provider card shows a "Last verified" date. A site-wide disclaimer reads:
 **Provider card displays:**
 
 - Name + credentials (MD, DO, NP, etc.)
-- Practice name
+- Practice name 
 - Distance from searched location
 - NAMS Certified badge (visually prominent where applicable)
 - Provider type
@@ -589,12 +592,12 @@ Every provider card shows a "Last verified" date. A site-wide disclaimer reads:
 - Phone number + website link
 - Last verified date
 
-**The Calling Assistant (Claude-powered):**
+**The Calling Assistant (OpenAI-powered):**
 
 This feature directly addresses the "calling 15 providers" problem. When a user finds providers they want to contact:
 
 1. Save to personal shortlist (stored per user, not shared data)
-2. "Generate my calling script" → Claude generates a short, confident paragraph personalized to their insurance and needs
+2. "Generate my calling script" → OpenAI generates a short, confident paragraph personalized to their insurance and needs
 3. Private call tracker per provider:
    - Status: To call / Called / Left voicemail / Booking / Not available
    - Private notes: "Said to call back in 3 months", "Takes Aetna but not Blue Cross"

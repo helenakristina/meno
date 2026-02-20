@@ -12,6 +12,7 @@
 **Core Mission:** Your symptoms are real. You don't have to just live with it. Help is available.
 
 **What Meno Is:**
+
 - A personal symptom tracking tool
 - An educational resource grounded in current research
 - A pattern recognition assistant using LLM technology
@@ -19,6 +20,7 @@
 - A bridge between patients and informed healthcare conversations
 
 **What Meno Is NOT:**
+
 - A diagnostic tool
 - A treatment recommendation engine
 - A replacement for medical advice
@@ -31,6 +33,7 @@
 ## Tech Stack
 
 ### Frontend
+
 - **SvelteKit 2.x** with TypeScript
 - **Svelte 5** (using runes: `$state`, `$derived`, `$effect`, `$props`)
 - **Tailwind CSS 4.x** for styling
@@ -39,12 +42,14 @@
 - **Node 25+**
 
 **Important Svelte 5 Conventions:**
+
 - Use `let { children } = $props()` and `{@render children()}` instead of `<slot />`
 - Use `onclick={}` instead of `on:click={}`
 - Use `$state()` for reactive variables
 - Import from `$app/state` not `$app/stores` (page rune)
 
 ### Backend
+
 - **FastAPI** (Python 3.11+) with async/await throughout
 - **uv** for Python dependency management
 - **Supabase** (PostgreSQL 15+) for database
@@ -54,6 +59,7 @@
 - **sentence-transformers** for embeddings in local development
 
 ### Infrastructure
+
 - **Vercel** - Frontend hosting (auto-deploy from main branch)
 - **Railway** - Backend hosting (auto-deploy from main branch)
 - **Supabase** - Database, auth, and storage
@@ -114,6 +120,7 @@ meno/
 **Full schema documented in:** `docs/dev/DESIGN.md` (Section 9: Data Models)
 
 **Key Tables:**
+
 - `users` - User profiles, references auth.users
 - `symptom_logs` - Daily symptom entries
 - `symptoms_reference` - Master list of 34 symptoms (public reference data)
@@ -134,30 +141,35 @@ meno/
 ### Python (Backend)
 
 **Style:**
+
 - Use `ruff` for linting and formatting (already configured)
 - Type hints on all function signatures
 - Async/await throughout - FastAPI is async-first
 - Docstrings for all public functions (Google style)
 
 **Error Handling:**
+
 - Use FastAPI's `HTTPException` for API errors
 - Let exceptions bubble to FastAPI's exception handlers
 - Log errors with context using Python's `logging` module
 - Return proper HTTP status codes (400 for validation, 404 for not found, 500 for server errors)
 
 **Testing:**
+
 - Use `pytest` with `pytest-asyncio`
 - Test files mirror source structure: `tests/api/routes/test_symptoms.py`
 - Mock external services (Supabase, Anthropic, OpenAI)
 - Aim for >70% coverage on business logic
 
 **Logging:**
+
 - Use Python's standard `logging` module
 - Log levels: DEBUG (development), INFO (key events), WARNING (recoverable issues), ERROR (failures)
 - Include request IDs in logs for tracing
 - Never log sensitive data (passwords, API keys, health data)
 
 **Key Patterns:**
+
 ```python
 from fastapi import HTTPException, status
 import logging
@@ -186,40 +198,41 @@ async def some_endpoint():
 ### TypeScript (Frontend)
 
 **Style:**
+
 - Use TypeScript strict mode
 - Svelte 5 runes for reactivity (`$state`, `$derived`, `$effect`)
 - Prefer functional components
 - Use Tailwind utility classes, avoid custom CSS unless necessary
 
 **Error Handling:**
+
 - Try/catch on all async operations
 - Show user-friendly error messages in UI
 - Log errors to console in development
 - Consider Sentry or similar for production error tracking (V2)
 
 **Key Patterns:**
+
 ```typescript
 let loading = $state(false);
-let error = $state('');
+let error = $state("");
 
 async function handleSubmit() {
-    loading = true;
-    error = '';
-    
-    try {
-        const { data, error: apiError } = await supabase
-            .from('table')
-            .select();
-        
-        if (apiError) throw apiError;
-        
-        // Success path
-    } catch (e) {
-        error = e.message;
-        console.error('Operation failed:', e);
-    } finally {
-        loading = false;
-    }
+  loading = true;
+  error = "";
+
+  try {
+    const { data, error: apiError } = await supabase.from("table").select();
+
+    if (apiError) throw apiError;
+
+    // Success path
+  } catch (e) {
+    error = e.message;
+    console.error("Operation failed:", e);
+  } finally {
+    loading = false;
+  }
 }
 ```
 
@@ -232,6 +245,7 @@ async function handleSubmit() {
 **Write docstrings when they add information the code doesn't already convey.**
 
 **✅ Always document:**
+
 - Public API endpoints (what they do, params, returns, raises)
 - Complex business logic (co-occurrence calculation, pattern analysis)
 - LLM integration points (prompt assembly, RAG retrieval, anonymization)
@@ -239,19 +253,21 @@ async function handleSubmit() {
 - Anything where the "why" matters more than the "what"
 
 **Example - Good docstring:**
+
 ```python
 async def calculate_symptom_cooccurrence(logs: list[SymptomLog]) -> dict[tuple[str, str], float]:
     """
     Calculate co-occurrence rates between all symptom pairs.
-    
+
     Returns a dict mapping symptom pairs to their co-occurrence percentage.
     Example: {('fatigue', 'brain_fog'): 0.78} means they occurred together 78% of the time.
-    
+
     Used by the dashboard to show "symptoms that travel together" insight card.
     """
 ```
 
 **❌ Skip docstrings for:**
+
 - Self-explanatory functions (name + types say it all)
 - Simple CRUD operations
 - Test functions (use descriptive test names instead: `test_X_when_Y_then_Z`)
@@ -259,6 +275,7 @@ async def calculate_symptom_cooccurrence(logs: list[SymptomLog]) -> dict[tuple[s
 - Private helper functions only called internally
 
 **Example - No docstring needed:**
+
 ```python
 async def get_user(user_id: str) -> User:
     # Name and types are clear, no docstring needed
@@ -268,6 +285,7 @@ async def get_user(user_id: str) -> User:
 ### Test Documentation
 
 **Use descriptive test names instead of docstrings:**
+
 ```python
 # Good - test name is self-documenting
 async def test_create_symptom_log_returns_401_when_missing_auth():
@@ -280,6 +298,7 @@ async def test_auth():
 ```
 
 **Group related tests with comments when helpful:**
+
 ```python
 # Authentication tests
 async def test_create_log_requires_valid_token():
@@ -296,6 +315,7 @@ async def test_create_log_requires_at_least_one_symptom():
 ### Code Comments
 
 **Use comments sparingly for "why" not "what":**
+
 ```python
 # Good - explains why
 # We cache summaries for 24 hours because regenerating them on every
@@ -316,16 +336,19 @@ cache_ttl = 86400
 Business logic lives in `backend/app/services/`, separate from route handlers.
 
 **Stats calculations** — `backend/app/services/stats.py`:
+
 - `calculate_frequency_stats(logs, symptoms_reference)` → `list[SymptomFrequency]`
 - `calculate_cooccurrence_stats(logs, symptoms_reference, min_threshold=2)` → `list[SymptomPair]`
 - `MAX_COOCCURRENCE_PAIRS = 10` — cap exported as a constant so tests can reference it
 
 **Division of responsibilities:**
+
 - **Routes** handle HTTP concerns: auth, query params, DB fetches, response formatting, error codes
 - **Services** handle business logic: calculations, transformations, data shaping — no DB access
 - **Services are pure functions** — stateless, no side effects, easy to unit-test
 
 **Testing services directly** — `backend/tests/services/`:
+
 ```python
 # No mocking needed — pass constructed dicts, assert on returned models
 from app.services.stats import calculate_frequency_stats
@@ -345,20 +368,32 @@ def test_counts_sorted_descending():
 All backend API calls go through `frontend/src/lib/api/client.ts`. Never call `fetch()` directly for backend requests.
 
 **Import and use:**
+
 ```typescript
-import { apiClient } from '$lib/api/client';
+import { apiClient } from "$lib/api/client";
 
 // GET with query params
-const data = await apiClient.get<{ logs: Log[] }>('/api/symptoms/logs', { start_date: '2026-01-01', limit: 50 });
+const data = await apiClient.get<{ logs: Log[] }>("/api/symptoms/logs", {
+  start_date: "2026-01-01",
+  limit: 50,
+});
 
 // POST with body
-await apiClient.post('/api/symptoms/logs', { symptoms: ['id-a'], source: 'cards' });
+await apiClient.post("/api/symptoms/logs", {
+  symptoms: ["id-a"],
+  source: "cards",
+});
 
 // File download
-const blob = await apiClient.get('/api/export/pdf', {}, { responseType: 'blob' });
+const blob = await apiClient.get(
+  "/api/export/pdf",
+  {},
+  { responseType: "blob" },
+);
 ```
 
 **What the client handles automatically:**
+
 - Auth token from `supabase.auth.getSession()` — throws `"Not authenticated"` if missing
 - `Authorization: Bearer <token>` header on every request
 - `Content-Type: application/json` for POST/PUT
@@ -366,6 +401,7 @@ const blob = await apiClient.get('/api/export/pdf', {}, { responseType: 'blob' }
 - Network errors — throws `"Network error. Please check your connection..."`
 
 **What callers handle:**
+
 - Catching errors and setting `error` state for display
 - Typing the response with generics (`apiClient.get<MyType>(...)`)
 
@@ -380,6 +416,7 @@ const blob = await apiClient.get('/api/export/pdf', {}, { responseType: 'blob' }
 ### Running Locally
 
 **Backend:**
+
 ```bash
 cd backend
 uv run uvicorn app.main:app --reload
@@ -388,6 +425,7 @@ uv run uvicorn app.main:app --reload
 ```
 
 **Frontend:**
+
 ```bash
 cd frontend
 npm run dev
@@ -399,6 +437,7 @@ npm run dev
 **Never commit `.env` files.** Use `.env.example` as templates.
 
 **Backend `.env`:**
+
 ```bash
 APP_ENV=development
 SUPABASE_URL=https://xxx.supabase.co
@@ -409,6 +448,7 @@ ALLOWED_ORIGINS=["http://localhost:5173"]
 ```
 
 **Frontend `.env`:**
+
 ```bash
 PUBLIC_SUPABASE_URL=https://xxx.supabase.co
 PUBLIC_SUPABASE_ANON_KEY=eyJ...  # Publishable key, safe for browser
@@ -428,17 +468,20 @@ The `PUBLIC_` prefix in SvelteKit means the var is exposed to the browser.
 ## Key Architectural Decisions
 
 ### Monorepo
+
 - Frontend and backend in one repo for easier coordination
 - Shared documentation (`DESIGN.md`, `CLAUDE.md`)
 - Single source of truth
 
 ### Authentication Flow
+
 - Supabase Auth handles all auth (email/password for V1, magic links in V2)
 - Frontend uses `@supabase/supabase-js` client
 - Backend uses service role key for admin operations
 - Row Level Security enforces data isolation at DB level
 
 ### Data Flow: Frontend → Backend → Database
+
 ```
 User Action (Frontend)
     ↓
@@ -454,17 +497,20 @@ PostgreSQL (RLS enforces user isolation)
 ### LLM Integration Strategy
 
 **Division of Labor:**
+
 - **Python calculates statistics** (counts, frequencies, co-occurrences) - deterministic, exact
-- **Claude generates narratives** from those statistics - meaning-making, educational context
-- **Never send raw symptom logs to Claude** - send calculated patterns + cached summary only
+- **OpenAI generates narratives (Claude in production)** from those statistics - meaning-making, educational context
+- **Never send raw symptom logs to the LLM** - send calculated patterns + cached summary only
 
 **Anonymization:**
-- Strip all PII before sending to Claude (no names, emails, exact DOB)
+
+- Strip all PII before sending to the LLM (no names, emails, exact DOB)
 - Use relative dates ("Day 1, Day 3, Day 7") not absolute dates
 - Send only relevant symptom subsets, not full history
 - Cached summary format: "Most frequent symptoms last 30 days: fatigue 18x, brain fog 12x"
 
 **Prompt Architecture (4 layers):**
+
 1. Core identity (who Meno is, what it does/doesn't do)
 2. Source grounding (cite everything, use provided docs only)
 3. Behavioral guardrails (soft redirects, no medical advice, current HRT evidence)
@@ -475,23 +521,27 @@ PostgreSQL (RLS enforces user isolation)
 #### Current Approach: OpenAI for Development
 
 **Why OpenAI for V1:**
+
 - Free API tier during development (no training data usage)
 - Cost-effective while building and iterating
 - Functionally equivalent to Claude for our use cases
 - Same embedding model (text-embedding-3-small) for RAG
 
 **Models Used:**
+
 - **Chat completions:** gpt-4o-mini (development) or gpt-4o (if needed)
 - **Embeddings:** text-embedding-3-small (development and production)
 
 #### Future Migration to Claude (Production)
 
 **When to migrate:**
+
 - App is ready for production/monetization
 - Need Claude's superior reasoning for complex medical context
 - Budget allows for Claude API costs
 
 **Migration is straightforward** — the APIs are very similar:
+
 ```python
 # OpenAI (current)
 from openai import OpenAI
@@ -514,12 +564,14 @@ text = response.content[0].text
 ```
 
 **Key differences:**
+
 - Response structure: `.choices[0].message.content` vs `.content[0].text`
 - Claude requires `max_tokens` parameter (OpenAI has a default)
 - Otherwise identical message format and behavior
 
 **Abstraction strategy:**
 Create a thin wrapper in `backend/app/services/llm.py` that provides a unified interface:
+
 ```python
 def chat_completion(messages: list[dict], max_tokens: int = 1024) -> str:
     if settings.LLM_PROVIDER == "openai":
@@ -531,6 +583,7 @@ def chat_completion(messages: list[dict], max_tokens: int = 1024) -> str:
 This way the migration is a single environment variable change + updating one wrapper file.
 
 **Files that will need updates during migration:**
+
 - `backend/app/services/llm.py` (wrapper implementation)
 - `backend/app/core/config.py` (add `LLM_PROVIDER` setting)
 - `.env` files (keep both API keys during transition)
@@ -548,22 +601,26 @@ The design of Meno (Python calculates, LLM narrates) means the LLM provider is a
 ### RAG Pipeline
 
 **Knowledge Sources:**
+
 - Menopause Wiki (menopausewiki.ca) - scraped with permission
 - 75-150 curated PubMed papers (post-2015 emphasis, high-quality filters)
 - The Menopause Society guidelines
 - British Menopause Society guidelines
 
 **Embedding Strategy:**
+
 - Development: sentence-transformers (free, runs locally)
 - Production: OpenAI text-embedding-3-small (1536 dimensions)
 - Storage: pgvector in Supabase (vector similarity search)
 
 **Chunking:**
+
 - Wiki: 500 tokens per chunk, 50 token overlap, by section
 - PubMed: abstract, methods, results, conclusion as separate chunks
 - Metadata: source URL, title, publication date, section name, study type
 
 **Retrieval:**
+
 - Cosine similarity search via pgvector
 - Top 5 chunks per query
 - Hybrid search (semantic + keyword) in V2
@@ -573,6 +630,7 @@ The design of Meno (Python calculates, LLM narrates) means the LLM provider is a
 ## Privacy & Ethics Principles
 
 ### Data Ownership
+
 - Users own their data
 - Full export available anytime
 - Account deactivation deletes all personal data (30-day soft delete, then hard delete)
@@ -581,22 +639,26 @@ The design of Meno (Python calculates, LLM narrates) means the LLM provider is a
 ### Medical Advice Boundary
 
 **Acceptable:**
+
 - "Research suggests sleep disruption is common during perimenopause"
 - "Your logs show sleep and brain fog co-occurring frequently"
 - "Here are questions to ask your provider about hormone therapy"
 
 **Not Acceptable:**
+
 - "You have perimenopause" (diagnosis)
 - "You should take X supplement" (treatment recommendation)
 - "You don't need to see a doctor" (replacing medical advice)
 
 **Implementation:**
+
 - System prompts enforce this boundary
 - Soft redirects for out-of-scope questions
 - Hard stop for prompt injection attempts
 - Disclaimers throughout UI
 
 ### Security
+
 - All secrets in `.env` files, never committed
 - Row Level Security on all user data tables
 - HTTPS only in production
@@ -610,12 +672,14 @@ The design of Meno (Python calculates, LLM narrates) means the LLM provider is a
 **V1 Status:** Database schema complete, auth working, UI shell built
 
 **Next Priority: Backend API Development**
+
 - Create FastAPI endpoints for symptom logging
 - Connect frontend to backend
 - Implement proper error handling and logging
 - Add comprehensive tests
 
 **Deferred to V2:**
+
 - Period tracking
 - Medication tracking
 - MCP servers for RAG and provider search
@@ -628,7 +692,9 @@ The design of Meno (Python calculates, LLM narrates) means the LLM provider is a
 ## Working with Claude Code
 
 ### When to Use Context7 MCP
+
 Always use Context7 for live documentation on:
+
 - SvelteKit (fast-moving, lots of Svelte 5 changes)
 - FastAPI patterns
 - Supabase SDK
@@ -639,25 +705,30 @@ Always use Context7 for live documentation on:
 ### Request Patterns
 
 **For new features:**
+
 1. Reference this file (`CLAUDE.md`) and `DESIGN.md`
 2. Specify which section you're implementing
 3. Request tests alongside implementation
 4. Ask for error handling and logging
 
 **Example prompt:**
+
 > "Using the context in CLAUDE.md and the database schema in DESIGN.md section 9, implement a FastAPI endpoint for creating symptom logs. Include:
+>
 > - Pydantic models for request/response
 > - Proper error handling with HTTPException
 > - Logging of key events
 > - pytest tests with mocked Supabase calls
 > - Validation that user can only create logs for themselves
-> 
+>
 > Use Context7 to reference FastAPI and Supabase documentation."
 
 **For debugging:**
+
 > "This endpoint is failing with [error]. Check against the patterns in CLAUDE.md and help me debug. Use Context7 for FastAPI error handling best practices."
 
 ### File Creation Guidelines
+
 - Backend code goes in `backend/app/` following the structure in this doc
 - Tests mirror source structure in `backend/tests/`
 - Frontend components in `frontend/src/lib/components/`
@@ -670,17 +741,20 @@ Always use Context7 for live documentation on:
 ### Backend Testing (pytest)
 
 **What to test:**
+
 - API endpoints (happy path + error cases)
 - Business logic in services
 - Data validation in models
 - RAG retrieval accuracy (V2)
 
 **What NOT to test:**
+
 - Supabase internals (mock it)
 - PostgreSQL functions (trust the DB)
 - Third-party APIs (mock them)
 
 **Mock Strategy:**
+
 ```python
 from unittest.mock import AsyncMock, patch
 
@@ -691,7 +765,7 @@ async def test_create_symptom_log():
         "data": [{"id": "123", "symptoms": ["fatigue"]}],
         "error": None
     }
-    
+
     with patch('app.core.supabase.supabase', mock_supabase):
         response = await create_symptom_log(...)
         assert response.status_code == 201
@@ -700,6 +774,7 @@ async def test_create_symptom_log():
 ### Frontend Testing (Vitest)
 
 **Focus on:**
+
 - Component logic (not visual regression)
 - Form validation
 - API call handling
