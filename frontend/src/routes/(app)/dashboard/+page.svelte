@@ -1,8 +1,6 @@
 <script lang="ts">
 	import { slide } from 'svelte/transition';
-	import { supabase } from '$lib/supabase/client';
-
-	const API_BASE = 'http://localhost:8000';
+	import { apiClient } from '$lib/api/client';
 
 	// -------------------------------------------------------------------------
 	// Types
@@ -170,87 +168,58 @@
 		cooccurrenceError = '';
 		expandedNotes = {};
 
-		const { data: sessionData } = await supabase.auth.getSession();
-		const token = sessionData.session?.access_token;
-
-		if (!token) {
-			error = 'Please sign in to view your history.';
-			frequencyError = 'Please sign in to view your history.';
-			cooccurrenceError = 'Please sign in to view your history.';
-			loading = false;
-			frequencyLoading = false;
-			cooccurrenceLoading = false;
-			return;
-		}
-
 		const startDate = new Date();
 		startDate.setDate(startDate.getDate() - (parseInt(range) - 1));
 		const startDateStr = startDate.toLocaleDateString('en-CA');
 
 		await Promise.all([
-			fetchLogs(token, startDateStr),
-			fetchFrequencyStats(token, startDateStr),
-			fetchCooccurrenceStats(token, startDateStr)
+			fetchLogs(startDateStr),
+			fetchFrequencyStats(startDateStr),
+			fetchCooccurrenceStats(startDateStr)
 		]);
 	}
 
-	async function fetchLogs(token: string, startDateStr: string) {
+	async function fetchLogs(startDateStr: string) {
 		try {
-			const params = new URLSearchParams({ start_date: startDateStr, limit: '100' });
-			const response = await fetch(`${API_BASE}/api/symptoms/logs?${params}`, {
-				headers: { Authorization: `Bearer ${token}` }
+			const data = await apiClient.get<{ logs: Log[] }>('/api/symptoms/logs', {
+				start_date: startDateStr,
+				limit: 100
 			});
-
-			if (!response.ok) {
-				error = `Failed to load your history (${response.status}). Please try again.`;
-			} else {
-				const data = await response.json();
-				logs = data.logs ?? [];
-			}
+			logs = data.logs ?? [];
 		} catch (e) {
-			error = 'Network error. Please check your connection and try again.';
+			error = e instanceof Error ? e.message : 'Failed to load your history. Please try again.';
 			console.error('Dashboard fetch error:', e);
 		} finally {
 			loading = false;
 		}
 	}
 
-	async function fetchFrequencyStats(token: string, startDateStr: string) {
+	async function fetchFrequencyStats(startDateStr: string) {
 		try {
-			const params = new URLSearchParams({ start_date: startDateStr });
-			const response = await fetch(`${API_BASE}/api/symptoms/stats/frequency?${params}`, {
-				headers: { Authorization: `Bearer ${token}` }
-			});
-
-			if (!response.ok) {
-				frequencyError = `Failed to load statistics (${response.status}). Please try again.`;
-			} else {
-				const data = await response.json();
-				frequencyStats = data.stats ?? [];
-			}
+			const data = await apiClient.get<{ stats: SymptomFrequency[] }>(
+				'/api/symptoms/stats/frequency',
+				{ start_date: startDateStr }
+			);
+			frequencyStats = data.stats ?? [];
 		} catch (e) {
-			frequencyError = 'Network error. Please check your connection and try again.';
+			frequencyError =
+				e instanceof Error ? e.message : 'Failed to load statistics. Please try again.';
 			console.error('Frequency stats fetch error:', e);
 		} finally {
 			frequencyLoading = false;
 		}
 	}
 
-	async function fetchCooccurrenceStats(token: string, startDateStr: string) {
+	async function fetchCooccurrenceStats(startDateStr: string) {
 		try {
-			const params = new URLSearchParams({ start_date: startDateStr, min_threshold: '2' });
-			const response = await fetch(`${API_BASE}/api/symptoms/stats/cooccurrence?${params}`, {
-				headers: { Authorization: `Bearer ${token}` }
-			});
-
-			if (!response.ok) {
-				cooccurrenceError = `Failed to load patterns (${response.status}). Please try again.`;
-			} else {
-				const data = await response.json();
-				cooccurrenceStats = data.pairs ?? [];
-			}
+			const data = await apiClient.get<{ pairs: SymptomPair[] }>(
+				'/api/symptoms/stats/cooccurrence',
+				{ start_date: startDateStr, min_threshold: 2 }
+			);
+			cooccurrenceStats = data.pairs ?? [];
 		} catch (e) {
-			cooccurrenceError = 'Network error. Please check your connection and try again.';
+			cooccurrenceError =
+				e instanceof Error ? e.message : 'Failed to load patterns. Please try again.';
 			console.error('Co-occurrence stats fetch error:', e);
 		} finally {
 			cooccurrenceLoading = false;

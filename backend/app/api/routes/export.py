@@ -5,10 +5,8 @@ POST /api/export/pdf  — Authenticated. Generates a clinical PDF with AI-writte
 POST /api/export/csv  — Authenticated. Returns raw symptom logs as a CSV file.
 """
 import csv
-import itertools
 import logging
-from collections import Counter
-from datetime import date, datetime, timedelta, timezone
+from datetime import date, datetime, timezone
 from io import BytesIO, StringIO
 from typing import Annotated
 
@@ -34,6 +32,7 @@ from app.core.supabase import get_client
 from app.models.export import ExportRequest
 from app.models.symptoms import SymptomFrequency, SymptomPair
 from app.services.llm import generate_provider_questions, generate_symptom_summary
+from app.services.stats import calculate_cooccurrence_stats, calculate_frequency_stats
 
 logger = logging.getLogger(__name__)
 
@@ -93,71 +92,6 @@ async def _fetch_symptom_names(
         .execute()
     )
     return {row["id"]: row for row in (response.data or [])}
-
-
-def _compute_frequency_stats(
-    rows: list[dict], ref_lookup: dict[str, dict]
-) -> list[SymptomFrequency]:
-    """Calculate per-symptom occurrence counts, resolved to SymptomFrequency objects."""
-    counts: Counter[str] = Counter(
-        sid for row in rows for sid in (row.get("symptoms") or [])
-    )
-    stats: list[SymptomFrequency] = []
-    for symptom_id, count in counts.most_common():
-        ref = ref_lookup.get(symptom_id)
-        if ref:
-            stats.append(
-                SymptomFrequency(
-                    symptom_id=symptom_id,
-                    symptom_name=ref["name"],
-                    category=ref["category"],
-                    count=count,
-                )
-            )
-    return stats
-
-
-def _compute_cooccurrence_stats(
-    rows: list[dict],
-    ref_lookup: dict[str, dict],
-    min_threshold: int = 2,
-) -> list[SymptomPair]:
-    """Calculate symptom pair co-occurrence rates above a minimum threshold."""
-    symptom_counts: Counter[str] = Counter()
-    pair_counts: Counter[tuple[str, str]] = Counter()
-
-    for row in rows:
-        symptoms = list(dict.fromkeys(row.get("symptoms") or []))
-        for sid in symptoms:
-            symptom_counts[sid] += 1
-        if len(symptoms) >= 2:
-            for a, b in itertools.combinations(sorted(symptoms), 2):
-                pair_counts[(a, b)] += 1
-
-    pairs: list[SymptomPair] = []
-    for (id_a, id_b), co_count in pair_counts.items():
-        if co_count < min_threshold:
-            continue
-        ref_a = ref_lookup.get(id_a)
-        ref_b = ref_lookup.get(id_b)
-        if not ref_a or not ref_b:
-            continue
-        total_a = symptom_counts[id_a]
-        rate = co_count / total_a if total_a else 0.0
-        pairs.append(
-            SymptomPair(
-                symptom1_id=id_a,
-                symptom1_name=ref_a["name"],
-                symptom2_id=id_b,
-                symptom2_name=ref_b["name"],
-                cooccurrence_count=co_count,
-                cooccurrence_rate=round(rate, 4),
-                total_occurrences_symptom1=total_a,
-            )
-        )
-
-    pairs.sort(key=lambda p: p.cooccurrence_rate, reverse=True)
-    return pairs[:10]
 
 
 def _log_date(logged_at: str) -> str:
@@ -450,8 +384,8 @@ async def export_pdf(
         )
 
     # --- Calculate stats ---
-    freq_stats = _compute_frequency_stats(rows, ref_lookup)
-    coocc_pairs = _compute_cooccurrence_stats(rows, ref_lookup, min_threshold=2)
+    freq_stats = calculate_frequency_stats(rows, ref_lookup)
+    coocc_pairs = calculate_cooccurrence_stats(rows, ref_lookup, min_threshold=2)
 
     logger.info(
         "PDF export stats: user=%s range=%s–%s logs=%d freq=%d pairs=%d",

@@ -1,6 +1,4 @@
-import itertools
 import logging
-from collections import Counter, defaultdict
 from datetime import date, datetime, timedelta, timezone
 from typing import Annotated
 
@@ -13,12 +11,11 @@ from app.models.symptoms import (
     CooccurrenceStatsResponse,
     FrequencyStatsResponse,
     SymptomDetail,
-    SymptomFrequency,
     SymptomLogCreate,
     SymptomLogList,
     SymptomLogResponse,
-    SymptomPair,
 )
+from app.services.stats import calculate_cooccurrence_stats, calculate_frequency_stats
 from app.services.symptoms import validate_symptom_ids
 
 logger = logging.getLogger(__name__)
@@ -343,11 +340,9 @@ async def get_frequency_stats(
         )
 
     total_logs = len(rows)
-    counts: Counter[str] = Counter(
-        sid for row in rows for sid in (row.get("symptoms") or [])
-    )
+    all_ids = list({sid for row in rows for sid in (row.get("symptoms") or [])})
 
-    if not counts:
+    if not all_ids:
         logger.info(
             "No symptoms found for user %s in range %s–%s",
             user_id,
@@ -365,7 +360,7 @@ async def get_frequency_stats(
         ref_response = (
             await client.table("symptoms_reference")
             .select("id, name, category")
-            .in_("id", list(counts.keys()))
+            .in_("id", all_ids)
             .execute()
         )
         ref_rows = ref_response.data or []
@@ -382,25 +377,7 @@ async def get_frequency_stats(
         )
 
     ref_lookup = {row["id"]: row for row in ref_rows}
-
-    stats: list[SymptomFrequency] = []
-    for symptom_id, count in counts.most_common():
-        ref = ref_lookup.get(symptom_id)
-        if ref:
-            stats.append(
-                SymptomFrequency(
-                    symptom_id=symptom_id,
-                    symptom_name=ref["name"],
-                    category=ref["category"],
-                    count=count,
-                )
-            )
-        else:
-            # Data-integrity anomaly: log ID present in logs but not in reference
-            logger.warning(
-                "Symptom ID %s not found in symptoms_reference (data integrity issue)",
-                symptom_id,
-            )
+    stats = calculate_frequency_stats(rows, ref_lookup)
 
     logger.info(
         "Frequency stats: user=%s range=%s–%s distinct_symptoms=%d total_logs=%d",
@@ -421,12 +398,6 @@ async def get_frequency_stats(
 # ---------------------------------------------------------------------------
 # GET /api/symptoms/stats/cooccurrence
 # ---------------------------------------------------------------------------
-
-# Maximum pairs returned — keeps the response manageable and the dashboard card
-# readable.  All filtering (min_threshold) is applied first; we then take the
-# top N by rate.
-_MAX_PAIRS = 10
-
 
 @router.get(
     "/stats/cooccurrence",
@@ -529,42 +500,8 @@ async def get_cooccurrence_stats(
         effective_end,
     )
 
-    # ------------------------------------------------------------------
-    # 2. Count individual symptom occurrences and pair co-occurrences
-    # ------------------------------------------------------------------
-    # symptom_counts[id] = number of logs that contain this symptom
-    symptom_counts: Counter[str] = Counter()
-    # pair_counts[(id_a, id_b)] = number of logs that contain both
-    # Keys are always (min_id, max_id) to avoid double-counting.
-    pair_counts: Counter[tuple[str, str]] = Counter()
-
-    for row in rows:
-        symptoms = row.get("symptoms") or []
-        if not symptoms:
-            continue
-        unique_symptoms = list(dict.fromkeys(symptoms))  # deduplicate, preserve order
-        for sid in unique_symptoms:
-            symptom_counts[sid] += 1
-        if len(unique_symptoms) >= 2:
-            for a, b in itertools.combinations(sorted(unique_symptoms), 2):
-                pair_counts[(a, b)] += 1
-
-    logger.debug(
-        "Co-occurrence: %d distinct symptoms, %d unique pairs found",
-        len(symptom_counts),
-        len(pair_counts),
-    )
-
-    # ------------------------------------------------------------------
-    # 3. Filter by min_threshold and resolve names from symptoms_reference
-    # ------------------------------------------------------------------
-    qualifying = {
-        pair: count
-        for pair, count in pair_counts.items()
-        if count >= min_threshold
-    }
-
-    if not qualifying:
+    all_ids = list({sid for row in rows for sid in (row.get("symptoms") or [])})
+    if not all_ids:
         logger.info(
             "Co-occurrence: no pairs above threshold=%d for user %s",
             min_threshold,
@@ -578,12 +515,11 @@ async def get_cooccurrence_stats(
             min_threshold=min_threshold,
         )
 
-    all_ids = {sid for pair in qualifying for sid in pair}
     try:
         ref_response = (
             await client.table("symptoms_reference")
             .select("id, name, category")
-            .in_("id", list(all_ids))
+            .in_("id", all_ids)
             .execute()
         )
         ref_rows = ref_response.data or []
@@ -600,48 +536,14 @@ async def get_cooccurrence_stats(
         )
 
     ref_lookup = {row["id"]: row for row in ref_rows}
-
-    # ------------------------------------------------------------------
-    # 4. Build pairs, calculate rates, sort and cap
-    # ------------------------------------------------------------------
-    pairs: list[SymptomPair] = []
-    for (id_a, id_b), co_count in qualifying.items():
-        ref_a = ref_lookup.get(id_a)
-        ref_b = ref_lookup.get(id_b)
-        if not ref_a or not ref_b:
-            logger.warning(
-                "Co-occurrence: symptom ID(s) missing from symptoms_reference "
-                "(%s, %s) — skipping pair",
-                id_a,
-                id_b,
-            )
-            continue
-        total_a = symptom_counts[id_a]
-        rate = co_count / total_a if total_a else 0.0
-        pairs.append(
-            SymptomPair(
-                symptom1_id=id_a,
-                symptom1_name=ref_a["name"],
-                symptom2_id=id_b,
-                symptom2_name=ref_b["name"],
-                cooccurrence_count=co_count,
-                cooccurrence_rate=round(rate, 4),
-                total_occurrences_symptom1=total_a,
-            )
-        )
-
-    # Sort by rate descending; cap at _MAX_PAIRS
-    pairs.sort(key=lambda p: p.cooccurrence_rate, reverse=True)
-    pairs = pairs[:_MAX_PAIRS]
+    pairs = calculate_cooccurrence_stats(rows, ref_lookup, min_threshold=min_threshold)
 
     logger.info(
-        "Co-occurrence stats: user=%s range=%s–%s threshold=%d "
-        "qualifying_pairs=%d returned=%d",
+        "Co-occurrence stats: user=%s range=%s–%s threshold=%d returned=%d",
         user_id,
         effective_start,
         effective_end,
         min_threshold,
-        len(qualifying),
         len(pairs),
     )
     return CooccurrenceStatsResponse(

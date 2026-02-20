@@ -2,9 +2,9 @@
 	import { onMount } from 'svelte';
 	import { fly, fade } from 'svelte/transition';
 	import { supabase } from '$lib/supabase/client';
+	import { apiClient } from '$lib/api/client';
 
 	const CARDS_VISIBLE = 8;
-	const API_BASE = 'http://localhost:8000';
 
 	interface Symptom {
 		id: string;
@@ -74,41 +74,19 @@
 		error = '';
 
 		try {
-			const { data: sessionData } = await supabase.auth.getSession();
-			const token = sessionData.session?.access_token;
-
-			if (!token) {
-				error = 'You must be signed in to log symptoms.';
-				return;
-			}
-
 			const currentSource = source;
-			const body = {
+			await apiClient.post('/api/symptoms/logs', {
 				source: currentSource,
 				symptoms: currentSource !== 'text' ? selectedSymptoms.map((s) => s.id) : [],
 				free_text_entry: freeText.trim() || null
-			};
-
-			const response = await fetch(`${API_BASE}/api/symptoms/logs`, {
-				method: 'POST',
-				headers: {
-					Authorization: `Bearer ${token}`,
-					'Content-Type': 'application/json'
-				},
-				body: JSON.stringify(body)
 			});
 
-			if (!response.ok) {
-				const errorData = await response.json().catch(() => ({}));
-				error = errorData.detail ?? `Error ${response.status}: Failed to save log.`;
-			} else {
-				success = true;
-				selectedSymptoms = [];
-				dismissedIds = [];
-				freeText = '';
-			}
+			success = true;
+			selectedSymptoms = [];
+			dismissedIds = [];
+			freeText = '';
 		} catch (e) {
-			error = 'Network error. Please check your connection and try again.';
+			error = e instanceof Error ? e.message : 'Failed to save log. Please try again.';
 			console.error('Submit error:', e);
 		} finally {
 			submitting = false;
