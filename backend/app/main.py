@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api.routes import export, symptoms, users
+from app.api.routes import chat, export, symptoms, users
 from app.core.config import settings
 
 app = FastAPI(
@@ -21,6 +21,7 @@ app.add_middleware(
 app.include_router(symptoms.router)
 app.include_router(users.router)
 app.include_router(export.router)
+app.include_router(chat.router)
 
 
 @app.get("/health")
