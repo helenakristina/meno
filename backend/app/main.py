@@ -3,7 +3,11 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.routes import chat, export, symptoms, users
 from app.core.config import settings
+import logging
 
+logging.basicConfig(
+    level=logging.DEBUG, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+)
 app = FastAPI(
     title="Meno API",
     description="Backend API for the Meno app",
