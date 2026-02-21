@@ -36,9 +36,16 @@ _LAYER_1 = (
 )
 
 _LAYER_2 = (
-    "Answer using only the provided source documents. Cite every factual claim "
-    "with [Source N] inline. If the sources don't contain enough information to "
-    "answer well, say so rather than drawing on general knowledge."
+    "Answer using ONLY the provided source documents below. Each source is labeled "
+    "(Source 1), (Source 2), etc. The exact number of available sources is stated "
+    "in the source documents header.\n\n"
+    "When citing, use ONLY source numbers that appear in the source documents. "
+    "Never cite a source number that wasn't explicitly listed. "
+    "Never invent or infer additional sources.\n\n"
+    "Cite every factual claim with [Source N] immediately after the claim. If you "
+    "cannot find a source for a claim, do not make the claim.\n\n"
+    "If the sources don't contain enough information to answer well, say so rather "
+    "than drawing on general knowledge."
 )
 
 _LAYER_3 = (
@@ -85,8 +92,12 @@ def _build_system_prompt(
     source_lines = []
     for i, chunk in enumerate(chunks, start=1):
         url = chunk.get("source_url", "")
+        title = chunk.get("title", "").strip()
         content = chunk.get("content", "").strip()
-        source_lines.append(f"Source {i} [{url}]: {content}")
+        source_lines.append(
+            f"(Source {i}) {title}\nURL: {url}\nContent: {content}"
+        )
+    source_count = len(chunks)
     sources_block = "\n\n".join(source_lines) if source_lines else "No source documents available."
 
     layer_4 = (
@@ -94,7 +105,8 @@ def _build_system_prompt(
         f"- Journey stage: {journey_stage}\n"
         f"- Age: {age_str}\n"
         f"- Recent symptom summary: {symptom_summary}\n\n"
-        f"Source documents:\n{sources_block}"
+        f"Source documents — there are exactly {source_count} source(s). "
+        f"Only cite [Source 1] through [Source {source_count}]:\n\n{sources_block}"
     )
 
     return "\n\n".join([_LAYER_1, _LAYER_2, _LAYER_3, layer_4])
@@ -368,6 +380,19 @@ async def ask_meno(
             exc_info=True,
         )
         chunks = []  # Degrade gracefully — answer without sources
+
+    # Deduplicate chunks by URL before building the prompt and extracting citations.
+    # Without this, multiple chunks from the same URL get different Source numbers,
+    # OpenAI cites the higher number, and _extract_citations deduplicates it away —
+    # leaving an orphaned inline [N] in the text with no matching source in the list.
+    seen_urls: set[str] = set()
+    unique_chunks: list[dict] = []
+    for chunk in chunks:
+        url = chunk.get("source_url", "")
+        if url not in seen_urls:
+            unique_chunks.append(chunk)
+            seen_urls.add(url)
+    chunks = unique_chunks
 
     # Build system prompt
     system_prompt = _build_system_prompt(journey_stage, age, symptom_summary, chunks)
