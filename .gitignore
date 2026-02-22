@@ -25,3 +25,9 @@ Thumbs.db
 .vscode/
 .idea/
 *.swp
+
+# MCP
+.playwright-mcp
+
+# Scraper output data (raw/clean JSON, not for version control)
+backend/scripts/data/

@@ -80,6 +80,8 @@ from pathlib import Path
 from bs4 import BeautifulSoup
 from playwright.async_api import async_playwright
 
+from app.core.insurance_normalizer import normalize_insurance_list
+
 # ---------------------------------------------------------------------------
 # Constants
 # ---------------------------------------------------------------------------
@@ -551,7 +553,7 @@ def transform_provider(raw: dict) -> dict | None:
         "specialties": [],  # Not exposed in directory listing
         "provider_type": infer_provider_type(credentials),
         "nams_certified": raw.get("nams_certified", False),
-        "insurance_accepted": extract_insurance(raw.get("payment_raw", [])),
+        "insurance_accepted": normalize_insurance_list(extract_insurance(raw.get("payment_raw", []))),
         "data_source": "nams_directory",
         "last_verified": date.today().isoformat(),
     }

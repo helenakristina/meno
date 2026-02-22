@@ -97,6 +97,10 @@ export const apiClient = {
 		return request('PUT', path, { body, responseType: options?.responseType });
 	},
 
+	patch<T = unknown>(path: string, body?: unknown, options?: RequestOptions): Promise<T> {
+		return request('PATCH', path, { body, responseType: options?.responseType });
+	},
+
 	delete<T = unknown>(path: string, options?: RequestOptions): Promise<T> {
 		return request('DELETE', path, { responseType: options?.responseType });
 	}

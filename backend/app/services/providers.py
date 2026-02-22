@@ -2,6 +2,7 @@
 
 import math
 
+from app.core.insurance_normalizer import normalize_insurance_list, normalize_insurance_name
 from app.models.providers import CallingScriptRequest, InsuranceType, ProviderCard, ProviderSearchResponse
 
 
@@ -19,7 +20,7 @@ def _to_provider_card(row: dict) -> ProviderCard:
         nams_certified=bool(row.get("nams_certified")),
         provider_type=row.get("provider_type"),
         specialties=row.get("specialties") or [],
-        insurance_accepted=row.get("insurance_accepted") or [],
+        insurance_accepted=normalize_insurance_list(row.get("insurance_accepted") or []),
         data_source=row.get("data_source"),
         last_verified=row.get("last_verified"),
     )
@@ -92,14 +93,21 @@ def aggregate_states(rows: list[dict]) -> list[dict]:
 
 
 def collect_insurance_options(rows: list[dict]) -> list[str]:
-    """Flatten insurance_accepted arrays, deduplicate, and sort alphabetically."""
+    """Flatten insurance_accepted arrays, normalize, deduplicate, and sort alphabetically.
+
+    Normalization is applied before deduplication so that transitional DB rows
+    containing both the old raw value and the canonical display name collapse
+    correctly to a single entry.
+    """
     seen: set[str] = set()
     options: list[str] = []
     for row in rows:
         for ins in (row.get("insurance_accepted") or []):
-            if ins and ins not in seen:
-                seen.add(ins)
-                options.append(ins)
+            if ins:
+                normalized = normalize_insurance_name(ins)
+                if normalized not in seen:
+                    seen.add(normalized)
+                    options.append(normalized)
     return sorted(options)
 
 

@@ -334,6 +334,21 @@ class TestSearchProviders:
         assert body["providers"] == []
         assert body["total_pages"] == 1
 
+    def test_search_results_normalize_commercial_insurance(self):
+        provider = {**PROVIDER_MN, "insurance_accepted": ["Commercial Insurance", "Medicare"]}
+        mock = make_mock_client(data=[provider])
+        cleanup = override(mock)
+        try:
+            with TestClient(app) as client:
+                response = client.get("/api/providers/search?state=MN")
+        finally:
+            cleanup()
+
+        assert response.status_code == 200
+        result_insurance = response.json()["providers"][0]["insurance_accepted"]
+        assert "Private Insurance" in result_insurance
+        assert "Commercial Insurance" not in result_insurance
+
 
 # ---------------------------------------------------------------------------
 # GET /api/providers/states
@@ -454,6 +469,38 @@ class TestListInsuranceOptions:
 
         body = response.json()
         assert body == sorted(body)
+
+    def test_commercial_insurance_normalized_to_private_insurance(self):
+        data = [{"insurance_accepted": ["Commercial Insurance", "Medicare"]}]
+        mock = make_mock_client(data=data)
+        cleanup = override(mock)
+        try:
+            with TestClient(app) as client:
+                response = client.get("/api/providers/insurance-options")
+        finally:
+            cleanup()
+
+        body = response.json()
+        assert "Private Insurance" in body
+        assert "Commercial Insurance" not in body
+
+    def test_deduplicates_after_normalization(self):
+        """Both raw and canonical forms in the DB collapse to one entry."""
+        data = [
+            {"insurance_accepted": ["Commercial Insurance"]},
+            {"insurance_accepted": ["Private Insurance"]},  # canonical already present
+        ]
+        mock = make_mock_client(data=data)
+        cleanup = override(mock)
+        try:
+            with TestClient(app) as client:
+                response = client.get("/api/providers/insurance-options")
+        finally:
+            cleanup()
+
+        body = response.json()
+        assert body.count("Private Insurance") == 1
+        assert "Commercial Insurance" not in body
 
 
 # ---------------------------------------------------------------------------
