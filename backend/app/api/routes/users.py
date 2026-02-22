@@ -7,7 +7,7 @@ from supabase import AsyncClient
 
 from app.api.dependencies import CurrentUser
 from app.core.supabase import get_client
-from app.models.users import OnboardingRequest, UserResponse
+from app.models.users import InsurancePreference, InsurancePreferenceUpdate, OnboardingRequest, UserResponse
 
 logger = logging.getLogger(__name__)
 
@@ -136,3 +136,122 @@ async def onboarding(
     created = response.data[0]
     logger.info("User profile created: id=%s email=%s", user_id, email)
     return UserResponse(**created)
+
+
+# ---------------------------------------------------------------------------
+# GET /api/users/insurance-preference
+# ---------------------------------------------------------------------------
+
+
+@router.get(
+    "/insurance-preference",
+    response_model=InsurancePreference,
+    status_code=status.HTTP_200_OK,
+    summary="Get insurance preference",
+    description="Return the user's saved insurance type and plan name, or null values if not set.",
+)
+async def get_insurance_preference(
+    user_id: CurrentUser,
+    client: SupabaseClient,
+) -> InsurancePreference:
+    """Fetch insurance_type and insurance_plan_name from the user's profile row.
+
+    Returns null values rather than 404 when the profile exists but the
+    columns are unset — the frontend treats null as "not yet saved".
+
+    Raises:
+        HTTPException: 401 if unauthenticated.
+        HTTPException: 500 for unexpected database failures.
+    """
+    try:
+        response = (
+            await client.table("users")
+            .select("insurance_type, insurance_plan_name")
+            .eq("id", user_id)
+            .execute()
+        )
+    except Exception as exc:
+        logger.error(
+            "DB error fetching insurance preference for user %s: %s",
+            user_id,
+            exc,
+            exc_info=True,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to retrieve insurance preference",
+        )
+
+    if not response.data:
+        return InsurancePreference(insurance_type=None, insurance_plan_name=None)
+
+    row = response.data[0]
+    return InsurancePreference(
+        insurance_type=row.get("insurance_type"),
+        insurance_plan_name=row.get("insurance_plan_name"),
+    )
+
+
+# ---------------------------------------------------------------------------
+# PATCH /api/users/insurance-preference
+# ---------------------------------------------------------------------------
+
+
+@router.patch(
+    "/insurance-preference",
+    response_model=InsurancePreference,
+    status_code=status.HTTP_200_OK,
+    summary="Update insurance preference",
+    description="Persist the user's insurance type and optional plan name to their profile.",
+)
+async def update_insurance_preference(
+    payload: InsurancePreferenceUpdate,
+    user_id: CurrentUser,
+    client: SupabaseClient,
+) -> InsurancePreference:
+    """Write insurance_type and insurance_plan_name to the user's profile row.
+
+    Raises:
+        HTTPException: 401 if unauthenticated.
+        HTTPException: 404 if no user profile exists for the authenticated user.
+        HTTPException: 422 if insurance_type is not a valid enum value.
+        HTTPException: 500 for unexpected database failures.
+    """
+    try:
+        response = (
+            await client.table("users")
+            .update(
+                {
+                    "insurance_type": payload.insurance_type.value,
+                    "insurance_plan_name": payload.insurance_plan_name,
+                }
+            )
+            .eq("id", user_id)
+            .execute()
+        )
+    except Exception as exc:
+        logger.error(
+            "DB error updating insurance preference for user %s: %s",
+            user_id,
+            exc,
+            exc_info=True,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to update insurance preference",
+        )
+
+    if not response.data:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User profile not found",
+        )
+
+    row = response.data[0]
+    logger.info(
+        "Insurance preference updated: user=%s type=%s", user_id, payload.insurance_type
+    )
+    return InsurancePreference(
+        insurance_type=row.get("insurance_type"),
+        insurance_plan_name=row.get("insurance_plan_name"),
+    )

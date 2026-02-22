@@ -196,3 +196,30 @@ async def generate_provider_questions(
             questions.append(line)
 
     return questions[:7]
+
+
+async def generate_calling_script(system_prompt: str, user_prompt: str) -> str:
+    """Call the LLM to generate a provider calling script from assembled prompts.
+
+    Args:
+        system_prompt: System instructions establishing tone and format.
+        user_prompt: User turn with provider name and insurance/needs context.
+
+    Returns:
+        The generated script as a plain string, ready to read aloud.
+    """
+    logger.info("Calling OpenAI for provider calling script")
+
+    response = await _client().chat.completions.create(
+        model=_MODEL,
+        messages=[
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_prompt},
+        ],
+        max_tokens=300,
+        temperature=0.7,
+    )
+
+    script = (response.choices[0].message.content or "").strip()
+    logger.info("Calling script generated: %d characters", len(script))
+    return script

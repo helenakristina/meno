@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api.routes import chat, export, symptoms, users
+from app.api.routes import chat, export, providers, symptoms, users
 from app.core.config import settings
 import logging
 
@@ -26,6 +26,7 @@ app.include_router(symptoms.router)
 app.include_router(users.router)
 app.include_router(export.router)
 app.include_router(chat.router)
+app.include_router(providers.router)
 
 
 @app.get("/health")

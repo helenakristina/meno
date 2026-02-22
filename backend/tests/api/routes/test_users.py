@@ -18,18 +18,23 @@ from app.main import app
 
 
 class MockQueryBuilder:
-    """Fluent builder mock supporting select and insert on the users table.
+    """Fluent builder mock supporting select, insert, and update on the users table.
 
-    Tracks whether .insert() was called so execute() can return the right data.
+    Tracks the last mutating operation so execute() returns the right data.
     """
 
-    def __init__(self, select_data=None, insert_data=None):
+    def __init__(self, select_data=None, insert_data=None, update_data=None):
         self._select_data = select_data if select_data is not None else []
         self._insert_data = insert_data if insert_data is not None else []
-        self._is_insert = False
+        self._update_data = update_data if update_data is not None else []
+        self._op: str = "select"
 
     def insert(self, *_, **__):
-        self._is_insert = True
+        self._op = "insert"
+        return self
+
+    def update(self, *_, **__):
+        self._op = "update"
         return self
 
     def select(self, *_, **__):
@@ -40,7 +45,12 @@ class MockQueryBuilder:
 
     async def execute(self):
         result = MagicMock()
-        result.data = self._insert_data if self._is_insert else self._select_data
+        if self._op == "insert":
+            result.data = self._insert_data
+        elif self._op == "update":
+            result.data = self._update_data
+        else:
+            result.data = self._select_data
         return result
 
 
@@ -49,15 +59,17 @@ def make_mock_client(
     email: str = "user@example.com",
     existing_user_data=None,
     insert_data=None,
+    update_data=None,
     auth_error: Exception | None = None,
     admin_error: Exception | None = None,
 ) -> MagicMock:
-    """Build a mock Supabase client for onboarding tests.
+    """Build a mock Supabase client for user endpoint tests.
 
     Args:
-        existing_user_data: Rows returned by the duplicate-check select.
-            Pass [] for no existing user, [...] to simulate a duplicate.
-        insert_data: Rows returned after the insert.
+        existing_user_data: Rows returned by select queries.
+            Pass [] for no existing user, [...] to simulate a found row.
+        insert_data: Rows returned after insert operations.
+        update_data: Rows returned after update operations.
         auth_error: If set, client.auth.get_user raises this exception.
         admin_error: If set, client.auth.admin.get_user_by_id raises this.
     """
@@ -81,6 +93,7 @@ def make_mock_client(
         return MockQueryBuilder(
             select_data=existing_user_data if existing_user_data is not None else [],
             insert_data=insert_data if insert_data is not None else [],
+            update_data=update_data if update_data is not None else [],
         )
 
     mock.table.side_effect = table_side_effect
@@ -321,3 +334,197 @@ class TestOnboarding:
             cleanup()
 
         assert response.status_code == 422
+
+
+# ---------------------------------------------------------------------------
+# GET /api/users/insurance-preference
+# ---------------------------------------------------------------------------
+
+_PREF_ROW = {"insurance_type": "private", "insurance_plan_name": "Aetna PPO"}
+
+
+class TestGetInsurancePreference:
+    def test_returns_saved_preference(self):
+        mock = make_mock_client(existing_user_data=[_PREF_ROW])
+        cleanup = override(mock)
+        try:
+            with TestClient(app) as client:
+                response = client.get(
+                    "/api/users/insurance-preference", headers=AUTH_HEADER
+                )
+        finally:
+            cleanup()
+
+        assert response.status_code == 200
+        body = response.json()
+        assert body["insurance_type"] == "private"
+        assert body["insurance_plan_name"] == "Aetna PPO"
+
+    def test_returns_nulls_when_columns_not_set(self):
+        mock = make_mock_client(
+            existing_user_data=[{"insurance_type": None, "insurance_plan_name": None}]
+        )
+        cleanup = override(mock)
+        try:
+            with TestClient(app) as client:
+                response = client.get(
+                    "/api/users/insurance-preference", headers=AUTH_HEADER
+                )
+        finally:
+            cleanup()
+
+        assert response.status_code == 200
+        body = response.json()
+        assert body["insurance_type"] is None
+        assert body["insurance_plan_name"] is None
+
+    def test_returns_nulls_when_no_profile_row(self):
+        mock = make_mock_client(existing_user_data=[])
+        cleanup = override(mock)
+        try:
+            with TestClient(app) as client:
+                response = client.get(
+                    "/api/users/insurance-preference", headers=AUTH_HEADER
+                )
+        finally:
+            cleanup()
+
+        assert response.status_code == 200
+        body = response.json()
+        assert body["insurance_type"] is None
+        assert body["insurance_plan_name"] is None
+
+    def test_requires_auth(self):
+        mock = make_mock_client()
+        cleanup = override(mock)
+        try:
+            with TestClient(app) as client:
+                response = client.get("/api/users/insurance-preference")
+        finally:
+            cleanup()
+
+        assert response.status_code == 401
+
+    def test_returns_500_on_db_error(self):
+        mock = MagicMock()
+        mock.auth.get_user = AsyncMock(
+            return_value=MagicMock(user=MagicMock(id=USER_ID))
+        )
+        mock.table.side_effect = Exception("DB connection lost")
+        cleanup = override(mock)
+        try:
+            with TestClient(app) as client:
+                response = client.get(
+                    "/api/users/insurance-preference", headers=AUTH_HEADER
+                )
+        finally:
+            cleanup()
+
+        assert response.status_code == 500
+
+
+# ---------------------------------------------------------------------------
+# PATCH /api/users/insurance-preference
+# ---------------------------------------------------------------------------
+
+
+class TestUpdateInsurancePreference:
+    def test_updates_successfully(self):
+        updated_row = {"insurance_type": "medicaid", "insurance_plan_name": "UCare"}
+        mock = make_mock_client(update_data=[updated_row])
+        cleanup = override(mock)
+        try:
+            with TestClient(app) as client:
+                response = client.patch(
+                    "/api/users/insurance-preference",
+                    json={"insurance_type": "medicaid", "insurance_plan_name": "UCare"},
+                    headers=AUTH_HEADER,
+                )
+        finally:
+            cleanup()
+
+        assert response.status_code == 200
+        body = response.json()
+        assert body["insurance_type"] == "medicaid"
+        assert body["insurance_plan_name"] == "UCare"
+
+    def test_updates_with_null_plan_name(self):
+        updated_row = {"insurance_type": "self_pay", "insurance_plan_name": None}
+        mock = make_mock_client(update_data=[updated_row])
+        cleanup = override(mock)
+        try:
+            with TestClient(app) as client:
+                response = client.patch(
+                    "/api/users/insurance-preference",
+                    json={"insurance_type": "self_pay"},
+                    headers=AUTH_HEADER,
+                )
+        finally:
+            cleanup()
+
+        assert response.status_code == 200
+        assert response.json()["insurance_type"] == "self_pay"
+        assert response.json()["insurance_plan_name"] is None
+
+    def test_returns_404_when_no_user_profile(self):
+        mock = make_mock_client(update_data=[])  # empty = no rows updated
+        cleanup = override(mock)
+        try:
+            with TestClient(app) as client:
+                response = client.patch(
+                    "/api/users/insurance-preference",
+                    json={"insurance_type": "private"},
+                    headers=AUTH_HEADER,
+                )
+        finally:
+            cleanup()
+
+        assert response.status_code == 404
+
+    def test_invalid_insurance_type_returns_422(self):
+        mock = make_mock_client()
+        cleanup = override(mock)
+        try:
+            with TestClient(app) as client:
+                response = client.patch(
+                    "/api/users/insurance-preference",
+                    json={"insurance_type": "not_a_real_type"},
+                    headers=AUTH_HEADER,
+                )
+        finally:
+            cleanup()
+
+        assert response.status_code == 422
+
+    def test_requires_auth(self):
+        mock = make_mock_client()
+        cleanup = override(mock)
+        try:
+            with TestClient(app) as client:
+                response = client.patch(
+                    "/api/users/insurance-preference",
+                    json={"insurance_type": "private"},
+                )
+        finally:
+            cleanup()
+
+        assert response.status_code == 401
+
+    def test_returns_500_on_db_error(self):
+        mock = MagicMock()
+        mock.auth.get_user = AsyncMock(
+            return_value=MagicMock(user=MagicMock(id=USER_ID))
+        )
+        mock.table.side_effect = Exception("DB unavailable")
+        cleanup = override(mock)
+        try:
+            with TestClient(app) as client:
+                response = client.patch(
+                    "/api/users/insurance-preference",
+                    json={"insurance_type": "medicare"},
+                    headers=AUTH_HEADER,
+                )
+        finally:
+            cleanup()
+
+        assert response.status_code == 500

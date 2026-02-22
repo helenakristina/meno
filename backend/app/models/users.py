@@ -3,6 +3,8 @@ from typing import Literal
 
 from pydantic import BaseModel, Field
 
+from app.models.providers import InsuranceType
+
 JourneyStage = Literal["perimenopause", "menopause", "post-menopause", "unsure"]
 
 
@@ -22,3 +24,13 @@ class UserResponse(BaseModel):
     created_at: datetime
 
     model_config = {"from_attributes": True}
+
+
+class InsurancePreference(BaseModel):
+    insurance_type: InsuranceType | None
+    insurance_plan_name: str | None
+
+
+class InsurancePreferenceUpdate(BaseModel):
+    insurance_type: InsuranceType
+    insurance_plan_name: str | None = None
