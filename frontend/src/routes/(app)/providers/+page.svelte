@@ -42,6 +42,17 @@
 		count: number;
 	}
 
+	interface ShortlistEntry {
+		id: string;
+		user_id: string;
+		provider_id: string;
+		status: string;
+		notes: string | null;
+		added_at: string;
+		updated_at: string;
+		provider: Provider;
+	}
+
 	// -------------------------------------------------------------------------
 	// Search form state
 	// -------------------------------------------------------------------------
@@ -67,6 +78,31 @@
 	let filtersOpen = $state(false);
 
 	// -------------------------------------------------------------------------
+	// Shortlist state
+	// -------------------------------------------------------------------------
+
+	let shortlist = $state<ShortlistEntry[]>([]);
+	let savedProviderIds = $state(new Set<string>());
+	let shortlistExpanded = $state(false);
+	let notesDraft = $state<Record<string, string>>({});
+	let notesSaving = $state<Record<string, boolean>>({});
+	let notesSaved = $state<Record<string, boolean>>({});
+
+	// Status config for badges and dropdown
+	const STATUS_CONFIG: Record<string, { label: string; badge: string }> = {
+		to_call: { label: 'To Call', badge: 'bg-blue-100 text-blue-700' },
+		called: { label: 'Called', badge: 'bg-teal-100 text-teal-700' },
+		left_voicemail: { label: 'Left Voicemail', badge: 'bg-amber-100 text-amber-700' },
+		booking: { label: 'Booking Appointment', badge: 'bg-green-100 text-green-700' },
+		not_available: { label: 'Not Available', badge: 'bg-slate-100 text-slate-500' }
+	};
+
+	const STATUSES = Object.entries(STATUS_CONFIG).map(([value, cfg]) => ({
+		value,
+		label: cfg.label
+	}));
+
+	// -------------------------------------------------------------------------
 	// Derived
 	// -------------------------------------------------------------------------
 
@@ -80,6 +116,11 @@
 	);
 
 	let selectedStateName = $derived(selectedState || 'the selected state');
+
+	// Shortlist entries shown in the section — collapse to 3 unless expanded
+	let visibleShortlist = $derived(
+		shortlist.length > 3 && !shortlistExpanded ? shortlist.slice(0, 3) : shortlist
+	);
 
 	// -------------------------------------------------------------------------
 	// Helpers
@@ -98,8 +139,95 @@
 		return [1, '…', current - 1, current, current + 1, '…', total];
 	}
 
+	function getShortlistEntry(providerId: string): ShortlistEntry | null {
+		return shortlist.find((e) => e.provider_id === providerId) ?? null;
+	}
+
 	// -------------------------------------------------------------------------
-	// Data fetching
+	// Shortlist data fetching + mutations
+	// -------------------------------------------------------------------------
+
+	async function loadShortlist() {
+		try {
+			const data = await apiClient.get<ShortlistEntry[]>('/api/providers/shortlist');
+			shortlist = data ?? [];
+			savedProviderIds = new Set(shortlist.map((e) => e.provider_id));
+		} catch {
+			// Fail silently — shortlist is a UX enhancement, not critical path.
+			// This also handles the unauthenticated case gracefully.
+		}
+	}
+
+	async function handleSave(providerId: string) {
+		// Optimistic update
+		savedProviderIds = new Set([...savedProviderIds, providerId]);
+		try {
+			await apiClient.post('/api/providers/shortlist', { provider_id: providerId });
+			// Reload to get the full entry (including provider data) for the shortlist section
+			await loadShortlist();
+		} catch (e) {
+			// 409 means already saved — state is correct, keep optimistic
+			const msg = e instanceof Error ? e.message : '';
+			if (!msg.includes('409')) {
+				const updated = new Set(savedProviderIds);
+				updated.delete(providerId);
+				savedProviderIds = updated;
+			}
+		}
+	}
+
+	async function handleUnsave(providerId: string) {
+		// Optimistic update
+		const updated = new Set(savedProviderIds);
+		updated.delete(providerId);
+		savedProviderIds = updated;
+		shortlist = shortlist.filter((e) => e.provider_id !== providerId);
+
+		try {
+			await apiClient.delete(`/api/providers/shortlist/${providerId}`);
+		} catch {
+			// Revert on failure
+			await loadShortlist();
+		}
+	}
+
+	async function handleUpdateStatus(providerId: string, newStatus: string) {
+		// Optimistic update
+		shortlist = shortlist.map((e) =>
+			e.provider_id === providerId ? { ...e, status: newStatus } : e
+		);
+		try {
+			await apiClient.patch(`/api/providers/shortlist/${providerId}`, { status: newStatus });
+		} catch {
+			await loadShortlist();
+		}
+	}
+
+	async function handleRemoveFromShortlist(providerId: string) {
+		await handleUnsave(providerId);
+	}
+
+	async function handleNotesSave(providerId: string) {
+		const notes = notesDraft[providerId] ?? '';
+		notesSaving[providerId] = true;
+		try {
+			await apiClient.patch(`/api/providers/shortlist/${providerId}`, { notes });
+			shortlist = shortlist.map((e) =>
+				e.provider_id === providerId ? { ...e, notes: notes.trim() || null } : e
+			);
+			notesSaved[providerId] = true;
+			setTimeout(() => {
+				notesSaved[providerId] = false;
+			}, 2000);
+		} catch {
+			// Fail silently — notes are non-critical
+		} finally {
+			notesSaving[providerId] = false;
+		}
+	}
+
+	// -------------------------------------------------------------------------
+	// Data fetching — search
 	// -------------------------------------------------------------------------
 
 	async function loadStates() {
@@ -207,6 +335,9 @@
 	// -------------------------------------------------------------------------
 
 	onMount(async () => {
+		// Load shortlist in the background — don't await it so search isn't blocked
+		// if the shortlist endpoint is slow or fails.
+		loadShortlist();
 		await loadStates();
 		readUrlParams();
 	});
@@ -220,6 +351,120 @@
 			Search our directory of NAMS-certified menopause practitioners near you.
 		</p>
 	</div>
+
+	<!-- ── MY SHORTLIST ──────────────────────────────────────────────────── -->
+	{#if shortlist.length > 0}
+		<section class="mb-6 rounded-2xl border border-slate-200 bg-white shadow-sm">
+			<!-- Section header -->
+			<div class="flex items-center justify-between px-6 py-4">
+				<h2 class="text-sm font-semibold text-slate-700">
+					My Shortlist
+					<span class="ml-1 font-normal text-slate-400">({shortlist.length})</span>
+				</h2>
+				{#if shortlist.length > 3}
+					<button
+						onclick={() => (shortlistExpanded = !shortlistExpanded)}
+						class="text-xs font-medium text-teal-600 transition-colors hover:text-teal-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-300"
+					>
+						{shortlistExpanded ? 'Collapse' : `Show all ${shortlist.length}`}
+					</button>
+				{/if}
+			</div>
+
+			<!-- Entry list -->
+			<ul class="divide-y divide-slate-100 border-t border-slate-100">
+				{#each visibleShortlist as entry (entry.provider_id)}
+					{@const statusCfg = STATUS_CONFIG[entry.status] ?? STATUS_CONFIG.to_call}
+					<li class="px-6 py-4">
+						<div class="flex items-start justify-between gap-3">
+							<!-- Provider info -->
+							<div class="min-w-0">
+								<p class="text-sm font-medium text-slate-800">
+									{entry.provider.name}{entry.provider.credentials
+										? `, ${entry.provider.credentials}`
+										: ''}
+								</p>
+								<p class="mt-0.5 text-xs text-slate-500">
+									{entry.provider.city}, {entry.provider.state}
+								</p>
+							</div>
+
+							<!-- Remove button -->
+							<button
+								onclick={() => handleRemoveFromShortlist(entry.provider_id)}
+								aria-label="Remove from shortlist"
+								class="shrink-0 rounded p-1 text-slate-300 transition-colors hover:bg-slate-100 hover:text-slate-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-300"
+							>
+								<svg
+									xmlns="http://www.w3.org/2000/svg"
+									class="size-4"
+									viewBox="0 0 24 24"
+									fill="none"
+									stroke="currentColor"
+									stroke-width="2"
+								>
+									<path d="M18 6 6 18M6 6l12 12" />
+								</svg>
+							</button>
+						</div>
+
+						<!-- Status row -->
+						<div class="mt-2 flex flex-wrap items-center gap-2">
+							<!-- Status badge (current) -->
+							<span
+								class="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium {statusCfg.badge}"
+							>
+								{statusCfg.label}
+							</span>
+
+							<!-- Status dropdown -->
+							<select
+								value={entry.status}
+								onchange={(e) =>
+									handleUpdateStatus(entry.provider_id, (e.target as HTMLSelectElement).value)}
+								class="rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs text-slate-600 shadow-sm focus:border-teal-400 focus:ring-1 focus:ring-teal-200 focus:outline-none"
+								aria-label="Update call status"
+							>
+								{#each STATUSES as s (s.value)}
+									<option value={s.value}>{s.label}</option>
+								{/each}
+							</select>
+						</div>
+
+						<!-- Notes textarea -->
+						<div class="relative mt-2">
+							<textarea
+								rows="2"
+								placeholder="Add notes…"
+								value={notesDraft[entry.provider_id] ?? entry.notes ?? ''}
+								oninput={(e) => {
+									notesDraft[entry.provider_id] = (e.target as HTMLTextAreaElement).value;
+								}}
+								onblur={() => handleNotesSave(entry.provider_id)}
+								disabled={notesSaving[entry.provider_id]}
+								class="w-full resize-none rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-700 placeholder-slate-400 focus:border-teal-400 focus:ring-1 focus:ring-teal-200 focus:outline-none disabled:opacity-60"
+							></textarea>
+							{#if notesSaved[entry.provider_id]}
+								<span class="absolute right-2 bottom-2 text-xs text-teal-500">Saved</span>
+							{/if}
+						</div>
+					</li>
+				{/each}
+			</ul>
+
+			<!-- "Show more" footer when collapsed and there are hidden entries -->
+			{#if shortlist.length > 3 && !shortlistExpanded}
+				<div class="border-t border-slate-100 px-6 py-3 text-center">
+					<button
+						onclick={() => (shortlistExpanded = true)}
+						class="text-xs text-slate-400 transition-colors hover:text-slate-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-300"
+					>
+						+{shortlist.length - 3} more — show all
+					</button>
+				</div>
+			{/if}
+		</section>
+	{/if}
 
 	<!-- Search bar -->
 	<section class="mb-4 rounded-2xl border border-slate-200 bg-white px-6 py-5 shadow-sm">
@@ -429,7 +674,14 @@
 			<ol class="space-y-4" aria-label="Provider search results">
 				{#each results.providers as provider (provider.id)}
 					<li>
-						<ProviderCard {provider} />
+						<ProviderCard
+							{provider}
+							isSaved={savedProviderIds.has(provider.id)}
+							shortlistEntry={getShortlistEntry(provider.id)}
+							onSave={() => handleSave(provider.id)}
+							onUnsave={() => handleUnsave(provider.id)}
+							onShortlistChange={loadShortlist}
+						/>
 					</li>
 				{/each}
 			</ol>

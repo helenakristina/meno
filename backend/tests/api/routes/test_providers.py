@@ -31,6 +31,9 @@ class MockQueryBuilder:
     def eq(self, *_, **__):
         return self
 
+    def in_(self, *_, **__):
+        return self
+
     def limit(self, *_, **__):
         return self
 
@@ -38,6 +41,15 @@ class MockQueryBuilder:
         return self
 
     def order(self, *_, **__):
+        return self
+
+    def insert(self, *_, **__):
+        return self
+
+    def update(self, *_, **__):
+        return self
+
+    def delete(self, *_, **__):
         return self
 
     async def execute(self):
@@ -69,8 +81,34 @@ def make_zip_mock_client(zip_data: list[dict], provider_data: list[dict]) -> Mag
     return mock
 
 
+def make_sequential_client(*responses: list[dict]) -> MagicMock:
+    """Build a mock client where successive table() calls return successive responses.
+
+    Used for endpoints that make multiple DB queries (e.g., check-then-insert,
+    or fetch-shortlist-entries then fetch-provider-rows).
+    """
+    mock = MagicMock()
+    call_idx = [0]
+
+    def table_side_effect(_):
+        idx = call_idx[0]
+        data = responses[idx] if idx < len(responses) else []
+        call_idx[0] += 1
+        return MockQueryBuilder(data=data)
+
+    mock.table.side_effect = table_side_effect
+    return mock
+
+
 def override(mock_client):
     app.dependency_overrides[get_client] = lambda: mock_client
+    return lambda: app.dependency_overrides.clear()
+
+
+def override_both(mock_client):
+    """Override both the DB client and auth dependency. Returns cleanup fn."""
+    app.dependency_overrides[get_client] = lambda: mock_client
+    app.dependency_overrides[get_current_user_id] = lambda: "test-user-uuid"
     return lambda: app.dependency_overrides.clear()
 
 
@@ -716,3 +754,310 @@ class TestGenerateCallingScript:
 
         assert response.status_code == 500
         assert "calling script" in response.json()["detail"].lower()
+
+
+# ---------------------------------------------------------------------------
+# Shortlist / Call Tracker endpoints
+# ---------------------------------------------------------------------------
+
+# Sample shortlist fixture data
+_SHORTLIST_ENTRY = {
+    "id": "entry-uuid-1",
+    "user_id": "test-user-uuid",
+    "provider_id": "uuid-1",
+    "status": "to_call",
+    "notes": None,
+    "added_at": "2026-02-25T10:00:00+00:00",
+    "updated_at": "2026-02-25T10:00:00+00:00",
+}
+
+_SHORTLIST_ENTRY_WITH_NOTES = {
+    **_SHORTLIST_ENTRY,
+    "id": "entry-uuid-2",
+    "provider_id": "uuid-2",
+    "status": "left_voicemail",
+    "notes": "Said to call back in March",
+}
+
+
+class TestGetShortlistIds:
+    def test_returns_list_of_provider_ids(self):
+        data = [{"provider_id": "uuid-1"}, {"provider_id": "uuid-2"}]
+        mock = make_mock_client(data=data)
+        cleanup = override_both(mock)
+        try:
+            with TestClient(app) as client:
+                response = client.get("/api/providers/shortlist/ids")
+        finally:
+            cleanup()
+
+        assert response.status_code == 200
+        body = response.json()
+        assert body == ["uuid-1", "uuid-2"]
+
+    def test_returns_empty_list_when_no_entries(self):
+        mock = make_mock_client(data=[])
+        cleanup = override_both(mock)
+        try:
+            with TestClient(app) as client:
+                response = client.get("/api/providers/shortlist/ids")
+        finally:
+            cleanup()
+
+        assert response.status_code == 200
+        assert response.json() == []
+
+    def test_requires_auth(self):
+        mock = make_mock_client(data=[])
+        cleanup = override(mock)  # DB override only — no auth override
+        try:
+            with TestClient(app) as client:
+                response = client.get("/api/providers/shortlist/ids")
+        finally:
+            cleanup()
+
+        assert response.status_code == 401
+
+
+class TestGetShortlist:
+    def test_returns_entries_with_provider_data(self):
+        # Sequence: shortlist entries → provider rows
+        mock = make_sequential_client(
+            [_SHORTLIST_ENTRY],
+            [PROVIDER_MN],
+        )
+        cleanup = override_both(mock)
+        try:
+            with TestClient(app) as client:
+                response = client.get("/api/providers/shortlist")
+        finally:
+            cleanup()
+
+        assert response.status_code == 200
+        body = response.json()
+        assert len(body) == 1
+        entry = body[0]
+        assert entry["provider_id"] == "uuid-1"
+        assert entry["status"] == "to_call"
+        assert "provider" in entry
+        assert entry["provider"]["name"] == "Dr. Jane Smith"
+        assert entry["provider"]["city"] == "Minneapolis"
+
+    def test_returns_empty_list_when_shortlist_is_empty(self):
+        mock = make_mock_client(data=[])
+        cleanup = override_both(mock)
+        try:
+            with TestClient(app) as client:
+                response = client.get("/api/providers/shortlist")
+        finally:
+            cleanup()
+
+        assert response.status_code == 200
+        assert response.json() == []
+
+    def test_entry_with_notes_is_included(self):
+        mock = make_sequential_client(
+            [_SHORTLIST_ENTRY_WITH_NOTES],
+            [{**PROVIDER_MN, "id": "uuid-2"}],
+        )
+        cleanup = override_both(mock)
+        try:
+            with TestClient(app) as client:
+                response = client.get("/api/providers/shortlist")
+        finally:
+            cleanup()
+
+        assert response.status_code == 200
+        entry = response.json()[0]
+        assert entry["notes"] == "Said to call back in March"
+        assert entry["status"] == "left_voicemail"
+
+    def test_requires_auth(self):
+        mock = make_mock_client(data=[])
+        cleanup = override(mock)
+        try:
+            with TestClient(app) as client:
+                response = client.get("/api/providers/shortlist")
+        finally:
+            cleanup()
+
+        assert response.status_code == 401
+
+
+class TestAddToShortlist:
+    def test_adds_entry_and_returns_201(self):
+        # Sequence: check existing (empty) → insert result
+        new_entry = {**_SHORTLIST_ENTRY, "status": "to_call"}
+        mock = make_sequential_client([], [new_entry])
+        cleanup = override_both(mock)
+        try:
+            with TestClient(app) as client:
+                response = client.post(
+                    "/api/providers/shortlist", json={"provider_id": "uuid-1"}
+                )
+        finally:
+            cleanup()
+
+        assert response.status_code == 201
+        body = response.json()
+        assert body["provider_id"] == "uuid-1"
+        assert body["status"] == "to_call"
+
+    def test_returns_409_when_already_in_shortlist(self):
+        # Sequence: check existing → found → returns 409 with existing entry
+        mock = make_mock_client(data=[_SHORTLIST_ENTRY])
+        cleanup = override_both(mock)
+        try:
+            with TestClient(app) as client:
+                response = client.post(
+                    "/api/providers/shortlist", json={"provider_id": "uuid-1"}
+                )
+        finally:
+            cleanup()
+
+        assert response.status_code == 409
+        body = response.json()
+        # The existing entry is returned in the body
+        assert body["provider_id"] == "uuid-1"
+
+    def test_requires_auth(self):
+        mock = make_mock_client(data=[])
+        cleanup = override(mock)
+        try:
+            with TestClient(app) as client:
+                response = client.post(
+                    "/api/providers/shortlist", json={"provider_id": "uuid-1"}
+                )
+        finally:
+            cleanup()
+
+        assert response.status_code == 401
+
+
+class TestRemoveFromShortlist:
+    def test_removes_entry_and_returns_204(self):
+        # Sequence: check existing (found) → delete
+        mock = make_sequential_client([_SHORTLIST_ENTRY], [])
+        cleanup = override_both(mock)
+        try:
+            with TestClient(app) as client:
+                response = client.delete("/api/providers/shortlist/uuid-1")
+        finally:
+            cleanup()
+
+        assert response.status_code == 204
+
+    def test_returns_404_when_not_in_shortlist(self):
+        mock = make_mock_client(data=[])
+        cleanup = override_both(mock)
+        try:
+            with TestClient(app) as client:
+                response = client.delete("/api/providers/shortlist/uuid-99")
+        finally:
+            cleanup()
+
+        assert response.status_code == 404
+        assert "shortlist" in response.json()["detail"].lower()
+
+    def test_requires_auth(self):
+        mock = make_mock_client(data=[])
+        cleanup = override(mock)
+        try:
+            with TestClient(app) as client:
+                response = client.delete("/api/providers/shortlist/uuid-1")
+        finally:
+            cleanup()
+
+        assert response.status_code == 401
+
+
+class TestUpdateShortlistEntry:
+    def test_updates_status_returns_entry(self):
+        updated_entry = {**_SHORTLIST_ENTRY, "status": "called"}
+        # Sequence: check existing (found) → update result
+        mock = make_sequential_client([_SHORTLIST_ENTRY], [updated_entry])
+        cleanup = override_both(mock)
+        try:
+            with TestClient(app) as client:
+                response = client.patch(
+                    "/api/providers/shortlist/uuid-1", json={"status": "called"}
+                )
+        finally:
+            cleanup()
+
+        assert response.status_code == 200
+        body = response.json()
+        assert body["status"] == "called"
+
+    def test_updates_notes_returns_entry(self):
+        updated_entry = {**_SHORTLIST_ENTRY, "notes": "Call back in March"}
+        mock = make_sequential_client([_SHORTLIST_ENTRY], [updated_entry])
+        cleanup = override_both(mock)
+        try:
+            with TestClient(app) as client:
+                response = client.patch(
+                    "/api/providers/shortlist/uuid-1",
+                    json={"notes": "Call back in March"},
+                )
+        finally:
+            cleanup()
+
+        assert response.status_code == 200
+        assert response.json()["notes"] == "Call back in March"
+
+    def test_updates_both_status_and_notes(self):
+        updated_entry = {**_SHORTLIST_ENTRY, "status": "booking", "notes": "Appointment next week"}
+        mock = make_sequential_client([_SHORTLIST_ENTRY], [updated_entry])
+        cleanup = override_both(mock)
+        try:
+            with TestClient(app) as client:
+                response = client.patch(
+                    "/api/providers/shortlist/uuid-1",
+                    json={"status": "booking", "notes": "Appointment next week"},
+                )
+        finally:
+            cleanup()
+
+        assert response.status_code == 200
+        body = response.json()
+        assert body["status"] == "booking"
+        assert body["notes"] == "Appointment next week"
+
+    def test_returns_404_when_not_in_shortlist(self):
+        mock = make_mock_client(data=[])
+        cleanup = override_both(mock)
+        try:
+            with TestClient(app) as client:
+                response = client.patch(
+                    "/api/providers/shortlist/uuid-99", json={"status": "called"}
+                )
+        finally:
+            cleanup()
+
+        assert response.status_code == 404
+
+    def test_invalid_status_returns_422(self):
+        mock = make_mock_client(data=[])
+        cleanup = override_both(mock)
+        try:
+            with TestClient(app) as client:
+                response = client.patch(
+                    "/api/providers/shortlist/uuid-1", json={"status": "not_a_status"}
+                )
+        finally:
+            cleanup()
+
+        assert response.status_code == 422
+
+    def test_requires_auth(self):
+        mock = make_mock_client(data=[])
+        cleanup = override(mock)
+        try:
+            with TestClient(app) as client:
+                response = client.patch(
+                    "/api/providers/shortlist/uuid-1", json={"status": "called"}
+                )
+        finally:
+            cleanup()
+
+        assert response.status_code == 401

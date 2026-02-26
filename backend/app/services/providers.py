@@ -6,7 +6,7 @@ from app.core.insurance_normalizer import normalize_insurance_list, normalize_in
 from app.models.providers import CallingScriptRequest, InsuranceType, ProviderCard, ProviderSearchResponse
 
 
-def _to_provider_card(row: dict) -> ProviderCard:
+def to_provider_card(row: dict) -> ProviderCard:
     return ProviderCard(
         id=row["id"],
         name=row["name"],
@@ -74,7 +74,7 @@ def filter_and_paginate(
     page_items = providers[offset : offset + page_size]
 
     return ProviderSearchResponse(
-        providers=[_to_provider_card(p) for p in page_items],
+        providers=[to_provider_card(p) for p in page_items],
         total=total,
         page=page,
         page_size=page_size,

@@ -55,3 +55,40 @@ class CallingScriptRequest(BaseModel):
 class CallingScriptResponse(BaseModel):
     script: str
     provider_name: str
+
+
+# ---------------------------------------------------------------------------
+# Shortlist / Call Tracker models
+# ---------------------------------------------------------------------------
+
+
+class ShortlistStatus(str, Enum):
+    to_call = "to_call"
+    called = "called"
+    left_voicemail = "left_voicemail"
+    booking = "booking"
+    not_available = "not_available"
+
+
+class ShortlistEntry(BaseModel):
+    id: str
+    user_id: str
+    provider_id: str
+    status: ShortlistStatus
+    notes: str | None
+    added_at: str
+    updated_at: str
+
+
+class ShortlistEntryWithProvider(ShortlistEntry):
+    provider: ProviderCard
+
+
+class AddToShortlistRequest(BaseModel):
+    provider_id: str
+
+
+class UpdateShortlistRequest(BaseModel):
+    # None means "don't update this field". Empty string for notes means "clear notes".
+    status: ShortlistStatus | None = None
+    notes: str | None = None

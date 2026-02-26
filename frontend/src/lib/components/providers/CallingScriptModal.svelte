@@ -4,6 +4,16 @@
 	type ModalState = 'form' | 'loading' | 'result';
 	type InsuranceType = 'private' | 'medicare' | 'medicaid' | 'self_pay' | 'other';
 
+	const STATUSES = [
+		{ value: 'to_call', label: 'To Call' },
+		{ value: 'called', label: 'Called' },
+		{ value: 'left_voicemail', label: 'Left Voicemail' },
+		{ value: 'booking', label: 'Booking Appointment' },
+		{ value: 'not_available', label: 'Not Available' }
+	] as const;
+
+	type ShortlistStatus = (typeof STATUSES)[number]['value'];
+
 	interface Provider {
 		id: string;
 		name: string;
@@ -12,12 +22,30 @@
 		phone: string | null;
 	}
 
+	interface ShortlistEntry {
+		id: string;
+		user_id: string;
+		provider_id: string;
+		status: string;
+		notes: string | null;
+		added_at: string;
+		updated_at: string;
+	}
+
 	let {
 		open = $bindable(false),
-		provider
+		provider,
+		isSaved = false,
+		shortlistEntry = null,
+		onSave,
+		onShortlistChange
 	}: {
 		open: boolean;
 		provider: Provider | null;
+		isSaved?: boolean;
+		shortlistEntry?: ShortlistEntry | null;
+		onSave?: () => void;
+		onShortlistChange?: () => void;
 	} = $props();
 
 	let modalState = $state<ModalState>('form');
@@ -31,6 +59,14 @@
 	// True while fetching saved insurance preference on open — skeletons the form fields
 	let prefLoading = $state(false);
 
+	// Call tracker state (managed locally in result state)
+	let localIsSaved = $state(false);
+	let localStatus = $state<ShortlistStatus>('to_call');
+	let localNotes = $state('');
+	let notesSaving = $state(false);
+	let notesSaved = $state(false);
+	let trackerSaving = $state(false);
+
 	let isFormValid = $derived(insuranceType !== '');
 
 	const INSURANCE_OPTIONS: { value: InsuranceType; label: string }[] = [
@@ -41,6 +77,14 @@
 		{ value: 'other', label: 'Other' }
 	];
 
+	const STATUS_COLORS: Record<ShortlistStatus, string> = {
+		to_call: 'text-blue-700 border-blue-200 bg-blue-50',
+		called: 'text-teal-700 border-teal-200 bg-teal-50',
+		left_voicemail: 'text-amber-700 border-amber-200 bg-amber-50',
+		booking: 'text-green-700 border-green-200 bg-green-50',
+		not_available: 'text-slate-500 border-slate-200 bg-slate-50'
+	};
+
 	function close() {
 		open = false;
 	}
@@ -49,7 +93,8 @@
 		if (e.key === 'Escape') close();
 	}
 
-	// Reset form state and load saved preference each time the modal opens
+	// Reset form state and load saved preference each time the modal opens.
+	// Also sync call tracker state from props.
 	$effect(() => {
 		if (open) {
 			modalState = 'form';
@@ -60,6 +105,13 @@
 			generatedScript = '';
 			error = '';
 			copied = false;
+
+			// Sync call tracker from parent props
+			localIsSaved = isSaved;
+			localStatus = (shortlistEntry?.status as ShortlistStatus) ?? 'to_call';
+			localNotes = shortlistEntry?.notes ?? '';
+			notesSaved = false;
+
 			loadInsurancePreference();
 		}
 	});
@@ -152,6 +204,61 @@
 		modalState = 'form';
 		generatedScript = '';
 		error = '';
+	}
+
+	// ---------------------------------------------------------------------------
+	// Call tracker actions
+	// ---------------------------------------------------------------------------
+
+	async function handleSaveToList() {
+		if (!provider || trackerSaving) return;
+		trackerSaving = true;
+		try {
+			await apiClient.post('/api/providers/shortlist', { provider_id: provider.id });
+			localIsSaved = true;
+			localStatus = 'to_call';
+			onSave?.();
+			onShortlistChange?.();
+		} catch {
+			// If 409, it's already saved — sync local state
+			localIsSaved = true;
+		} finally {
+			trackerSaving = false;
+		}
+	}
+
+	async function handleStatusChange(newStatus: ShortlistStatus) {
+		if (!provider || localStatus === newStatus) return;
+		localStatus = newStatus;
+		try {
+			await apiClient.patch(`/api/providers/shortlist/${provider.id}`, {
+				status: newStatus
+			});
+			onShortlistChange?.();
+		} catch {
+			// Fail silently — status will resync on next page load
+		}
+	}
+
+	async function handleNotesBlur() {
+		if (!provider || !localIsSaved) return;
+		// Skip if notes haven't changed from what the parent passed in
+		const originalNotes = shortlistEntry?.notes ?? '';
+		if (localNotes === originalNotes) return;
+
+		notesSaving = true;
+		try {
+			await apiClient.patch(`/api/providers/shortlist/${provider.id}`, {
+				notes: localNotes
+			});
+			notesSaved = true;
+			setTimeout(() => (notesSaved = false), 2000);
+			onShortlistChange?.();
+		} catch {
+			// Fail silently
+		} finally {
+			notesSaving = false;
+		}
 	}
 </script>
 
@@ -385,6 +492,88 @@
 							>
 								{provider.phone}
 							</a>
+						</div>
+					{/if}
+
+					<!-- ── CALL TRACKER ─────────────────────────────────── -->
+					{#if onSave || localIsSaved}
+						<div class="rounded-xl border border-slate-100 bg-slate-50 px-4 py-4">
+							<p class="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-400">
+								Call Tracker
+							</p>
+
+							{#if !localIsSaved}
+								<!-- Save to list button -->
+								<button
+									onclick={handleSaveToList}
+									disabled={trackerSaving}
+									class="flex w-full items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 transition-colors hover:border-teal-300 hover:bg-teal-50 hover:text-teal-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-300 disabled:cursor-not-allowed disabled:opacity-60"
+								>
+									{#if trackerSaving}
+										<div
+											class="size-4 animate-spin rounded-full border-2 border-slate-200 border-t-slate-500"
+										></div>
+										Saving…
+									{:else}
+										<svg
+											xmlns="http://www.w3.org/2000/svg"
+											class="size-4"
+											viewBox="0 0 24 24"
+											fill="none"
+											stroke="currentColor"
+											stroke-width="1.75"
+										>
+											<path d="M19 21l-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
+										</svg>
+										Save to my list
+									{/if}
+								</button>
+							{:else}
+								<!-- Status selector -->
+								<div class="mb-3">
+									<label for="cs-status" class="mb-1.5 block text-xs font-medium text-slate-500">
+										Status
+									</label>
+									<select
+										id="cs-status"
+										value={localStatus}
+										onchange={(e) =>
+											handleStatusChange(
+												(e.target as HTMLSelectElement).value as ShortlistStatus
+											)}
+										class="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 shadow-sm focus:border-teal-400 focus:ring-2 focus:ring-teal-200 focus:outline-none"
+									>
+										{#each STATUSES as s (s.value)}
+											<option value={s.value}>{s.label}</option>
+										{/each}
+									</select>
+								</div>
+
+								<!-- Notes textarea -->
+								<div>
+									<div class="mb-1.5 flex items-center justify-between">
+										<label for="cs-notes" class="text-xs font-medium text-slate-500">
+											Notes
+										</label>
+										{#if notesSaving}
+											<span class="text-xs text-slate-400">Saving…</span>
+										{:else if notesSaved}
+											<span class="text-xs text-teal-600">Saved</span>
+										{/if}
+									</div>
+									<textarea
+										id="cs-notes"
+										bind:value={localNotes}
+										onblur={handleNotesBlur}
+										placeholder="e.g. Said to call back in March, only takes UCare not Hennepin Health"
+										rows={3}
+										class="w-full resize-none rounded-lg border border-slate-200 px-3 py-2.5 text-sm text-slate-700 placeholder-slate-400 shadow-sm focus:border-teal-400 focus:ring-2 focus:ring-teal-200 focus:outline-none"
+									></textarea>
+									<p class="mt-1 text-xs text-slate-400">
+										Saved automatically when you click away.
+									</p>
+								</div>
+							{/if}
 						</div>
 					{/if}
 

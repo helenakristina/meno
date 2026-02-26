@@ -19,9 +19,34 @@
 		last_verified: string | null;
 	}
 
-	let { provider }: { provider: Provider } = $props();
+	interface ShortlistEntry {
+		id: string;
+		user_id: string;
+		provider_id: string;
+		status: string;
+		notes: string | null;
+		added_at: string;
+		updated_at: string;
+	}
+
+	let {
+		provider,
+		isSaved = false,
+		shortlistEntry = null,
+		onSave,
+		onUnsave,
+		onShortlistChange
+	}: {
+		provider: Provider;
+		isSaved?: boolean;
+		shortlistEntry?: ShortlistEntry | null;
+		onSave?: () => void;
+		onUnsave?: () => void;
+		onShortlistChange?: () => void;
+	} = $props();
 
 	let modalOpen = $state(false);
+	let saveLoading = $state(false);
 
 	const MAX_INSURANCE = 3;
 
@@ -47,18 +72,31 @@
 
 	function formatVerified(dateStr: string | null): string {
 		if (!dateStr) return '';
-		// Parse at noon local time to avoid DST edge cases
 		return new Date(`${dateStr}T12:00:00`).toLocaleDateString('en-US', {
 			month: 'long',
 			year: 'numeric'
 		});
+	}
+
+	async function handleBookmarkClick() {
+		if (saveLoading) return;
+		saveLoading = true;
+		try {
+			if (isSaved) {
+				await onUnsave?.();
+			} else {
+				await onSave?.();
+			}
+		} finally {
+			saveLoading = false;
+		}
 	}
 </script>
 
 <article
 	class="rounded-2xl border border-slate-200 bg-white px-6 py-5 shadow-sm transition-shadow hover:shadow-md"
 >
-	<!-- Top row: name/location + NAMS badge -->
+	<!-- Top row: name/location + badges -->
 	<div class="flex flex-wrap items-start justify-between gap-3">
 		<div class="min-w-0">
 			<h3 class="text-base font-semibold text-slate-900">
@@ -70,14 +108,60 @@
 			<p class="mt-1 text-sm text-slate-600">{provider.city}, {provider.state}</p>
 		</div>
 
-		{#if provider.nams_certified}
-			<span
-				class="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-700"
-				title="NAMS Certified Menopause Practitioner"
-			>
-				✦ NAMS Certified
-			</span>
-		{/if}
+		<!-- Right side: NAMS badge + bookmark -->
+		<div class="flex shrink-0 items-center gap-2">
+			{#if provider.nams_certified}
+				<span
+					class="inline-flex items-center gap-1.5 rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-700"
+					title="NAMS Certified Menopause Practitioner"
+				>
+					✦ NAMS Certified
+				</span>
+			{/if}
+
+			<!-- Bookmark button (only shown when save callbacks are provided) -->
+			{#if onSave || onUnsave}
+				<button
+					onclick={handleBookmarkClick}
+					disabled={saveLoading}
+					aria-label={isSaved ? 'Remove from shortlist' : 'Save to shortlist'}
+					title={isSaved ? 'Remove from shortlist' : 'Save to shortlist'}
+					class="flex h-8 w-8 items-center justify-center rounded-full transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-300 disabled:cursor-not-allowed
+						{isSaved
+						? 'text-amber-500 hover:bg-amber-50 hover:text-amber-600'
+						: 'text-slate-300 hover:bg-slate-50 hover:text-slate-500'}"
+				>
+					{#if saveLoading}
+						<!-- Spinner -->
+						<div
+							class="size-4 animate-spin rounded-full border-2 border-slate-200 border-t-slate-500"
+						></div>
+					{:else if isSaved}
+						<!-- Filled bookmark -->
+						<svg
+							xmlns="http://www.w3.org/2000/svg"
+							class="size-5"
+							viewBox="0 0 24 24"
+							fill="currentColor"
+						>
+							<path d="M5 4a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v18l-7-4-7 4V4z" />
+						</svg>
+					{:else}
+						<!-- Outline bookmark -->
+						<svg
+							xmlns="http://www.w3.org/2000/svg"
+							class="size-5"
+							viewBox="0 0 24 24"
+							fill="none"
+							stroke="currentColor"
+							stroke-width="1.75"
+						>
+							<path d="M19 21l-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
+						</svg>
+					{/if}
+				</button>
+			{/if}
+		</div>
 	</div>
 
 	<!-- Provider type -->
@@ -170,4 +254,11 @@
 	{/if}
 </article>
 
-<CallingScriptModal bind:open={modalOpen} {provider} />
+<CallingScriptModal
+	bind:open={modalOpen}
+	{provider}
+	{isSaved}
+	{shortlistEntry}
+	{onSave}
+	{onShortlistChange}
+/>
