@@ -31,3 +31,6 @@ Thumbs.db
 
 # Scraper output data (raw/clean JSON, not for version control)
 backend/scripts/data/
+
+
+V1_REVIEW_SUMMARY.md

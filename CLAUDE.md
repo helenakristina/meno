@@ -1,5 +1,17 @@
 # CLAUDE.md - Development Context for Meno
 
+**⚠️ IMPORTANT: DEV-ONLY POC**
+
+Meno is currently a proof-of-concept running locally only. It is NOT deployed to production.
+Before any real users access Meno, the following must be completed:
+
+1. ✅ Medical advice boundary tested (GUARDRAILS_AUDIT.md)
+2. ⏳ Legal review (LEGAL_PREP.md — awaiting attorney)
+3. ⏳ Job + API cost plan (6 months)
+4. ⏳ Production deployment checklist (PRODUCTION_CHECKLIST.md)
+
+This document describes the architecture and patterns. See PRODUCTION_CHECKLIST.md for the path to launch.
+
 **Last Updated:** February 2026  
 **Project Status:** Active Development - V1 Phase
 
