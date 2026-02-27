@@ -42,6 +42,7 @@
 						<div class="flex gap-1">
 							<a
 								href="/dashboard"
+								aria-current={page.url.pathname === '/dashboard' ? 'page' : undefined}
 								class="rounded-md px-3 py-2 text-sm font-medium {page.url.pathname === '/dashboard'
 									? 'bg-slate-100 text-slate-900'
 									: 'text-slate-700 hover:bg-slate-100 hover:text-slate-900'}"
@@ -50,6 +51,7 @@
 							</a>
 							<a
 								href="/log"
+								aria-current={page.url.pathname === '/log' ? 'page' : undefined}
 								class="rounded-md px-3 py-2 text-sm font-medium {page.url.pathname === '/log'
 									? 'bg-slate-100 text-slate-900'
 									: 'text-slate-700 hover:bg-slate-100 hover:text-slate-900'}"
@@ -58,6 +60,7 @@
 							</a>
 							<a
 								href="/ask"
+								aria-current={page.url.pathname === '/ask' ? 'page' : undefined}
 								class="rounded-md px-3 py-2 text-sm font-medium {page.url.pathname === '/ask'
 									? 'bg-slate-100 text-slate-900'
 									: 'text-slate-700 hover:bg-slate-100 hover:text-slate-900'}"
@@ -66,6 +69,7 @@
 							</a>
 							<a
 								href="/providers"
+								aria-current={page.url.pathname === '/providers' ? 'page' : undefined}
 								class="rounded-md px-3 py-2 text-sm font-medium {page.url.pathname === '/providers'
 									? 'bg-slate-100 text-slate-900'
 									: 'text-slate-700 hover:bg-slate-100 hover:text-slate-900'}"
@@ -74,6 +78,7 @@
 							</a>
 							<a
 								href="/export"
+								aria-current={page.url.pathname === '/export' ? 'page' : undefined}
 								class="rounded-md px-3 py-2 text-sm font-medium {page.url.pathname === '/export'
 									? 'bg-slate-100 text-slate-900'
 									: 'text-slate-700 hover:bg-slate-100 hover:text-slate-900'}"

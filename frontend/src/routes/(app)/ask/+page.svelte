@@ -179,7 +179,7 @@
 	</div>
 
 	<!-- Messages / empty state -->
-	<div class="flex-1 overflow-y-auto" bind:this={chatContainer}>
+	<div class="flex-1 overflow-y-auto" bind:this={chatContainer} aria-live="polite" aria-label="Chat messages">
 		{#if !hasMessages}
 			<!-- Empty state: starter prompt grid -->
 			<div class="p-6">
@@ -253,6 +253,9 @@
 					<div class="flex justify-start">
 						<div
 							class="rounded-2xl rounded-tl-sm bg-white px-4 py-3 text-sm text-slate-400 shadow-sm"
+							role="status"
+							aria-live="assertive"
+							aria-label="Assistant is thinking"
 						>
 							<span class="animate-pulse">Thinking…</span>
 						</div>

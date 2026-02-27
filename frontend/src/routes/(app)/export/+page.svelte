@@ -140,11 +140,12 @@
 					type="date"
 					bind:value={startDate}
 					max={todayStr}
+					aria-describedby={startError ? 'start-date-error' : undefined}
 					class="w-full rounded-lg border px-3 py-2 text-sm text-slate-700 shadow-sm transition-colors focus:outline-none focus:ring-2 focus:ring-teal-200
 						{startError ? 'border-red-300 focus:border-red-400 focus:ring-red-100' : 'border-slate-200 focus:border-teal-400'}"
 				/>
 				{#if startError}
-					<p class="mt-1.5 text-xs text-red-600">{startError}</p>
+					<p id="start-date-error" class="mt-1.5 text-xs text-red-600">{startError}</p>
 				{/if}
 			</div>
 
@@ -158,11 +159,12 @@
 					type="date"
 					bind:value={endDate}
 					max={todayStr}
+					aria-describedby={endError ? 'end-date-error' : undefined}
 					class="w-full rounded-lg border px-3 py-2 text-sm text-slate-700 shadow-sm transition-colors focus:outline-none focus:ring-2 focus:ring-teal-200
 						{endError ? 'border-red-300 focus:border-red-400 focus:ring-red-100' : 'border-slate-200 focus:border-teal-400'}"
 				/>
 				{#if endError}
-					<p class="mt-1.5 text-xs text-red-600">{endError}</p>
+					<p id="end-date-error" class="mt-1.5 text-xs text-red-600">{endError}</p>
 				{/if}
 			</div>
 		</div>
@@ -246,6 +248,7 @@
 			<button
 				onclick={downloadPdf}
 				disabled={!isValid || pdfLoading}
+				aria-busy={pdfLoading}
 				class="flex w-full items-center justify-center gap-2 rounded-xl bg-teal-600 px-5 py-3 text-sm font-semibold text-white shadow-sm transition-all hover:bg-teal-700 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400 sm:w-auto"
 			>
 				{#if pdfLoading}
@@ -332,6 +335,7 @@
 			<button
 				onclick={downloadCsv}
 				disabled={!isValid || csvLoading}
+				aria-busy={csvLoading}
 				class="flex w-full items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white px-5 py-3 text-sm font-semibold text-slate-700 shadow-sm transition-all hover:border-slate-400 hover:bg-slate-50 disabled:cursor-not-allowed disabled:border-slate-200 disabled:text-slate-400 sm:w-auto"
 			>
 				{#if csvLoading}

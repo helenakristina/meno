@@ -271,7 +271,7 @@
 		{:else}
 			<ol class="space-y-3" aria-label="Symptom frequency chart">
 				{#each topSymptoms as stat (stat.symptom_id)}
-					<li class="flex items-center gap-3">
+					<li class="flex items-center gap-3" aria-label="{stat.symptom_name}: logged {stat.count} times">
 						<!-- Name: right-aligned, fixed width, truncated if very long -->
 						<span
 							class="w-36 shrink-0 truncate text-right text-sm text-slate-700"
@@ -434,6 +434,7 @@
 							<button
 								onclick={() => toggleNotes(group.date)}
 								aria-expanded={notesExpanded}
+								aria-label="{notesExpanded ? 'Hide' : 'Show'} {noteCount} {noteCount === 1 ? 'note' : 'notes'} from {group.label}"
 								class="flex cursor-pointer items-center gap-1 text-sm text-slate-400 transition-colors hover:text-slate-600 focus:outline-none focus-visible:rounded focus-visible:ring-2 focus-visible:ring-teal-300"
 							>
 								<span>📝 {noteCount} {noteCount === 1 ? 'note' : 'notes'}</span>
