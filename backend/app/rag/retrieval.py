@@ -102,7 +102,7 @@ async def retrieve_relevant_chunks(
 
     Returns:
         List of dicts with keys: id, content, title, source_url,
-        source_type, similarity. Empty list if no documents are stored.
+        source_type, section_name, similarity. Empty list if no documents are stored.
     """
     openai = _openai_client()
 
@@ -120,7 +120,7 @@ async def retrieve_relevant_chunks(
     supabase = await get_client()
     try:
         result = await supabase.table("rag_documents").select(
-            "id, content, title, source_url, source_type, embedding"
+            "id, content, title, source_url, source_type, section_name, embedding"
         ).execute()
     except Exception:
         logger.exception("RAG: Supabase table fetch failed (rag_documents)")
@@ -151,6 +151,7 @@ async def retrieve_relevant_chunks(
                 "title": doc["title"],
                 "source_url": doc["source_url"],
                 "source_type": doc["source_type"],
+                "section_name": doc.get("section_name"),
                 "similarity": similarity,
             }
         )

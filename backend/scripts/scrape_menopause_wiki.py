@@ -55,10 +55,10 @@ USER_AGENT = "MenoEducationalBot/1.0 (Health education app; not for commercial u
 
 # Pages to scrape, in priority order (highest-value content first)
 WIKI_PAGES = [
-    "/",                        # Main wiki — 170k chars, 10 H2 sections
+    "/",  # Main wiki — 170k chars, 10 H2 sections
     "/is-this-perimenopause/",  # Perimenopause guide
-    "/resources/",              # Research and resource links
-    "/fitness/",                # Exercise and fitness
+    # "/resources/",              # Research and resource links
+    # "/fitness/",                # Exercise and fitness
 ]
 
 # Skip provider directory — it's a directory listing, not educational content
@@ -77,11 +77,11 @@ PROGRESS_FILE = Path(__file__).parent / ".scrape_progress.json"
 
 
 class ScrapedSection(NamedTuple):
-    page_title: str       # H1 of the page (e.g. "The Menopause Wiki")
+    page_title: str  # H1 of the page (e.g. "The Menopause Wiki")
     section_name: str | None  # H2 text, or None for intro/single-page
-    url: str              # Full URL of the page
-    text: str             # Extracted plain text
-    word_count: int       # Approximate word count for filtering
+    url: str  # Full URL of the page
+    text: str  # Extracted plain text
+    word_count: int  # Approximate word count for filtering
 
     @property
     def progress_key(self) -> str:
@@ -136,7 +136,9 @@ def _element_text(element: Tag) -> str:
     return " ".join(element.get_text(separator=" ").split())
 
 
-def split_page_into_sections(soup: BeautifulSoup, page_url: str) -> list[ScrapedSection]:
+def split_page_into_sections(
+    soup: BeautifulSoup, page_url: str
+) -> list[ScrapedSection]:
     """Split a wiki page into one ScrapedSection per H2 heading.
 
     The main wiki page is 170k characters with 10 major H2 sections — splitting
@@ -472,7 +474,9 @@ async def main() -> None:
     # --- Summary ---
     print(f"\n{'=' * 50}")
     mode = "dry-run" if args.dry_run else "ingested"
-    print(f"Done! Sections {mode}: {len(sections_to_process) - errors}/{len(sections_to_process)}")
+    print(
+        f"Done! Sections {mode}: {len(sections_to_process) - errors}/{len(sections_to_process)}"
+    )
     print(f"      Chunks created:  {total_chunks}")
     if errors:
         print(f"      Errors:          {errors} (check logs)")

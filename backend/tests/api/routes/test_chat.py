@@ -35,6 +35,7 @@ SAMPLE_CHUNKS = [
         "title": "Perimenopause Overview",
         "source_url": "https://menopausewiki.ca/hot-flashes",
         "source_type": "wiki",
+        "section_name": "Vasomotor Symptoms",
         "similarity": 0.92,
     },
     {
@@ -43,6 +44,7 @@ SAMPLE_CHUNKS = [
         "title": "HRT Guidelines 2023",
         "source_url": "https://menopause.org/hrt-guidelines",
         "source_type": "wiki",
+        "section_name": "HRT Safety",
         "similarity": 0.85,
     },
 ]
@@ -506,5 +508,168 @@ def test_chat_uses_default_summary_when_cache_missing(client):
             )
 
         assert response.status_code == 200
+    finally:
+        clear()
+
+
+# ---------------------------------------------------------------------------
+# Citation sanitization (phantom citation removal)
+# ---------------------------------------------------------------------------
+
+
+def test_chat_sanitizes_phantom_citations(client):
+    """Phantom citations like [Source 3] when only 2 sources exist are removed."""
+    # Response references [Source 3] but only 2 sources are provided
+    response_text = (
+        "Hot flashes are common [Source 1]. "
+        "HRT is an option [Source 2]. "
+        "Additional research shows more options [Source 3]."
+    )
+    mock_client = make_mock_client()
+    clear = override(mock_client)
+    try:
+        with (
+            patch(
+                "app.api.routes.chat.retrieve_relevant_chunks",
+                new=AsyncMock(return_value=SAMPLE_CHUNKS),
+            ),
+            patch("app.api.routes.chat.AsyncOpenAI") as MockOpenAI,
+        ):
+            instance = AsyncMock()
+            instance.chat.completions.create.return_value = _make_openai_response(response_text)
+            MockOpenAI.return_value = instance
+
+            response = client.post(
+                "/api/chat",
+                json={"message": "What are my options for managing symptoms?"},
+                headers=AUTH_HEADER,
+            )
+
+        assert response.status_code == 200
+        body = response.json()
+        # The message should have [Source 3] removed
+        assert "[Source 3]" not in body["message"]
+        # But [Source 1] and [Source 2] should remain
+        assert "[Source 1]" in body["message"]
+        assert "[Source 2]" in body["message"]
+        # Citations should only include 2 entries
+        assert len(body["citations"]) == 2
+    finally:
+        clear()
+
+
+def test_chat_citations_include_section_names(client):
+    """Citations include section names from chunk metadata when available."""
+    mock_client = make_mock_client()
+    clear = override(mock_client)
+    try:
+        with (
+            patch(
+                "app.api.routes.chat.retrieve_relevant_chunks",
+                new=AsyncMock(return_value=SAMPLE_CHUNKS),
+            ),
+            patch("app.api.routes.chat.AsyncOpenAI") as MockOpenAI,
+        ):
+            instance = AsyncMock()
+            instance.chat.completions.create.return_value = _make_openai_response(OPENAI_RESPONSE)
+            MockOpenAI.return_value = instance
+
+            response = client.post(
+                "/api/chat",
+                json={"message": "What causes hot flashes and what about HRT?"},
+                headers=AUTH_HEADER,
+            )
+
+        assert response.status_code == 200
+        body = response.json()
+        citations = body["citations"]
+
+        # Check that section names are present in citations
+        assert len(citations) == 2
+        assert citations[0]["section"] == "Vasomotor Symptoms"
+        assert citations[1]["section"] == "HRT Safety"
+    finally:
+        clear()
+
+
+def test_chat_handles_multiple_phantom_citations(client):
+    """Multiple phantom citations are all removed."""
+    response_text = (
+        "Hot flashes [Source 1]. "
+        "Night sweats [Source 4]. "
+        "Brain fog [Source 5]. "
+        "HRT [Source 2]."
+    )
+    mock_client = make_mock_client()
+    clear = override(mock_client)
+    try:
+        with (
+            patch(
+                "app.api.routes.chat.retrieve_relevant_chunks",
+                new=AsyncMock(return_value=SAMPLE_CHUNKS),
+            ),
+            patch("app.api.routes.chat.AsyncOpenAI") as MockOpenAI,
+        ):
+            instance = AsyncMock()
+            instance.chat.completions.create.return_value = _make_openai_response(response_text)
+            MockOpenAI.return_value = instance
+
+            response = client.post(
+                "/api/chat",
+                json={"message": "Tell me about symptoms"},
+                headers=AUTH_HEADER,
+            )
+
+        assert response.status_code == 200
+        body = response.json()
+        # Phantom citations [Source 4] and [Source 5] should be removed
+        assert "[Source 4]" not in body["message"]
+        assert "[Source 5]" not in body["message"]
+        # Valid citations should remain
+        assert "[Source 1]" in body["message"]
+        assert "[Source 2]" in body["message"]
+        # Only 2 valid citations
+        assert len(body["citations"]) == 2
+    finally:
+        clear()
+
+
+def test_chat_sanitizes_plain_bracket_phantom_citations(client):
+    """Phantom citations using plain [N] format are also removed."""
+    # Response uses plain [N] format instead of [Source N]
+    response_text = (
+        "Hot flashes affect women [1]. "
+        "Some researchers found [4]. "
+        "HRT options include [2]."
+    )
+    mock_client = make_mock_client()
+    clear = override(mock_client)
+    try:
+        with (
+            patch(
+                "app.api.routes.chat.retrieve_relevant_chunks",
+                new=AsyncMock(return_value=SAMPLE_CHUNKS),
+            ),
+            patch("app.api.routes.chat.AsyncOpenAI") as MockOpenAI,
+        ):
+            instance = AsyncMock()
+            instance.chat.completions.create.return_value = _make_openai_response(response_text)
+            MockOpenAI.return_value = instance
+
+            response = client.post(
+                "/api/chat",
+                json={"message": "Tell me about symptoms"},
+                headers=AUTH_HEADER,
+            )
+
+        assert response.status_code == 200
+        body = response.json()
+        # Phantom citation [4] should be removed
+        assert "[4]" not in body["message"]
+        # Valid citations should remain
+        assert "[1]" in body["message"]
+        assert "[2]" in body["message"]
+        # Only 2 valid citations
+        assert len(body["citations"]) == 2
     finally:
         clear()
