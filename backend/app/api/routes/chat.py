@@ -8,7 +8,9 @@ import logging
 import re
 from datetime import date
 from typing import Annotated
+from urllib.parse import urlparse
 from uuid import UUID
+
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from openai import AsyncOpenAI
@@ -26,7 +28,6 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/chat", tags=["chat"])
 
 SupabaseClient = Annotated[AsyncClient, Depends(get_client)]
-
 
 
 def _build_system_prompt(
@@ -158,19 +159,7 @@ def _extract_citations(response_text: str, chunks: list[dict]) -> list[Citation]
     Parses [Source 1], [Source 2], etc. OR [1], [2], etc. and maps them to the corresponding
     chunk's source_url and title. Includes section_name if available in chunk metadata.
     References beyond the available chunks are silently ignored.
-
-    Groups chunks by URL and adds source_index to distinguish multiple chunks from
-    the same URL with different sections.
     """
-    # Build a map of URL -> list of chunks with that URL (preserving order)
-    url_to_chunks: dict[str, list[tuple[int, dict]]] = {}
-    for chunk_idx, chunk in enumerate(chunks):
-        url = chunk.get("source_url", "")
-        if url:
-            if url not in url_to_chunks:
-                url_to_chunks[url] = []
-            url_to_chunks[url].append((chunk_idx, chunk))
-
     # Find which citations are actually used in the response
     found_indices: set[int] = set()
     # Match both [Source N] and plain [N] formats
@@ -191,7 +180,6 @@ def _extract_citations(response_text: str, chunks: list[dict]) -> list[Citation]
             found_indices.add(int(match.group(1)))
 
     citations: list[Citation] = []
-    seen_urls: set[str] = set()
 
     for idx in sorted(found_indices):
         chunk_index = idx - 1  # Source N is 1-indexed
@@ -201,19 +189,10 @@ def _extract_citations(response_text: str, chunks: list[dict]) -> list[Citation]
             title = chunk.get("title", "")
             section = chunk.get("section_name")  # May be None
 
-            if url and url not in seen_urls:
-                # Determine if we need to add source_index for disambiguation
-                source_index = None
-                if url in url_to_chunks and len(url_to_chunks[url]) > 1:
-                    # Multiple chunks from same URL — use source_index to distinguish
-                    source_index = idx  # Use the [Source N] number for clarity
-
+            if url:
                 citations.append(
-                    Citation(
-                        url=url, title=title, section=section, source_index=source_index
-                    )
+                    Citation(url=url, title=title, section=section, source_index=idx)
                 )
-                seen_urls.add(url)
 
     return citations
 
@@ -472,14 +451,21 @@ async def ask_meno(
 
     # Deduplicate chunks by URL before building the prompt.
     # Keep only the first occurrence of each unique URL.
-    seen_urls: set[str] = set()
+
+    seen_url_sections: set[tuple[str, str]] = set()
     unique_chunks: list[dict] = []
 
     for chunk in chunks:
         url = chunk.get("source_url", "")
-        if url not in seen_urls:
+        section = chunk.get("section_name", "") or "default"
+
+        # Strip fragment to get base URL
+        base_url = urlparse(url)._replace(fragment="").geturl()
+
+        key = (base_url, section)
+        if key not in seen_url_sections:
             unique_chunks.append(chunk)
-            seen_urls.add(url)
+            seen_url_sections.add(key)
 
     if len(chunks) != len(unique_chunks):
         logger.info(

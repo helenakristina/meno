@@ -9,6 +9,8 @@
 	interface Citation {
 		url: string;
 		title: string;
+		section?: string;
+		source_index?: number;
 	}
 
 	interface Message {
@@ -217,6 +219,9 @@
 														class="ml-1 text-teal-600 hover:text-teal-800 hover:underline"
 													>
 														{citation.title || citation.url}
+														{#if citation.section}
+															<span class="text-slate-400"> — {citation.section}</span>
+														{/if}
 													</a>
 												</li>
 											{/each}
