@@ -87,13 +87,28 @@
 	/**
 	 * HTML-escape content, convert newlines to <br>, and replace [Source N]
 	 * markers with clickable superscript citation links.
+	 *
+	 * Security: URLs are validated to ensure they're http/https and properly escaped
+	 * to prevent XSS via href attributes. escapeHtml converts quotes to &quot; which
+	 * is safe in attribute context.
 	 */
 	function renderContent(content: string, citations: Citation[]): string {
 		const escaped = escapeHtml(content).replace(/\n/g, '<br>');
 		return escaped.replace(/\[Source (\d+)\]/g, (_match, n) => {
 			const idx = parseInt(n, 10) - 1;
 			if (idx >= 0 && idx < citations.length) {
-				const url = escapeHtml(citations[idx].url);
+				const rawUrl = citations[idx].url;
+				// Validate URL is http/https to prevent javascript: and data: URIs
+				try {
+					const parsed = new URL(rawUrl);
+					if (!['http:', 'https:'].includes(parsed.protocol)) {
+						return `<sup>[${n}]</sup>`;
+					}
+				} catch {
+					// Invalid URL, skip the link
+					return `<sup>[${n}]</sup>`;
+				}
+				const url = escapeHtml(rawUrl);
 				return `<sup><a href="${url}" target="_blank" rel="noopener noreferrer" class="citation-ref">[${n}]</a></sup>`;
 			}
 			return `<sup>[${n}]</sup>`;

@@ -328,6 +328,31 @@
 		stateDropdownOpen = false;
 	}
 
+	function handleStateDropdownKeydown(e: KeyboardEvent) {
+		const stateElements = states.map((s) => s.state);
+		const currentIndex = stateElements.indexOf(selectedState);
+
+		if (e.key === 'ArrowDown') {
+			e.preventDefault();
+			if (!stateDropdownOpen) {
+				stateDropdownOpen = true;
+			} else {
+				const nextIndex = currentIndex + 1;
+				if (nextIndex < stateElements.length) {
+					selectState(stateElements[nextIndex]);
+				}
+			}
+		} else if (e.key === 'ArrowUp') {
+			e.preventDefault();
+			if (stateDropdownOpen && currentIndex > 0) {
+				selectState(stateElements[currentIndex - 1]);
+			}
+		} else if (e.key === 'Escape') {
+			e.preventDefault();
+			stateDropdownOpen = false;
+		}
+	}
+
 	let selectedStateCount = $derived(states.find((s) => s.state === selectedState)?.count ?? null);
 
 	// -------------------------------------------------------------------------
@@ -365,6 +390,8 @@
 					<button
 						onclick={() => (shortlistExpanded = !shortlistExpanded)}
 						class="text-xs font-medium text-teal-600 transition-colors hover:text-teal-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-300"
+						aria-expanded={shortlistExpanded}
+						aria-controls="shortlist-entries"
 					>
 						{shortlistExpanded ? 'Collapse' : `Show all ${shortlist.length}`}
 					</button>
@@ -372,7 +399,7 @@
 			</div>
 
 			<!-- Entry list -->
-			<ul class="divide-y divide-slate-100 border-t border-slate-100">
+			<ul id="shortlist-entries" class="divide-y divide-slate-100 border-t border-slate-100">
 				{#each visibleShortlist as entry (entry.provider_id)}
 					{@const statusCfg = STATUS_CONFIG[entry.status] ?? STATUS_CONFIG.to_call}
 					<li class="px-6 py-4">
@@ -484,7 +511,9 @@
 				{/if}
 				<button
 					type="button"
+					id="state-dropdown-button"
 					onclick={() => (stateDropdownOpen = !stateDropdownOpen)}
+					onkeydown={handleStateDropdownKeydown}
 					class="flex w-full items-center justify-between rounded-lg border bg-white px-3 py-2 text-sm shadow-sm transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-300
 						{stateDropdownOpen
 						? 'border-teal-400 ring-2 ring-teal-200'
@@ -492,6 +521,7 @@
 						{selectedState ? 'text-slate-700' : 'text-slate-400'}"
 					aria-haspopup="listbox"
 					aria-expanded={stateDropdownOpen}
+					aria-controls="state-dropdown-list"
 				>
 					<span>
 						{selectedState
@@ -514,6 +544,7 @@
 
 				{#if stateDropdownOpen}
 					<ul
+						id="state-dropdown-list"
 						class="absolute left-0 top-full z-20 mt-1 max-h-60 w-full overflow-auto rounded-lg border border-slate-200 bg-white py-1 shadow-lg"
 						role="listbox"
 						aria-label="State"
@@ -571,6 +602,7 @@
 				onclick={() => (filtersOpen = !filtersOpen)}
 				class="flex w-full items-center justify-between text-sm font-medium text-slate-700 sm:hidden focus:outline-none"
 				aria-expanded={filtersOpen}
+				aria-controls="filters-panel"
 			>
 				<span>Filters</span>
 				<svg
@@ -586,7 +618,7 @@
 			</button>
 
 			<!-- Filter content: always visible on sm+, toggled on mobile -->
-			<div class="{filtersOpen ? 'mt-4 block' : 'hidden'} sm:block">
+			<div id="filters-panel" class="{filtersOpen ? 'mt-4 block' : 'hidden'} sm:block">
 				<ProviderFilters
 					bind:providerType
 					bind:insurance
