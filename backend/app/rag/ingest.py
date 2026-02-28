@@ -3,6 +3,9 @@
 Handles chunking source documents, generating OpenAI embeddings,
 and storing them in the pgvector-enabled rag_documents table in Supabase.
 
+Supports both insert (for new documents) and upsert (for updates/deduplication
+based on source-specific identifiers like pmc_id).
+
 Cost reference: text-embedding-3-small is $0.02 per 1M tokens (~$0.00002 per 1K tokens).
 """
 import asyncio
@@ -193,8 +196,14 @@ async def store_chunks(
     embeddings: list[list[float]],
     source_type: str,
     publication_date: date | None = None,
+    source_id: str | None = None,
+    source_id_field: str | None = None,
+    pmc_id: str | None = None,
 ) -> None:
     """Insert document chunks with their embeddings into rag_documents.
+
+    Supports both INSERT (new documents) and UPSERT (update existing documents
+    with deduplication based on source-specific IDs like pmc_id).
 
     Args:
         chunks: Chunk dicts from chunk_document() — each has content, title,
@@ -202,9 +211,22 @@ async def store_chunks(
         embeddings: Parallel list of 1536-dim embedding vectors.
         source_type: Source category, e.g. 'wiki', 'pubmed', 'guidelines'.
         publication_date: Optional publication date for the source document.
+        source_id: Optional source-specific ID (e.g., PMC ID for PubMed)
+        source_id_field: Optional field name for source_id (e.g., 'pmc_id')
 
     Raises:
         ValueError: If chunks and embeddings lengths do not match.
+
+    Note:
+        When source_id and source_id_field are provided, uses UPSERT to
+        handle re-ingestion. If source_id already exists, updates the chunks;
+        otherwise inserts new chunks. This prevents duplicates when re-running
+        scrapers.
+
+        Supported source_id_field values:
+        - 'pmc_id' — PubMed Central article ID (PMC7123456)
+        - 'doi' — Digital Object Identifier (future)
+        - Other unique source identifiers
     """
     if len(chunks) != len(embeddings):
         raise ValueError(
@@ -223,19 +245,49 @@ async def store_chunks(
             "content": chunk["content"],
             "embedding": vector_str,
         }
+
+        # Add source-specific ID for deduplication (e.g., pmc_id, doi)
+        if source_id is not None and source_id_field is not None:
+            row[source_id_field] = source_id
+
+        # Add pmc_id directly if provided (for simple metadata tracking)
+        if pmc_id is not None:
+            row["pmc_id"] = pmc_id
+
         if publication_date is not None:
             row["publication_date"] = publication_date.isoformat()
         rows.append(row)
 
     client = await get_client()
     try:
-        await client.from_("rag_documents").insert(rows).execute()
-        logger.info(
-            "Stored %d chunks from '%s' (source_type=%s)",
-            len(rows),
-            chunks[0]["title"] if chunks else "unknown",
-            source_type,
-        )
+        if source_id is not None and source_id_field is not None:
+            # For source-based deduplication, delete old chunks first then insert new ones.
+            # This avoids "ON CONFLICT DO UPDATE command cannot affect row a second time"
+            # error when upserting multiple chunks from the same source.
+            await client.from_("rag_documents").delete().eq(
+                source_id_field, source_id
+            ).execute()
+            logger.info("Deleted old chunks with %s=%s", source_id_field, source_id)
+
+            # Now insert new chunks
+            await client.from_("rag_documents").insert(rows).execute()
+            logger.info(
+                "Inserted %d chunks from '%s' (source_type=%s, %s=%s)",
+                len(rows),
+                chunks[0]["title"] if chunks else "unknown",
+                source_type,
+                source_id_field,
+                source_id,
+            )
+        else:
+            # Use INSERT for new documents (no deduplication)
+            await client.from_("rag_documents").insert(rows).execute()
+            logger.info(
+                "Stored %d chunks from '%s' (source_type=%s)",
+                len(rows),
+                chunks[0]["title"] if chunks else "unknown",
+                source_type,
+            )
     except Exception as e:
         logger.error("Failed to store %d chunks: %s", len(rows), e, exc_info=True)
         raise

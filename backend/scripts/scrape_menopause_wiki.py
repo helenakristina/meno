@@ -68,7 +68,7 @@ SKIP_PAGES = {"/providers/"}
 MIN_WORD_COUNT = 80
 
 # Progress file: tracks which sections have been ingested to support retries
-PROGRESS_FILE = Path(__file__).parent / ".scrape_progress.json"
+PROGRESS_FILE = Path(__file__).parent / "./data/scrape_menopause_wiki_progress.json"
 
 
 # ---------------------------------------------------------------------------
