@@ -34,3 +34,6 @@ backend/scripts/data/
 
 
 V1_REVIEW_SUMMARY.md
+# Responsiveness audit artifacts
+docs/screenshots/responsiveness/
+docs/RESPONSIVENESS_AUDIT.md

@@ -248,7 +248,115 @@ async function handleSubmit() {
 }
 ```
 
----
+### Responsive Design Standards
+
+**Mobile-First Approach:**
+
+- Design for 375px (mobile) first, then enhance for larger viewports
+- Test at 375px, 667px (landscape), 768px (tablet), 1440px (desktop)
+- No horizontal scroll at any viewport size
+
+**Tailwind Breakpoints:**
+
+```
+sm: 640px   (tablet portrait)
+md: 768px   (tablet landscape)
+lg: 1024px  (desktop)
+```
+
+**Key Rules:**
+
+- Always use `w-full max-w-full` on main containers
+- Use `px-4 sm:px-6 lg:px-8` for responsive padding
+- Wrap flex/grid layouts: `flex flex-col sm:flex-row`
+- All interactive elements minimum 44×44px (`min-h-11`)
+- Navigation must collapse to hamburger on mobile
+- No buttons hidden on hover (breaks mobile UX)
+
+**Pitfalls to Avoid:**
+
+- ❌ Fixed widths on containers
+- ❌ Non-responsive padding
+- ❌ Absolute positioned elements going off-screen
+- ❌ Interactive elements < 44px
+- ❌ Nav bars that don't collapse
+- ❌ Hover-only buttons
+
+**Testing:**
+
+```bash
+# In DevTools: Ctrl+Shift+M for device toolbar
+# Test at: 375px, 667px, 768px, 1440px
+# Verify: no horizontal scroll, all buttons tappable
+```
+
+### Accessibility Standards (WCAG 2.1 Level AA)
+
+**Keyboard Navigation:**
+
+- All interactive elements accessible via Tab/Enter/Escape/Arrow keys
+- Focus indicator always visible (never `outline: none` without replacement)
+- Dropdowns support ↑↓ navigation, Escape to close
+- No keyboard traps
+
+**Touch Targets:**
+
+- Minimum 44×44px for all interactive elements
+- Use `min-h-11` for buttons, `h-11` for inputs
+- Helps both touch users AND keyboard users
+
+**Color Contrast:**
+
+- Normal text: 4.5:1 ratio
+- Large text (18px+): 3:1 ratio
+
+**Semantic HTML:**
+
+- Use `<button>` not `<div>` for clickable actions
+- Use `<nav>`, `<main>`, `<section>` for regions
+- Use `<h1>`, `<h2>`, etc. in proper hierarchy
+- Form inputs must have `<label for="id">`
+
+**ARIA Labels:**
+
+- `aria-label` for icon-only buttons
+- `aria-labelledby` for sections linked to headings
+- `aria-describedby` for inputs with error messages
+- `aria-current="page"` for current navigation
+- `aria-expanded` for expandable sections
+- `aria-controls` to link buttons to elements
+
+**Focus Management:**
+
+- Auto-focus on modals
+- Return focus to trigger element when closing
+- Use `aria-live="polite"` for dynamic content announcements
+- Use `aria-busy` for loading states
+
+**Form Validation:**
+
+- Error messages associated via `aria-describedby`
+- Required fields marked `aria-required="true"`
+- Validation on blur, not keydown
+
+**Images & Icons:**
+
+- Meaningful images: `alt="descriptive text"`
+- Decorative: `alt=""` or `aria-hidden="true"`
+- Icon-only buttons: `aria-label="action"`
+
+### Accessibility + Responsiveness Integration
+
+Build accessibility and responsiveness in from the start, not as separate passes. They are interconnected:
+
+- **Focus visibility:** Must be visible at all viewport sizes (not just hover)
+- **Touch targets:** 44px rule helps both touch AND keyboard users
+- **Hover-only interactions:** Break mobile UX AND accessibility
+- **Screen readers:** Must work at all breakpoints
+- **Text readability:** Minimum 14px on mobile, scale appropriately
+- **Color contrast:** Must meet WCAG AA at all viewport sizes and zoom levels
+
+## **Key Principle:** If something works on mobile (375px) with keyboard navigation, it's accessible. If it's inaccessible, it's usually broken on mobile too.
 
 ## Documentation Standards
 
