@@ -52,7 +52,6 @@ export const test = base.extend<TestContext>({
 			const screenshotDir = path.join(
 				process.cwd(),
 				'..',
-				'..',
 				'docs/screenshots/responsiveness',
 				pagePath.replace(/\//g, '-').slice(1) || 'home'
 			);
