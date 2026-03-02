@@ -37,3 +37,9 @@ V1_REVIEW_SUMMARY.md
 # Responsiveness audit artifacts
 docs/screenshots/responsiveness/
 docs/RESPONSIVENESS_AUDIT.md
+# Accessibility audit artifacts
+docs/ACCESSIBILITY_AUDIT.md
+docs/dev/ACCESSIBILITY_FIXES.md
+frontend/playwright-report/
+frontend/responsiveness-test.log
+frontend/test-results/

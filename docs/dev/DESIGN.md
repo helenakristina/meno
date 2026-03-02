@@ -28,6 +28,7 @@ _Version 1.0 | Living Document - Not Carved in Marble_
 14. [Development Phases](#14-development-phases)
 15. [V2 Roadmap](#15-v2-roadmap)
     - [Appointment Prep Flow](#appointment-prep-flow)
+16. [Design & Development Standards](#design-and-development-standards)
 
 ---
 
@@ -1079,6 +1080,32 @@ The personal cheat sheet may contain more candid language than the provider summ
 - Mobile app (React Native or Capacitor wrapping SvelteKit)
 - Self-hostable option for privacy-conscious users
 - Knowledge base update scheduler
+
+---
+
+### Design and Development Standards
+
+**Responsive Design:**
+
+- Mobile-first approach (375px as starting point)
+- Navigation collapses to hamburger menu on mobile
+- No horizontal scroll at any viewport
+- Touch targets minimum 44×44px
+- See CLAUDE.md Responsive Design Standards
+
+**Accessibility:**
+
+- WCAG 2.1 Level AA compliance target
+- All interactive elements keyboard accessible
+- Semantic HTML with proper ARIA labels
+- Focus indicators always visible
+- See CLAUDE.md Accessibility Standards
+
+**Why These Matter:**
+
+- Accessibility is about users with disabilities AND users in difficult conditions (mobile, slow internet, gloves, etc.)
+- Responsive design prevents mobile users from having an unusable app
+- These standards prevent future rework (fixing broken accessibility/responsiveness takes longer than building it right)
 
 ---
 
