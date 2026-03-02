@@ -118,7 +118,7 @@
 	}
 </script>
 
-<div class="px-4 py-8 sm:px-0">
+<div class="w-full max-w-full overflow-hidden px-4 py-8 sm:px-6 lg:px-8">
 	<!-- Header -->
 	<div class="mb-8">
 		<h1 class="text-2xl font-bold text-slate-900">Export Your Data</h1>
@@ -141,7 +141,7 @@
 					bind:value={startDate}
 					max={todayStr}
 					aria-describedby={startError ? 'start-date-error' : undefined}
-					class="w-full rounded-lg border px-3 py-2 text-sm text-slate-700 shadow-sm transition-colors focus:outline-none focus:ring-2 focus:ring-teal-200
+					class="h-11 w-full rounded-lg border px-3 text-sm text-slate-700 shadow-sm transition-colors focus:outline-none focus:ring-2 focus:ring-teal-200
 						{startError ? 'border-red-300 focus:border-red-400 focus:ring-red-100' : 'border-slate-200 focus:border-teal-400'}"
 				/>
 				{#if startError}
@@ -160,7 +160,7 @@
 					bind:value={endDate}
 					max={todayStr}
 					aria-describedby={endError ? 'end-date-error' : undefined}
-					class="w-full rounded-lg border px-3 py-2 text-sm text-slate-700 shadow-sm transition-colors focus:outline-none focus:ring-2 focus:ring-teal-200
+					class="h-11 w-full rounded-lg border px-3 text-sm text-slate-700 shadow-sm transition-colors focus:outline-none focus:ring-2 focus:ring-teal-200
 						{endError ? 'border-red-300 focus:border-red-400 focus:ring-red-100' : 'border-slate-200 focus:border-teal-400'}"
 				/>
 				{#if endError}

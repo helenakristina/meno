@@ -449,8 +449,8 @@ ${Object.entries(
 		}
 	}
 
-	// Write report to root docs directory
-	const reportPath = path.join(process.cwd(), '..', '..', 'docs/RESPONSIVENESS_AUDIT.md');
+	// Write report to project docs directory
+	const reportPath = path.join(process.cwd(), '..', 'docs/RESPONSIVENESS_AUDIT.md');
 
 	try {
 		await fs.mkdir(path.dirname(reportPath), { recursive: true });

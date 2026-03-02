@@ -99,7 +99,7 @@
 	}
 </script>
 
-<div class="px-4 py-8 sm:px-0">
+<div class="w-full max-w-full overflow-hidden px-4 py-8 sm:px-6 lg:px-8">
 	<div class="mb-8">
 		<h1 class="text-2xl font-bold text-slate-900">Log Today's Symptoms</h1>
 		<p class="mt-1 text-slate-500">Select the symptoms you're experiencing today.</p>
@@ -150,25 +150,20 @@
 						<div
 							in:fly={{ y: 10, duration: 200 }}
 							out:fly={{ y: -6, duration: 150 }}
-							class="group relative"
+							class="relative flex flex-col rounded-xl border border-slate-200 bg-white shadow-sm transition-all duration-150 hover:border-teal-300 hover:bg-teal-50 hover:shadow"
 						>
-							<button
-								onclick={() => selectCard(card)}
-								class="w-full rounded-xl border border-slate-200 bg-white px-4 py-4 text-left text-sm font-medium text-slate-700 shadow-sm transition-all duration-150 hover:border-teal-300 hover:bg-teal-50 hover:text-teal-800 hover:shadow focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-400"
-							>
-								{card.name}
-							</button>
+							<!-- Dismiss button - always visible in top-right -->
 							<button
 								onclick={(e) => {
 									e.stopPropagation();
 									dismissCard(card);
 								}}
 								aria-label="Dismiss {card.name}"
-								class="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-400 opacity-0 shadow-sm transition-all hover:border-red-200 hover:bg-red-50 hover:text-red-400 group-hover:opacity-100 group-focus-within:opacity-100 focus:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-300"
+								class="absolute right-2 top-2 flex h-6 w-6 items-center justify-center rounded-full text-slate-400 transition-colors hover:bg-red-50 hover:text-red-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-300"
 							>
 								<svg
 									xmlns="http://www.w3.org/2000/svg"
-									class="h-2.5 w-2.5"
+									class="h-4 w-4"
 									viewBox="0 0 20 20"
 									fill="currentColor"
 									aria-hidden="true"
@@ -179,6 +174,14 @@
 										clip-rule="evenodd"
 									/>
 								</svg>
+							</button>
+
+							<!-- Card content -->
+							<button
+								onclick={() => selectCard(card)}
+								class="flex flex-1 items-center justify-center px-4 py-6 text-left text-sm font-medium text-slate-700 transition-all duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-400"
+							>
+								{card.name}
 							</button>
 						</div>
 					{/each}

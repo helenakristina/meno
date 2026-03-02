@@ -59,6 +59,7 @@
 
 	let selectedState = $state('');
 	let stateDropdownOpen = $state(false);
+	let stateSearchInput = $state('');
 	let city = $state('');
 	let providerType = $state('');
 	let insurance = $state('');
@@ -116,6 +117,17 @@
 	);
 
 	let selectedStateName = $derived(selectedState || 'the selected state');
+
+	// Filter states by search input
+	let filteredStates = $derived(
+		stateSearchInput.trim() === ''
+			? states
+			: states.filter(
+					(s) =>
+						s.state.toLowerCase().includes(stateSearchInput.toLowerCase()) ||
+						s.state === stateSearchInput.toUpperCase()
+			  )
+	);
 
 	// Shortlist entries shown in the section — collapse to 3 unless expanded
 	let visibleShortlist = $derived(
@@ -368,7 +380,7 @@
 	});
 </script>
 
-<div class="px-4 py-8 sm:px-0">
+<div class="w-full max-w-full overflow-hidden px-4 py-8 sm:px-6 lg:px-8">
 	<!-- Page header -->
 	<div class="mb-8">
 		<h1 class="text-2xl font-bold text-slate-900">Find a Menopause Specialist</h1>
@@ -411,7 +423,7 @@
 										? `, ${entry.provider.credentials}`
 										: ''}
 								</p>
-								<p class="mt-0.5 text-xs text-slate-500">
+								<p class="mt-0.5 text-sm text-slate-500">
 									{entry.provider.city}, {entry.provider.state}
 								</p>
 							</div>
@@ -420,7 +432,7 @@
 							<button
 								onclick={() => handleRemoveFromShortlist(entry.provider_id)}
 								aria-label="Remove from shortlist"
-								class="shrink-0 rounded p-1 text-slate-300 transition-colors hover:bg-slate-100 hover:text-slate-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-300"
+								class="flex h-11 w-11 shrink-0 items-center justify-center rounded text-slate-300 transition-colors hover:bg-slate-100 hover:text-slate-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-300"
 							>
 								<svg
 									xmlns="http://www.w3.org/2000/svg"
@@ -498,23 +510,31 @@
 		<div class="flex flex-wrap items-end gap-3">
 			<!-- State custom dropdown -->
 			<div class="relative min-w-[160px] flex-1">
-				<p class="mb-1.5 text-xs font-medium text-slate-500">
+				<p class="mb-1.5 text-sm font-medium text-slate-500">
 					State <span class="text-red-400">*</span>
 				</p>
 				<!-- Backdrop to close on outside click -->
 				{#if stateDropdownOpen}
 					<div
 						class="fixed inset-0 z-10"
-						onclick={() => (stateDropdownOpen = false)}
+						onclick={() => {
+					stateDropdownOpen = false;
+					stateSearchInput = '';
+				}}
 						role="presentation"
 					></div>
 				{/if}
 				<button
 					type="button"
 					id="state-dropdown-button"
-					onclick={() => (stateDropdownOpen = !stateDropdownOpen)}
+					onclick={() => {
+					stateDropdownOpen = !stateDropdownOpen;
+					if (stateDropdownOpen) {
+						stateSearchInput = '';
+					}
+				}}
 					onkeydown={handleStateDropdownKeydown}
-					class="flex w-full items-center justify-between rounded-lg border bg-white px-3 py-2 text-sm shadow-sm transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-300
+					class="flex w-full items-center justify-between rounded-lg border bg-white px-3 py-3 text-sm shadow-sm transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-300
 						{stateDropdownOpen
 						? 'border-teal-400 ring-2 ring-teal-200'
 						: 'border-slate-200 hover:border-slate-300'}
@@ -543,18 +563,33 @@
 				</button>
 
 				{#if stateDropdownOpen}
-					<ul
+					<div
 						id="state-dropdown-list"
-						class="absolute left-0 top-full z-20 mt-1 max-h-60 w-full overflow-auto rounded-lg border border-slate-200 bg-white py-1 shadow-lg"
+						class="absolute left-0 top-full z-20 mt-1 w-full rounded-lg border border-slate-200 bg-white shadow-lg"
 						role="listbox"
 						aria-label="State"
 					>
-						{#each states as s (s.state)}
+						<div class="border-b border-slate-100 p-2">
+						<input
+							type="text"
+							placeholder="Type state name or code..."
+							bind:value={stateSearchInput}
+							class="w-full rounded px-2 py-1.5 text-sm border border-slate-200 focus:border-teal-400 focus:outline-none focus:ring-2 focus:ring-teal-200"
+							aria-label="Search states"
+						/>
+					</div>
+					<ul class="overflow-y-auto py-1" style="max-height: calc(100vh - 250px)">
+						{#if filteredStates.length > 0}
+							{#each filteredStates as s (s.state)}
 							<li role="option" aria-selected={selectedState === s.state}>
 								<button
 									type="button"
-									onclick={() => selectState(s.state)}
-									class="flex w-full items-center justify-between px-3 py-2 text-left text-sm transition-colors
+									onclick={() => {
+									selectState(s.state);
+									stateDropdownOpen = false;
+									stateSearchInput = '';
+								}}
+									class="flex w-full items-center justify-between px-3 py-3 text-left text-sm transition-colors
 										{selectedState === s.state
 										? 'bg-teal-50 font-medium text-teal-700'
 										: 'text-slate-700 hover:bg-teal-50 hover:text-teal-700'}"
@@ -564,13 +599,19 @@
 								</button>
 							</li>
 						{/each}
+						{:else}
+							<li class="px-3 py-4 text-center text-sm text-slate-400">
+								No states found
+							</li>
+						{/if}
 					</ul>
-				{/if}
-			</div>
+				</div>
+			{/if}
+		</div>
 
-			<!-- City input -->
+		<!-- City input -->
 			<div class="min-w-[180px] flex-1">
-				<label for="city-input" class="mb-1.5 block text-xs font-medium text-slate-500">
+				<label for="city-input" class="mb-1.5 block text-sm font-medium text-slate-500">
 					City <span class="text-slate-300">(optional)</span>
 				</label>
 				<input
@@ -579,7 +620,7 @@
 					placeholder="e.g. Minneapolis"
 					bind:value={city}
 					onkeydown={handleSearchKeydown}
-					class="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 shadow-sm transition-colors focus:border-teal-400 focus:ring-2 focus:ring-teal-200 focus:outline-none"
+					class="w-full h-11 rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-700 shadow-sm transition-colors focus:border-teal-400 focus:ring-2 focus:ring-teal-200 focus:outline-none"
 				/>
 			</div>
 
@@ -587,7 +628,7 @@
 			<button
 				onclick={handleSearch}
 				disabled={!canSearch || loading}
-				class="h-[38px] rounded-lg bg-teal-600 px-5 text-sm font-medium text-white shadow-sm transition-colors hover:bg-teal-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-300 disabled:cursor-not-allowed disabled:opacity-50"
+				class="min-h-11 rounded-lg bg-teal-600 px-5 text-sm font-medium text-white shadow-sm transition-colors hover:bg-teal-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-300 disabled:cursor-not-allowed disabled:opacity-50"
 			>
 				{loading && !hasSearched ? 'Searching…' : 'Search'}
 			</button>
@@ -642,7 +683,7 @@
 				<p class="mt-1 text-sm text-red-600">{error}</p>
 				<button
 					onclick={handleSearch}
-					class="mt-3 rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-red-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-300"
+					class="mt-3 rounded-lg bg-red-600 px-4 py-3 text-sm font-medium text-white transition-colors hover:bg-red-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-300"
 				>
 					Try again
 				</button>

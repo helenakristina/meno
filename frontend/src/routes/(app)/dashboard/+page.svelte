@@ -231,7 +231,7 @@
 	}
 </script>
 
-<div class="px-4 py-8 sm:px-0">
+<div class="w-full max-w-full overflow-hidden px-4 py-8 sm:px-6 lg:px-8">
 	<!-- Header -->
 	<div class="mb-8 flex flex-wrap items-start justify-between gap-4">
 		<div>
@@ -271,28 +271,30 @@
 		{:else}
 			<ol class="space-y-3" aria-label="Symptom frequency chart">
 				{#each topSymptoms as stat (stat.symptom_id)}
-					<li class="flex items-center gap-3" aria-label="{stat.symptom_name}: logged {stat.count} times">
-						<!-- Name: right-aligned, fixed width, truncated if very long -->
+					<li class="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3" aria-label="{stat.symptom_name}: logged {stat.count} times">
+						<!-- Name: responsive width -->
 						<span
-							class="w-36 shrink-0 truncate text-right text-sm text-slate-700"
+							class="min-w-0 truncate text-sm font-medium text-slate-700 sm:w-32 sm:shrink-0 sm:text-right"
 							title={stat.symptom_name}
 						>
 							{stat.symptom_name}
 						</span>
 
-						<!-- Bar track -->
-						<div class="relative h-5 flex-1 overflow-hidden rounded bg-teal-50">
-							<div
-								class="absolute inset-y-0 left-0 rounded bg-teal-500"
-								style="width: {(stat.count / maxCount) * 100}%"
-								aria-hidden="true"
-							></div>
-						</div>
+						<!-- Bar track + count (flex on mobile, split on desktop) -->
+						<div class="flex items-center gap-3 sm:flex-1">
+							<div class="relative h-5 flex-1 overflow-hidden rounded bg-teal-50">
+								<div
+									class="absolute inset-y-0 left-0 rounded bg-teal-500"
+									style="width: {(stat.count / maxCount) * 100}%"
+									aria-hidden="true"
+								></div>
+							</div>
 
-						<!-- Count -->
-						<span class="w-6 shrink-0 text-right text-sm font-medium tabular-nums text-slate-500">
-							{stat.count}
-						</span>
+							<!-- Count -->
+							<span class="w-8 shrink-0 text-right text-sm font-medium tabular-nums text-slate-500">
+								{stat.count}
+							</span>
+						</div>
 					</li>
 				{/each}
 			</ol>
@@ -336,9 +338,9 @@
 		{:else}
 			<ol class="divide-y divide-slate-50" aria-label="Symptom co-occurrence patterns">
 				{#each topPairs as pair (`${pair.symptom1_id}-${pair.symptom2_id}`)}
-					<li class="flex items-start justify-between gap-4 py-3 first:pt-0 last:pb-0">
+					<li class="flex flex-col gap-3 py-3 first:pt-0 last:pb-0 sm:flex-row sm:items-start sm:justify-between">
 						<!-- Symptom names + subtext -->
-						<div class="min-w-0">
+						<div class="min-w-0 flex-1">
 							<div class="flex flex-wrap items-center gap-1.5">
 								<span class="text-sm text-slate-500">When you logged</span>
 								<span
@@ -361,7 +363,7 @@
 						</div>
 
 						<!-- Percentage -->
-						<div class="shrink-0 text-right">
+						<div class="text-left text-sm sm:shrink-0 sm:text-right">
 							<span class="text-lg font-bold tabular-nums text-teal-600">
 								{Math.round(pair.cooccurrence_rate * 100)}%
 							</span>

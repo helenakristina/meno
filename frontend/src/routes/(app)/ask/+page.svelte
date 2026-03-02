@@ -165,7 +165,7 @@
 -->
 <div class="flex flex-col" style="height: calc(100vh - 7rem);">
 	<!-- Page header -->
-	<div class="flex-shrink-0 border-b border-slate-200 bg-white px-6 py-4">
+	<div class="flex-shrink-0 border-b border-slate-200 bg-white px-4 py-4 sm:px-6 lg:px-8">
 		<h1 class="text-2xl font-bold text-slate-900">Ask Meno</h1>
 		<p class="mt-0.5 text-sm text-slate-500">
 			Evidence-based information about perimenopause and menopause
@@ -182,7 +182,7 @@
 	<div class="flex-1 overflow-y-auto" bind:this={chatContainer} aria-live="polite" aria-label="Chat messages">
 		{#if !hasMessages}
 			<!-- Empty state: starter prompt grid -->
-			<div class="p-6">
+			<div class="px-4 py-6 sm:px-6 lg:px-8">
 				<p class="mb-4 text-center text-sm text-slate-500">
 					Start with a question, or choose one below:
 				</p>
@@ -199,7 +199,7 @@
 			</div>
 		{:else}
 			<!-- Message thread -->
-			<div class="flex flex-col gap-5 p-6">
+			<div class="flex flex-col gap-5 px-4 py-6 sm:px-6 lg:px-8">
 				{#each messages as message, i (i)}
 					{#if message.role === 'user'}
 						<div class="flex justify-end">
@@ -267,7 +267,7 @@
 
 	<!-- Error banner -->
 	{#if error}
-		<div class="flex-shrink-0 border-t border-red-200 bg-red-50 px-6 py-3 text-sm text-red-700">
+		<div class="flex-shrink-0 border-t border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 sm:px-6 lg:px-8">
 			{error}
 			<button onclick={() => (error = null)} class="ml-2 font-medium underline hover:no-underline">
 				Dismiss
@@ -277,7 +277,7 @@
 
 	<!-- Input area -->
 	<div
-		class="flex-shrink-0 border-t border-slate-200 bg-white px-4 py-4"
+		class="flex-shrink-0 border-t border-slate-200 bg-white px-4 py-4 sm:px-6 lg:px-8"
 		style="box-shadow: 0 -4px 12px rgba(0,0,0,0.05);"
 	>
 		<div class="flex items-end gap-3">
