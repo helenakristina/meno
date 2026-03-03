@@ -12,7 +12,6 @@ from uuid import UUID
 
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from openai import AsyncOpenAI
 from supabase import AsyncClient
 
 from app.api.dependencies import (
@@ -28,7 +27,8 @@ from app.repositories.user_repository import UserRepository
 from app.repositories.symptoms_repository import SymptomsRepository
 from app.repositories.conversation_repository import ConversationRepository
 from app.services.citations import CitationService
-from app.llm.system_prompts import LAYER_1, LAYER_2, LAYER_3
+from app.services.prompts import PromptService
+from app.services.openai_provider import OpenAIProvider
 from app.models.chat import ChatMessage, ChatRequest, ChatResponse
 from app.rag.retrieval import retrieve_relevant_chunks
 
@@ -37,64 +37,6 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/chat", tags=["chat"])
 
 SupabaseClient = Annotated[AsyncClient, Depends(get_client)]
-
-
-def _build_system_prompt(
-    journey_stage: str,
-    age: int | None,
-    symptom_summary: str,
-    chunks: list[dict],
-) -> str:
-    """Assemble the four-layer system prompt with dynamic user context and RAG sources."""
-    age_str = str(age) if age is not None else "unknown"
-
-    source_lines = []
-    for i, chunk in enumerate(chunks, start=1):
-        url = chunk.get("source_url", "")
-        title = chunk.get("title", "").strip()
-        content = chunk.get("content", "").strip()
-        source_lines.append(f"(Source {i}) {title}\nURL: {url}\nContent: {content}")
-    source_count = len(chunks)
-    sources_block = (
-        "\n\n".join(source_lines) if source_lines else "No source documents available."
-    )
-
-    layer_4 = (
-        f"User context:\n"
-        f"- Journey stage: {journey_stage}\n"
-        f"- Age: {age_str}\n"
-        f"- Recent symptom summary: {symptom_summary}\n\n"
-        f"Source documents — there are exactly {source_count} source(s). "
-        f"Only cite [Source 1] through [Source {source_count}]:\n\n{sources_block}"
-    )
-
-    return "\n\n".join([LAYER_1, LAYER_2, LAYER_3, layer_4])
-
-
-
-
-# -------------------------------------------------------------------------------
-# OpenAI call
-# -------------------------------------------------------------------------------
-
-
-async def _call_openai(system_prompt: str, user_message: str) -> tuple[str, int, int]:
-    """Call gpt-4o-mini and return (response_text, prompt_tokens, completion_tokens)."""
-    client = AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
-    response = await client.chat.completions.create(
-        model="gpt-4o-mini",
-        temperature=0.5,  # Lowered for better determinism while maintaining quality
-        max_tokens=800,
-        messages=[
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": user_message},
-        ],
-    )
-    text = response.choices[0].message.content or ""
-    usage = response.usage
-    prompt_tokens = usage.prompt_tokens if usage else 0
-    completion_tokens = usage.completion_tokens if usage else 0
-    return text, prompt_tokens, completion_tokens
 
 
 # -------------------------------------------------------------------------------
@@ -201,12 +143,15 @@ async def ask_meno(
     chunks = unique_chunks
 
     # Build system prompt
-    system_prompt = _build_system_prompt(journey_stage, age, symptom_summary, chunks)
+    system_prompt = PromptService.build_system_prompt(
+        journey_stage, age, symptom_summary, chunks
+    )
 
     # Call OpenAI
     try:
-        response_text, prompt_tokens, completion_tokens = await _call_openai(
-            system_prompt, message
+        provider = OpenAIProvider(api_key=settings.OPENAI_API_KEY)
+        response_text, prompt_tokens, completion_tokens = (
+            await provider.chat_completion_with_usage(system_prompt, message)
         )
     except Exception as exc:
         logger.error("OpenAI call failed for user %s: %s", user_id, exc, exc_info=True)
