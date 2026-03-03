@@ -313,8 +313,8 @@ class TestOpenAIProviderChatCompletion:
         self, mock_openai_client, monkeypatch
     ):
         """Test that provider is initialized with the correct API key."""
-        mock_openai_class = AsyncMock()
-        mock_openai_class.return_value = mock_openai_client
+        # Use MagicMock for constructor (not AsyncMock - constructors aren't async)
+        mock_openai_class = MagicMock(return_value=mock_openai_client)
         monkeypatch.setattr(
             "app.services.openai_provider.AsyncOpenAI",
             mock_openai_class,

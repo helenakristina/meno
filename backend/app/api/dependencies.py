@@ -13,6 +13,7 @@ from app.repositories.providers_repository import ProvidersRepository
 from app.services.llm import LLMService
 from app.services.llm_base import LLMProvider
 from app.services.openai_provider import OpenAIProvider
+from app.services.citations import CitationService
 
 logger = logging.getLogger(__name__)
 
@@ -148,3 +149,12 @@ def get_llm_service() -> LLMService:
 
     logger.info("LLMService initialized with provider: %s", settings.LLM_PROVIDER)
     return LLMService(provider=provider)
+
+
+def get_citation_service() -> CitationService:
+    """Dependency for CitationService.
+
+    Returns:
+        CitationService instance for citation extraction and sanitization.
+    """
+    return CitationService()
