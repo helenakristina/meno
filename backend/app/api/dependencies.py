@@ -4,11 +4,15 @@ from typing import Annotated
 from fastapi import Depends, Header, HTTPException, status
 from supabase import AsyncClient
 
+from app.core.config import settings
 from app.core.supabase import get_client
 from app.repositories.user_repository import UserRepository
 from app.repositories.symptoms_repository import SymptomsRepository
 from app.repositories.conversation_repository import ConversationRepository
 from app.repositories.providers_repository import ProvidersRepository
+from app.services.llm import LLMService
+from app.services.llm_base import LLMProvider
+from app.services.openai_provider import OpenAIProvider
 
 logger = logging.getLogger(__name__)
 
@@ -108,3 +112,39 @@ def get_providers_repo(client: AsyncClient = Depends(get_client)) -> ProvidersRe
         ProvidersRepository instance for data access.
     """
     return ProvidersRepository(client=client)
+
+
+def get_llm_service() -> LLMService:
+    """Dependency for LLMService.
+
+    Creates an LLMService with the configured provider (OpenAI, Anthropic, etc.).
+    The provider is selected via the LLM_PROVIDER environment variable.
+
+    Currently supports:
+    - "openai": Uses OpenAI API (gpt-4o-mini for development)
+    - "anthropic": Uses Anthropic API (claude-sonnet-4 for production)
+
+    Returns:
+        LLMService instance with the configured provider.
+
+    Raises:
+        ValueError: If LLM_PROVIDER is set to an unsupported value.
+    """
+    provider: LLMProvider
+    if settings.LLM_PROVIDER == "openai":
+        provider = OpenAIProvider(api_key=settings.OPENAI_API_KEY)
+    elif settings.LLM_PROVIDER == "anthropic":
+        # Future: import AnthropicProvider when implemented
+        # provider = AnthropicProvider(api_key=settings.ANTHROPIC_API_KEY)
+        raise ValueError(
+            f"LLM_PROVIDER=anthropic not yet implemented. "
+            "Use LLM_PROVIDER=openai or wait for Anthropic provider."
+        )
+    else:
+        raise ValueError(
+            f"Unknown LLM_PROVIDER: {settings.LLM_PROVIDER}. "
+            "Supported values: openai, anthropic"
+        )
+
+    logger.info("LLMService initialized with provider: %s", settings.LLM_PROVIDER)
+    return LLMService(provider=provider)

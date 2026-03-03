@@ -15,8 +15,11 @@ class Settings(BaseSettings):
     # Anthropic
     ANTHROPIC_API_KEY: str
 
-    # OpenAI (embeddings)
+    # OpenAI (embeddings and LLM fallback)
     OPENAI_API_KEY: str = ""
+
+    # LLM Provider selection (openai or anthropic)
+    LLM_PROVIDER: str = "openai"
 
     # CORS
     ALLOWED_ORIGINS: List[str] = ["http://localhost:5173"]

@@ -26,12 +26,12 @@ from reportlab.platypus import (
     TableStyle,
 )
 
-from app.api.dependencies import CurrentUser, get_symptoms_repo
+from app.api.dependencies import CurrentUser, get_symptoms_repo, get_llm_service
 from app.core.supabase import get_client
 from app.models.export import ExportRequest
 from app.models.symptoms import SymptomFrequency, SymptomPair
 from app.repositories.symptoms_repository import SymptomsRepository
-from app.services.llm import generate_provider_questions, generate_symptom_summary
+from app.services.llm import LLMService
 from app.services.stats import calculate_cooccurrence_stats, calculate_frequency_stats
 from supabase import AsyncClient
 
@@ -292,6 +292,7 @@ async def export_pdf(
     payload: ExportRequest,
     user_id: CurrentUser,
     symptoms_repo: Annotated[SymptomsRepository, Depends(get_symptoms_repo)],
+    llm_service: Annotated[LLMService, Depends(get_llm_service)],
 ) -> Response:
     """Generate and return a PDF provider summary for the authenticated user.
 
@@ -340,14 +341,14 @@ async def export_pdf(
 
     # --- LLM generation ---
     try:
-        ai_summary = await generate_symptom_summary(
+        ai_summary = await llm_service.generate_symptom_summary(
             freq_stats,
             coocc_pairs,
             (payload.date_range_start, payload.date_range_end),
         )
-        questions = await generate_provider_questions(freq_stats, coocc_pairs)
+        questions = await llm_service.generate_provider_questions(freq_stats, coocc_pairs)
     except Exception as exc:
-        logger.error("OpenAI call failed for PDF export (user %s): %s", user_id, exc, exc_info=True)
+        logger.error("LLM call failed for PDF export (user %s): %s", user_id, exc, exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to generate AI content for the report",

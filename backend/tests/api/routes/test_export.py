@@ -1,14 +1,16 @@
 """Tests for POST /api/export/pdf and POST /api/export/csv.
 
 Supabase is mocked via FastAPI dependency_overrides.
-LLM functions are patched so no real OpenAI calls are made.
+LLM service is mocked via FastAPI dependency_overrides so no real LLM calls are made.
 """
 from unittest.mock import AsyncMock, MagicMock, patch
 
 from fastapi.testclient import TestClient
 
+from app.api.dependencies import get_llm_service
 from app.core.supabase import get_client
 from app.main import app
+from app.services.llm import LLMService
 
 # ---------------------------------------------------------------------------
 # Mock helpers (same pattern as test_symptoms.py)
@@ -128,18 +130,15 @@ class TestPdfExport:
     def test_pdf_export_success(self):
         mock = make_mock_client()
         cleanup = override(mock)
+
+        # Mock LLMService with mocked methods
+        mock_llm_service = AsyncMock(spec=LLMService)
+        mock_llm_service.generate_symptom_summary = AsyncMock(return_value=MOCK_SUMMARY)
+        mock_llm_service.generate_provider_questions = AsyncMock(return_value=MOCK_QUESTIONS)
+        app.dependency_overrides[get_llm_service] = lambda: mock_llm_service
+
         try:
-            with (
-                patch(
-                    "app.api.routes.export.generate_symptom_summary",
-                    new=AsyncMock(return_value=MOCK_SUMMARY),
-                ),
-                patch(
-                    "app.api.routes.export.generate_provider_questions",
-                    new=AsyncMock(return_value=MOCK_QUESTIONS),
-                ),
-                TestClient(app) as client,
-            ):
+            with TestClient(app) as client:
                 response = client.post(
                     "/api/export/pdf",
                     json=VALID_PAYLOAD,
@@ -147,6 +146,7 @@ class TestPdfExport:
                 )
         finally:
             cleanup()
+            app.dependency_overrides.clear()
 
         assert response.status_code == 200
         assert response.headers["content-type"] == "application/pdf"
@@ -228,15 +228,16 @@ class TestPdfExport:
         )
         cleanup = override(mock)
 
+        # Mock LLMService with mocked methods
+        mock_llm_service = AsyncMock(spec=LLMService)
         summary_mock = AsyncMock(return_value=MOCK_SUMMARY)
         questions_mock = AsyncMock(return_value=MOCK_QUESTIONS)
+        mock_llm_service.generate_symptom_summary = summary_mock
+        mock_llm_service.generate_provider_questions = questions_mock
+        app.dependency_overrides[get_llm_service] = lambda: mock_llm_service
 
         try:
-            with (
-                patch("app.api.routes.export.generate_symptom_summary", new=summary_mock),
-                patch("app.api.routes.export.generate_provider_questions", new=questions_mock),
-                TestClient(app) as client,
-            ):
+            with TestClient(app) as client:
                 response = client.post(
                     "/api/export/pdf",
                     json=VALID_PAYLOAD,
@@ -244,6 +245,7 @@ class TestPdfExport:
                 )
         finally:
             cleanup()
+            app.dependency_overrides.clear()
 
         assert response.status_code == 200
         # Both LLM functions must have been called

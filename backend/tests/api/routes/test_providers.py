@@ -9,9 +9,10 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 from fastapi.testclient import TestClient
 
-from app.api.dependencies import get_current_user_id
+from app.api.dependencies import get_current_user_id, get_llm_service
 from app.core.supabase import get_client
 from app.main import app
+from app.services.llm import LLMService
 
 
 # ---------------------------------------------------------------------------
@@ -557,9 +558,15 @@ _BASE_PAYLOAD = {
 }
 
 
-def override_auth():
-    """Override auth dependency to return a test user ID. Returns cleanup fn."""
+def override_auth_and_llm(mock_script: str = _MOCK_SCRIPT):
+    """Override auth and LLM dependencies for testing. Returns cleanup fn."""
+    # Mock LLMService with mocked generate_calling_script method
+    mock_llm_service = AsyncMock(spec=LLMService)
+    mock_llm_service.generate_calling_script = AsyncMock(return_value=mock_script)
+
     app.dependency_overrides[get_current_user_id] = lambda: "test-user-uuid"
+    app.dependency_overrides[get_llm_service] = lambda: mock_llm_service
+
     return lambda: app.dependency_overrides.clear()
 
 
@@ -568,14 +575,10 @@ class TestGenerateCallingScript:
         return client.post("/api/providers/calling-script", json=payload)
 
     def test_private_insurance_with_plan_returns_script(self):
-        cleanup = override_auth()
+        cleanup = override_auth_and_llm()
         try:
-            with patch(
-                "app.api.routes.providers.generate_calling_script",
-                new=AsyncMock(return_value=_MOCK_SCRIPT),
-            ):
-                with TestClient(app) as client:
-                    response = self._post(client, _BASE_PAYLOAD)
+            with TestClient(app) as client:
+                response = self._post(client, _BASE_PAYLOAD)
         finally:
             cleanup()
 
@@ -585,37 +588,29 @@ class TestGenerateCallingScript:
         assert body["script"] == _MOCK_SCRIPT
 
     def test_private_insurance_no_plan_returns_script(self):
-        cleanup = override_auth()
+        cleanup = override_auth_and_llm()
         payload = {**_BASE_PAYLOAD, "insurance_plan_name": None}
         try:
-            with patch(
-                "app.api.routes.providers.generate_calling_script",
-                new=AsyncMock(return_value=_MOCK_SCRIPT),
-            ):
-                with TestClient(app) as client:
-                    response = self._post(client, payload)
+            with TestClient(app) as client:
+                response = self._post(client, payload)
         finally:
             cleanup()
 
         assert response.status_code == 200
 
     def test_medicaid_with_plan_returns_script(self):
-        cleanup = override_auth()
+        cleanup = override_auth_and_llm()
         payload = {**_BASE_PAYLOAD, "insurance_type": "medicaid", "insurance_plan_name": "UCare"}
         try:
-            with patch(
-                "app.api.routes.providers.generate_calling_script",
-                new=AsyncMock(return_value=_MOCK_SCRIPT),
-            ):
-                with TestClient(app) as client:
-                    response = self._post(client, payload)
+            with TestClient(app) as client:
+                response = self._post(client, payload)
         finally:
             cleanup()
 
         assert response.status_code == 200
 
     def test_medicaid_plan_unknown_returns_script(self):
-        cleanup = override_auth()
+        cleanup = override_auth_and_llm()
         payload = {
             **_BASE_PAYLOAD,
             "insurance_type": "medicaid",
@@ -623,106 +618,78 @@ class TestGenerateCallingScript:
             "insurance_plan_unknown": True,
         }
         try:
-            with patch(
-                "app.api.routes.providers.generate_calling_script",
-                new=AsyncMock(return_value=_MOCK_SCRIPT),
-            ):
-                with TestClient(app) as client:
-                    response = self._post(client, payload)
+            with TestClient(app) as client:
+                response = self._post(client, payload)
         finally:
             cleanup()
 
         assert response.status_code == 200
 
     def test_medicare_with_advantage_plan_returns_script(self):
-        cleanup = override_auth()
+        cleanup = override_auth_and_llm()
         payload = {
             **_BASE_PAYLOAD,
             "insurance_type": "medicare",
             "insurance_plan_name": "Humana Gold",
         }
         try:
-            with patch(
-                "app.api.routes.providers.generate_calling_script",
-                new=AsyncMock(return_value=_MOCK_SCRIPT),
-            ):
-                with TestClient(app) as client:
-                    response = self._post(client, payload)
+            with TestClient(app) as client:
+                response = self._post(client, payload)
         finally:
             cleanup()
 
         assert response.status_code == 200
 
     def test_medicare_original_no_plan_returns_script(self):
-        cleanup = override_auth()
+        cleanup = override_auth_and_llm()
         payload = {**_BASE_PAYLOAD, "insurance_type": "medicare", "insurance_plan_name": None}
         try:
-            with patch(
-                "app.api.routes.providers.generate_calling_script",
-                new=AsyncMock(return_value=_MOCK_SCRIPT),
-            ):
-                with TestClient(app) as client:
-                    response = self._post(client, payload)
+            with TestClient(app) as client:
+                response = self._post(client, payload)
         finally:
             cleanup()
 
         assert response.status_code == 200
 
     def test_self_pay_returns_script(self):
-        cleanup = override_auth()
+        cleanup = override_auth_and_llm()
         payload = {**_BASE_PAYLOAD, "insurance_type": "self_pay", "insurance_plan_name": None}
         try:
-            with patch(
-                "app.api.routes.providers.generate_calling_script",
-                new=AsyncMock(return_value=_MOCK_SCRIPT),
-            ):
-                with TestClient(app) as client:
-                    response = self._post(client, payload)
+            with TestClient(app) as client:
+                response = self._post(client, payload)
         finally:
             cleanup()
 
         assert response.status_code == 200
 
     def test_other_insurance_returns_script(self):
-        cleanup = override_auth()
+        cleanup = override_auth_and_llm()
         payload = {**_BASE_PAYLOAD, "insurance_type": "other"}
         try:
-            with patch(
-                "app.api.routes.providers.generate_calling_script",
-                new=AsyncMock(return_value=_MOCK_SCRIPT),
-            ):
-                with TestClient(app) as client:
-                    response = self._post(client, payload)
+            with TestClient(app) as client:
+                response = self._post(client, payload)
         finally:
             cleanup()
 
         assert response.status_code == 200
 
     def test_telehealth_flag_accepted(self):
-        cleanup = override_auth()
+        cleanup = override_auth_and_llm()
         payload = {**_BASE_PAYLOAD, "interested_in_telehealth": True}
         try:
-            with patch(
-                "app.api.routes.providers.generate_calling_script",
-                new=AsyncMock(return_value=_MOCK_SCRIPT),
-            ):
-                with TestClient(app) as client:
-                    response = self._post(client, payload)
+            with TestClient(app) as client:
+                response = self._post(client, payload)
         finally:
             cleanup()
 
         assert response.status_code == 200
 
     def test_blank_provider_name_returns_400(self):
-        cleanup = override_auth()
+        cleanup = override_auth_and_llm()
         payload = {**_BASE_PAYLOAD, "provider_name": "   "}
         try:
-            with patch(
-                "app.api.routes.providers.generate_calling_script",
-                new=AsyncMock(return_value=_MOCK_SCRIPT),
-            ):
-                with TestClient(app) as client:
-                    response = self._post(client, payload)
+            with TestClient(app) as client:
+                response = self._post(client, payload)
         finally:
             cleanup()
 
@@ -730,7 +697,7 @@ class TestGenerateCallingScript:
         assert "provider_name" in response.json()["detail"]
 
     def test_invalid_insurance_type_returns_422(self):
-        cleanup = override_auth()
+        cleanup = override_auth_and_llm()
         payload = {**_BASE_PAYLOAD, "insurance_type": "not_valid"}
         try:
             with TestClient(app) as client:
@@ -741,16 +708,20 @@ class TestGenerateCallingScript:
         assert response.status_code == 422
 
     def test_llm_failure_returns_500(self):
-        cleanup = override_auth()
+        # Mock LLMService that returns an error
+        mock_llm_service = AsyncMock(spec=LLMService)
+        mock_llm_service.generate_calling_script = AsyncMock(
+            side_effect=RuntimeError("LLM down")
+        )
+
+        app.dependency_overrides[get_current_user_id] = lambda: "test-user-uuid"
+        app.dependency_overrides[get_llm_service] = lambda: mock_llm_service
+
         try:
-            with patch(
-                "app.api.routes.providers.generate_calling_script",
-                new=AsyncMock(side_effect=RuntimeError("OpenAI down")),
-            ):
-                with TestClient(app) as client:
-                    response = self._post(client, _BASE_PAYLOAD)
+            with TestClient(app) as client:
+                response = self._post(client, _BASE_PAYLOAD)
         finally:
-            cleanup()
+            app.dependency_overrides.clear()
 
         assert response.status_code == 500
         assert "calling script" in response.json()["detail"].lower()

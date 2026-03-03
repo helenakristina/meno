@@ -9,7 +9,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 from fastapi.responses import JSONResponse
 
-from app.api.dependencies import CurrentUser, get_providers_repo
+from app.api.dependencies import CurrentUser, get_providers_repo, get_llm_service
 from app.models.providers import (
     AddToShortlistRequest,
     CallingScriptRequest,
@@ -21,7 +21,7 @@ from app.models.providers import (
     UpdateShortlistRequest,
 )
 from app.repositories.providers_repository import ProvidersRepository
-from app.services.llm import generate_calling_script
+from app.services.llm import LLMService
 from app.services.providers import assemble_calling_script_prompts
 
 logger = logging.getLogger(__name__)
@@ -175,6 +175,7 @@ async def list_insurance_options(
 async def generate_provider_calling_script(
     request: CallingScriptRequest,
     user_id: CurrentUser,
+    llm_service: Annotated[LLMService, Depends(get_llm_service)],
 ) -> CallingScriptResponse:
     """Generate a calling script via the LLM.
 
@@ -203,7 +204,7 @@ async def generate_provider_calling_script(
     )
 
     try:
-        script = await generate_calling_script(system_prompt, user_prompt)
+        script = await llm_service.generate_calling_script(system_prompt, user_prompt)
     except Exception as exc:
         logger.error(
             "LLM call failed for calling script (user=%s provider=%s): %s",
