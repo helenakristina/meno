@@ -5,6 +5,7 @@ from fastapi import Depends, Header, HTTPException, status
 from supabase import AsyncClient
 
 from app.core.supabase import get_client
+from app.repositories.user_repository import UserRepository
 
 logger = logging.getLogger(__name__)
 
@@ -56,3 +57,15 @@ async def get_current_user_id(
 
 
 CurrentUser = Annotated[str, Depends(get_current_user_id)]
+
+
+def get_user_repo(client: AsyncClient = Depends(get_client)) -> UserRepository:
+    """Dependency for UserRepository.
+
+    Args:
+        client: Supabase AsyncClient.
+
+    Returns:
+        UserRepository instance for data access.
+    """
+    return UserRepository(client=client)

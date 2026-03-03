@@ -23,10 +23,11 @@ class MockQueryBuilder:
     Tracks the last mutating operation so execute() returns the right data.
     """
 
-    def __init__(self, select_data=None, insert_data=None, update_data=None):
+    def __init__(self, select_data=None, insert_data=None, update_data=None, insert_error=None):
         self._select_data = select_data if select_data is not None else []
         self._insert_data = insert_data if insert_data is not None else []
         self._update_data = update_data if update_data is not None else []
+        self._insert_error = insert_error
         self._op: str = "select"
 
     def insert(self, *_, **__):
@@ -44,6 +45,8 @@ class MockQueryBuilder:
         return self
 
     async def execute(self):
+        if self._op == "insert" and self._insert_error:
+            raise self._insert_error
         result = MagicMock()
         if self._op == "insert":
             result.data = self._insert_data
@@ -62,6 +65,7 @@ def make_mock_client(
     update_data=None,
     auth_error: Exception | None = None,
     admin_error: Exception | None = None,
+    insert_error: Exception | None = None,
 ) -> MagicMock:
     """Build a mock Supabase client for user endpoint tests.
 
@@ -72,6 +76,7 @@ def make_mock_client(
         update_data: Rows returned after update operations.
         auth_error: If set, client.auth.get_user raises this exception.
         admin_error: If set, client.auth.admin.get_user_by_id raises this.
+        insert_error: If set, insert().execute() raises this exception.
     """
     mock = MagicMock()
 
@@ -94,6 +99,7 @@ def make_mock_client(
             select_data=existing_user_data if existing_user_data is not None else [],
             insert_data=insert_data if insert_data is not None else [],
             update_data=update_data if update_data is not None else [],
+            insert_error=insert_error,
         )
 
     mock.table.side_effect = table_side_effect
@@ -275,7 +281,9 @@ class TestOnboarding:
         assert response.status_code == 422
 
     def test_onboarding_prevents_duplicate(self):
-        mock = make_mock_client(existing_user_data=[{"id": USER_ID}])
+        # When trying to create a duplicate user, Supabase raises a unique constraint violation
+        insert_error = Exception("duplicate key value violates unique constraint")
+        mock = make_mock_client(insert_error=insert_error)
         cleanup = override(mock)
         try:
             with TestClient(app) as client:

@@ -16,9 +16,10 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from openai import AsyncOpenAI
 from supabase import AsyncClient
 
-from app.api.dependencies import CurrentUser
+from app.api.dependencies import CurrentUser, get_user_repo
 from app.core.config import settings
 from app.core.supabase import get_client
+from app.repositories.user_repository import UserRepository
 from app.llm.system_prompts import LAYER_1, LAYER_2, LAYER_3
 from app.models.chat import ChatMessage, ChatRequest, ChatResponse, Citation
 from app.rag.retrieval import retrieve_relevant_chunks
@@ -197,44 +198,9 @@ def _extract_citations(response_text: str, chunks: list[dict]) -> list[Citation]
     return citations
 
 
-def _calculate_age(date_of_birth: date) -> int:
-    today = date.today()
-    return (
-        today.year
-        - date_of_birth.year
-        - ((today.month, today.day) < (date_of_birth.month, date_of_birth.day))
-    )
-
-
 # -------------------------------------------------------------------------------
 # Supabase helpers
 # -------------------------------------------------------------------------------
-
-
-async def _fetch_user_context(
-    user_id: str, client: AsyncClient
-) -> tuple[str, int | None]:
-    """Return (journey_stage, age) for the user. Falls back gracefully if missing."""
-    try:
-        response = (
-            await client.table("users")
-            .select("journey_stage, date_of_birth")
-            .eq("id", user_id)
-            .execute()
-        )
-        if response.data:
-            row = response.data[0]
-            journey_stage = row.get("journey_stage") or "unsure"
-            dob_raw = row.get("date_of_birth")
-            if dob_raw:
-                dob = date.fromisoformat(dob_raw)
-                age = _calculate_age(dob)
-            else:
-                age = None
-            return journey_stage, age
-    except Exception as exc:
-        logger.warning("Failed to fetch user context for %s: %s", user_id, exc)
-    return "unsure", None
 
 
 async def _fetch_symptom_summary(user_id: str, client: AsyncClient) -> str:
@@ -396,6 +362,7 @@ async def ask_meno(
     payload: ChatRequest,
     user_id: CurrentUser,
     client: SupabaseClient,
+    user_repo: UserRepository = Depends(get_user_repo),
 ) -> ChatResponse:
     """Handle an Ask Meno question with RAG grounding.
 
@@ -413,7 +380,7 @@ async def ask_meno(
         )
 
     # Gather context in parallel where possible
-    journey_stage, age = await _fetch_user_context(user_id, client)
+    journey_stage, age = await user_repo.get_context(user_id)
     symptom_summary = await _fetch_symptom_summary(user_id, client)
 
     # Load existing conversation messages (for storage continuity — not sent to OpenAI)

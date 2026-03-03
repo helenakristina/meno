@@ -23,11 +23,11 @@ This must be done first. Everything in V2 depends on it.
 - **Tests:** Create `backend/tests/repositories/test_user_repository.py`
 - **Effort:** 3 hours
 - **Checklist:**
-  - [ ] UserRepository class created
-  - [ ] Methods take AsyncClient as dependency
-  - [ ] All Supabase queries moved from chat route
-  - [ ] Tests pass (mock Supabase)
-  - [ ] Chat route updated to use repository
+  - [x] UserRepository class created
+  - [x] Methods take AsyncClient as dependency
+  - [x] User Supabase queries moved from chat route
+  - [x] Tests pass (mock Supabase)
+  - [x] Chat route updated to use repository
 
 #### Task 1.1.2: Create Symptoms Repository
 - **File:** `backend/app/repositories/symptoms_repository.py`
