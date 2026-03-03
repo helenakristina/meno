@@ -1,0 +1,38 @@
+I'm creating a UserRepository for V2.
+
+Follow the patterns in the "Part 2: Repository Pattern" section of the code examples (docs/dev/backend/V2CODE_EXAMPLES.md).
+
+This repository handles all data access for Users. It should:
+
+- Take AsyncClient in **init**
+- Have get(), create(), update(), delete() methods
+- Use Supabase queries for [table_name]
+- Enforce user ownership (all queries filter by user_id)
+- Return typed Pydantic models where possible
+- Handle errors with proper HTTPExceptions
+- Log important operations
+- Be fully testable (all Supabase calls are mockable)
+
+File: backend/app/repositories/user_repository.py
+What it does:
+get_context(user_id) → returns journey_stage, age
+get_profile(user_id) → returns full user profile
+update_profile(user_id, data) → updates user profile
+Tests: Create backend/tests/repositories/test_user_repository.py
+
+Effort: 3 hours
+Checklist:
+[ ] UserRepository class created
+[ ] Methods take AsyncClient as dependency
+[ ] All Supabase queries moved from chat route
+[ ] Tests pass (mock Supabase)
+[ ] Chat route updated to use repository
+
+
+Reference:
+- Data model (from docs/dev/DESIGN.md)
+- This code examples file: "Part 2: Repository Pattern"
+- CLAUDE.md: "Code Standards" for error handling patterns
+- Context7 MCP: For Supabase SDK patterns
+
+Start with the class definition and **init**, then implement each CRUD method.
