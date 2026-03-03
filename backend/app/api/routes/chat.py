@@ -16,10 +16,11 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from openai import AsyncOpenAI
 from supabase import AsyncClient
 
-from app.api.dependencies import CurrentUser, get_user_repo
+from app.api.dependencies import CurrentUser, get_user_repo, get_symptoms_repo
 from app.core.config import settings
 from app.core.supabase import get_client
 from app.repositories.user_repository import UserRepository
+from app.repositories.symptoms_repository import SymptomsRepository
 from app.llm.system_prompts import LAYER_1, LAYER_2, LAYER_3
 from app.models.chat import ChatMessage, ChatRequest, ChatResponse, Citation
 from app.rag.retrieval import retrieve_relevant_chunks
@@ -203,24 +204,6 @@ def _extract_citations(response_text: str, chunks: list[dict]) -> list[Citation]
 # -------------------------------------------------------------------------------
 
 
-async def _fetch_symptom_summary(user_id: str, client: AsyncClient) -> str:
-    """Return the latest cached symptom summary text, or a default message."""
-    try:
-        response = (
-            await client.table("symptom_summary_cache")
-            .select("summary_text")
-            .eq("user_id", user_id)
-            .order("generated_at", desc=True)
-            .limit(1)
-            .execute()
-        )
-        if response.data:
-            return response.data[0].get("summary_text") or "No symptom data logged yet."
-    except Exception as exc:
-        logger.warning("Failed to fetch symptom summary for %s: %s", user_id, exc)
-    return "No symptom data logged yet."
-
-
 async def _load_conversation(
     conversation_id: UUID, user_id: str, client: AsyncClient
 ) -> list[dict]:
@@ -363,6 +346,7 @@ async def ask_meno(
     user_id: CurrentUser,
     client: SupabaseClient,
     user_repo: UserRepository = Depends(get_user_repo),
+    symptoms_repo: SymptomsRepository = Depends(get_symptoms_repo),
 ) -> ChatResponse:
     """Handle an Ask Meno question with RAG grounding.
 
@@ -381,7 +365,7 @@ async def ask_meno(
 
     # Gather context in parallel where possible
     journey_stage, age = await user_repo.get_context(user_id)
-    symptom_summary = await _fetch_symptom_summary(user_id, client)
+    symptom_summary = await symptoms_repo.get_summary(user_id)
 
     # Load existing conversation messages (for storage continuity — not sent to OpenAI)
     existing_messages: list[dict] = []

@@ -1,33 +1,33 @@
-I'm creating a UserRepository for V2.
+I'm creating a SymptomsRepository for V2.
 
 Follow the patterns in the "Part 2: Repository Pattern" section of the code examples (docs/dev/backend/V2CODE_EXAMPLES.md).
 
-This repository handles all data access for Users. It should:
+This repository handles all data access for Symptoms. It should:
 
 - Take AsyncClient in **init**
 - Have get(), create(), update(), delete() methods
-- Use Supabase queries for [table_name]
+- Use Supabase queries for symptoms
 - Enforce user ownership (all queries filter by user_id)
 - Return typed Pydantic models where possible
 - Handle errors with proper HTTPExceptions
 - Log important operations
 - Be fully testable (all Supabase calls are mockable)
 
-File: backend/app/repositories/user_repository.py
-What it does:
-get_context(user_id) → returns journey_stage, age
-get_profile(user_id) → returns full user profile
-update_profile(user_id, data) → updates user profile
-Tests: Create backend/tests/repositories/test_user_repository.py
-
-Effort: 3 hours
-Checklist:
-[ ] UserRepository class created
-[ ] Methods take AsyncClient as dependency
-[ ] All Supabase queries moved from chat route
-[ ] Tests pass (mock Supabase)
-[ ] Chat route updated to use repository
-
+ **File:** `backend/app/repositories/symptoms_repository.py`
+- **What it does:**
+  - `get_summary(user_id)` → cached symptom summary
+  - `validate_ids(ids)` → validate symptom IDs exist
+  - `get_logs(user_id, start_date, end_date)` → fetch logs
+  - `create_log(user_id, data)` → create new log
+- **Tests:** Create `backend/tests/repositories/test_symptoms_repository.py`
+- **Effort:** 3 hours
+- **Checklist:**
+  - [ ] SymptomsRepository class created
+  - [ ] Move `_fetch_symptom_summary()` from chat route
+  - [ ] Move validation logic from symptoms.py
+  - [ ] Move log fetching logic from symptoms route
+  - [ ] Tests pass
+  - [ ] Routes updated to use repository
 
 Reference:
 - Data model (from docs/dev/DESIGN.md)
