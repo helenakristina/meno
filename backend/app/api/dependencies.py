@@ -7,6 +7,8 @@ from supabase import AsyncClient
 from app.core.supabase import get_client
 from app.repositories.user_repository import UserRepository
 from app.repositories.symptoms_repository import SymptomsRepository
+from app.repositories.conversation_repository import ConversationRepository
+from app.repositories.providers_repository import ProvidersRepository
 
 logger = logging.getLogger(__name__)
 
@@ -82,3 +84,27 @@ def get_symptoms_repo(client: AsyncClient = Depends(get_client)) -> SymptomsRepo
         SymptomsRepository instance for data access.
     """
     return SymptomsRepository(client=client)
+
+
+def get_conversation_repo(client: AsyncClient = Depends(get_client)) -> ConversationRepository:
+    """Dependency for ConversationRepository.
+
+    Args:
+        client: Supabase AsyncClient.
+
+    Returns:
+        ConversationRepository instance for data access.
+    """
+    return ConversationRepository(client=client)
+
+
+def get_providers_repo(client: AsyncClient = Depends(get_client)) -> ProvidersRepository:
+    """Dependency for ProvidersRepository.
+
+    Args:
+        client: Supabase AsyncClient.
+
+    Returns:
+        ProvidersRepository instance for data access.
+    """
+    return ProvidersRepository(client=client)

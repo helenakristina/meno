@@ -4,15 +4,12 @@ Shortlist endpoints require auth (per-user private data).
 """
 
 import logging
-from datetime import datetime, timezone
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 from fastapi.responses import JSONResponse
-from supabase import AsyncClient
 
-from app.api.dependencies import CurrentUser
-from app.core.supabase import get_client
+from app.api.dependencies import CurrentUser, get_providers_repo
 from app.models.providers import (
     AddToShortlistRequest,
     CallingScriptRequest,
@@ -23,51 +20,13 @@ from app.models.providers import (
     StateCount,
     UpdateShortlistRequest,
 )
+from app.repositories.providers_repository import ProvidersRepository
 from app.services.llm import generate_calling_script
-from app.services.providers import (
-    aggregate_states,
-    assemble_calling_script_prompts,
-    collect_insurance_options,
-    filter_and_paginate,
-    to_provider_card,
-)
+from app.services.providers import assemble_calling_script_prompts
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/providers", tags=["providers"])
-
-SupabaseClient = Annotated[AsyncClient, Depends(get_client)]
-
-# Upper bound on rows fetched per search — safely covers any single state's
-# provider count given the current dataset (~5,500 providers total, ~50 states).
-_MAX_FETCH = 1000
-
-# PostgREST returns at most 1000 rows per request by default. This helper
-# paginates transparently so callers get every row regardless of dataset size.
-_PAGE_SIZE = 1000
-
-
-async def _fetch_all(client: AsyncClient, table: str, columns: str) -> list[dict]:
-    """Paginate through all rows in a table, returning every matching row.
-
-    Uses PostgREST range-based pagination (.range(from, to)) to work within
-    the 1,000-row-per-request default limit of the Supabase PostgREST API.
-    """
-    all_rows: list[dict] = []
-    offset = 0
-    while True:
-        response = (
-            await client.table(table)
-            .select(columns)
-            .range(offset, offset + _PAGE_SIZE - 1)
-            .execute()
-        )
-        batch = response.data or []
-        all_rows.extend(batch)
-        if len(batch) < _PAGE_SIZE:
-            break
-        offset += _PAGE_SIZE
-    return all_rows
 
 
 # ---------------------------------------------------------------------------
@@ -87,7 +46,7 @@ async def _fetch_all(client: AsyncClient, table: str, columns: str) -> list[dict
     ),
 )
 async def search_providers(
-    client: SupabaseClient,
+    repo: Annotated[ProvidersRepository, Depends(get_providers_repo)],
     state: str | None = Query(
         default=None,
         description="2-letter state code (required if no zip_code)",
@@ -133,89 +92,16 @@ async def search_providers(
         HTTPException: 422 if page_size exceeds 50.
         HTTPException: 500 for unexpected database failures.
     """
-    if not state and not zip_code:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Either 'state' or 'zip_code' is required",
-        )
-
-    effective_state = state.upper().strip() if state else None
-
-    # If only zip_code is provided, infer the state from our own providers table.
-    if zip_code and not effective_state:
-        try:
-            zip_response = (
-                await client.table("providers")
-                .select("state")
-                .eq("zip_code", zip_code.strip())
-                .limit(1)
-                .execute()
-            )
-        except Exception as exc:
-            logger.error(
-                "DB error looking up zip_code %s: %s", zip_code, exc, exc_info=True
-            )
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Failed to look up zip code",
-            )
-
-        if not zip_response.data:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"No providers found for zip_code '{zip_code}'",
-            )
-        effective_state = zip_response.data[0]["state"]
-
-    logger.info(
-        "Provider search: state=%s city=%s zip=%s nams_only=%s "
-        "provider_type=%s insurance=%s page=%d page_size=%d",
-        effective_state,
-        city,
-        zip_code,
-        nams_only,
-        provider_type,
-        insurance,
-        page,
-        page_size,
+    return await repo.search_providers(
+        state=state,
+        city=city,
+        zip_code=zip_code,
+        nams_only=nams_only,
+        provider_type=provider_type,
+        insurance=insurance,
+        page=page,
+        page_size=page_size,
     )
-
-    try:
-        query = (
-            client.table("providers")
-            .select("*")
-            .eq("state", effective_state)
-            .limit(_MAX_FETCH)
-        )
-        if nams_only:
-            query = query.eq("nams_certified", True)
-        if provider_type:
-            query = query.eq("provider_type", provider_type)
-        response = await query.execute()
-        rows = response.data or []
-    except Exception as exc:
-        logger.error(
-            "DB query failed for provider search (state=%s): %s",
-            effective_state,
-            exc,
-            exc_info=True,
-        )
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to search providers",
-        )
-
-    result = filter_and_paginate(
-        rows, city=city, insurance=insurance, page=page, page_size=page_size
-    )
-    logger.info(
-        "Provider search complete: state=%s total=%d page=%d/%d",
-        effective_state,
-        result.total,
-        result.page,
-        result.total_pages,
-    )
-    return result
 
 
 # ---------------------------------------------------------------------------
@@ -233,26 +119,15 @@ async def search_providers(
         "sorted alphabetically. Used to populate the state dropdown."
     ),
 )
-async def list_states(client: SupabaseClient) -> list[StateCount]:
+async def list_states(
+    repo: Annotated[ProvidersRepository, Depends(get_providers_repo)],
+) -> list[StateCount]:
     """Return states with provider counts sorted by state code.
 
     Raises:
         HTTPException: 500 for unexpected database failures.
     """
-    try:
-        rows = await _fetch_all(client, "providers", "state")
-    except Exception as exc:
-        logger.error(
-            "DB query failed fetching provider states: %s", exc, exc_info=True
-        )
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to retrieve state list",
-        )
-
-    aggregated = aggregate_states(rows)
-    logger.info("States endpoint: returned %d states", len(aggregated))
-    return [StateCount(**item) for item in aggregated]
+    return await repo.get_states()
 
 
 # ---------------------------------------------------------------------------
@@ -270,28 +145,15 @@ async def list_states(client: SupabaseClient) -> list[StateCount]:
         "sorted alphabetically. Used to populate the insurance filter dropdown."
     ),
 )
-async def list_insurance_options(client: SupabaseClient) -> list[str]:
+async def list_insurance_options(
+    repo: Annotated[ProvidersRepository, Depends(get_providers_repo)],
+) -> list[str]:
     """Return deduplicated, sorted insurance names from all providers.
 
     Raises:
         HTTPException: 500 for unexpected database failures.
     """
-    try:
-        rows = await _fetch_all(client, "providers", "insurance_accepted")
-    except Exception as exc:
-        logger.error(
-            "DB query failed fetching insurance options: %s", exc, exc_info=True
-        )
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to retrieve insurance options",
-        )
-
-    options = collect_insurance_options(rows)
-    logger.info(
-        "Insurance options endpoint: returned %d distinct values", len(options)
-    )
-    return options
+    return await repo.get_insurance_options()
 
 
 # ---------------------------------------------------------------------------
@@ -378,33 +240,14 @@ async def generate_provider_calling_script(
 )
 async def get_shortlist_ids(
     user_id: CurrentUser,
-    client: SupabaseClient,
+    repo: Annotated[ProvidersRepository, Depends(get_providers_repo)],
 ) -> list[str]:
     """Return provider_ids in the user's shortlist.
 
     Raises:
         HTTPException: 500 for unexpected database failures.
     """
-    try:
-        resp = (
-            await client.table("provider_shortlist")
-            .select("provider_id")
-            .eq("user_id", user_id)
-            .execute()
-        )
-    except Exception as exc:
-        logger.error(
-            "DB query failed fetching shortlist ids (user=%s): %s",
-            user_id,
-            exc,
-            exc_info=True,
-        )
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to retrieve shortlist",
-        )
-
-    return [row["provider_id"] for row in (resp.data or [])]
+    return await repo.get_shortlist_ids(user_id)
 
 
 @router.get(
@@ -420,75 +263,14 @@ async def get_shortlist_ids(
 )
 async def get_shortlist(
     user_id: CurrentUser,
-    client: SupabaseClient,
+    repo: Annotated[ProvidersRepository, Depends(get_providers_repo)],
 ) -> list[ShortlistEntryWithProvider]:
     """Return all shortlist entries with full provider data joined in.
-
-    Makes two DB queries: one for shortlist entries, one for provider rows.
-    Joining in Python avoids complex PostgREST syntax and keeps the route testable.
 
     Raises:
         HTTPException: 500 for unexpected database failures.
     """
-    try:
-        entries_resp = (
-            await client.table("provider_shortlist")
-            .select("*")
-            .eq("user_id", user_id)
-            .order("added_at", desc=True)
-            .execute()
-        )
-        entries = entries_resp.data or []
-    except Exception as exc:
-        logger.error(
-            "DB query failed fetching shortlist (user=%s): %s",
-            user_id,
-            exc,
-            exc_info=True,
-        )
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to retrieve shortlist",
-        )
-
-    if not entries:
-        return []
-
-    provider_ids = [e["provider_id"] for e in entries]
-
-    try:
-        providers_resp = (
-            await client.table("providers")
-            .select("*")
-            .in_("id", provider_ids)
-            .execute()
-        )
-        providers_by_id = {p["id"]: p for p in (providers_resp.data or [])}
-    except Exception as exc:
-        logger.error(
-            "DB query failed fetching providers for shortlist (user=%s): %s",
-            user_id,
-            exc,
-            exc_info=True,
-        )
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to retrieve shortlist",
-        )
-
-    result = []
-    for entry in entries:
-        provider_row = providers_by_id.get(entry["provider_id"])
-        if provider_row:
-            result.append(
-                ShortlistEntryWithProvider(
-                    **{k: v for k, v in entry.items()},
-                    provider=to_provider_card(provider_row),
-                )
-            )
-
-    logger.info("Shortlist fetch: user=%s entries=%d", user_id, len(result))
-    return result
+    return await repo.get_shortlist(user_id)
 
 
 @router.post(
@@ -503,7 +285,7 @@ async def get_shortlist(
 async def add_to_shortlist(
     request: AddToShortlistRequest,
     user_id: CurrentUser,
-    client: SupabaseClient,
+    repo: Annotated[ProvidersRepository, Depends(get_providers_repo)],
 ) -> ShortlistEntry:
     """Add a provider to the user's shortlist.
 
@@ -513,60 +295,15 @@ async def add_to_shortlist(
     Raises:
         HTTPException: 500 for unexpected database failures.
     """
-    try:
-        existing_resp = (
-            await client.table("provider_shortlist")
-            .select("*")
-            .eq("user_id", user_id)
-            .eq("provider_id", request.provider_id)
-            .execute()
-        )
-    except Exception as exc:
-        logger.error(
-            "DB query failed checking existing shortlist entry (user=%s provider=%s): %s",
-            user_id,
-            request.provider_id,
-            exc,
-            exc_info=True,
-        )
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to add provider to shortlist",
-        )
+    entry, status_code = await repo.add_to_shortlist(user_id, request.provider_id)
 
-    if existing_resp.data:
-        # Already in shortlist — return existing entry with 409 so caller can distinguish
-        logger.info(
-            "Shortlist add: already exists (user=%s provider=%s)",
-            user_id,
-            request.provider_id,
-        )
+    if status_code == status.HTTP_409_CONFLICT:
         return JSONResponse(
             status_code=status.HTTP_409_CONFLICT,
-            content=existing_resp.data[0],
+            content=entry.model_dump(),
         )
 
-    try:
-        insert_resp = (
-            await client.table("provider_shortlist")
-            .insert({"user_id": user_id, "provider_id": request.provider_id, "status": "to_call"})
-            .execute()
-        )
-    except Exception as exc:
-        logger.error(
-            "DB insert failed for shortlist (user=%s provider=%s): %s",
-            user_id,
-            request.provider_id,
-            exc,
-            exc_info=True,
-        )
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to add provider to shortlist",
-        )
-
-    logger.info("Shortlist add: success (user=%s provider=%s)", user_id, request.provider_id)
-    return ShortlistEntry(**insert_resp.data[0])
+    return entry
 
 
 @router.delete(
@@ -578,7 +315,7 @@ async def add_to_shortlist(
 async def remove_from_shortlist(
     provider_id: str,
     user_id: CurrentUser,
-    client: SupabaseClient,
+    repo: Annotated[ProvidersRepository, Depends(get_providers_repo)],
 ) -> Response:
     """Remove a provider from the user's shortlist.
 
@@ -586,55 +323,7 @@ async def remove_from_shortlist(
         HTTPException: 404 if provider is not in the user's shortlist.
         HTTPException: 500 for unexpected database failures.
     """
-    try:
-        existing_resp = (
-            await client.table("provider_shortlist")
-            .select("id")
-            .eq("user_id", user_id)
-            .eq("provider_id", provider_id)
-            .execute()
-        )
-    except Exception as exc:
-        logger.error(
-            "DB query failed checking shortlist entry (user=%s provider=%s): %s",
-            user_id,
-            provider_id,
-            exc,
-            exc_info=True,
-        )
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to remove provider from shortlist",
-        )
-
-    if not existing_resp.data:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Provider not in shortlist",
-        )
-
-    try:
-        await (
-            client.table("provider_shortlist")
-            .delete()
-            .eq("user_id", user_id)
-            .eq("provider_id", provider_id)
-            .execute()
-        )
-    except Exception as exc:
-        logger.error(
-            "DB delete failed for shortlist (user=%s provider=%s): %s",
-            user_id,
-            provider_id,
-            exc,
-            exc_info=True,
-        )
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to remove provider from shortlist",
-        )
-
-    logger.info("Shortlist remove: success (user=%s provider=%s)", user_id, provider_id)
+    await repo.remove_from_shortlist(user_id, provider_id)
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
@@ -653,7 +342,7 @@ async def update_shortlist_entry(
     provider_id: str,
     request: UpdateShortlistRequest,
     user_id: CurrentUser,
-    client: SupabaseClient,
+    repo: Annotated[ProvidersRepository, Depends(get_providers_repo)],
 ) -> ShortlistEntry:
     """Update status and/or notes for a shortlist entry.
 
@@ -664,67 +353,9 @@ async def update_shortlist_entry(
         HTTPException: 404 if provider is not in the user's shortlist.
         HTTPException: 500 for unexpected database failures.
     """
-    try:
-        existing_resp = (
-            await client.table("provider_shortlist")
-            .select("*")
-            .eq("user_id", user_id)
-            .eq("provider_id", provider_id)
-            .execute()
-        )
-    except Exception as exc:
-        logger.error(
-            "DB query failed checking shortlist entry (user=%s provider=%s): %s",
-            user_id,
-            provider_id,
-            exc,
-            exc_info=True,
-        )
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to update shortlist entry",
-        )
-
-    if not existing_resp.data:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Provider not in shortlist",
-        )
-
-    updates: dict = {
-        "updated_at": datetime.now(tz=timezone.utc).isoformat(),
-    }
-    if request.status is not None:
-        updates["status"] = request.status.value
-    if request.notes is not None:
-        # Empty string → null in DB (clear notes)
-        updates["notes"] = request.notes.strip() or None
-
-    try:
-        update_resp = (
-            await client.table("provider_shortlist")
-            .update(updates)
-            .eq("user_id", user_id)
-            .eq("provider_id", provider_id)
-            .execute()
-        )
-    except Exception as exc:
-        logger.error(
-            "DB update failed for shortlist (user=%s provider=%s): %s",
-            user_id,
-            provider_id,
-            exc,
-            exc_info=True,
-        )
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to update shortlist entry",
-        )
-
-    logger.info(
-        "Shortlist update: success (user=%s provider=%s status=%s)",
+    return await repo.update_shortlist_entry(
         user_id,
         provider_id,
-        request.status,
+        status=request.status.value if request.status else None,
+        notes=request.notes,
     )
-    return ShortlistEntry(**update_resp.data[0])

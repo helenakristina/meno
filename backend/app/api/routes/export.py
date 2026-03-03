@@ -25,14 +25,15 @@ from reportlab.platypus import (
     Table,
     TableStyle,
 )
-from supabase import AsyncClient
 
-from app.api.dependencies import CurrentUser
+from app.api.dependencies import CurrentUser, get_symptoms_repo
 from app.core.supabase import get_client
 from app.models.export import ExportRequest
 from app.models.symptoms import SymptomFrequency, SymptomPair
+from app.repositories.symptoms_repository import SymptomsRepository
 from app.services.llm import generate_provider_questions, generate_symptom_summary
 from app.services.stats import calculate_cooccurrence_stats, calculate_frequency_stats
+from supabase import AsyncClient
 
 logger = logging.getLogger(__name__)
 
@@ -49,49 +50,7 @@ _HEADER_BG = colors.HexColor("#F7FAFC")
 _BORDER = colors.HexColor("#CBD5E0")
 _ALT_ROW = colors.HexColor("#EDF2F7")
 
-
 SupabaseClient = Annotated[AsyncClient, Depends(get_client)]
-
-
-# ---------------------------------------------------------------------------
-# Shared data-fetching helpers
-# ---------------------------------------------------------------------------
-
-
-async def _fetch_logs(
-    user_id: str,
-    start: date,
-    end: date,
-    client: AsyncClient,
-) -> list[dict]:
-    """Fetch symptom logs for the user in the given date range."""
-    start_dt = datetime(start.year, start.month, start.day, tzinfo=timezone.utc)
-    end_dt = datetime(end.year, end.month, end.day, 23, 59, 59, tzinfo=timezone.utc)
-    response = (
-        await client.table("symptom_logs")
-        .select("logged_at, symptoms, free_text_entry")
-        .eq("user_id", user_id)
-        .gte("logged_at", start_dt.isoformat())
-        .lte("logged_at", end_dt.isoformat())
-        .order("logged_at", desc=False)
-        .execute()
-    )
-    return response.data or []
-
-
-async def _fetch_symptom_names(
-    symptom_ids: list[str], client: AsyncClient
-) -> dict[str, dict]:
-    """Return a map of symptom_id → {name, category} for the given IDs."""
-    if not symptom_ids:
-        return {}
-    response = (
-        await client.table("symptoms_reference")
-        .select("id, name, category")
-        .in_("id", symptom_ids)
-        .execute()
-    )
-    return {row["id"]: row for row in (response.data or [])}
 
 
 def _log_date(logged_at: str) -> str:
@@ -332,7 +291,7 @@ def _build_pdf(
 async def export_pdf(
     payload: ExportRequest,
     user_id: CurrentUser,
-    client: SupabaseClient,
+    symptoms_repo: Annotated[SymptomsRepository, Depends(get_symptoms_repo)],
 ) -> Response:
     """Generate and return a PDF provider summary for the authenticated user.
 
@@ -354,33 +313,15 @@ async def export_pdf(
             detail="date_range_end cannot be in the future",
         )
 
-    # --- Fetch logs ---
-    try:
-        rows = await _fetch_logs(
-            user_id, payload.date_range_start, payload.date_range_end, client
-        )
-    except Exception as exc:
-        logger.error("DB error fetching logs for PDF export (user %s): %s", user_id, exc, exc_info=True)
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to retrieve symptom logs",
-        )
+    # --- Fetch logs and reference data ---
+    rows, ref_lookup = await symptoms_repo.get_logs_for_export(
+        user_id, payload.date_range_start, payload.date_range_end
+    )
 
     if not rows:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="No symptom logs found for the selected date range",
-        )
-
-    # --- Resolve symptom names ---
-    all_ids = list({sid for row in rows for sid in (row.get("symptoms") or [])})
-    try:
-        ref_lookup = await _fetch_symptom_names(all_ids, client)
-    except Exception as exc:
-        logger.error("DB error fetching symptom names for PDF (user %s): %s", user_id, exc, exc_info=True)
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to retrieve symptom data",
         )
 
     # --- Calculate stats ---
@@ -472,6 +413,7 @@ async def export_pdf(
 async def export_csv(
     payload: ExportRequest,
     user_id: CurrentUser,
+    symptoms_repo: Annotated[SymptomsRepository, Depends(get_symptoms_repo)],
     client: SupabaseClient,
 ) -> Response:
     """Return raw symptom logs as a downloadable CSV file.
@@ -494,33 +436,15 @@ async def export_csv(
             detail="date_range_end cannot be in the future",
         )
 
-    # --- Fetch logs ---
-    try:
-        rows = await _fetch_logs(
-            user_id, payload.date_range_start, payload.date_range_end, client
-        )
-    except Exception as exc:
-        logger.error("DB error fetching logs for CSV export (user %s): %s", user_id, exc, exc_info=True)
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to retrieve symptom logs",
-        )
+    # --- Fetch logs and reference data ---
+    rows, ref_lookup = await symptoms_repo.get_logs_for_export(
+        user_id, payload.date_range_start, payload.date_range_end
+    )
 
     if not rows:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="No symptom logs found for the selected date range",
-        )
-
-    # --- Resolve symptom names ---
-    all_ids = list({sid for row in rows for sid in (row.get("symptoms") or [])})
-    try:
-        ref_lookup = await _fetch_symptom_names(all_ids, client)
-    except Exception as exc:
-        logger.error("DB error fetching symptom names for CSV (user %s): %s", user_id, exc, exc_info=True)
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to retrieve symptom data",
         )
 
     # --- Build CSV ---

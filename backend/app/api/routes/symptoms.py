@@ -1,16 +1,13 @@
 import logging
-from datetime import date, datetime, timedelta, timezone
+from datetime import date, timedelta
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from supabase import AsyncClient
 
 from app.api.dependencies import CurrentUser, get_symptoms_repo
-from app.core.supabase import get_client
 from app.models.symptoms import (
     CooccurrenceStatsResponse,
     FrequencyStatsResponse,
-    SymptomDetail,
     SymptomLogCreate,
     SymptomLogList,
     SymptomLogResponse,
@@ -21,10 +18,6 @@ from app.services.stats import calculate_cooccurrence_stats, calculate_frequency
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/symptoms", tags=["symptoms"])
-
-
-# Type aliases for cleaner route signatures
-SupabaseClient = Annotated[AsyncClient, Depends(get_client)]
 
 
 
@@ -132,7 +125,7 @@ async def get_symptom_logs(
 )
 async def get_frequency_stats(
     user_id: CurrentUser,
-    client: SupabaseClient,
+    symptoms_repo: Annotated[SymptomsRepository, Depends(get_symptoms_repo)],
     start_date: date | None = Query(
         default=None,
         description="Start of date range (UTC, ISO 8601). Defaults to 30 days ago.",
@@ -164,47 +157,17 @@ async def get_frequency_stats(
             detail="start_date must be on or before end_date",
         )
 
-    try:
-        start_dt = datetime(
-            effective_start.year,
-            effective_start.month,
-            effective_start.day,
-            tzinfo=timezone.utc,
-        )
-        end_dt = datetime(
-            effective_end.year,
-            effective_end.month,
-            effective_end.day,
-            23,
-            59,
-            59,
-            tzinfo=timezone.utc,
-        )
-        response = (
-            await client.table("symptom_logs")
-            .select("symptoms")
-            .eq("user_id", user_id)
-            .gte("logged_at", start_dt.isoformat())
-            .lte("logged_at", end_dt.isoformat())
-            .execute()
-        )
-        rows = response.data or []
-    except Exception as exc:
-        logger.error(
-            "DB query failed fetching logs for frequency stats (user %s): %s",
-            user_id,
-            exc,
-            exc_info=True,
-        )
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to retrieve symptom statistics",
-        )
+    # Fetch logs and reference data for the date range
+    rows, ref_lookup = await symptoms_repo.get_logs_with_reference(
+        user_id=user_id,
+        start_date=effective_start,
+        end_date=effective_end,
+    )
 
     total_logs = len(rows)
-    all_ids = list({sid for row in rows for sid in (row.get("symptoms") or [])})
 
-    if not all_ids:
+    # If no logs found, return empty stats response
+    if not rows or not ref_lookup:
         logger.info(
             "No symptoms found for user %s in range %s–%s",
             user_id,
@@ -218,27 +181,7 @@ async def get_frequency_stats(
             total_logs=total_logs,
         )
 
-    try:
-        ref_response = (
-            await client.table("symptoms_reference")
-            .select("id, name, category")
-            .in_("id", all_ids)
-            .execute()
-        )
-        ref_rows = ref_response.data or []
-    except Exception as exc:
-        logger.error(
-            "DB query failed fetching symptoms_reference for user %s: %s",
-            user_id,
-            exc,
-            exc_info=True,
-        )
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to retrieve symptom statistics",
-        )
-
-    ref_lookup = {row["id"]: row for row in ref_rows}
+    # Calculate frequency stats
     stats = calculate_frequency_stats(rows, ref_lookup)
 
     logger.info(
@@ -273,7 +216,7 @@ async def get_frequency_stats(
 )
 async def get_cooccurrence_stats(
     user_id: CurrentUser,
-    client: SupabaseClient,
+    symptoms_repo: Annotated[SymptomsRepository, Depends(get_symptoms_repo)],
     start_date: date | None = Query(
         default=None,
         description="Start of date range (UTC, ISO 8601). Defaults to 30 days ago.",
@@ -313,45 +256,12 @@ async def get_cooccurrence_stats(
             detail="start_date must be on or before end_date",
         )
 
-    # ------------------------------------------------------------------
-    # 1. Fetch symptom arrays for the date range
-    # ------------------------------------------------------------------
-    try:
-        start_dt = datetime(
-            effective_start.year,
-            effective_start.month,
-            effective_start.day,
-            tzinfo=timezone.utc,
-        )
-        end_dt = datetime(
-            effective_end.year,
-            effective_end.month,
-            effective_end.day,
-            23,
-            59,
-            59,
-            tzinfo=timezone.utc,
-        )
-        response = (
-            await client.table("symptom_logs")
-            .select("symptoms")
-            .eq("user_id", user_id)
-            .gte("logged_at", start_dt.isoformat())
-            .lte("logged_at", end_dt.isoformat())
-            .execute()
-        )
-        rows = response.data or []
-    except Exception as exc:
-        logger.error(
-            "DB query failed fetching logs for co-occurrence stats (user %s): %s",
-            user_id,
-            exc,
-            exc_info=True,
-        )
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to retrieve symptom statistics",
-        )
+    # Fetch logs and reference data for the date range
+    rows, ref_lookup = await symptoms_repo.get_logs_with_reference(
+        user_id=user_id,
+        start_date=effective_start,
+        end_date=effective_end,
+    )
 
     total_logs = len(rows)
     logger.debug(
@@ -362,8 +272,8 @@ async def get_cooccurrence_stats(
         effective_end,
     )
 
-    all_ids = list({sid for row in rows for sid in (row.get("symptoms") or [])})
-    if not all_ids:
+    # If no logs or reference data found, return empty response
+    if not rows or not ref_lookup:
         logger.info(
             "Co-occurrence: no pairs above threshold=%d for user %s",
             min_threshold,
@@ -377,27 +287,7 @@ async def get_cooccurrence_stats(
             min_threshold=min_threshold,
         )
 
-    try:
-        ref_response = (
-            await client.table("symptoms_reference")
-            .select("id, name, category")
-            .in_("id", all_ids)
-            .execute()
-        )
-        ref_rows = ref_response.data or []
-    except Exception as exc:
-        logger.error(
-            "DB query failed fetching symptoms_reference for co-occurrence (user %s): %s",
-            user_id,
-            exc,
-            exc_info=True,
-        )
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to retrieve symptom statistics",
-        )
-
-    ref_lookup = {row["id"]: row for row in ref_rows}
+    # Calculate cooccurrence stats
     pairs = calculate_cooccurrence_stats(rows, ref_lookup, min_threshold=min_threshold)
 
     logger.info(

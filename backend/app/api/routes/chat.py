@@ -16,11 +16,12 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from openai import AsyncOpenAI
 from supabase import AsyncClient
 
-from app.api.dependencies import CurrentUser, get_user_repo, get_symptoms_repo
+from app.api.dependencies import CurrentUser, get_user_repo, get_symptoms_repo, get_conversation_repo
 from app.core.config import settings
 from app.core.supabase import get_client
 from app.repositories.user_repository import UserRepository
 from app.repositories.symptoms_repository import SymptomsRepository
+from app.repositories.conversation_repository import ConversationRepository
 from app.llm.system_prompts import LAYER_1, LAYER_2, LAYER_3
 from app.models.chat import ChatMessage, ChatRequest, ChatResponse, Citation
 from app.rag.retrieval import retrieve_relevant_chunks
@@ -200,108 +201,6 @@ def _extract_citations(response_text: str, chunks: list[dict]) -> list[Citation]
 
 
 # -------------------------------------------------------------------------------
-# Supabase helpers
-# -------------------------------------------------------------------------------
-
-
-async def _load_conversation(
-    conversation_id: UUID, user_id: str, client: AsyncClient
-) -> list[dict]:
-    """Fetch the messages array from an existing conversation.
-
-    Raises HTTPException 404 if the conversation doesn't exist or doesn't
-    belong to this user.
-    """
-    try:
-        response = (
-            await client.table("conversations")
-            .select("messages")
-            .eq("id", str(conversation_id))
-            .eq("user_id", user_id)
-            .execute()
-        )
-    except Exception as exc:
-        logger.error(
-            "DB query failed loading conversation %s for user %s: %s",
-            conversation_id,
-            user_id,
-            exc,
-            exc_info=True,
-        )
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to load conversation",
-        )
-
-    if not response.data:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Conversation not found",
-        )
-    return response.data[0].get("messages") or []
-
-
-async def _save_conversation(
-    conversation_id: UUID | None,
-    user_id: str,
-    messages: list[dict],
-    client: AsyncClient,
-) -> UUID:
-    """Upsert conversation messages. Returns the (possibly new) conversation UUID."""
-    if conversation_id is not None:
-        try:
-            await (
-                client.table("conversations")
-                .update({"messages": messages})
-                .eq("id", str(conversation_id))
-                .eq("user_id", user_id)
-                .execute()
-            )
-        except Exception as exc:
-            logger.error(
-                "DB update failed for conversation %s: %s",
-                conversation_id,
-                exc,
-                exc_info=True,
-            )
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Failed to save conversation",
-            )
-        return conversation_id
-
-    # New conversation
-    try:
-        response = (
-            await client.table("conversations")
-            .insert({"user_id": user_id, "messages": messages})
-            .execute()
-        )
-    except Exception as exc:
-        logger.error(
-            "DB insert failed creating conversation for user %s: %s",
-            user_id,
-            exc,
-            exc_info=True,
-        )
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to save conversation",
-        )
-
-    if not response.data:
-        logger.error(
-            "Supabase returned no data after conversation insert for user %s", user_id
-        )
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to save conversation",
-        )
-
-    return UUID(response.data[0]["id"])
-
-
-# -------------------------------------------------------------------------------
 # OpenAI call
 # -------------------------------------------------------------------------------
 
@@ -347,6 +246,7 @@ async def ask_meno(
     client: SupabaseClient,
     user_repo: UserRepository = Depends(get_user_repo),
     symptoms_repo: SymptomsRepository = Depends(get_symptoms_repo),
+    conversation_repo: ConversationRepository = Depends(get_conversation_repo),
 ) -> ChatResponse:
     """Handle an Ask Meno question with RAG grounding.
 
@@ -370,8 +270,8 @@ async def ask_meno(
     # Load existing conversation messages (for storage continuity — not sent to OpenAI)
     existing_messages: list[dict] = []
     if payload.conversation_id is not None:
-        existing_messages = await _load_conversation(
-            payload.conversation_id, user_id, client
+        existing_messages = await conversation_repo.load(
+            payload.conversation_id, user_id
         )
 
     # RAG retrieval
@@ -472,8 +372,8 @@ async def ask_meno(
     ]
 
     # Persist conversation
-    conversation_id = await _save_conversation(
-        payload.conversation_id, user_id, updated_messages, client
+    conversation_id = await conversation_repo.save(
+        payload.conversation_id, user_id, updated_messages
     )
 
     # Log all citation patterns found in the response for debugging

@@ -542,3 +542,207 @@ async def test_fetch_lookup_partial_results():
 
     assert "sid-1" in result
     assert "sid-missing" not in result
+
+
+# ---------------------------------------------------------------------------
+# get_logs_with_reference() tests
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_get_logs_with_reference_returns_logs_and_reference():
+    """Should return raw logs with reference data for stats calculations."""
+    logs_response = MagicMock()
+    logs_response.data = [
+        {"symptoms": ["sid-1", "sid-2"]},
+        {"symptoms": ["sid-1"]},
+    ]
+
+    ref_response = MagicMock()
+    ref_response.data = [
+        {"id": "sid-1", "name": "Fatigue", "category": "physical"},
+        {"id": "sid-2", "name": "Brain Fog", "category": "cognitive"},
+    ]
+
+    mock_client = make_sequential_client(logs_response, ref_response)
+    repo = SymptomsRepository(client=mock_client)
+
+    logs, ref_lookup = await repo.get_logs_with_reference("user-1")
+
+    assert len(logs) == 2
+    assert logs[0]["symptoms"] == ["sid-1", "sid-2"]
+    assert "sid-1" in ref_lookup
+    assert ref_lookup["sid-1"]["name"] == "Fatigue"
+    assert "sid-2" in ref_lookup
+
+
+@pytest.mark.asyncio
+async def test_get_logs_with_reference_no_logs_returns_empty_lookup():
+    """Should return empty reference lookup when no logs found."""
+    logs_response = MagicMock()
+    logs_response.data = []
+
+    mock_client = make_sequential_client(logs_response)
+    repo = SymptomsRepository(client=mock_client)
+
+    logs, ref_lookup = await repo.get_logs_with_reference("user-1")
+
+    assert logs == []
+    assert ref_lookup == {}
+
+
+@pytest.mark.asyncio
+async def test_get_logs_with_reference_with_date_filters():
+    """Should apply date filters correctly."""
+    logs_response = MagicMock()
+    logs_response.data = [
+        {"symptoms": ["sid-1"]},
+    ]
+
+    ref_response = MagicMock()
+    ref_response.data = [
+        {"id": "sid-1", "name": "Fatigue", "category": "physical"},
+    ]
+
+    mock_client = make_sequential_client(logs_response, ref_response)
+    repo = SymptomsRepository(client=mock_client)
+
+    logs, ref_lookup = await repo.get_logs_with_reference(
+        "user-1",
+        start_date=date(2026, 2, 1),
+        end_date=date(2026, 2, 28),
+    )
+
+    assert len(logs) == 1
+    assert "sid-1" in ref_lookup
+
+
+@pytest.mark.asyncio
+async def test_get_logs_with_reference_logs_query_fails():
+    """Should raise 500 if logs query fails."""
+    response = MagicMock()
+    response.execute = AsyncMock(side_effect=Exception("DB error"))
+
+    mock_client = MagicMock()
+    mock_client.table.return_value.select.return_value.eq.return_value = response
+
+    repo = SymptomsRepository(client=mock_client)
+
+    with pytest.raises(HTTPException) as exc_info:
+        await repo.get_logs_with_reference("user-1")
+
+    assert exc_info.value.status_code == 500
+
+
+@pytest.mark.asyncio
+async def test_get_logs_with_reference_reference_query_fails():
+    """Should raise 500 if reference query fails."""
+    logs_response = MagicMock()
+    logs_response.data = [
+        {"symptoms": ["sid-1"]},
+    ]
+
+    ref_response = MagicMock()
+    ref_response.execute = AsyncMock(side_effect=Exception("DB error"))
+
+    # First table call returns logs successfully, second fails
+    def table_side_effect(name):
+        if name == "symptom_logs":
+            chain = MagicMock()
+            chain.select.return_value.eq.return_value.execute = AsyncMock(return_value=logs_response)
+            chain.select.return_value.eq.return_value.eq.return_value = chain.select.return_value.eq.return_value
+            return chain
+        else:  # symptoms_reference
+            chain = MagicMock()
+            chain.select.return_value.in_.return_value = ref_response
+            return chain
+
+    mock_client = MagicMock()
+    mock_client.table.side_effect = table_side_effect
+
+    repo = SymptomsRepository(client=mock_client)
+
+    with pytest.raises(HTTPException) as exc_info:
+        await repo.get_logs_with_reference("user-1")
+
+    assert exc_info.value.status_code == 500
+
+
+# ---------------------------------------------------------------------------
+# get_logs_for_export() tests
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_get_logs_for_export_returns_logs_with_all_fields():
+    """Should return logs with logged_at, symptoms, free_text_entry for export."""
+    logs_response = MagicMock()
+    logs_response.data = [
+        {
+            "logged_at": "2026-02-01T10:00:00Z",
+            "symptoms": ["sid-1", "sid-2"],
+            "free_text_entry": "Felt tired",
+        },
+        {
+            "logged_at": "2026-02-02T14:30:00Z",
+            "symptoms": ["sid-1"],
+            "free_text_entry": None,
+        },
+    ]
+
+    ref_response = MagicMock()
+    ref_response.data = [
+        {"id": "sid-1", "name": "Fatigue", "category": "physical"},
+        {"id": "sid-2", "name": "Brain Fog", "category": "cognitive"},
+    ]
+
+    mock_client = make_sequential_client(logs_response, ref_response)
+    repo = SymptomsRepository(client=mock_client)
+
+    logs, ref_lookup = await repo.get_logs_for_export(
+        "user-1",
+        date(2026, 2, 1),
+        date(2026, 2, 28),
+    )
+
+    assert len(logs) == 2
+    assert logs[0]["logged_at"] == "2026-02-01T10:00:00Z"
+    assert logs[0]["free_text_entry"] == "Felt tired"
+    assert "sid-1" in ref_lookup
+    assert ref_lookup["sid-1"]["name"] == "Fatigue"
+
+
+@pytest.mark.asyncio
+async def test_get_logs_for_export_no_logs_returns_empty_lookup():
+    """Should return empty reference lookup when no logs found."""
+    logs_response = MagicMock()
+    logs_response.data = []
+
+    mock_client = make_sequential_client(logs_response)
+    repo = SymptomsRepository(client=mock_client)
+
+    logs, ref_lookup = await repo.get_logs_for_export(
+        "user-1",
+        date(2026, 2, 1),
+        date(2026, 2, 28),
+    )
+
+    assert logs == []
+    assert ref_lookup == {}
+
+
+@pytest.mark.asyncio
+async def test_get_logs_for_export_logs_query_fails():
+    """Should raise 500 if logs query fails."""
+    response = MagicMock()
+    response.execute = AsyncMock(side_effect=Exception("DB error"))
+
+    mock_client = MagicMock()
+    mock_client.table.return_value.select.return_value.eq.return_value = response
+
+    repo = SymptomsRepository(client=mock_client)
+
+    with pytest.raises(HTTPException) as exc_info:
+        await repo.get_logs_for_export("user-1", date(2026, 2, 1), date(2026, 2, 28))
+
+    assert exc_info.value.status_code == 500

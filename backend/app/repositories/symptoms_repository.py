@@ -173,6 +173,192 @@ class SymptomsRepository:
         logger.info("Symptom log created: id=%s user=%s", created["id"], user_id)
         return self._enrich_log(created, lookup)
 
+    async def get_logs_with_reference(
+        self,
+        user_id: str,
+        start_date: date | None = None,
+        end_date: date | None = None,
+    ) -> tuple[list[dict], dict[str, dict]]:
+        """Fetch raw symptom logs with reference data for stats calculations.
+
+        Returns raw log rows (symptoms field only) and a lookup dict of symptom
+        reference data. Used by stats calculation services (frequency, cooccurrence).
+
+        Args:
+            user_id: ID of the user.
+            start_date: Include logs on or after this date (UTC, ISO 8601).
+            end_date: Include logs on or before this date (UTC, ISO 8601).
+
+        Returns:
+            Tuple of (list of raw log rows, dict[symptom_id → {id, name, category}]).
+
+        Raises:
+            HTTPException: 500 if the database queries fail.
+        """
+        try:
+            query = self.client.table("symptom_logs").select("symptoms").eq("user_id", user_id)
+
+            if start_date is not None:
+                start_dt = datetime(
+                    start_date.year,
+                    start_date.month,
+                    start_date.day,
+                    tzinfo=timezone.utc,
+                )
+                query = query.gte("logged_at", start_dt.isoformat())
+
+            if end_date is not None:
+                end_dt = datetime(
+                    end_date.year,
+                    end_date.month,
+                    end_date.day,
+                    23,
+                    59,
+                    59,
+                    tzinfo=timezone.utc,
+                )
+                query = query.lte("logged_at", end_dt.isoformat())
+
+            response = await query.execute()
+            rows = response.data or []
+        except Exception as exc:
+            logger.error(
+                "DB query failed fetching logs for stats (user %s): %s",
+                user_id,
+                exc,
+                exc_info=True,
+            )
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to retrieve symptom statistics",
+            )
+
+        # Extract all unique symptom IDs from logs
+        all_ids = list({sid for row in rows for sid in (row.get("symptoms") or [])})
+
+        # If no symptoms found, return empty reference lookup
+        if not all_ids:
+            return rows, {}
+
+        # Fetch reference data for all symptom IDs found
+        try:
+            ref_response = (
+                await self.client.table("symptoms_reference")
+                .select("id, name, category")
+                .in_("id", all_ids)
+                .execute()
+            )
+            ref_rows = ref_response.data or []
+        except Exception as exc:
+            logger.error(
+                "DB query failed fetching symptoms_reference for stats (user %s): %s",
+                user_id,
+                exc,
+                exc_info=True,
+            )
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to retrieve symptom statistics",
+            )
+
+        # Build lookup dict: symptom_id → {id, name, category}
+        ref_lookup = {row["id"]: row for row in ref_rows}
+        return rows, ref_lookup
+
+    async def get_logs_for_export(
+        self,
+        user_id: str,
+        start_date: date,
+        end_date: date,
+    ) -> tuple[list[dict], dict[str, dict]]:
+        """Fetch logs with all fields for export (PDF/CSV) with reference data.
+
+        Returns raw log rows (logged_at, symptoms, free_text_entry) ordered
+        ascending by logged_at, and a lookup dict of symptom reference data.
+        Used by export endpoints for PDF and CSV generation.
+
+        Args:
+            user_id: ID of the user.
+            start_date: Include logs on or after this date (UTC, ISO 8601).
+            end_date: Include logs on or before this date (UTC, ISO 8601).
+
+        Returns:
+            Tuple of (list of raw log rows, dict[symptom_id → {id, name, category}]).
+            Rows are ordered by logged_at ascending.
+
+        Raises:
+            HTTPException: 500 if the database queries fail.
+        """
+        try:
+            start_dt = datetime(
+                start_date.year,
+                start_date.month,
+                start_date.day,
+                tzinfo=timezone.utc,
+            )
+            end_dt = datetime(
+                end_date.year,
+                end_date.month,
+                end_date.day,
+                23,
+                59,
+                59,
+                tzinfo=timezone.utc,
+            )
+            response = (
+                await self.client.table("symptom_logs")
+                .select("logged_at, symptoms, free_text_entry")
+                .eq("user_id", user_id)
+                .gte("logged_at", start_dt.isoformat())
+                .lte("logged_at", end_dt.isoformat())
+                .order("logged_at", desc=False)
+                .execute()
+            )
+            rows = response.data or []
+        except Exception as exc:
+            logger.error(
+                "DB query failed fetching logs for export (user %s): %s",
+                user_id,
+                exc,
+                exc_info=True,
+            )
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to retrieve symptom logs",
+            )
+
+        # Extract all unique symptom IDs from logs
+        all_ids = list({sid for row in rows for sid in (row.get("symptoms") or [])})
+
+        # If no symptoms found, return empty reference lookup
+        if not all_ids:
+            return rows, {}
+
+        # Fetch reference data for all symptom IDs found
+        try:
+            ref_response = (
+                await self.client.table("symptoms_reference")
+                .select("id, name, category")
+                .in_("id", all_ids)
+                .execute()
+            )
+            ref_rows = ref_response.data or []
+        except Exception as exc:
+            logger.error(
+                "DB query failed fetching symptoms_reference for export (user %s): %s",
+                user_id,
+                exc,
+                exc_info=True,
+            )
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to retrieve symptom data",
+            )
+
+        # Build lookup dict: symptom_id → {id, name, category}
+        ref_lookup = {row["id"]: row for row in ref_rows}
+        return rows, ref_lookup
+
     async def get_logs(
         self,
         user_id: str,
