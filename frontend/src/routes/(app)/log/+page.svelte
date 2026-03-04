@@ -3,6 +3,7 @@
 	import { fly, fade } from 'svelte/transition';
 	import { supabase } from '$lib/supabase/client';
 	import { apiClient } from '$lib/api/client';
+	import { SkeletonLoader } from '$lib/components/shared';
 
 	const CARDS_VISIBLE = 8;
 
@@ -99,19 +100,25 @@
 	}
 </script>
 
+<svelte:head>
+	<title>Log Symptoms - Meno</title>
+</svelte:head>
+
 <div class="w-full max-w-full overflow-hidden px-4 py-8 sm:px-6 lg:px-8">
-	<div class="mb-8">
+	<section class="mb-8" aria-label="Page header">
 		<h1 class="text-2xl font-bold text-slate-900">Log Today's Symptoms</h1>
 		<p class="mt-1 text-slate-500">Select the symptoms you're experiencing today.</p>
-	</div>
+	</section>
 
 	{#if success}
-		<div
+		<section
 			in:fly={{ y: -10, duration: 300 }}
 			class="rounded-2xl border border-emerald-200 bg-emerald-50 p-10 text-center"
+			aria-label="Success message"
 		>
 			<div
 				class="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-emerald-100"
+				aria-hidden="true"
 			>
 				<svg
 					xmlns="http://www.w3.org/2000/svg"
@@ -133,11 +140,20 @@
 			>
 				Log more symptoms
 			</button>
-		</div>
+		</section>
 	{:else if loadingSymptoms}
-		<div class="flex items-center justify-center py-16">
-			<div class="text-sm text-slate-400">Loading symptoms...</div>
-		</div>
+		<section class="mb-6" aria-label="Loading symptoms">
+			<p class="mb-3 text-sm text-slate-500">
+				Tap a symptom to log it — or dismiss it to see more options
+			</p>
+			<div class="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+				{#each Array(8) as _}
+					<div class="rounded-xl border border-slate-200 bg-white shadow-sm">
+						<SkeletonLoader variant="text" lines={1} height="h-6" />
+					</div>
+				{/each}
+			</div>
+		</section>
 	{:else}
 		<!-- Symptom card area -->
 		{#if !poolExhausted}
@@ -188,14 +204,15 @@
 				</div>
 			</section>
 		{:else if selectedSymptoms.length === 0}
-			<div
+			<section
 				in:fade={{ duration: 200 }}
 				class="mb-6 rounded-xl border border-dashed border-slate-300 bg-slate-50 py-8 text-center"
+				aria-label="All symptoms reviewed"
 			>
 				<p class="text-sm text-slate-400">
 					All symptoms reviewed. Use the text box below to describe anything else.
 				</p>
-			</div>
+			</section>
 		{/if}
 
 		<!-- Selected symptom tray -->
@@ -241,33 +258,38 @@
 			</section>
 		{/if}
 
-		<!-- Free text entry -->
-		<div class="mb-6">
-			<textarea
-				bind:value={freeText}
-				placeholder="Describe anything else in your own words..."
-				rows="3"
-				class="w-full resize-none rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700 shadow-sm transition-colors placeholder:text-slate-400 focus:border-teal-300 focus:outline-none focus:ring-2 focus:ring-teal-200"
-			></textarea>
-		</div>
-
-		<!-- Error message -->
-		{#if error}
-			<div
-				in:fly={{ y: -4, duration: 200 }}
-				class="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700"
-			>
-				{error}
+		<!-- Form inputs section -->
+		<section class="mb-6" aria-label="Log entry form">
+			<!-- Free text entry -->
+			<div class="mb-6">
+				<textarea
+					bind:value={freeText}
+					placeholder="Describe anything else in your own words..."
+					rows="3"
+					class="w-full resize-none rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700 shadow-sm transition-colors placeholder:text-slate-400 focus:border-teal-300 focus:outline-none focus:ring-2 focus:ring-teal-200"
+				></textarea>
 			</div>
-		{/if}
 
-		<!-- Submit button -->
-		<button
-			onclick={handleSubmit}
-			disabled={!canSubmit || submitting}
-			class="w-full rounded-xl bg-slate-900 px-6 py-3.5 text-sm font-semibold text-white shadow-sm transition-all hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400"
-		>
-			{submitting ? 'Saving...' : "Save Today's Log"}
-		</button>
+			<!-- Error message -->
+			{#if error}
+				<div
+					in:fly={{ y: -4, duration: 200 }}
+					class="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700"
+					role="alert"
+					aria-live="assertive"
+				>
+					{error}
+				</div>
+			{/if}
+
+			<!-- Submit button -->
+			<button
+				onclick={handleSubmit}
+				disabled={!canSubmit || submitting}
+				class="w-full rounded-xl bg-slate-900 px-6 py-3.5 text-sm font-semibold text-white shadow-sm transition-all hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400"
+			>
+				{submitting ? 'Saving...' : "Save Today's Log"}
+			</button>
+		</section>
 	{/if}
 </div>

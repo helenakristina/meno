@@ -45,31 +45,110 @@ class LLMService:
 
 ### DI Template for V2 Services
 
-Use this template for EVERY new service:
+**IMPORTANT: Three files, not two. Abstract interface + concrete implementation + service.**
+
+**Step 1: Define Abstract Base Class (Interface)**
+
+```python
+# backend/app/services/[service_name]_base.py
+
+import logging
+from abc import ABC, abstractmethod
+
+logger = logging.getLogger(__name__)
+
+
+class SomeDependency(ABC):
+    """Abstract interface for dependency.
+
+    Concrete implementations (e.g., ConcreteProvider, AnotherProvider)
+    inherit from this and implement abstract methods.
+    """
+
+    @abstractmethod
+    async def do_something(self, data: str) -> str:
+        """Abstract method - subclasses must implement this.
+
+        Args:
+            data: Input data.
+
+        Returns:
+            Processed result.
+        """
+        pass
+```
+
+**Step 2: Implement Concrete Provider**
+
+```python
+# backend/app/services/[concrete_provider].py
+
+import logging
+from app.services.[service_name]_base import SomeDependency
+
+logger = logging.getLogger(__name__)
+
+
+class ConcreteProvider(SomeDependency):
+    """Concrete implementation of SomeDependency.
+
+    This is the actual implementation with real logic/API calls.
+    """
+
+    def __init__(self, api_key: str):
+        """Initialize with API credentials.
+
+        Args:
+            api_key: API key for the service.
+        """
+        self.api_key = api_key
+
+    async def do_something(self, data: str) -> str:
+        """Implement abstract method with real logic.
+
+        Args:
+            data: Input data.
+
+        Returns:
+            Processed result.
+
+        Raises:
+            RuntimeError: If the API call fails.
+        """
+        try:
+            logger.debug("Calling API with data: %s", data[:50])
+            # Real implementation here (API calls, etc.)
+            result = f"processed: {data}"
+            logger.info("API call succeeded")
+            return result
+        except Exception as e:
+            logger.error("API error: %s", e, exc_info=True)
+            raise RuntimeError(f"API error: {e}") from e
+```
+
+**Step 3: Create Service That Uses the Dependency**
 
 ```python
 # backend/app/services/[service_name].py
 
 import logging
-from typing import Protocol
+from app.services.[service_name]_base import SomeDependency
 
 logger = logging.getLogger(__name__)
 
 
-# 1. Define the dependency interface (what this service needs)
-class SomeDependency(Protocol):
-    """Abstract interface for dependency."""
-    async def do_something(self, data: str) -> str:
-        ...
-
-
-# 2. Create the service that takes dependencies
 class MyService:
+    """Service that uses an injected dependency.
+
+    Takes dependency in __init__, doesn't create it.
+    Works with ANY implementation of SomeDependency.
+    """
+
     def __init__(self, dependency: SomeDependency):
         """Initialize with injected dependency.
 
         Args:
-            dependency: Implementation of SomeDependency interface.
+            dependency: Implementation of SomeDependency (e.g., ConcreteProvider).
         """
         self.dependency = dependency
 
@@ -86,19 +165,26 @@ class MyService:
         result = await self.dependency.do_something(input_data)
         logger.info("Result: %s", result[:50])
         return result
+```
 
+**Step 4: Create Tests with Mock Dependency**
 
-# 3. Create tests with mock dependency
+```python
 # backend/tests/services/test_[service_name].py
 
 import pytest
 from unittest.mock import AsyncMock
+from app.services.[service_name] import MyService
+from app.services.[service_name]_base import SomeDependency
 
 
 @pytest.fixture
 def mock_dependency():
-    """Mock implementation of SomeDependency."""
-    mock = AsyncMock()
+    """Mock implementation of SomeDependency (for testing).
+
+    This allows us to test MyService without calling real APIs.
+    """
+    mock = AsyncMock(spec=SomeDependency)
     mock.do_something.return_value = "mocked result"
     return mock
 
@@ -120,12 +206,135 @@ async def test_some_method_success(service, mock_dependency):
 
 @pytest.mark.asyncio
 async def test_some_method_dependency_failure(service, mock_dependency):
-    """Test error handling."""
+    """Test error handling when dependency fails."""
     mock_dependency.do_something.side_effect = Exception("Service down")
 
     with pytest.raises(Exception):
         await service.some_method("input")
 ```
+
+### Real Example: LLM Service with OpenAI Provider
+
+This shows the actual pattern used in V2:
+
+**1. Abstract Base (llm_base.py):**
+
+```python
+# backend/app/services/llm_base.py
+from abc import ABC, abstractmethod
+
+class LLMProvider(ABC):
+    """Abstract LLM provider interface."""
+
+    @abstractmethod
+    async def chat_completion(
+        self,
+        system_prompt: str,
+        user_prompt: str,
+        max_tokens: int = 1024,
+        temperature: float = 0.7,
+    ) -> str:
+        """Generate a chat completion. Subclasses implement this."""
+        pass
+```
+
+**2. Concrete Implementation (openai_provider.py):**
+
+```python
+# backend/app/services/openai_provider.py
+from openai import AsyncOpenAI
+from app.services.llm_base import LLMProvider
+
+class OpenAIProvider(LLMProvider):
+    """OpenAI implementation of LLMProvider."""
+
+    def __init__(self, api_key: str):
+        self.client = AsyncOpenAI(api_key=api_key)
+        self.model = "gpt-4o-mini"
+
+    async def chat_completion(
+        self,
+        system_prompt: str,
+        user_prompt: str,
+        max_tokens: int = 1024,
+        temperature: float = 0.7,
+    ) -> str:
+        """Implement with real OpenAI API call."""
+        response = await self.client.chat.completions.create(
+            model=self.model,
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt},
+            ],
+            max_tokens=max_tokens,
+            temperature=temperature,
+        )
+        return (response.choices[0].message.content or "").strip()
+```
+
+**3. Service Uses It (llm.py):**
+
+```python
+# backend/app/services/llm.py
+from app.services.llm_base import LLMProvider
+
+class LLMService:
+    def __init__(self, provider: LLMProvider):
+        self.provider = provider
+
+    async def chat_completion(self, system_prompt, user_prompt, **kwargs):
+        return await self.provider.chat_completion(
+            system_prompt=system_prompt,
+            user_prompt=user_prompt,
+            **kwargs
+        )
+```
+
+**4. In V3, Add Claude Support (anthropic_provider.py):**
+
+```python
+# backend/app/services/anthropic_provider.py
+from anthropic import AsyncAnthropic
+from app.services.llm_base import LLMProvider
+
+class AnthropicProvider(LLMProvider):
+    """Claude implementation of LLMProvider."""
+
+    def __init__(self, api_key: str):
+        self.client = AsyncAnthropic(api_key=api_key)
+        self.model = "claude-3-5-sonnet-20241022"
+
+    async def chat_completion(
+        self,
+        system_prompt: str,
+        user_prompt: str,
+        max_tokens: int = 1024,
+        temperature: float = 0.7,
+    ) -> str:
+        """Implement with real Claude API call."""
+        response = await self.client.messages.create(
+            model=self.model,
+            max_tokens=max_tokens,
+            messages=[
+                {"role": "user", "content": f"{system_prompt}\n\n{user_prompt}"},
+            ],
+            temperature=temperature,
+        )
+        return (response.content[0].text or "").strip()
+```
+
+**No changes needed to LLMService!** Just swap the provider in dependency injection.
+
+### Key Distinction
+
+| Component                   | Purpose                  | Example                                       |
+| --------------------------- | ------------------------ | --------------------------------------------- |
+| **Base (ABC)**              | Defines the interface    | `LLMProvider` (abstract)                      |
+| **Concrete Implementation** | Implements the interface | `OpenAIProvider`, `AnthropicProvider`         |
+| **Service**                 | Uses the dependency      | `LLMService` (doesn't know which provider)    |
+| **Tests**                   | Mock the dependency      | `mock_provider = AsyncMock(spec=LLMProvider)` |
+
+**The service doesn't know or care which provider it gets. That's the power of DI.**
 
 ---
 

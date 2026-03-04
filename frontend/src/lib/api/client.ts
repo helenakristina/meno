@@ -1,4 +1,6 @@
 import { supabase } from '$lib/supabase/client';
+import type { ApiEndpoints, ApiMethod, ApiRequest, ApiResponse } from '$lib/types/api';
+import type { ApiError } from '$lib/types';
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8000';
 
@@ -6,6 +8,32 @@ type ResponseType = 'json' | 'blob';
 
 interface RequestOptions {
 	responseType?: ResponseType;
+}
+
+/**
+ * Parse API error response into structured ApiError
+ */
+function parseApiError(status: number, body: unknown): ApiError {
+	const error: ApiError = {
+		name: 'ApiError',
+		message: `HTTP ${status}`,
+		status,
+		code: `HTTP_${status}`,
+		detail: `Request failed with status ${status}`,
+		timestamp: new Date().toISOString(),
+	};
+
+	if (body && typeof body === 'object') {
+		const err = body as Record<string, unknown>;
+		if (typeof err.detail === 'string') {
+			error.detail = err.detail;
+		}
+		if (typeof err.code === 'string') {
+			error.code = err.code;
+		}
+	}
+
+	return error;
 }
 
 async function getToken(): Promise<string> {
@@ -31,14 +59,14 @@ function buildUrl(path: string, params?: Record<string, string | number | boolea
 
 async function handleResponse(response: Response, responseType: ResponseType) {
 	if (!response.ok) {
-		let detail = `Request failed with status ${response.status}`;
+		let body: unknown;
 		try {
-			const body = await response.json();
-			if (body?.detail) detail = body.detail;
+			body = await response.json();
 		} catch {
-			// Response body isn't JSON — keep the status-based message
+			// Response body isn't JSON
 		}
-		throw new Error(detail);
+		const error = parseApiError(response.status, body);
+		throw error;
 	}
 	return responseType === 'blob' ? response.blob() : response.json();
 }
@@ -74,34 +102,76 @@ async function request(
 			body: body !== undefined ? JSON.stringify(body) : undefined
 		});
 	} catch (e) {
-		throw new Error('Network error. Please check your connection and try again.');
+		const error: ApiError = {
+			name: 'ApiError',
+			message: 'Network error',
+			status: 0,
+			code: 'NETWORK_ERROR',
+			detail: 'Network error. Please check your connection and try again.',
+			timestamp: new Date().toISOString()
+		};
+		throw error;
 	}
 
 	return handleResponse(response, responseType);
 }
 
 export const apiClient = {
-	get<T = unknown>(
-		path: string,
-		params?: Record<string, string | number | boolean>,
+	/**
+	 * GET request with optional query parameters
+	 * @example
+	 * const logs = await apiClient.get('/api/symptoms/logs', { limit: 50 });
+	 */
+	get<T extends ApiMethod>(
+		path: T,
+		params?: Record<string, string | number | boolean | undefined>,
 		options?: RequestOptions
-	): Promise<T> {
-		return request('GET', path, { params, responseType: options?.responseType });
+	): Promise<ApiResponse<T>> {
+		return request('GET', path, { params: params as Record<string, string | number | boolean>, responseType: options?.responseType });
 	},
 
-	post<T = unknown>(path: string, body?: unknown, options?: RequestOptions): Promise<T> {
+	/**
+	 * POST request with body
+	 * @example
+	 * const response = await apiClient.post('/api/chat', { message: 'Hello' });
+	 */
+	post<T extends ApiMethod>(
+		path: T,
+		body?: ApiRequest<T>,
+		options?: RequestOptions
+	): Promise<ApiResponse<T>> {
 		return request('POST', path, { body, responseType: options?.responseType });
 	},
 
-	put<T = unknown>(path: string, body?: unknown, options?: RequestOptions): Promise<T> {
+	/**
+	 * PUT request with body
+	 */
+	put<T extends ApiMethod>(
+		path: T,
+		body?: ApiRequest<T>,
+		options?: RequestOptions
+	): Promise<ApiResponse<T>> {
 		return request('PUT', path, { body, responseType: options?.responseType });
 	},
 
-	patch<T = unknown>(path: string, body?: unknown, options?: RequestOptions): Promise<T> {
+	/**
+	 * PATCH request with body
+	 */
+	patch<T extends ApiMethod>(
+		path: T,
+		body?: ApiRequest<T>,
+		options?: RequestOptions
+	): Promise<ApiResponse<T>> {
 		return request('PATCH', path, { body, responseType: options?.responseType });
 	},
 
-	delete<T = unknown>(path: string, options?: RequestOptions): Promise<T> {
+	/**
+	 * DELETE request
+	 */
+	delete<T extends ApiMethod>(
+		path: T,
+		options?: RequestOptions
+	): Promise<ApiResponse<T>> {
 		return request('DELETE', path, { responseType: options?.responseType });
 	}
 };

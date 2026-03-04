@@ -2,7 +2,7 @@ import { marked } from 'marked';
 
 // Configure marked to match our design
 marked.setOptions({
-	breaks: true, // Convert \n to <br>
+	breaks: false, // Don't convert \n to <br> (breaks ordered lists)
 	gfm: true // GitHub Flavored Markdown
 });
 

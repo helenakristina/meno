@@ -1,34 +1,21 @@
 <script lang="ts">
 	import { tick } from 'svelte';
-	import { apiClient } from '$lib/api/client';
+	import { superForm } from 'sveltekit-superforms/client';
+	import { zod4 } from 'sveltekit-superforms/adapters';
+	import { chatMessageSchema } from '$lib/schemas/chat';
 	import { renderMarkdown, sanitizeMarkdownHtml } from '$lib/markdown';
+	import { apiClient } from '$lib/api/client';
+	import type { Citation, Message, ApiError } from '$lib/types';
 
-	// -------------------------------------------------------------------------
-	// Types
-	// -------------------------------------------------------------------------
+	// =========================================================================
+	// Props & Page Data
+	// =========================================================================
 
-	interface Citation {
-		url: string;
-		title: string;
-		section?: string;
-		source_index?: number;
-	}
+	let { data } = $props();
 
-	interface Message {
-		role: 'user' | 'assistant';
-		content: string;
-		citations: Citation[];
-	}
-
-	interface ChatApiResponse {
-		message: string;
-		citations: Citation[];
-		conversation_id: string;
-	}
-
-	// -------------------------------------------------------------------------
+	// =========================================================================
 	// Constants
-	// -------------------------------------------------------------------------
+	// =========================================================================
 
 	const STARTER_PROMPTS = [
 		'What causes brain fog during perimenopause?',
@@ -39,25 +26,35 @@
 		'What symptoms are commonly dismissed but actually related to hormones?'
 	];
 
-	// -------------------------------------------------------------------------
-	// State
-	// -------------------------------------------------------------------------
+	// =========================================================================
+	// Superforms Setup
+	// =========================================================================
+
+	const form = superForm(data.form, {
+		validators: zod4(chatMessageSchema),
+		delayMs: 200,
+	});
+
+	const { form: formData, errors, enhance, submitting } = form;
+
+	// =========================================================================
+	// Component State
+	// =========================================================================
 
 	let messages = $state<Message[]>([]);
 	let conversationId = $state<string | null>(null);
-	let inputText = $state('');
-	let loading = $state(false);
-	let error = $state<string | null>(null);
 
 	let chatContainer = $state<HTMLDivElement | null>(null);
 	let textareaEl = $state<HTMLTextAreaElement | null>(null);
 
-	let canSend = $derived(inputText.trim().length > 0 && !loading);
+	let isLoading = $state(false);
+	let canSend = $derived($formData.message.trim().length > 0 && !isLoading);
 	let hasMessages = $derived(messages.length > 0);
+	let apiError = $state<string | null>(null);
 
-	// -------------------------------------------------------------------------
+	// =========================================================================
 	// Auto-scroll when messages change
-	// -------------------------------------------------------------------------
+	// =========================================================================
 
 	$effect(() => {
 		const _dep = messages.length;
@@ -66,14 +63,13 @@
 		});
 	});
 
-	// -------------------------------------------------------------------------
+	// =========================================================================
 	// Helpers
-	// -------------------------------------------------------------------------
+	// =========================================================================
 
 	function adjustTextareaHeight() {
 		if (!textareaEl) return;
 		textareaEl.style.height = 'auto';
-		// Max 5 lines (~120px at 1.5rem line-height)
 		textareaEl.style.height = Math.min(textareaEl.scrollHeight, 120) + 'px';
 	}
 
@@ -88,22 +84,15 @@
 	/**
 	 * Render markdown content with citations.
 	 *
-	 * Process steps:
-	 * 1. Render markdown to HTML (handles bold, headers, lists, etc.)
-	 * 2. Sanitize external links (add target="_blank", validate protocols)
-	 * 3. Replace [Source N] markers with superscript citation links
-	 *
-	 * Security: URLs are validated to ensure they're http/https to prevent
-	 * javascript: and data: URIs.
+	 * Process:
+	 * 1. Render markdown to HTML
+	 * 2. Sanitize external links
+	 * 3. Replace [Source N] markers with citation links
 	 */
 	function renderContent(content: string, citations: Citation[]): string {
-		// 1. Render markdown to HTML
 		let html = renderMarkdown(content);
-
-		// 2. Sanitize external links
 		html = sanitizeMarkdownHtml(html);
 
-		// 3. Replace [Source N] markers with citation links
 		html = html.replace(/\[Source (\d+)\]/g, (_match, n) => {
 			const idx = parseInt(n, 10) - 1;
 			if (idx >= 0 && idx < citations.length) {
@@ -116,54 +105,71 @@
 		return html;
 	}
 
-	// -------------------------------------------------------------------------
-	// Actions
-	// -------------------------------------------------------------------------
+	// =========================================================================
+	// Form Submission Handler
+	// =========================================================================
 
-	async function sendMessage(text: string) {
-		const trimmed = text.trim();
-		if (!trimmed || loading) return;
+	async function onSubmit() {
+		const userMessage = $formData.message.trim();
+		if (!userMessage) return;
 
-		error = null;
-		inputText = '';
+		// Add user message to display
+		messages = [...messages, { role: 'user', content: userMessage, citations: [] }];
+		apiError = null;
+		isLoading = true;
+
+		// Update conversation_id in form if we have one
+		if (conversationId) {
+			$formData.conversation_id = conversationId;
+		}
+
+		// Scroll to bottom
 		await tick();
+		chatContainer?.scrollTo({ top: chatContainer.scrollHeight, behavior: 'smooth' });
 		adjustTextareaHeight();
-		loading = true;
 
-		messages = [...messages, { role: 'user', content: trimmed, citations: [] }];
-
+		// Make API call from client (where we have auth token)
 		try {
-			const data = await apiClient.post<ChatApiResponse>('/api/chat', {
-				message: trimmed,
-				...(conversationId ? { conversation_id: conversationId } : {})
+			const response = await apiClient.post('/api/chat', {
+				message: userMessage,
+				...(conversationId && { conversation_id: conversationId }),
 			});
-			conversationId = data.conversation_id;
+
+			conversationId = response.conversation_id;
 			messages = [
 				...messages,
-				{ role: 'assistant', content: data.message, citations: data.citations }
+				{ role: 'assistant', content: response.message, citations: response.citations }
 			];
-		} catch (err) {
-			error = err instanceof Error ? err.message : 'Something went wrong. Please try again.';
-			// Restore input so the user can retry
-			inputText = trimmed;
+			$formData.message = '';
+		} catch (error) {
+			const errorMsg = error instanceof Error && 'detail' in error
+				? (error as ApiError).detail
+				: error instanceof Error
+					? error.message
+					: 'Failed to get response. Please try again.';
+			apiError = errorMsg;
+			console.error('Chat API error:', error);
 		} finally {
-			loading = false;
+			isLoading = false;
 		}
 	}
 
 	function handleKeydown(e: KeyboardEvent) {
 		if (e.key === 'Enter' && !e.shiftKey) {
 			e.preventDefault();
-			sendMessage(inputText);
+			// Submit the form by finding and clicking the button
+			const submitBtn = document.querySelector('form button[type="submit"]') as HTMLButtonElement;
+			submitBtn?.click();
 		}
+	}
+
+	// Populate quick prompts
+	function selectPrompt(prompt: string) {
+		$formData.message = prompt;
 	}
 </script>
 
-<!--
-  The outer div fills the available viewport height. The parent layout adds:
-    nav (h-16 = 4rem) + main py-6 (1.5rem top + 1.5rem bottom) = 7rem total.
-  So calc(100vh - 7rem) exactly fills the remaining space without overflow.
--->
+<!-- Outer container fills viewport height -->
 <div class="flex flex-col" style="height: calc(100vh - 7rem);">
 	<!-- Page header -->
 	<div class="flex-shrink-0 border-b border-slate-200 bg-white px-4 py-4 sm:px-6 lg:px-8">
@@ -171,9 +177,7 @@
 		<p class="mt-0.5 text-sm text-slate-500">
 			Evidence-based information about perimenopause and menopause
 		</p>
-		<div
-			class="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700"
-		>
+		<div class="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700">
 			Educational information only — not medical advice. Always discuss health decisions with your
 			healthcare provider.
 		</div>
@@ -182,7 +186,7 @@
 	<!-- Messages / empty state -->
 	<div class="flex-1 overflow-y-auto" bind:this={chatContainer} aria-live="polite" aria-label="Chat messages">
 		{#if !hasMessages}
-			<!-- Empty state: starter prompt grid -->
+			<!-- Empty state: starter prompts -->
 			<div class="px-4 py-6 sm:px-6 lg:px-8">
 				<p class="mb-4 text-center text-sm text-slate-500">
 					Start with a question, or choose one below:
@@ -190,7 +194,8 @@
 				<div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
 					{#each STARTER_PROMPTS as prompt}
 						<button
-							onclick={() => sendMessage(prompt)}
+							type="button"
+							onclick={() => selectPrompt(prompt)}
 							class="rounded-xl border border-slate-200 bg-white px-4 py-3 text-left text-sm text-slate-700 shadow-sm transition-colors hover:border-teal-300 hover:bg-teal-50 hover:text-teal-800 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:ring-offset-2 active:bg-teal-100"
 						>
 							{prompt}
@@ -204,16 +209,14 @@
 				{#each messages as message, i (i)}
 					{#if message.role === 'user'}
 						<div class="flex justify-end">
-							<div
-								class="max-w-[75%] rounded-2xl rounded-tr-sm bg-slate-700 px-4 py-3 text-sm leading-relaxed text-white"
-							>
+							<div class="max-w-[75%] rounded-2xl rounded-tr-sm bg-slate-700 px-4 py-3 text-sm leading-relaxed text-white">
 								{message.content}
 							</div>
 						</div>
 					{:else}
 						<div class="flex justify-start">
 							<div class="max-w-[85%] rounded-2xl rounded-tl-sm bg-white px-4 py-3 shadow-sm">
-								<!-- Response text with inline citation superscripts -->
+								<!-- Response text with citations -->
 								<div class="message-content text-sm leading-relaxed text-slate-800">
 									{@html renderContent(message.content, message.citations)}
 								</div>
@@ -250,7 +253,7 @@
 				{/each}
 
 				<!-- Thinking indicator -->
-				{#if loading}
+				{#if isLoading}
 					<div class="flex justify-start">
 						<div
 							class="rounded-2xl rounded-tl-sm bg-white px-4 py-3 text-sm text-slate-400 shadow-sm"
@@ -266,59 +269,73 @@
 		{/if}
 	</div>
 
-	<!-- Error banner -->
-	{#if error}
-		<div class="flex-shrink-0 border-t border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 sm:px-6 lg:px-8">
-			{error}
-			<button onclick={() => (error = null)} class="ml-2 font-medium underline hover:no-underline">
+	<!-- Error messages -->
+	{#if apiError || $errors.message}
+		<div class="flex-shrink-0 border-t border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 sm:px-6 lg:px-8" role="alert">
+			{apiError || $errors.message}
+			<button
+				type="button"
+				onclick={() => {
+					apiError = null;
+					$errors.message = undefined;
+				}}
+				class="ml-2 font-medium underline hover:no-underline"
+			>
 				Dismiss
 			</button>
 		</div>
 	{/if}
 
-	<!-- Input area -->
-	<div
+	<!-- Form -->
+	<form
+		method="POST"
+		action="?/chat"
+		use:enhance
 		class="flex-shrink-0 border-t border-slate-200 bg-white px-4 py-4 sm:px-6 lg:px-8"
 		style="box-shadow: 0 -4px 12px rgba(0,0,0,0.05);"
 	>
 		<div class="flex items-end gap-3">
 			<textarea
 				bind:this={textareaEl}
-				bind:value={inputText}
+				bind:value={$formData.message}
 				oninput={adjustTextareaHeight}
 				onkeydown={handleKeydown}
+				name="message"
 				placeholder="Ask a question about perimenopause or menopause…"
 				rows="1"
-				disabled={loading}
+				disabled={isLoading}
 				class="flex-1 resize-none rounded-xl border border-slate-200 px-4 py-3 text-sm text-slate-900 placeholder-slate-400 transition-colors focus:border-teal-400 focus:outline-none focus:ring-2 focus:ring-teal-400/20 disabled:opacity-60"
+				aria-invalid={apiError || $errors.message ? 'true' : 'false'}
+				aria-describedby={apiError || $errors.message ? 'message-error' : undefined}
 			></textarea>
 			<button
-				onclick={() => sendMessage(inputText)}
+				type="button"
+				onclick={onSubmit}
 				disabled={!canSend}
 				class="flex-shrink-0 rounded-xl bg-teal-600 px-5 py-3 text-sm font-semibold text-white transition-colors hover:bg-teal-700 disabled:cursor-not-allowed disabled:opacity-40"
 			>
-				Send
+				{isLoading ? 'Sending…' : 'Send'}
 			</button>
 		</div>
 		<p class="mt-2 text-center text-xs text-slate-400">
 			Enter to send &middot; Shift+Enter for new line
 		</p>
-	</div>
+	</form>
 </div>
 
 <style>
-	/* Inline citation superscript links rendered via {@html} */
+	/* Inline citation superscript links */
 	:global(.citation-ref) {
-		color: #0d9488; /* teal-600 */
+		color: #0d9488;
 		font-weight: 500;
 		text-decoration: none;
 	}
 	:global(.citation-ref:hover) {
-		color: #0f766e; /* teal-700 */
+		color: #0f766e;
 		text-decoration: underline;
 	}
 
-	/* Markdown rendering styles for message content */
+	/* Markdown rendering styles */
 	:global(.message-content h1) {
 		font-size: 1.5rem;
 		font-weight: bold;
@@ -346,15 +363,15 @@
 
 	:global(.message-content ul) {
 		list-style-type: disc;
-		list-style-position: inside;
-		margin-left: 1rem;
+		list-style-position: outside;
+		margin-left: 1.5rem;
 		margin-bottom: 0.75rem;
 	}
 
 	:global(.message-content ol) {
 		list-style-type: decimal;
-		list-style-position: inside;
-		margin-left: 1rem;
+		list-style-position: outside;
+		margin-left: 1.5rem;
 		margin-bottom: 0.75rem;
 	}
 

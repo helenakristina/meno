@@ -15,6 +15,7 @@ This must be done first. Everything in V2 depends on it.
 **Purpose:** Abstract database access, decouple from Supabase, enable testing
 
 #### Task 1.1.1: Create User Repository
+
 - **File:** `backend/app/repositories/user_repository.py`
 - **What it does:**
   - `get_context(user_id)` → returns journey_stage, age
@@ -30,6 +31,7 @@ This must be done first. Everything in V2 depends on it.
   - [x] Chat route updated to use repository
 
 #### Task 1.1.2: Create Symptoms Repository
+
 - **File:** `backend/app/repositories/symptoms_repository.py`
 - **What it does:**
   - `get_summary(user_id)` → cached symptom summary
@@ -39,14 +41,15 @@ This must be done first. Everything in V2 depends on it.
 - **Tests:** Create `backend/tests/repositories/test_symptoms_repository.py`
 - **Effort:** 3 hours
 - **Checklist:**
-  - [ ] SymptomsRepository class created
-  - [ ] Move `_fetch_symptom_summary()` from chat route
-  - [ ] Move validation logic from symptoms.py
-  - [ ] Move log fetching logic from symptoms route
-  - [ ] Tests pass
-  - [ ] Routes updated to use repository
+  - [x] SymptomsRepository class created
+  - [x] Move `_fetch_symptom_summary()` from chat route
+  - [x] Move validation logic from symptoms.py
+  - [x] Move log fetching logic from symptoms route
+  - [x] Tests pass
+  - [x] Routes updated to use repository
 
 #### Task 1.1.3: Create Conversation Repository
+
 - **File:** `backend/app/repositories/conversation_repository.py`
 - **What it does:**
   - `load(conversation_id, user_id)` → fetch messages
@@ -55,44 +58,48 @@ This must be done first. Everything in V2 depends on it.
 - **Tests:** Create `backend/tests/repositories/test_conversation_repository.py`
 - **Effort:** 2 hours
 - **Checklist:**
-  - [ ] ConversationRepository class created
-  - [ ] Move `_load_conversation()` from chat route
-  - [ ] Move `_save_conversation()` from chat route
-  - [ ] Tests pass
-  - [ ] Chat route updated to use repository
+  - [x] ConversationRepository class created
+  - [x] Move `_load_conversation()` from chat route
+  - [x] Move `_save_conversation()` from chat route
+  - [x] Tests pass
+  - [x] Chat route updated to use repository
 
-#### Task 1.1.4: Create Providers Repository (if needed for V2)
-- **Status:** Optional for V2, providers route already works
-- **Decision:** Skip for V2, add in V3 if needed
-- **Effort:** Skip
+#### Task 1.1.4: Claude Code creates plan for refactoring rest of routes to use repositories for data fetches.
+
+1. Phase 1 (ProvidersRepository): Start immediately? (HIGH PRIORITY)
+2. Phase 2 (Stats extension): Start after Phase 1? (RECOMMENDED)
+3. Phase 3 (Export extension): Include in scope or defer? (OPTIONAL)
 
 ### 1.2: Refactor LLM Service with Dependency Injection
 
 **Purpose:** Enable testing, enable provider switching (OpenAI → Claude)
 
 #### Task 1.2.1: Create LLM Provider Abstraction
+
 - **File:** `backend/app/services/llm_base.py`
 - **What it does:**
   - `LLMProvider` base class
   - `chat_completion(system_prompt, user_prompt, max_tokens, temperature)` → str
 - **Effort:** 1 hour
 - **Checklist:**
-  - [ ] Base class created
-  - [ ] Abstract method defined
+  - [x] Base class created
+  - [x] Abstract method defined
 
 #### Task 1.2.2: Create OpenAI Provider Implementation
+
 - **File:** `backend/app/services/openai_provider.py`
 - **What it does:**
   - Implement `LLMProvider` using OpenAI API
   - Accept AsyncOpenAI client in `__init__`
 - **Effort:** 1 hour
 - **Checklist:**
-  - [ ] OpenAIProvider class created
-  - [ ] Takes `client` in constructor
-  - [ ] Implements `chat_completion()`
-  - [ ] Tests pass
+  - [x] OpenAIProvider class created
+  - [x] Takes `client` in constructor
+  - [x] Implements `chat_completion()`
+  - [x] Tests pass
 
 #### Task 1.2.3: Refactor `llm.py` to Use Dependency Injection
+
 - **File:** `backend/app/services/llm.py` (modify existing)
 - **What it does:**
   - `LLMService` class instead of functions
@@ -101,31 +108,33 @@ This must be done first. Everything in V2 depends on it.
 - **Tests:** Expand `backend/tests/services/test_llm.py`
 - **Effort:** 3 hours
 - **Checklist:**
-  - [ ] LLMService class created
-  - [ ] Methods refactored to use `self.provider`
-  - [ ] Remove hardcoded `_client()` function
-  - [ ] Consolidate duplicate code (3 functions doing similar things)
-  - [ ] Tests updated to inject mock provider
-  - [ ] Coverage increases from 22% to 70%+
+  - [x] LLMService class created
+  - [x] Methods refactored to use `self.provider`
+  - [x] Remove hardcoded `_client()` function
+  - [x] Consolidate duplicate code (3 functions doing similar things)
+  - [x] Tests updated to inject mock provider
+  - [x] Coverage increases from 22% to 70%+
 
 #### Task 1.2.4: Update Dependency Injection in Routes
+
 - **File:** `backend/app/api/dependencies.py` or `backend/app/main.py`
 - **What it does:**
   - Create provider based on settings
   - Inject LLMService into routes
 - **Effort:** 2 hours
 - **Checklist:**
-  - [ ] Create `get_llm_service()` dependency
-  - [ ] Routes use dependency injection
-  - [ ] Settings updated (LLM_PROVIDER env var)
-  - [ ] Tests pass
-  - [ ] Can switch providers via env var
+  - [x] Create `get_llm_service()` dependency
+  - [x] Routes use dependency injection
+  - [x] Settings updated (LLM_PROVIDER env var)
+  - [x] Tests pass
+  - [x] Can switch providers via env var
 
 ### 1.3: Extract Citation Service
 
 **Purpose:** Reusable citation logic, testable in isolation
 
 #### Task 1.3.1: Create CitationService
+
 - **File:** `backend/app/services/citations.py`
 - **What it does:**
   - `sanitize_and_renumber(text, max_sources)` → (cleaned_text, removed_indices)
@@ -133,13 +142,14 @@ This must be done first. Everything in V2 depends on it.
 - **Tests:** Create `backend/tests/services/test_citations.py`
 - **Effort:** 2 hours
 - **Checklist:**
-  - [ ] CitationService class created
-  - [ ] Move `_sanitize_and_renumber_citations()` from chat route
-  - [ ] Move `_extract_citations()` from chat route
-  - [ ] Tests pass (lots of regex edge cases to cover)
-  - [ ] Chat route updated to use service
+  - [x] CitationService class created
+  - [x] Move `_sanitize_and_renumber_citations()` from chat route
+  - [x] Move `_extract_citations()` from chat route
+  - [x] Tests pass (lots of regex edge cases to cover)
+  - [x] Chat route updated to use service
 
 #### Task 1.3.2: Add Tests for Citation Edge Cases
+
 - **File:** `backend/tests/services/test_citations.py`
 - **What it does:**
   - Test phantom citation removal
@@ -147,23 +157,25 @@ This must be done first. Everything in V2 depends on it.
   - Test extraction with various formats
 - **Effort:** 2 hours
 - **Checklist:**
-  - [ ] Happy path tests
-  - [ ] Edge cases (no citations, all phantoms, mixed formats)
-  - [ ] 95%+ coverage on CitationService
+  - [x] Happy path tests
+  - [x] Edge cases (no citations, all phantoms, mixed formats)
+  - [x] 95%+ coverage on CitationService
 
 ### 1.4: Verify Refactoring Doesn't Break Anything
 
 #### Task 1.4.1: Run Full Test Suite
+
 - **Command:** `pytest --cov=app -v`
 - **Expected:** All 189 existing tests pass + new tests pass
 - **Effort:** 1 hour (troubleshooting if failures)
 - **Checklist:**
-  - [ ] All existing tests pass
-  - [ ] New tests pass
-  - [ ] Coverage maintained or improved
-  - [ ] No regressions in chat, symptoms, providers endpoints
+  - [x] All existing tests pass
+  - [x] New tests pass
+  - [x] Coverage maintained or improved
+  - [x] No regressions in chat, symptoms, providers endpoints
 
 #### Task 1.4.2: Manual Testing
+
 - **What it does:**
   - Test chat endpoint manually (logs a message, gets response)
   - Test symptom logging
@@ -171,18 +183,19 @@ This must be done first. Everything in V2 depends on it.
   - Verify nothing broken
 - **Effort:** 1 hour
 - **Checklist:**
-  - [ ] Chat works
-  - [ ] Symptoms work
-  - [ ] Providers work
-  - [ ] All existing features unchanged
+  - [x] Chat works
+  - [x] Symptoms work
+  - [x] Providers work
+  - [x] All existing features unchanged
 
 #### Task 1.4.3: Commit Refactored Code
+
 - **Commit message:** "refactor: add repositories, DI for LLM, extract CitationService"
 - **Effort:** 15 min
 - **Checklist:**
-  - [ ] Code committed
-  - [ ] Tests passing
-  - [ ] Ready for V2 features
+  - [x] Code committed
+  - [x] Tests passing
+  - [x] Ready for V2 features
 
 ---
 
@@ -193,6 +206,7 @@ This is the flagship V2 feature. Build it great.
 ### 2.1: Data Model & Database Schema
 
 #### Task 2.1.1: Design Appointment Prep Data Model
+
 - **What to define:**
   - AppointmentContext (appointment_type, goal, dismissed_before)
   - AppointmentPrep (context, narrative, concerns, scenarios, outputs)
@@ -206,6 +220,7 @@ This is the flagship V2 feature. Build it great.
   - [ ] Docstrings explain each field
 
 #### Task 2.1.2: Create Database Tables
+
 - **Migration file:** `backend/app/migrations/add_appointment_prep_tables.sql`
 - **Tables:**
   - `appointment_prep_contexts` — store user selections (appointment type, goal, etc.)
@@ -217,6 +232,7 @@ This is the flagship V2 feature. Build it great.
   - [ ] Migration tested locally
 
 #### Task 2.1.3: Create AppointmentRepository
+
 - **File:** `backend/app/repositories/appointment_repository.py`
 - **What it does:**
   - `save_context(user_id, context)` → saves user selections
@@ -232,6 +248,7 @@ This is the flagship V2 feature. Build it great.
 ### 2.2: Build Step-by-Step Flow
 
 #### Task 2.2.1: Step 1 — Context Questions API
+
 - **Endpoint:** `POST /api/appointment-prep/context`
 - **Input:** appointment_type, goal, dismissed_before
 - **Output:** Confirmation + preview of next step
@@ -244,6 +261,7 @@ This is the flagship V2 feature. Build it great.
   - [ ] Tests pass
 
 #### Task 2.2.2: Step 2 — Data Story API
+
 - **Endpoint:** `POST /api/appointment-prep/narrative`
 - **Input:** appointment_prep_id, days_back (default 60)
 - **Output:** LLM-generated narrative summary
@@ -264,6 +282,7 @@ This is the flagship V2 feature. Build it great.
   - [ ] Tests pass
 
 #### Task 2.2.3: Step 3 — Prioritize Concerns API
+
 - **Endpoint:** `PUT /api/appointment-prep/{id}/prioritize`
 - **Input:** ordered list of symptom IDs + any custom concerns
 - **Output:** Saves prioritization
@@ -276,6 +295,7 @@ This is the flagship V2 feature. Build it great.
   - [ ] Tests pass
 
 #### Task 2.2.4: Step 4 — Scenario Generation API
+
 - **Endpoint:** `POST /api/appointment-prep/{id}/scenarios`
 - **Input:** (uses context + symptom profile from database)
 - **Output:** Array of scenario cards with suggestions
@@ -293,6 +313,7 @@ This is the flagship V2 feature. Build it great.
   - [ ] Tests pass
 
 #### Task 2.2.5: Step 5 — Generate Output PDFs
+
 - **Endpoint:** `POST /api/appointment-prep/{id}/generate`
 - **Output:** Two PDFs (provider summary + personal cheat sheet)
 - **What it does:**
@@ -312,7 +333,8 @@ This is the flagship V2 feature. Build it great.
 ### 2.3: Frontend for Appointment Prep
 
 #### Task 2.3.1: Create Appointment Prep Route & Layout
-- **Files:** 
+
+- **Files:**
   - `frontend/src/routes/(app)/appointment-prep/+page.svelte`
   - `frontend/src/routes/(app)/appointment-prep/+layout.svelte`
 - **What it shows:** Step indicator, progress, current step
@@ -324,8 +346,9 @@ This is the flagship V2 feature. Build it great.
   - [ ] Responsive on mobile
 
 #### Task 2.3.2: Build Step 1 Component (Context Questions)
+
 - **File:** `frontend/src/routes/(app)/appointment-prep/Step1.svelte`
-- **What it shows:** 
+- **What it shows:**
   - Radio button: appointment type
   - Radio button: goal
   - Radio button: dismissed before
@@ -339,6 +362,7 @@ This is the flagship V2 feature. Build it great.
   - [ ] Navigates to step 2
 
 #### Task 2.3.3: Build Step 2 Component (Review Narrative)
+
 - **File:** `frontend/src/routes/(app)/appointment-prep/Step2.svelte`
 - **What it shows:**
   - Generated narrative
@@ -354,6 +378,7 @@ This is the flagship V2 feature. Build it great.
   - [ ] Next button moves to step 3
 
 #### Task 2.3.4: Build Step 3 Component (Prioritize Concerns)
+
 - **File:** `frontend/src/routes/(app)/appointment-prep/Step3.svelte`
 - **What it shows:**
   - Drag-and-drop list of symptoms
@@ -369,6 +394,7 @@ This is the flagship V2 feature. Build it great.
   - [ ] Next button moves to step 4
 
 #### Task 2.3.5: Build Step 4 Component (Review Scenarios)
+
 - **File:** `frontend/src/routes/(app)/appointment-prep/Step4.svelte`
 - **What it shows:**
   - Array of scenario cards
@@ -384,6 +410,7 @@ This is the flagship V2 feature. Build it great.
   - [ ] Next button moves to step 5
 
 #### Task 2.3.6: Build Step 5 Component (Generate & Download)
+
 - **File:** `frontend/src/routes/(app)/appointment-prep/Step5.svelte`
 - **What it shows:**
   - "Generate PDFs" button
@@ -400,6 +427,7 @@ This is the flagship V2 feature. Build it great.
   - [ ] Can generate multiple times
 
 #### Task 2.3.7: Test Appointment Prep Flow End-to-End
+
 - **What it tests:**
   - User can complete all 5 steps
   - PDFs are generated correctly
@@ -415,6 +443,7 @@ This is the flagship V2 feature. Build it great.
 ### 2.4: Appointment Prep Tests
 
 #### Task 2.4.1: Write Route Tests
+
 - **File:** `backend/tests/api/routes/test_appointment.py`
 - **What to test:**
   - All 5 endpoints (context, narrative, prioritize, scenarios, generate)
@@ -429,6 +458,7 @@ This is the flagship V2 feature. Build it great.
   - [ ] Tests pass
 
 #### Task 2.4.2: Write Service/Repository Tests
+
 - **File:** `backend/tests/repositories/test_appointment_repository.py`
 - **What to test:**
   - Save/load context
@@ -447,6 +477,7 @@ Build on top of refactored foundation.
 ### 3.1: Ask Meno Enhancements
 
 #### Task 3.1.1: Add Conversation History
+
 - **Endpoint:** `GET /api/chat/conversations` — list all conversations
 - **Endpoint:** `DELETE /api/chat/conversations/{id}` — delete conversation
 - **What it does:**
@@ -462,6 +493,7 @@ Build on top of refactored foundation.
   - [ ] User can resume conversation
 
 #### Task 3.1.2: Implement Hybrid RAG Search
+
 - **File:** `backend/app/rag/retrieval.py` (modify existing)
 - **What it does:**
   - Semantic search (existing)
@@ -477,6 +509,7 @@ Build on top of refactored foundation.
   - [ ] Improves retrieval quality
 
 #### Task 3.1.3: Add Dynamic Starter Prompts
+
 - **Endpoint:** `GET /api/chat/suggested-prompts` — get personalized suggestions
 - **What it does:**
   - Based on user's recent symptoms
@@ -493,6 +526,7 @@ Build on top of refactored foundation.
 ### 3.2: Basic Period Tracking
 
 #### Task 3.2.1: Update User Profile Schema
+
 - **Migration:** Add to users table:
   - `has_uterus` (boolean)
   - `hormonal_contraception_type` (enum: none/pills/iud/implant/patch/other)
@@ -504,6 +538,7 @@ Build on top of refactored foundation.
   - [ ] Models updated
 
 #### Task 3.2.2: Create Period Log Table
+
 - **Migration:** `period_logs` table
   - `user_id`, `start_date`, `end_date`, `flow_level`, `notes`
   - `created_at`, `updated_at`
@@ -515,6 +550,7 @@ Build on top of refactored foundation.
   - [ ] Indexes on user_id, date
 
 #### Task 3.2.3: Create Period Repository
+
 - **File:** `backend/app/repositories/period_repository.py`
 - **What it does:**
   - `create_log(user_id, start, end, flow, notes)`
@@ -530,6 +566,7 @@ Build on top of refactored foundation.
   - [ ] Cycle calculation is correct
 
 #### Task 3.2.4: Create Period Logging Endpoint
+
 - **Endpoint:** `POST /api/period-logs` — create log
 - **Endpoint:** `GET /api/period-logs` — get logs with date range
 - **Endpoint:** `PUT /api/period-logs/{id}` — update log
@@ -544,6 +581,7 @@ Build on top of refactored foundation.
   - [ ] Tests pass
 
 #### Task 3.2.5: Build Period Logging UI
+
 - **Files:**
   - `frontend/src/routes/(app)/period/+page.svelte` — log entry form
   - `frontend/src/routes/(app)/period/history/+page.svelte` — view past logs
@@ -563,6 +601,7 @@ Build on top of refactored foundation.
   - [ ] Save/update/delete works
 
 #### Task 3.2.6: Update User Profile to Show Period Info
+
 - **File:** Modify existing user profile/onboarding
 - **What it adds:**
   - Uterus status (for period tracking)
@@ -577,6 +616,7 @@ Build on top of refactored foundation.
 ### 3.3: Basic Medication Tracking
 
 #### Task 3.3.1: Create Medication Log Table
+
 - **Migration:** `medication_logs` table
   - `user_id`, `name`, `type` (enum: hrt/mht/other), `dose`, `start_date`, `end_date` (nullable), `notes`
   - `created_at`, `updated_at`
@@ -588,6 +628,7 @@ Build on top of refactored foundation.
   - [ ] Indexes on user_id, date
 
 #### Task 3.3.2: Create Medication Repository
+
 - **File:** `backend/app/repositories/medication_repository.py`
 - **What it does:**
   - `create_log(user_id, name, type, dose, start_date, notes)`
@@ -602,6 +643,7 @@ Build on top of refactored foundation.
   - [ ] Tests pass
 
 #### Task 3.3.3: Create Medication Logging Endpoint
+
 - **Endpoint:** `POST /api/medications` — create log
 - **Endpoint:** `GET /api/medications` — get logs with date range
 - **Endpoint:** `PUT /api/medications/{id}` — update/end medication
@@ -616,6 +658,7 @@ Build on top of refactored foundation.
   - [ ] Tests pass
 
 #### Task 3.3.4: Build Medication Logging UI
+
 - **Files:**
   - `frontend/src/routes/(app)/medications/+page.svelte` — log entry form
   - `frontend/src/routes/(app)/medications/active/+page.svelte` — current meds
@@ -637,6 +680,7 @@ Build on top of refactored foundation.
   - [ ] Save/update/delete works
 
 #### Task 3.3.5: Integrate Medications with Timeline
+
 - **What it does:**
   - Show medications in symptom timeline (when user created log)
   - User can see "started HRT on March 1" alongside symptoms
@@ -649,6 +693,7 @@ Build on top of refactored foundation.
 ### 3.4: Testing & Integration
 
 #### Task 3.4.1: Integration Tests
+
 - **What to test:**
   - Ask Meno with conversation history
   - Ask Meno with hybrid search
@@ -660,6 +705,7 @@ Build on top of refactored foundation.
   - [ ] No regressions
 
 #### Task 3.4.2: Manual End-to-End Testing
+
 - **What to test:**
   - Create period log
   - Create medication log
@@ -683,6 +729,7 @@ Get ready for production.
 ### 4.1: Testing & Quality
 
 #### Task 4.1.1: Run Full Test Suite
+
 - **Command:** `pytest --cov=app -v`
 - **Target:** 80%+ coverage on all new code
 - **Effort:** 2 hours (troubleshooting)
@@ -692,6 +739,7 @@ Get ready for production.
   - [ ] No warnings
 
 #### Task 4.1.2: Performance Testing
+
 - **What to test:**
   - Appointment Prep narrative generation time (should be <10s)
   - PDF generation time (should be <5s)
@@ -703,6 +751,7 @@ Get ready for production.
   - [ ] No N+1 queries
 
 #### Task 4.1.3: Security Review
+
 - **What to check:**
   - All endpoints require auth
   - RLS policies correct
@@ -719,6 +768,7 @@ Get ready for production.
 ### 4.2: Documentation
 
 #### Task 4.2.1: Update CLAUDE.md
+
 - **What to add:**
   - New repositories
   - New services
@@ -730,6 +780,7 @@ Get ready for production.
   - [ ] Examples included
 
 #### Task 4.2.2: Update DESIGN.md
+
 - **What to add:**
   - Appointment Prep user flow
   - Data model updates (period, medications)
@@ -741,6 +792,7 @@ Get ready for production.
   - [ ] Diagrams updated
 
 #### Task 4.2.3: Create User-Facing Documentation
+
 - **What to create:**
   - Appointment Prep guide (how to use)
   - Period tracking guide
@@ -756,6 +808,7 @@ Get ready for production.
 ### 4.3: Deployment Preparation
 
 #### Task 4.3.1: Prepare for Production Deployment
+
 - **What to do:**
   - Verify all migrations work on clean DB
   - Test deployment flow locally
@@ -769,6 +822,7 @@ Get ready for production.
   - [ ] Rollback plan in place
 
 #### Task 4.3.2: Legal Review for Medical Content
+
 - **What to review:**
   - Appointment Prep disclaimers
   - Ask Meno guardrails
@@ -781,6 +835,7 @@ Get ready for production.
   - [ ] Privacy policy updated
 
 #### Task 4.3.3: Job & Cost Planning
+
 - **What to finalize:**
   - Job search timeline
   - OpenAI API cost estimate for V2
@@ -795,6 +850,7 @@ Get ready for production.
 ### 4.4: Launch
 
 #### Task 4.4.1: Deploy V2 to Production
+
 - **Effort:** 2-3 hours (with monitoring)
 - **Checklist:**
   - [ ] All tests passing
@@ -804,6 +860,7 @@ Get ready for production.
   - [ ] No errors in logs
 
 #### Task 4.4.2: Announce V2
+
 - **What to do:**
   - Email users about new features
   - Update app homepage
@@ -820,21 +877,25 @@ Get ready for production.
 ## Summary: Task Counts & Estimates
 
 ### Phase 1: Refactor (Weeks 1-2)
+
 - 14 tasks
 - ~27 hours
 - Result: Solid foundation for V2 features
 
 ### Phase 2: Appointment Prep (Weeks 3-8)
+
 - 17 tasks
 - ~40 hours
 - Result: Flagship feature complete + tested
 
 ### Phase 3: Ask Meno + Tracking (Weeks 9-11)
+
 - 16 tasks
 - ~35 hours
 - Result: Core features complete + integrated
 
 ### Phase 4: Polish & Launch (Weeks 12-13)
+
 - 11 tasks
 - ~20 hours
 - Result: Production-ready V2
@@ -846,6 +907,7 @@ Get ready for production.
 ## How to Track Progress
 
 Each week:
+
 1. Pick 5-8 tasks
 2. Mark off as you complete
 3. Run tests after each task

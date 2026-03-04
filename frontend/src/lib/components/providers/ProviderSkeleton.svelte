@@ -1,6 +1,26 @@
+<!--
+  ProviderSkeleton Component
+
+  Animated skeleton placeholder for provider directory loading states.
+  Displays 3 shimmer placeholders matching the ProviderCard layout.
+  Helps users understand that provider data is loading.
+
+  @component
+  @example
+  ```svelte
+  {#if loading}
+    <ProviderSkeleton />
+  {/if}
+  ```
+
+  @accessibility
+  - Uses aria-hidden for decorative skeleton elements
+  - Loading state should be announced via aria-live region in parent
+-->
+
 <div class="space-y-4">
 	{#each [1, 2, 3] as _}
-		<div class="animate-pulse rounded-2xl border border-slate-200 bg-white px-6 py-5 shadow-sm">
+		<div class="animate-pulse rounded-2xl border border-slate-200 bg-white px-6 py-5 shadow-sm" aria-hidden="true">
 			<!-- Name + NAMS badge row -->
 			<div class="mb-3 flex items-start justify-between gap-3">
 				<div class="space-y-2">

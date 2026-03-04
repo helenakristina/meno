@@ -1,4 +1,37 @@
 <script lang="ts">
+	/**
+	 * ProviderCard Component
+	 *
+	 * Displays healthcare provider information with actions to save/unsave and call.
+	 * Shows provider details including credentials, specialties, insurance accepted, and NAMS certification.
+	 * Integrates with CallingScriptModal for provider contact assistance.
+	 *
+	 * @component
+	 * @example
+	 * ```svelte
+	 * <ProviderCard
+	 *   {provider}
+	 *   isSaved={isInShortlist}
+	 *   shortlistEntry={entry}
+	 *   onSave={handleSaveClick}
+	 *   onUnsave={handleUnsaveClick}
+	 *   onShortlistChange={handleShortlistChange}
+	 * />
+	 * ```
+	 *
+	 * @prop {Provider} provider - The provider data object
+	 * @prop {boolean} [isSaved=false] - Whether provider is in user's shortlist
+	 * @prop {ShortlistEntry | null} [shortlistEntry=null] - Current shortlist entry data for this provider
+	 * @prop {() => void} [onSave] - Callback when save button is clicked
+	 * @prop {() => void} [onUnsave] - Callback when unsave button is clicked
+	 * @prop {() => void} [onShortlistChange] - Callback when shortlist status changes
+	 *
+	 * @accessibility
+	 * - Semantic button elements with proper labels
+	 * - Icon buttons have aria-labels
+	 * - Modal for calling script is keyboard accessible
+	 */
+
 	import CallingScriptModal from './CallingScriptModal.svelte';
 
 	interface Provider {

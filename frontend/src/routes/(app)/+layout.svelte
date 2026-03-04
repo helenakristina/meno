@@ -1,7 +1,7 @@
 <script lang="ts">
 	import type { Snippet } from 'svelte';
 	import { page } from '$app/state';
-	import { user } from '$lib/stores/auth';
+	import { authState } from '$lib/stores/auth';
 	import { goto } from '$app/navigation';
 	import { supabase } from '$lib/supabase/client';
 	import { Menu, X } from '@lucide/svelte';
@@ -19,7 +19,7 @@
 
 	// Redirect to login if not authenticated (after loading completes)
 	$effect(() => {
-		if (!loading && !$user) {
+		if (!loading && !$authState.user) {
 			goto('/login');
 		}
 	});
@@ -88,9 +88,9 @@
 			</nav>
 
 				<!-- Mobile logout button -->
-				{#if $user}
+				{#if $authState.user}
 					<div class="border-t border-slate-200 p-4">
-						<div class="mb-4 text-sm text-slate-600 break-all">{$user.email}</div>
+						<div class="mb-4 text-sm text-slate-600 break-all">{$authState.user.email}</div>
 						<button
 							onclick={() => {
 								closeMenu();
@@ -130,8 +130,8 @@
 
 					<!-- Desktop right side: user + logout + mobile hamburger -->
 					<div class="flex items-center gap-4">
-						{#if $user}
-							<span class="hidden text-sm text-slate-600 sm:inline">{$user.email}</span>
+						{#if $authState.user}
+							<span class="hidden text-sm text-slate-600 sm:inline">{$authState.user.email}</span>
 						{/if}
 
 						<!-- Mobile hamburger button (hidden on md and up) -->
@@ -146,7 +146,7 @@
 						</button>
 
 						<!-- Desktop logout button (hidden on mobile) -->
-						{#if $user}
+						{#if $authState.user}
 							<button
 								onclick={handleLogout}
 								class="hidden rounded-md px-3 py-3 text-sm font-medium text-slate-700 hover:bg-slate-100 sm:inline"
@@ -159,7 +159,7 @@
 			</div>
 		</nav>
 
-		<main class="w-full max-w-full overflow-hidden px-4 py-6 sm:px-6 lg:px-8">
+		<main class="w-full max-w-full overflow-hidden px-4 py-6 sm:px-6 lg:px-8" aria-label="Main content">
 			{@render children()}
 		</main>
 	</div>

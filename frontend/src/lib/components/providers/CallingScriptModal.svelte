@@ -1,4 +1,44 @@
 <script lang="ts">
+	/**
+	 * CallingScriptModal Component
+	 *
+	 * Modal dialog for tracking provider calls and managing shortlist entries.
+	 * Helps users prepare talking points before calling a healthcare provider.
+	 * Tracks call status, notes, insurance information, and updates shortlist.
+	 *
+	 * @component
+	 * @example
+	 * ```svelte
+	 * <CallingScriptModal
+	 *   bind:open={modalOpen}
+	 *   provider={selectedProvider}
+	 *   isSaved={isBookmarked}
+	 *   shortlistEntry={entry}
+	 *   onSave={handleSave}
+	 *   onShortlistChange={handleChange}
+	 * />
+	 * ```
+	 *
+	 * @prop {boolean} open - Whether modal is visible (bindable)
+	 * @prop {Provider | null} provider - Provider to display info for
+	 * @prop {boolean} [isSaved=false] - Whether provider is in shortlist
+	 * @prop {ShortlistEntry | null} [shortlistEntry=null] - Current shortlist entry data
+	 * @prop {() => void} [onSave] - Callback when user is added to shortlist
+	 * @prop {() => void} [onShortlistChange] - Callback when shortlist entry is updated
+	 *
+	 * States:
+	 * - 'form' - Initial call tracking form
+	 * - 'loading' - Saving call details
+	 * - 'result' - Success message after saving
+	 *
+	 * @accessibility
+	 * - Dialog role with aria-labelledby
+	 * - Focus management when opening/closing
+	 * - Close button visible and keyboard accessible (Escape to close)
+	 * - Form labels properly associated with inputs
+	 * - Loading states announced via aria-live
+	 */
+
 	import { apiClient } from '$lib/api/client';
 
 	type ModalState = 'form' | 'loading' | 'result';

@@ -1,4 +1,43 @@
 <script lang="ts" module>
+	/**
+	 * Button Component
+	 *
+	 * Reusable button component with multiple variants and sizes.
+	 * Can render as <button> or <a> element depending on href prop.
+	 * Fully accessible with proper ARIA attributes and keyboard support.
+	 *
+	 * @component
+	 * @example
+	 * ```svelte
+	 * <Button onclick={handleClick}>Click me</Button>
+	 * <Button variant="outline" size="sm">Small outline button</Button>
+	 * <Button href="/path" variant="link">Link button</Button>
+	 * <Button disabled>Disabled button</Button>
+	 * ```
+	 *
+	 * Variants:
+	 * - 'default' - Primary button with background color
+	 * - 'destructive' - Red/danger button for destructive actions
+	 * - 'outline' - Outlined button with border
+	 * - 'secondary' - Secondary button
+	 * - 'ghost' - Minimal button with hover effect only
+	 * - 'link' - Text link style button
+	 *
+	 * Sizes:
+	 * - 'default' - Standard button height (h-9)
+	 * - 'sm' - Small button (h-8)
+	 * - 'lg' - Large button (h-10)
+	 * - 'icon' - Icon button (square, size 36px)
+	 * - 'icon-sm' - Small icon button (size 32px)
+	 * - 'icon-lg' - Large icon button (size 40px)
+	 *
+	 * @accessibility
+	 * - Supports disabled state with aria-disabled
+	 * - When disabled and href provided, link is not clickable
+	 * - Keyboard focus visible with ring indicator
+	 * - Icon buttons should include aria-label prop
+	 */
+
 	import { cn, type WithElementRef } from "$lib/utils.js";
 	import type { HTMLAnchorAttributes, HTMLButtonAttributes } from "svelte/elements";
 	import { type VariantProps, tv } from "tailwind-variants";

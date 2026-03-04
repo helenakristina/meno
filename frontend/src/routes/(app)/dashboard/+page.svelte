@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { slide } from 'svelte/transition';
 	import { apiClient } from '$lib/api/client';
+	import { SkeletonLoader } from '$lib/components/shared';
 
 	// -------------------------------------------------------------------------
 	// Types
@@ -259,8 +260,8 @@
 		</h2>
 
 		{#if frequencyLoading}
-			<div class="flex items-center justify-center py-10">
-				<div class="text-sm text-slate-400">Loading...</div>
+			<div class="py-10">
+				<SkeletonLoader variant="text" lines={5} height="h-5" />
 			</div>
 		{:else if frequencyError}
 			<div class="rounded-xl border border-red-200 bg-red-50 px-5 py-4 text-sm text-red-700">
@@ -324,8 +325,8 @@
 		</div>
 
 		{#if cooccurrenceLoading}
-			<div class="flex items-center justify-center py-10">
-				<div class="text-sm text-slate-400">Loading...</div>
+			<div class="py-10">
+				<SkeletonLoader variant="text" lines={4} height="h-6" />
 			</div>
 		{:else if cooccurrenceError}
 			<div class="rounded-xl border border-red-200 bg-red-50 px-5 py-4 text-sm text-red-700">
@@ -379,8 +380,9 @@
 
 	<!-- Loading -->
 	{#if loading}
-		<div class="flex items-center justify-center py-20">
-			<div class="text-sm text-slate-400">Loading your history...</div>
+		<div class="space-y-4">
+			<SkeletonLoader variant="card" />
+			<SkeletonLoader variant="card" />
 		</div>
 
 	<!-- Error -->

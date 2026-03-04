@@ -1,4 +1,34 @@
 <script lang="ts">
+	/**
+	 * ProviderFilters Component
+	 *
+	 * Search and filter controls for the provider directory.
+	 * Provides filters for provider type, insurance accepted, and NAMS certification.
+	 * Uses bindable props for two-way data binding with parent component.
+	 *
+	 * @component
+	 * @example
+	 * ```svelte
+	 * <ProviderFilters
+	 *   bind:providerType
+	 *   bind:insurance
+	 *   bind:namsOnly
+	 *   onchange={handleFilterChange}
+	 * />
+	 * ```
+	 *
+	 * @prop {string} providerType - Selected provider type (bindable, empty = all types)
+	 * @prop {string} insurance - Selected insurance filter (bindable, searchable dropdown)
+	 * @prop {boolean} namsOnly - Show only NAMS-certified providers (bindable)
+	 * @prop {() => void} [onchange] - Callback when any filter changes
+	 *
+	 * @accessibility
+	 * - Provider type select accessible via keyboard
+	 * - Insurance searchable dropdown with keyboard support
+	 * - NAMS checkbox with proper labels
+	 * - Loading states announced to screen readers
+	 */
+
 	import { apiClient } from '$lib/api/client';
 
 	let {
