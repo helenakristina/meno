@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { tick } from 'svelte';
 	import { apiClient } from '$lib/api/client';
+	import { renderMarkdown, sanitizeMarkdownHtml } from '$lib/markdown';
 
 	// -------------------------------------------------------------------------
 	// Types
@@ -85,34 +86,34 @@
 	}
 
 	/**
-	 * HTML-escape content, convert newlines to <br>, and replace [Source N]
-	 * markers with clickable superscript citation links.
+	 * Render markdown content with citations.
 	 *
-	 * Security: URLs are validated to ensure they're http/https and properly escaped
-	 * to prevent XSS via href attributes. escapeHtml converts quotes to &quot; which
-	 * is safe in attribute context.
+	 * Process steps:
+	 * 1. Render markdown to HTML (handles bold, headers, lists, etc.)
+	 * 2. Sanitize external links (add target="_blank", validate protocols)
+	 * 3. Replace [Source N] markers with superscript citation links
+	 *
+	 * Security: URLs are validated to ensure they're http/https to prevent
+	 * javascript: and data: URIs.
 	 */
 	function renderContent(content: string, citations: Citation[]): string {
-		const escaped = escapeHtml(content).replace(/\n/g, '<br>');
-		return escaped.replace(/\[Source (\d+)\]/g, (_match, n) => {
+		// 1. Render markdown to HTML
+		let html = renderMarkdown(content);
+
+		// 2. Sanitize external links
+		html = sanitizeMarkdownHtml(html);
+
+		// 3. Replace [Source N] markers with citation links
+		html = html.replace(/\[Source (\d+)\]/g, (_match, n) => {
 			const idx = parseInt(n, 10) - 1;
 			if (idx >= 0 && idx < citations.length) {
-				const rawUrl = citations[idx].url;
-				// Validate URL is http/https to prevent javascript: and data: URIs
-				try {
-					const parsed = new URL(rawUrl);
-					if (!['http:', 'https:'].includes(parsed.protocol)) {
-						return `<sup>[${n}]</sup>`;
-					}
-				} catch {
-					// Invalid URL, skip the link
-					return `<sup>[${n}]</sup>`;
-				}
-				const url = escapeHtml(rawUrl);
+				const url = escapeHtml(citations[idx].url);
 				return `<sup><a href="${url}" target="_blank" rel="noopener noreferrer" class="citation-ref">[${n}]</a></sup>`;
 			}
 			return `<sup>[${n}]</sup>`;
 		});
+
+		return html;
 	}
 
 	// -------------------------------------------------------------------------
@@ -213,7 +214,7 @@
 						<div class="flex justify-start">
 							<div class="max-w-[85%] rounded-2xl rounded-tl-sm bg-white px-4 py-3 shadow-sm">
 								<!-- Response text with inline citation superscripts -->
-								<div class="text-sm leading-relaxed text-slate-800">
+								<div class="message-content text-sm leading-relaxed text-slate-800">
 									{@html renderContent(message.content, message.citations)}
 								</div>
 
@@ -315,5 +316,96 @@
 	:global(.citation-ref:hover) {
 		color: #0f766e; /* teal-700 */
 		text-decoration: underline;
+	}
+
+	/* Markdown rendering styles for message content */
+	:global(.message-content h1) {
+		font-size: 1.5rem;
+		font-weight: bold;
+		margin-top: 1rem;
+		margin-bottom: 0.5rem;
+	}
+
+	:global(.message-content h2) {
+		font-size: 1.25rem;
+		font-weight: bold;
+		margin-top: 0.875rem;
+		margin-bottom: 0.5rem;
+	}
+
+	:global(.message-content h3) {
+		font-size: 1.125rem;
+		font-weight: bold;
+		margin-top: 0.75rem;
+		margin-bottom: 0.375rem;
+	}
+
+	:global(.message-content p) {
+		margin-bottom: 0.75rem;
+	}
+
+	:global(.message-content ul) {
+		list-style-type: disc;
+		list-style-position: inside;
+		margin-left: 1rem;
+		margin-bottom: 0.75rem;
+	}
+
+	:global(.message-content ol) {
+		list-style-type: decimal;
+		list-style-position: inside;
+		margin-left: 1rem;
+		margin-bottom: 0.75rem;
+	}
+
+	:global(.message-content li) {
+		margin-bottom: 0.25rem;
+	}
+
+	:global(.message-content code) {
+		background-color: #f1f5f9;
+		border-radius: 0.25rem;
+		padding: 0.125rem 0.375rem;
+		font-family: monospace;
+		font-size: 0.875rem;
+	}
+
+	:global(.message-content pre) {
+		background-color: #f1f5f9;
+		border-radius: 0.5rem;
+		padding: 1rem;
+		overflow-x: auto;
+		margin-bottom: 0.75rem;
+	}
+
+	:global(.message-content pre code) {
+		background-color: transparent;
+		padding: 0;
+	}
+
+	:global(.message-content blockquote) {
+		border-left: 4px solid #cbd5e1;
+		padding-left: 1rem;
+		margin-left: 0;
+		margin-bottom: 0.75rem;
+		color: #64748b;
+		font-style: italic;
+	}
+
+	:global(.message-content strong) {
+		font-weight: 600;
+	}
+
+	:global(.message-content em) {
+		font-style: italic;
+	}
+
+	:global(.message-content a) {
+		color: #0d9488;
+		text-decoration: underline;
+	}
+
+	:global(.message-content a:hover) {
+		color: #0f766e;
 	}
 </style>
