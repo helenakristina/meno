@@ -319,3 +319,51 @@ class AppointmentRepository:
             return None
 
         return response.data[0]
+
+    async def save_narrative(
+        self, appointment_id: str, user_id: str, narrative_text: str
+    ) -> None:
+        """Save the LLM-generated narrative to the appointment context.
+
+        Updates the appointment_prep_contexts.narrative field with the generated narrative.
+
+        Args:
+            appointment_id: ID of the appointment context.
+            user_id: ID of the user (for ownership verification).
+            narrative_text: The generated narrative text (markdown).
+
+        Raises:
+            HTTPException: 404 if the appointment context doesn't exist or doesn't belong to user.
+            HTTPException: 500 if the database update fails.
+        """
+        try:
+            response = (
+                await self.client.table("appointment_prep_contexts")
+                .update({"narrative": narrative_text})
+                .eq("id", appointment_id)
+                .eq("user_id", user_id)
+                .execute()
+            )
+        except Exception as exc:
+            logger.error(
+                "DB update failed saving narrative for appointment %s: %s",
+                appointment_id,
+                exc,
+                exc_info=True,
+            )
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to save narrative",
+            )
+
+        if not response.data or not isinstance(response.data, list) or len(response.data) == 0:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Appointment context not found",
+            )
+
+        logger.info(
+            "Narrative saved: appointment_id=%s narrative_length=%d",
+            appointment_id,
+            len(narrative_text),
+        )

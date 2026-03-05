@@ -200,3 +200,34 @@ class CreateAppointmentContextResponse(BaseModel):
         default="narrative",
         description="Next step in the flow (always 'narrative' after Step 1)",
     )
+
+
+class GenerateNarrativeRequest(BaseModel):
+    """
+    Request model for POST /api/appointment-prep/{id}/narrative (Step 2).
+
+    User submits optional parameters for narrative generation, defaulting to 60 days
+    of symptom history.
+    """
+
+    days_back: int = Field(
+        default=60,
+        ge=1,
+        le=365,
+        description="How many days of symptom logs to include (1-365 days)",
+    )
+
+
+class AppointmentPrepNarrativeResponse(BaseModel):
+    """
+    Response model for POST /api/appointment-prep/{id}/narrative (Step 2).
+
+    Returns the generated narrative summary and next step in the flow.
+    """
+
+    appointment_id: str = Field(description="UUID of the appointment context")
+    narrative: str = Field(description="LLM-generated narrative summary (markdown)")
+    next_step: str = Field(
+        default="prioritize",
+        description="Next step in the flow (always 'prioritize' after Step 2)",
+    )

@@ -400,3 +400,146 @@ class TestCreateAppointmentContext:
             assert data["next_step"] == "narrative"
         finally:
             cleanup()
+
+
+# ============================================================================
+# POST /api/appointment-prep/{id}/narrative (Step 2)
+# ============================================================================
+
+
+class TestGenerateAppointmentNarrative:
+    """Tests for POST /api/appointment-prep/{id}/narrative endpoint."""
+
+    def test_generate_narrative_no_logs(self):
+        """Test generating narrative when user has no symptom logs."""
+        mock = MagicMock()
+        mock.auth.get_user = AsyncMock(
+            return_value=MagicMock(user=MagicMock(id="test-user-uuid"))
+        )
+
+        def table_side_effect(table_name):
+            builder = MagicMock()
+
+            if table_name == "appointment_prep_contexts":
+                # Handle both select (for get_context) and update (for save_narrative)
+                builder.select.return_value = builder
+                builder.update.return_value = builder
+                builder.eq.return_value = builder
+                builder.execute = AsyncMock(
+                    return_value=MagicMock(
+                        data=[
+                            {
+                                "id": CONTEXT_ID,
+                                "user_id": "test-user-uuid",
+                                "appointment_type": "new_provider",
+                                "goal": "discuss_starting_hrt",
+                                "dismissed_before": "once_or_twice",
+                                "narrative": None,
+                            }
+                        ]
+                    )
+                )
+            elif table_name == "users":
+                builder.select.return_value = builder
+                builder.eq.return_value = builder
+                builder.execute = AsyncMock(
+                    return_value=MagicMock(
+                        data=[{"id": "test-user-uuid", "journey_stage": "perimenopause", "age": 48}]
+                    )
+                )
+            elif table_name == "symptom_logs":
+                builder.select.return_value = builder
+                builder.eq.return_value = builder
+                builder.gte.return_value = builder
+                builder.lte.return_value = builder
+                builder.order.return_value = builder
+                builder.limit.return_value = builder
+                builder.execute = AsyncMock(return_value=MagicMock(data=[]))
+
+            return builder
+
+        mock.table.side_effect = table_side_effect
+
+        cleanup = override(mock)
+        try:
+            with TestClient(app) as client:
+                response = client.post(
+                    f"/api/appointment-prep/{CONTEXT_ID}/narrative",
+                    json={"days_back": 60},
+                    headers=AUTH_HEADER,
+                )
+
+            assert response.status_code == 200
+            data = response.json()
+            assert "No symptom logs found" in data["narrative"]
+            assert data["next_step"] == "prioritize"
+        finally:
+            cleanup()
+
+    def test_generate_narrative_invalid_days_back(self):
+        """Test generating narrative with invalid days_back (> 365)."""
+        mock = make_mock_client()
+        cleanup = override(mock)
+        try:
+            with TestClient(app) as client:
+                response = client.post(
+                    f"/api/appointment-prep/{CONTEXT_ID}/narrative",
+                    json={"days_back": 400},  # Invalid: > 365
+                    headers=AUTH_HEADER,
+                )
+
+            # Pydantic validation should reject days_back > 365
+            assert response.status_code == 422
+        finally:
+            cleanup()
+
+    def test_generate_narrative_appointment_not_found(self):
+        """Test generating narrative for non-existent appointment."""
+        # Create a mock that returns empty data for get_context query
+        mock = make_mock_client()
+
+        def custom_table(*args, **kwargs):
+            builder = MagicMock()
+            builder.select.return_value = builder
+            builder.eq.return_value = builder
+            builder.gte.return_value = builder
+            builder.lte.return_value = builder
+            builder.order.return_value = builder
+            builder.limit.return_value = builder
+            builder.update.return_value = builder
+            builder.in_.return_value = builder
+            # Return empty data for appointment_prep_contexts queries
+            builder.execute = AsyncMock(return_value=MagicMock(data=[]))
+            return builder
+
+        mock.table = custom_table
+
+        cleanup = override(mock)
+        try:
+            with TestClient(app) as client:
+                response = client.post(
+                    "/api/appointment-prep/nonexistent-id/narrative",
+                    json={"days_back": 60},
+                    headers=AUTH_HEADER,
+                )
+
+            assert response.status_code == 404
+        finally:
+            cleanup()
+
+    def test_generate_narrative_missing_auth(self):
+        """Test generating narrative without authentication header."""
+        mock = make_mock_client()
+        cleanup = override(mock)
+        try:
+            with TestClient(app) as client:
+                response = client.post(
+                    f"/api/appointment-prep/{CONTEXT_ID}/narrative",
+                    json={"days_back": 60},
+                    # No auth header
+                )
+
+            assert response.status_code == 401
+            assert "Missing authorization header" in response.json()["detail"]
+        finally:
+            cleanup()
