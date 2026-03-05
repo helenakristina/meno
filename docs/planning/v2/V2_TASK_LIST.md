@@ -199,6 +199,14 @@ This must be done first. Everything in V2 depends on it.
 
 ---
 
+## Phase 1.5 Code review and refactor front end
+
+- **Artifacts**
+  - docs/code_review/v1/frontend/ASK_MENO.md
+  - docs/code_review/v1/frontend/TYPE_SAFETY_SUMMARY.md
+  - docs/code_review/v1/frontend/FRONTEND_CODE_REVIEW_START.md
+  - docs/dev/frontend/V2CODE_EXAMPLES.md
+
 ## Phase 2: Appointment Prep (Weeks 3-8)
 
 This is the flagship V2 feature. Build it great.
@@ -215,9 +223,9 @@ This is the flagship V2 feature. Build it great.
 - **Files:** `backend/app/models/appointment.py`
 - **Effort:** 1 hour
 - **Checklist:**
-  - [ ] Models created in Pydantic
-  - [ ] Type hints complete
-  - [ ] Docstrings explain each field
+  - [x] Models created in Pydantic
+  - [x] Type hints complete
+  - [x] Docstrings explain each field
 
 #### Task 2.1.2: Create Database Tables
 
@@ -227,9 +235,9 @@ This is the flagship V2 feature. Build it great.
   - `appointment_prep_outputs` — store generated summaries (PDFs as text or links)
 - **Effort:** 1 hour
 - **Checklist:**
-  - [ ] Migration file created
-  - [ ] RLS policies added (users only see their own)
-  - [ ] Migration tested locally
+  - [x] Migration file created
+  - [x] RLS policies added (users only see their own)
+  - [x] Migration tested locally
 
 #### Task 2.1.3: Create AppointmentRepository
 
@@ -241,9 +249,9 @@ This is the flagship V2 feature. Build it great.
 - **Tests:** Create `backend/tests/repositories/test_appointment_repository.py`
 - **Effort:** 2 hours
 - **Checklist:**
-  - [ ] Repository class created
-  - [ ] CRUD operations work
-  - [ ] Tests pass
+  - [x] Repository class created
+  - [x] CRUD operations work
+  - [x] Tests pass
 
 ### 2.2: Build Step-by-Step Flow
 
@@ -255,10 +263,10 @@ This is the flagship V2 feature. Build it great.
 - **File:** `backend/app/api/routes/appointment.py`
 - **Effort:** 2 hours
 - **Checklist:**
-  - [ ] Endpoint created
-  - [ ] Validates inputs (enum values for type/goal/dismissed)
-  - [ ] Saves context to database
-  - [ ] Tests pass
+  - [x] Endpoint created
+  - [x] Validates inputs (enum values for type/goal/dismissed)
+  - [x] Saves context to database
+  - [x] Tests pass
 
 #### Task 2.2.2: Step 2 — Data Story API
 

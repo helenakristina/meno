@@ -10,6 +10,7 @@ from app.repositories.user_repository import UserRepository
 from app.repositories.symptoms_repository import SymptomsRepository
 from app.repositories.conversation_repository import ConversationRepository
 from app.repositories.providers_repository import ProvidersRepository
+from app.repositories.appointment_repository import AppointmentRepository
 from app.services.llm import LLMService
 from app.services.llm_base import LLMProvider
 from app.services.openai_provider import OpenAIProvider
@@ -113,6 +114,18 @@ def get_providers_repo(client: AsyncClient = Depends(get_client)) -> ProvidersRe
         ProvidersRepository instance for data access.
     """
     return ProvidersRepository(client=client)
+
+
+def get_appointment_repo(client: AsyncClient = Depends(get_client)) -> AppointmentRepository:
+    """Dependency for AppointmentRepository.
+
+    Args:
+        client: Supabase AsyncClient.
+
+    Returns:
+        AppointmentRepository instance for data access.
+    """
+    return AppointmentRepository(client=client)
 
 
 def get_llm_service() -> LLMService:

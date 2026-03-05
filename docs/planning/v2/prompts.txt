@@ -1,8 +1,100 @@
-Great, now I'd like us to refactor the frontend. First, I'd like you to draft a document and place it in docs/frontend/V2CODE_EXAMPLES.md.
+I'm building the Appointment Prep Flow feature for Meno V2 (outlined in docs/dev/DESIGN.md section 15).
 
-Steps:
-- Read docs/code_review/v1/frontend/FRONTEND_CODE_REVIEW_START.md
-- Read docs/code_review/v1/frontend/ASK_MENO.md (already completed Part 2: markdown rendering)
-- Formulate a plan for a refactor
-- Create an artifact docs/frontend/V2CODE_EXAMPLES.md that can be used for V2 for setting new standards around type safety, form validation, state management, testing, etc. This will be a living document that we look at every time we add frontend code.
-- Then present the plan, and I will decide whether or not to have you move forward with the plan.
+This task covers the data model and database schema for Appointment Prep.
+
+## Reference Documents
+- **Code Standards:** Use patterns from docs/dev/backend/V2CODE_EXAMPLES.md (repositories, DI, type hints)
+- **Backend Standards:** Follow CLAUDE.md for Pydantic models, docstrings, and best practices
+- **Feature Design:** See docs/dev/DESIGN.md section 15 (Appointment Prep Flow)
+
+## Task 2.1.1: Create Data Models
+
+**File:** `backend/app/models/appointment.py`
+
+Create Pydantic models for:
+
+1. **AppointmentContext** — User's selections from Step 1
+   - `appointment_type`: enum (new_provider, established_relationship)
+   - `goal`: enum (understand_where_i_am, discuss_starting_hrt, evaluate_current_treatment, address_specific_symptom)
+   - `dismissed_before`: enum (no, once_or_twice, multiple_times)
+
+2. **AppointmentPrep** — Full appointment prep data
+   - `user_id`: str (UUID)
+   - `context`: AppointmentContext
+   - `narrative`: str (LLM-generated summary of symptoms, editable by user)
+   - `concerns`: list[str] (prioritized list of concerns from user)
+   - `scenarios`: list[dict] (scenario cards with suggestions)
+   - `created_at`: datetime
+   - `updated_at`: datetime
+
+3. **ProviderSummary** — One-page clinical overview
+   - `content`: str (markdown/HTML, safe to share with provider)
+   - `generated_at`: datetime
+
+4. **PersonalCheatSheet** — Prioritized concerns + conversation anchors
+   - `content`: str (markdown, more candid than provider summary)
+   - `generated_at`: datetime
+
+5. **AppointmentPrepOutput** — Combined outputs
+   - `provider_summary`: ProviderSummary
+   - `personal_cheat_sheet`: PersonalCheatSheet
+   - `generated_at`: datetime
+
+**Requirements:**
+- Use Pydantic BaseModel or similar
+- Include type hints on all fields
+- Include docstrings explaining what each field represents
+- Use enums for appointment_type, goal, dismissed_before (not strings)
+- Include optional fields where appropriate (e.g., scenarios might not exist until Step 4)
+- Follow the pattern from existing models (e.g., ChatMessage in app/models/chat.py)
+
+## Task 2.1.2: Create Database Migration
+
+**File:** `backend/app/migrations/add_appointment_prep_tables.sql`
+
+Create SQL migration for:
+
+1. **appointment_prep_contexts** table
+   - `id`: uuid (primary key)
+   - `user_id`: uuid (foreign key to auth.users, cascade delete)
+   - `appointment_type`: text enum (new_provider, established_relationship)
+   - `goal`: text enum (understand_where_i_am, discuss_starting_hrt, evaluate_current_treatment, address_specific_symptom)
+   - `dismissed_before`: text enum (no, once_or_twice, multiple_times)
+   - `created_at`: timestamp (default now)
+   - `updated_at`: timestamp (default now)
+
+2. **appointment_prep_outputs** table
+   - `id`: uuid (primary key)
+   - `user_id`: uuid (foreign key to auth.users, cascade delete)
+   - `context_id`: uuid (foreign key to appointment_prep_contexts, cascade delete)
+   - `provider_summary_content`: text (markdown/HTML)
+   - `provider_summary_generated_at`: timestamp
+   - `personal_cheat_sheet_content`: text (markdown)
+   - `personal_cheat_sheet_generated_at`: timestamp
+   - `created_at`: timestamp (default now)
+   - `updated_at`: timestamp (default now)
+
+**Security Requirements:**
+- Add RLS policies so users can only see their own contexts and outputs
+- Use authenticated role for all policies
+- Policy: SELECT/INSERT/UPDATE/DELETE only where user_id = auth.uid()
+
+**Quality Requirements:**
+- Add indexes on (user_id, created_at) for common queries
+- Add foreign key constraints with CASCADE DELETE
+- Include comments on tables explaining purpose
+- Ensure migration is idempotent (can run multiple times safely)
+- Include timestamp columns (created_at, updated_at) on all tables
+
+**Testing:**
+- Migration should run without errors
+- RLS policies should prevent users from accessing others' data
+- Verify schema with: `\\d appointment_prep_contexts` and `\\d appointment_prep_outputs`
+
+## Guidelines
+- Follow the same patterns as existing migrations in backend/app/migrations/
+- Use Supabase's RLS policies (Row Level Security)
+- Keep timestamps consistent (created_at, updated_at on all tables)
+- Use CASCADE DELETE for foreign keys (data belongs to user)
+- Reference existing models (app/models/chat.py, app/models/symptoms.py) for Pydantic style
+- Use enums for bounded values (not strings) in both Python and SQL
