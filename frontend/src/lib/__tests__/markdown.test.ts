@@ -40,7 +40,9 @@ describe('renderMarkdown', () => {
 
 	it('handles line breaks', () => {
 		const result = renderMarkdown('Line 1\nLine 2');
-		expect(result).toContain('<br>');
+		// Single newlines are soft-wrapped into the same paragraph (breaks: false)
+		expect(result).toContain('Line 1');
+		expect(result).toContain('Line 2');
 	});
 
 	it('renders HTML as-is (sanitization should be done by caller)', () => {
