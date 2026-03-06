@@ -19,3 +19,18 @@ export type {
   ApiResponse,
   ApiError,
 } from './api';
+export type {
+  AppointmentContext,
+  ScenarioCard,
+  AppointmentPrepState,
+} from './appointment';
+export {
+  AppointmentType,
+  AppointmentGoal,
+  DismissalExperience,
+  APPOINTMENT_TYPE_LABELS,
+  APPOINTMENT_GOAL_LABELS,
+  DISMISSAL_EXPERIENCE_LABELS,
+  DEFAULT_CONCERNS,
+  STEP_TITLES,
+} from './appointment';

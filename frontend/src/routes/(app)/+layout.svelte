@@ -37,6 +37,7 @@
 		{ href: '/dashboard', label: 'Dashboard' },
 		{ href: '/log', label: 'Log Symptoms' },
 		{ href: '/ask', label: 'Ask Meno' },
+		{ href: '/appointment-prep', label: 'Appt Prep' },
 		{ href: '/providers', label: 'Providers' },
 		{ href: '/export', label: 'Export' }
 	];

@@ -236,6 +236,73 @@ export interface ApiEndpoints {
   };
 
   // ========================================================================
+  // Appointment Prep Endpoints
+  // ========================================================================
+
+  '/api/appointment-prep/context': {
+    request: {
+      appointment_type: string;
+      goal: string;
+      dismissed_before: string;
+    };
+    response: {
+      appointment_id: string;
+      next_step: string;
+    };
+  };
+
+  // Dynamic path: /api/appointment-prep/{id}/narrative
+  '/api/appointment-prep/{id}/narrative': {
+    request: {
+      days_back?: number;
+    };
+    response: {
+      appointment_id: string;
+      narrative: string;
+      next_step: string;
+    };
+  };
+
+  // Dynamic path: /api/appointment-prep/{id}/prioritize
+  '/api/appointment-prep/{id}/prioritize': {
+    request: {
+      concerns: string[];
+    };
+    response: {
+      appointment_id: string;
+      concerns: string[];
+      next_step: string;
+    };
+  };
+
+  // Dynamic path: /api/appointment-prep/{id}/scenarios
+  '/api/appointment-prep/{id}/scenarios': {
+    request: never;
+    response: {
+      appointment_id: string;
+      scenarios: Array<{
+        id: string;
+        title: string;
+        situation: string;
+        suggestion: string;
+        category: string;
+      }>;
+      next_step: string;
+    };
+  };
+
+  // Dynamic path: /api/appointment-prep/{id}/generate
+  '/api/appointment-prep/{id}/generate': {
+    request: never;
+    response: {
+      appointment_id: string;
+      provider_summary_url: string;
+      personal_cheat_sheet_url: string;
+      message: string;
+    };
+  };
+
+  // ========================================================================
   // Export Endpoints
   // ========================================================================
 

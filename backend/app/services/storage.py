@@ -21,26 +21,32 @@ class StorageService:
         """
         self.client = client
 
-    async def upload_pdf(self, bucket: str, path: str, content: bytes) -> str:
-        """Upload a PDF file to Supabase Storage and return its public URL.
+    async def upload_pdf(
+        self, bucket: str, path: str, content: bytes, signed_url_expires: int = 3600
+    ) -> str:
+        """Upload a PDF to Supabase Storage and return a signed URL.
+
+        Uses signed URLs (not public URLs) so the bucket can remain private.
+        The signed URL is valid for `signed_url_expires` seconds (default 1 hour).
 
         Args:
             bucket: Storage bucket name (e.g., "appointment-prep").
             path: File path within the bucket (e.g., "user-id/appointment-id/file.pdf").
             content: PDF file content as bytes.
+            signed_url_expires: Seconds until the signed URL expires (default 3600 = 1 hour).
 
         Returns:
-            Public URL to the uploaded file.
+            Signed URL to the uploaded file (time-limited).
 
         Raises:
-            RuntimeError: If the upload or URL retrieval fails.
+            RuntimeError: If the upload or URL generation fails.
         """
         try:
-            # Upload file
+            # Upload file (upsert=True overwrites on regenerate)
             await self.client.storage.from_(bucket).upload(
                 path=path,
                 file=content,
-                file_options={"content-type": "application/pdf"},
+                file_options={"content-type": "application/pdf", "upsert": "true"},
             )
             logger.info(
                 "PDF uploaded: bucket=%s path=%s size=%d bytes",
@@ -49,11 +55,13 @@ class StorageService:
                 len(content),
             )
 
-            # Get public URL
-            url_response = self.client.storage.from_(bucket).get_public_url(path)
-            public_url: str = url_response
-            logger.info("Public URL retrieved: %s", public_url)
-            return public_url
+            # Generate signed URL (works with private buckets)
+            signed = await self.client.storage.from_(bucket).create_signed_url(
+                path, signed_url_expires
+            )
+            signed_url: str = signed["signedURL"]
+            logger.info("Signed URL created (expires %ds): %s", signed_url_expires, signed_url)
+            return signed_url
 
         except Exception as exc:
             logger.error(

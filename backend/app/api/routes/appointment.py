@@ -6,6 +6,7 @@ Step 2: Generates LLM narrative from symptom logs and user context.
 
 import json
 import logging
+import re
 from datetime import datetime, timedelta
 from typing import Annotated
 
@@ -976,14 +977,35 @@ def _get_scenario_category(title: str) -> str:
         return "general"
 
 
+def _inline_md(text: str) -> str:
+    """Convert inline markdown to reportlab XML tags.
+
+    reportlab's Paragraph supports <b>, <i>, and <font> tags natively.
+    Process bold-italic first to avoid partial matches.
+    """
+    # Bold italic: ***text*** or ___text___
+    text = re.sub(r'\*{3}(.+?)\*{3}', r'<b><i>\1</i></b>', text)
+    text = re.sub(r'_{3}(.+?)_{3}', r'<b><i>\1</i></b>', text)
+    # Bold: **text** or __text__
+    text = re.sub(r'\*{2}(.+?)\*{2}', r'<b>\1</b>', text)
+    text = re.sub(r'_{2}(.+?)_{2}', r'<b>\1</b>', text)
+    # Italic: *text* or _text_
+    text = re.sub(r'\*(.+?)\*', r'<i>\1</i>', text)
+    text = re.sub(r'_(.+?)_', r'<i>\1</i>', text)
+    # Inline code: `text`
+    text = re.sub(r'`(.+?)`', r'<font face="Courier">\1</font>', text)
+    return text
+
+
 def _markdown_to_pdf(markdown_text: str, title: str = "") -> bytes:
     """Convert markdown text to PDF bytes using reportlab.
 
-    Simple conversion that handles basic markdown (headers, lists, paragraphs).
+    Handles: headings (h1–h4), bullet lists, numbered lists, paragraphs,
+    and inline formatting (bold, italic, bold-italic, inline code).
 
     Args:
         markdown_text: Markdown-formatted text.
-        title: Document title (optional).
+        title: Document title shown centered at the top.
 
     Returns:
         PDF content as bytes.
@@ -999,52 +1021,92 @@ def _markdown_to_pdf(markdown_text: str, title: str = "") -> bytes:
     )
 
     styles = getSampleStyleSheet()
+
+    title_style = ParagraphStyle(
+        "DocTitle",
+        parent=styles["Heading1"],
+        fontSize=18,
+        textColor=HexColor("#1f2937"),
+        spaceAfter=12,
+        alignment=1,
+    )
+    h1_style = ParagraphStyle(
+        "H1",
+        parent=styles["Heading1"],
+        fontSize=16,
+        textColor=HexColor("#1f2937"),
+        spaceBefore=10,
+        spaceAfter=6,
+    )
+    h2_style = ParagraphStyle(
+        "H2",
+        parent=styles["Heading2"],
+        fontSize=13,
+        textColor=HexColor("#374151"),
+        spaceBefore=8,
+        spaceAfter=4,
+    )
+    h3_style = ParagraphStyle(
+        "H3",
+        parent=styles["Heading3"],
+        fontSize=11,
+        textColor=HexColor("#374151"),
+        spaceBefore=6,
+        spaceAfter=3,
+    )
+    body_style = ParagraphStyle(
+        "Body",
+        parent=styles["Normal"],
+        fontSize=10,
+        leading=15,
+        spaceAfter=4,
+    )
+    bullet_style = ParagraphStyle(
+        "Bullet",
+        parent=styles["Normal"],
+        fontSize=10,
+        leading=15,
+        leftIndent=20,
+        spaceAfter=2,
+    )
+    numbered_style = ParagraphStyle(
+        "Numbered",
+        parent=styles["Normal"],
+        fontSize=10,
+        leading=15,
+        leftIndent=20,
+        spaceAfter=2,
+    )
+
     story = []
 
-    # Add title if provided
     if title:
-        title_style = ParagraphStyle(
-            "CustomTitle",
-            parent=styles["Heading1"],
-            fontSize=18,
-            textColor=HexColor("#1f2937"),
-            spaceAfter=12,
-            alignment=1,  # centered
-        )
         story.append(Paragraph(title, title_style))
         story.append(Spacer(1, 0.2 * inch))
 
-    # Parse markdown into reportlab elements
-    lines = markdown_text.split("\n")
-    for line in lines:
-        if not line.strip():
-            story.append(Spacer(1, 0.1 * inch))
-        elif line.startswith("# "):
-            style = styles["Heading1"]
-            story.append(Paragraph(line[2:], style))
-            story.append(Spacer(1, 0.1 * inch))
-        elif line.startswith("## "):
-            style = styles["Heading2"]
-            story.append(Paragraph(line[3:], style))
+    for line in markdown_text.split("\n"):
+        stripped = line.strip()
+
+        if not stripped:
+            story.append(Spacer(1, 0.06 * inch))
+        elif stripped.startswith("#### "):
+            story.append(Paragraph(_inline_md(stripped[5:]), h3_style))
+        elif stripped.startswith("### "):
+            story.append(Paragraph(_inline_md(stripped[4:]), h3_style))
+        elif stripped.startswith("## "):
+            story.append(Paragraph(_inline_md(stripped[3:]), h2_style))
+        elif stripped.startswith("# "):
+            story.append(Paragraph(_inline_md(stripped[2:]), h1_style))
+        elif stripped.startswith("- ") or stripped.startswith("* "):
+            story.append(Paragraph(f"• {_inline_md(stripped[2:])}", bullet_style))
+        elif re.match(r'^\d+\. ', stripped):
+            m = re.match(r'^(\d+)\. (.+)', stripped)
+            if m:
+                story.append(Paragraph(f"{m.group(1)}. {_inline_md(m.group(2))}", numbered_style))
+        elif stripped in ("---", "***", "___"):
             story.append(Spacer(1, 0.08 * inch))
-        elif line.startswith("- "):
-            text = line[2:]
-            style = ParagraphStyle(
-                "BulletStyle",
-                parent=styles["Normal"],
-                leftIndent=20,
-            )
-            story.append(Paragraph(f"• {text}", style))
-        elif line.startswith("* "):
-            text = line[2:]
-            style = ParagraphStyle(
-                "BulletStyle",
-                parent=styles["Normal"],
-                leftIndent=20,
-            )
-            story.append(Paragraph(f"• {text}", style))
         else:
-            story.append(Paragraph(line, styles["Normal"]))
+            story.append(Paragraph(_inline_md(stripped), body_style))
 
     doc.build(story)
     pdf_bytes = buffer.getvalue()
