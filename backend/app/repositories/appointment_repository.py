@@ -367,3 +367,99 @@ class AppointmentRepository:
             appointment_id,
             len(narrative_text),
         )
+
+    async def save_concerns(
+        self, appointment_id: str, user_id: str, concerns: list[str]
+    ) -> None:
+        """Save prioritized concerns to the appointment context.
+
+        Updates the appointment_prep_contexts.concerns field with the ranked list.
+
+        Args:
+            appointment_id: ID of the appointment context.
+            user_id: ID of the user (for ownership verification).
+            concerns: Ordered list of prioritized concerns.
+
+        Raises:
+            HTTPException: 404 if the appointment context doesn't exist or doesn't belong to user.
+            HTTPException: 500 if the database update fails.
+        """
+        try:
+            response = (
+                await self.client.table("appointment_prep_contexts")
+                .update({"concerns": concerns})
+                .eq("id", appointment_id)
+                .eq("user_id", user_id)
+                .execute()
+            )
+        except Exception as exc:
+            logger.error(
+                "DB update failed saving concerns for appointment %s: %s",
+                appointment_id,
+                exc,
+                exc_info=True,
+            )
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to save concerns",
+            )
+
+        if not response.data or not isinstance(response.data, list) or len(response.data) == 0:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Appointment context not found",
+            )
+
+        logger.info(
+            "Concerns saved: appointment_id=%s concerns_count=%d",
+            appointment_id,
+            len(concerns),
+        )
+
+    async def save_scenarios(
+        self, appointment_id: str, user_id: str, scenarios: list[dict[str, Any]]
+    ) -> None:
+        """Save scenario cards to the appointment context.
+
+        Updates the appointment_prep_contexts.scenarios field with the scenario list.
+
+        Args:
+            appointment_id: ID of the appointment context.
+            user_id: ID of the user (for ownership verification).
+            scenarios: List of scenario card dicts with id, title, situation, suggestion, category.
+
+        Raises:
+            HTTPException: 404 if the appointment context doesn't exist or doesn't belong to user.
+            HTTPException: 500 if the database update fails.
+        """
+        try:
+            response = (
+                await self.client.table("appointment_prep_contexts")
+                .update({"scenarios": scenarios})
+                .eq("id", appointment_id)
+                .eq("user_id", user_id)
+                .execute()
+            )
+        except Exception as exc:
+            logger.error(
+                "DB update failed saving scenarios for appointment %s: %s",
+                appointment_id,
+                exc,
+                exc_info=True,
+            )
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to save scenarios",
+            )
+
+        if not response.data or not isinstance(response.data, list) or len(response.data) == 0:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Appointment context not found",
+            )
+
+        logger.info(
+            "Scenarios saved: appointment_id=%s scenarios_count=%d",
+            appointment_id,
+            len(scenarios),
+        )

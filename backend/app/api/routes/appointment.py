@@ -4,11 +4,18 @@ Step 1: Captures user context (appointment type, goal, dismissal experience).
 Step 2: Generates LLM narrative from symptom logs and user context.
 """
 
+import json
 import logging
 from datetime import datetime, timedelta
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, status
+from reportlab.lib.pagesizes import letter
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, PageBreak
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib.units import inch
+from reportlab.lib.colors import HexColor
+from io import BytesIO
 
 from app.api.dependencies import (
     CurrentUser,
@@ -16,12 +23,14 @@ from app.api.dependencies import (
     get_user_repo,
     get_symptoms_repo,
     get_llm_service,
+    get_storage_service,
 )
 from app.core.supabase import get_client
 from app.repositories.appointment_repository import AppointmentRepository
 from app.repositories.user_repository import UserRepository
 from app.repositories.symptoms_repository import SymptomsRepository
 from app.services.llm import LLMService
+from app.services.storage import StorageService
 from app.services.stats import calculate_frequency_stats, calculate_cooccurrence_stats
 from app.models.appointment import (
     AppointmentContext,
@@ -29,6 +38,11 @@ from app.models.appointment import (
     CreateAppointmentContextResponse,
     GenerateNarrativeRequest,
     AppointmentPrepNarrativeResponse,
+    PrioritizeConcernsRequest,
+    AppointmentPrepPrioritizeResponse,
+    ScenarioCard,
+    AppointmentPrepScenariosResponse,
+    AppointmentPrepGenerateResponse,
 )
 from supabase import AsyncClient
 
@@ -392,3 +406,647 @@ async def generate_appointment_narrative(
         narrative=narrative,
         next_step="prioritize",
     )
+
+
+@router.put(
+    "/{appointment_id}/prioritize",
+    response_model=AppointmentPrepPrioritizeResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Save prioritized concerns",
+    description=(
+        "Step 3 of Appointment Prep Flow. User submits their prioritized concerns in ranked order. "
+        "Returns confirmation and next step."
+    ),
+)
+async def prioritize_concerns(
+    appointment_id: str,
+    payload: PrioritizeConcernsRequest,
+    user_id: CurrentUser,
+    appointment_repo: AppointmentRepository = Depends(get_appointment_repo),
+) -> AppointmentPrepPrioritizeResponse:
+    """Save prioritized concerns from Step 3.
+
+    Stores the user's ranked list of concerns to the appointment context.
+    These concerns shape the scenario generation in Step 4 and the outputs in Step 5.
+
+    Args:
+        appointment_id: UUID of the appointment context from Step 1.
+        payload: PrioritizeConcernsRequest with ordered concerns list.
+        user_id: Authenticated user ID.
+        appointment_repo: AppointmentRepository for data access.
+
+    Returns:
+        AppointmentPrepPrioritizeResponse confirming save and next step.
+
+    Raises:
+        HTTPException: 400 if concerns list is empty.
+        HTTPException: 401 if not authenticated.
+        HTTPException: 404 if appointment doesn't exist or doesn't belong to user.
+        HTTPException: 500 if database operation fails.
+    """
+    # Verify appointment ownership
+    try:
+        await appointment_repo.get_context(appointment_id, user_id)
+    except HTTPException:
+        raise
+
+    logger.info(
+        "Prioritize concerns started: appointment_id=%s concerns_count=%d",
+        appointment_id,
+        len(payload.concerns),
+    )
+
+    # Save concerns
+    try:
+        await appointment_repo.save_concerns(appointment_id, user_id, payload.concerns)
+    except HTTPException:
+        raise
+    except Exception as exc:
+        logger.error(
+            "Failed to save concerns: appointment_id=%s error=%s",
+            appointment_id,
+            exc,
+            exc_info=True,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to save concerns",
+        )
+
+    logger.info(
+        "Concerns saved: appointment_id=%s",
+        appointment_id,
+    )
+
+    return AppointmentPrepPrioritizeResponse(
+        appointment_id=appointment_id,
+        concerns=payload.concerns,
+        next_step="scenarios",
+    )
+
+
+@router.post(
+    "/{appointment_id}/scenarios",
+    response_model=AppointmentPrepScenariosResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Generate practice scenarios",
+    description=(
+        "Step 4 of Appointment Prep Flow. Generates 5-7 dismissal scenarios and LLM-suggested responses. "
+        "Scenarios are selected based on appointment context and user's prior dismissal experience."
+    ),
+)
+async def generate_appointment_scenarios(
+    appointment_id: str,
+    user_id: CurrentUser,
+    appointment_repo: AppointmentRepository = Depends(get_appointment_repo),
+    user_repo: UserRepository = Depends(get_user_repo),
+    llm_service: LLMService = Depends(get_llm_service),
+) -> AppointmentPrepScenariosResponse:
+    """Generate practice scenarios for Step 4.
+
+    Fetches appointment context, user concerns, and journey stage. Selects 5-7 relevant
+    dismissal scenarios based on the user's appointment type, goal, and prior dismissal
+    experience. Calls LLM to generate suggestions for each scenario.
+
+    Args:
+        appointment_id: UUID of the appointment context from Step 1.
+        user_id: Authenticated user ID.
+        appointment_repo: AppointmentRepository for context access.
+        user_repo: UserRepository for user context.
+        llm_service: LLMService for scenario generation.
+
+    Returns:
+        AppointmentPrepScenariosResponse with scenario cards and next step.
+
+    Raises:
+        HTTPException: 401 if not authenticated.
+        HTTPException: 404 if appointment doesn't exist or doesn't belong to user.
+        HTTPException: 500 if LLM generation or database operation fails.
+    """
+    # Verify appointment ownership and fetch context
+    try:
+        context = await appointment_repo.get_context(appointment_id, user_id)
+    except HTTPException:
+        raise
+
+    logger.info(
+        "Scenario generation started: appointment_id=%s goal=%s dismissed=%s",
+        appointment_id,
+        context.goal.value,
+        context.dismissed_before.value,
+    )
+
+    # Fetch user context (journey stage, age)
+    try:
+        journey_stage, age = await user_repo.get_context(user_id)
+    except Exception as exc:
+        logger.error(
+            "Failed to fetch user context for scenarios: %s",
+            exc,
+            exc_info=True,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to generate scenarios",
+        )
+
+    # Select scenarios based on context
+    # Always include general scenarios, then add goal-specific ones
+    scenarios_to_generate = _select_scenarios(context, journey_stage)
+
+    logger.info(
+        "Selected %d scenarios for generation",
+        len(scenarios_to_generate),
+    )
+
+    # Fetch concerns from Step 3 (default to empty if not saved yet)
+    concerns: list[str] = []
+    try:
+        # Get full context row to check if concerns field exists
+        context_response = (
+            await appointment_repo.client.table("appointment_prep_contexts")
+            .select("concerns")
+            .eq("id", appointment_id)
+            .eq("user_id", user_id)
+            .execute()
+        )
+        if context_response.data and len(context_response.data) > 0:
+            data = context_response.data[0]
+            if isinstance(data, dict):
+                concerns_data = data.get("concerns")
+                if isinstance(concerns_data, list):
+                    concerns = concerns_data
+    except Exception as exc:
+        logger.warning(
+            "Failed to fetch concerns from Step 3: %s",
+            exc,
+        )
+        concerns = []
+
+    # Call LLM to generate suggestions
+    try:
+        raw_suggestions = await llm_service.generate_scenario_suggestions(
+            scenarios_to_generate=scenarios_to_generate,
+            concerns=concerns,
+            appointment_type=context.appointment_type.value,
+            goal=context.goal.value,
+            dismissed_before=context.dismissed_before.value,
+            user_age=age,
+        )
+    except TimeoutError:
+        logger.error(
+            "LLM request timed out for scenarios: appointment_id=%s",
+            appointment_id,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to generate scenarios. Please try again.",
+        )
+    except Exception as exc:
+        logger.error(
+            "LLM generation failed for scenarios: appointment_id=%s error=%s",
+            appointment_id,
+            exc,
+            exc_info=True,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to generate scenarios. Please try again.",
+        )
+
+    # Parse JSON response and build scenario cards
+    try:
+        suggestions_list = json.loads(raw_suggestions)
+        if not isinstance(suggestions_list, list):
+            suggestions_list = [suggestions_list]
+    except json.JSONDecodeError:
+        logger.error(
+            "Failed to parse LLM response as JSON: response=%s",
+            raw_suggestions[:200],
+        )
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to generate scenarios",
+        )
+
+    # Build scenario cards
+    scenario_cards: list[ScenarioCard] = []
+    for idx, (scenario_title, suggestion_data) in enumerate(
+        zip(scenarios_to_generate, suggestions_list)
+    ):
+        suggestion_text = (
+            suggestion_data.get("suggestion", "")
+            if isinstance(suggestion_data, dict)
+            else str(suggestion_data)
+        )
+        category = _get_scenario_category(scenario_title)
+
+        scenario_cards.append(
+            ScenarioCard(
+                id=f"scenario-{idx + 1}",
+                title=scenario_title,
+                situation=f"If your provider says something like: '{scenario_title}'",
+                suggestion=suggestion_text,
+                category=category,
+            )
+        )
+
+    # Save scenarios
+    try:
+        scenarios_to_save = [
+            {
+                "id": card.id,
+                "title": card.title,
+                "situation": card.situation,
+                "suggestion": card.suggestion,
+                "category": card.category,
+            }
+            for card in scenario_cards
+        ]
+        await appointment_repo.save_scenarios(appointment_id, user_id, scenarios_to_save)
+    except HTTPException:
+        raise
+    except Exception as exc:
+        logger.error(
+            "Failed to save scenarios: appointment_id=%s error=%s",
+            appointment_id,
+            exc,
+            exc_info=True,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to save scenarios",
+        )
+
+    logger.info(
+        "Scenarios generated and saved: appointment_id=%s count=%d",
+        appointment_id,
+        len(scenario_cards),
+    )
+
+    return AppointmentPrepScenariosResponse(
+        appointment_id=appointment_id,
+        scenarios=scenario_cards,
+        next_step="generate",
+    )
+
+
+@router.post(
+    "/{appointment_id}/generate",
+    response_model=AppointmentPrepGenerateResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Generate PDF outputs",
+    description=(
+        "Step 5 of Appointment Prep Flow. Generates provider summary and personal cheat sheet PDFs, "
+        "uploads them to Supabase Storage, and returns shareable URLs."
+    ),
+)
+async def generate_appointment_outputs(
+    appointment_id: str,
+    user_id: CurrentUser,
+    appointment_repo: AppointmentRepository = Depends(get_appointment_repo),
+    user_repo: UserRepository = Depends(get_user_repo),
+    llm_service: LLMService = Depends(get_llm_service),
+    storage_service: StorageService = Depends(get_storage_service),
+) -> AppointmentPrepGenerateResponse:
+    """Generate and save PDF outputs for Step 5.
+
+    Fetches all appointment prep data (narrative, concerns, scenarios), generates
+    provider summary and personal cheat sheet content via LLM, converts to PDFs,
+    uploads to Supabase Storage, and returns public URLs.
+
+    Args:
+        appointment_id: UUID of the appointment context from Step 1.
+        user_id: Authenticated user ID.
+        appointment_repo: AppointmentRepository for data access.
+        user_repo: UserRepository for user context.
+        llm_service: LLMService for content generation.
+        storage_service: StorageService for PDF uploads.
+
+    Returns:
+        AppointmentPrepGenerateResponse with PDF URLs.
+
+    Raises:
+        HTTPException: 401 if not authenticated.
+        HTTPException: 404 if appointment doesn't exist or doesn't belong to user.
+        HTTPException: 500 if LLM generation, PDF conversion, or upload fails.
+    """
+    # Verify appointment ownership and fetch context
+    try:
+        context = await appointment_repo.get_context(appointment_id, user_id)
+    except HTTPException:
+        raise
+
+    logger.info(
+        "PDF generation started: appointment_id=%s",
+        appointment_id,
+    )
+
+    # Fetch full appointment data
+    try:
+        context_response = (
+            await appointment_repo.client.table("appointment_prep_contexts")
+            .select("narrative, concerns")
+            .eq("id", appointment_id)
+            .eq("user_id", user_id)
+            .execute()
+        )
+        if not context_response.data:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Appointment context not found",
+            )
+
+        context_row = context_response.data[0]
+        narrative = context_row.get("narrative", "No narrative available.")
+        concerns = context_row.get("concerns", [])
+    except HTTPException:
+        raise
+    except Exception as exc:
+        logger.error(
+            "Failed to fetch appointment data: %s",
+            exc,
+            exc_info=True,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to generate outputs",
+        )
+
+    # Fetch user context
+    try:
+        _journey_stage, age = await user_repo.get_context(user_id)
+    except Exception as exc:
+        logger.error("Failed to fetch user context: %s", exc, exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to generate outputs",
+        )
+
+    # Ensure narrative and concerns are proper types
+    narrative_text = narrative if isinstance(narrative, str) else str(narrative)
+    concerns_list = concerns if isinstance(concerns, list) else []
+
+    # Generate provider summary
+    try:
+        provider_summary_md = await llm_service.generate_pdf_content(
+            content_type="provider_summary",
+            narrative=narrative_text,
+            concerns=concerns_list,
+            appointment_type=context.appointment_type.value,
+            goal=context.goal.value,
+            user_age=age,
+        )
+    except TimeoutError:
+        logger.error(
+            "LLM request timed out for provider summary: appointment_id=%s",
+            appointment_id,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to generate provider summary. Please try again.",
+        )
+    except Exception as exc:
+        logger.error(
+            "LLM generation failed for provider summary: %s",
+            exc,
+            exc_info=True,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to generate provider summary",
+        )
+
+    # Generate personal cheat sheet
+    try:
+        cheatsheet_md = await llm_service.generate_pdf_content(
+            content_type="personal_cheatsheet",
+            narrative=narrative_text,
+            concerns=concerns_list,
+            appointment_type=context.appointment_type.value,
+            goal=context.goal.value,
+            user_age=age,
+        )
+    except TimeoutError:
+        logger.error(
+            "LLM request timed out for cheat sheet: appointment_id=%s",
+            appointment_id,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to generate cheat sheet. Please try again.",
+        )
+    except Exception as exc:
+        logger.error(
+            "LLM generation failed for cheat sheet: %s",
+            exc,
+            exc_info=True,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to generate cheat sheet",
+        )
+
+    # Convert markdown to PDFs
+    try:
+        provider_summary_pdf = _markdown_to_pdf(
+            provider_summary_md,
+            title="Provider Summary",
+        )
+        cheatsheet_pdf = _markdown_to_pdf(
+            cheatsheet_md,
+            title="Personal Cheat Sheet",
+        )
+    except Exception as exc:
+        logger.error(
+            "Failed to convert markdown to PDF: %s",
+            exc,
+            exc_info=True,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to generate PDF",
+        )
+
+    # Upload PDFs to Supabase Storage
+    try:
+        summary_url = await storage_service.upload_pdf(
+            bucket="appointment-prep",
+            path=f"{user_id}/{appointment_id}/provider-summary.pdf",
+            content=provider_summary_pdf,
+        )
+        cheatsheet_url = await storage_service.upload_pdf(
+            bucket="appointment-prep",
+            path=f"{user_id}/{appointment_id}/personal-cheatsheet.pdf",
+            content=cheatsheet_pdf,
+        )
+    except Exception as exc:
+        logger.error(
+            "Failed to upload PDFs to storage: %s",
+            exc,
+            exc_info=True,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to upload PDF files",
+        )
+
+    logger.info(
+        "PDFs generated and uploaded: appointment_id=%s",
+        appointment_id,
+    )
+
+    return AppointmentPrepGenerateResponse(
+        appointment_id=appointment_id,
+        provider_summary_url=summary_url,
+        personal_cheat_sheet_url=cheatsheet_url,
+        message="Your appointment prep is ready!",
+    )
+
+
+# ============================================================================
+# Helper Functions
+# ============================================================================
+
+
+def _select_scenarios(context: AppointmentContext, journey_stage: str) -> list[str]:
+    """Select 5-7 scenarios based on appointment context.
+
+    Returns a list of dismissal scenario titles to generate suggestions for.
+
+    Args:
+        context: AppointmentContext with appointment_type, goal, dismissed_before.
+        journey_stage: User's journey stage (exploration, preparation, transition, active).
+
+    Returns:
+        List of 5-7 scenario titles.
+    """
+    scenarios = []
+
+    # Add goal-specific scenarios
+    if context.goal.value == "discuss_starting_hrt":
+        scenarios.extend([
+            "That's too much to be perimenopause — you're too young",
+            "Hormone therapy is dangerous",
+            "Let's try an antidepressant first",
+        ])
+    elif context.goal.value == "evaluate_current_treatment":
+        scenarios.extend([
+            "Your symptoms are normal — just deal with it",
+            "That dose is already high",
+            "You don't need to change anything",
+        ])
+
+    # Add dismissal experience-specific scenarios
+    if context.dismissed_before.value == "multiple_times":
+        scenarios.extend([
+            "You're overreacting about your symptoms",
+            "I don't think your symptoms are that bad",
+        ])
+
+    # Always add universal scenarios
+    scenarios.extend([
+        "Provider dismisses your concerns",
+        "Provider minimizes the impact on your life",
+    ])
+
+    # Cap at 7 scenarios
+    return scenarios[:7]
+
+
+def _get_scenario_category(title: str) -> str:
+    """Determine scenario category from title.
+
+    Args:
+        title: Scenario title text.
+
+    Returns:
+        Category string (dismissal, hrt-concerns, side-effects, validation, general).
+    """
+    title_lower = title.lower()
+    if "dismisses" in title_lower or "overreacting" in title_lower:
+        return "dismissal"
+    elif "hrt" in title_lower or "hormone" in title_lower:
+        return "hrt-concerns"
+    elif "danger" in title_lower or "risk" in title_lower:
+        return "side-effects"
+    elif "validate" in title_lower or "understand" in title_lower:
+        return "validation"
+    else:
+        return "general"
+
+
+def _markdown_to_pdf(markdown_text: str, title: str = "") -> bytes:
+    """Convert markdown text to PDF bytes using reportlab.
+
+    Simple conversion that handles basic markdown (headers, lists, paragraphs).
+
+    Args:
+        markdown_text: Markdown-formatted text.
+        title: Document title (optional).
+
+    Returns:
+        PDF content as bytes.
+    """
+    buffer = BytesIO()
+    doc = SimpleDocTemplate(
+        buffer,
+        pagesize=letter,
+        rightMargin=0.75 * inch,
+        leftMargin=0.75 * inch,
+        topMargin=0.75 * inch,
+        bottomMargin=0.75 * inch,
+    )
+
+    styles = getSampleStyleSheet()
+    story = []
+
+    # Add title if provided
+    if title:
+        title_style = ParagraphStyle(
+            "CustomTitle",
+            parent=styles["Heading1"],
+            fontSize=18,
+            textColor=HexColor("#1f2937"),
+            spaceAfter=12,
+            alignment=1,  # centered
+        )
+        story.append(Paragraph(title, title_style))
+        story.append(Spacer(1, 0.2 * inch))
+
+    # Parse markdown into reportlab elements
+    lines = markdown_text.split("\n")
+    for line in lines:
+        if not line.strip():
+            story.append(Spacer(1, 0.1 * inch))
+        elif line.startswith("# "):
+            style = styles["Heading1"]
+            story.append(Paragraph(line[2:], style))
+            story.append(Spacer(1, 0.1 * inch))
+        elif line.startswith("## "):
+            style = styles["Heading2"]
+            story.append(Paragraph(line[3:], style))
+            story.append(Spacer(1, 0.08 * inch))
+        elif line.startswith("- "):
+            text = line[2:]
+            style = ParagraphStyle(
+                "BulletStyle",
+                parent=styles["Normal"],
+                leftIndent=20,
+            )
+            story.append(Paragraph(f"• {text}", style))
+        elif line.startswith("* "):
+            text = line[2:]
+            style = ParagraphStyle(
+                "BulletStyle",
+                parent=styles["Normal"],
+                leftIndent=20,
+            )
+            story.append(Paragraph(f"• {text}", style))
+        else:
+            story.append(Paragraph(line, styles["Normal"]))
+
+    doc.build(story)
+    pdf_bytes = buffer.getvalue()
+    buffer.close()
+    return pdf_bytes

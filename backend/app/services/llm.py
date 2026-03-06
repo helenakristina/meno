@@ -240,3 +240,166 @@ class LLMService:
 
         logger.info("Calling script generated: %d characters", len(script))
         return script
+
+    async def generate_scenario_suggestions(
+        self,
+        scenarios_to_generate: list[str],
+        concerns: list[str],
+        appointment_type: str,
+        goal: str,
+        dismissed_before: str,
+        user_age: int | None,
+    ) -> str:
+        """Generate LLM suggestions for dismissal scenario responses.
+
+        Returns JSON-formatted scenario suggestions matching the provided scenario titles.
+
+        Args:
+            scenarios_to_generate: List of scenario titles (e.g., ["Provider dismisses concerns"]).
+            concerns: User's prioritized concerns from Step 3.
+            appointment_type: Type of appointment (new_provider or established_relationship).
+            goal: Appointment goal (understand_where_i_am, discuss_starting_hrt, etc.).
+            dismissed_before: Prior dismissal experience (no, once_or_twice, multiple_times).
+            user_age: User's age in years (optional).
+
+        Returns:
+            JSON string with scenario suggestions (parsed by caller).
+
+        Raises:
+            TimeoutError: If the LLM API times out.
+            RuntimeError: If the LLM API returns an error or empty response.
+        """
+        scenarios_text = "\n".join([f"- {s}" for s in scenarios_to_generate])
+        concerns_text = "\n".join([f"- {c}" for c in concerns])
+        age_str = str(user_age) if user_age else "not specified"
+
+        system_prompt = (
+            "You are helping someone practice responses to dismissive comments from healthcare providers. "
+            "Your suggestions are grounded, assertive, and focus on self-advocacy without being confrontational.\n\n"
+            "Rules:\n"
+            "- Generate realistic, assertive response suggestions\n"
+            "- Never recommend medical advice or specific treatments\n"
+            "- Focus on self-advocacy, data presentation, and boundary-setting\n"
+            "- Keep responses concise and suitable for an actual conversation\n"
+            "- Return ONLY a valid JSON array with no markdown, no explanation\n"
+            "- Each object must have: {\"scenario_title\": string, \"suggestion\": string}"
+        )
+
+        user_prompt = (
+            f"Generate suggestions for practicing responses to these dismissal scenarios:\n{scenarios_text}\n\n"
+            f"User context:\n"
+            f"- Appointment type: {appointment_type.replace('_', ' ')}\n"
+            f"- Goal: {goal.replace('_', ' ')}\n"
+            f"- Prior dismissal experience: {dismissed_before.replace('_', ' ')}\n"
+            f"- Age: {age_str}\n"
+            f"- Prioritized concerns: {concerns_text}\n\n"
+            "Return a JSON array where each scenario gets a suggested response:\n"
+            "[{\"scenario_title\": \"...\", \"suggestion\": \"...\"}, ...]"
+        )
+
+        logger.info(
+            "Generating scenario suggestions: count=%d",
+            len(scenarios_to_generate),
+        )
+
+        raw = await self.provider.chat_completion(
+            system_prompt=system_prompt,
+            user_prompt=user_prompt,
+            max_tokens=800,
+            temperature=0.5,
+        )
+
+        logger.info("Scenario suggestions generated: %d characters", len(raw))
+        return raw
+
+    async def generate_pdf_content(
+        self,
+        content_type: str,
+        narrative: str,
+        concerns: list[str],
+        appointment_type: str,
+        goal: str,
+        user_age: int | None,
+    ) -> str:
+        """Generate markdown content for PDF outputs.
+
+        Produces either a provider-facing summary or personal cheat sheet.
+
+        Args:
+            content_type: "provider_summary" or "personal_cheatsheet".
+            narrative: The LLM-generated narrative from Step 2.
+            concerns: User's prioritized concerns from Step 3.
+            appointment_type: Type of appointment (new_provider or established_relationship).
+            goal: Appointment goal (understand_where_i_am, discuss_starting_hrt, etc.).
+            user_age: User's age in years (optional).
+
+        Returns:
+            Markdown string suitable for PDF conversion.
+
+        Raises:
+            TimeoutError: If the LLM API times out.
+            RuntimeError: If the LLM API returns an error or empty response.
+        """
+        concerns_text = "\n".join([f"- {c}" for c in concerns])
+        age_str = str(user_age) if user_age else "not specified"
+
+        if content_type == "provider_summary":
+            system_prompt = (
+                "You are creating a professional one-page clinical summary for a healthcare provider. "
+                "This document will be printed and given to or discussed with the provider.\n\n"
+                "Requirements:\n"
+                "- Professional tone, suitable for a medical setting\n"
+                "- Use 'logs show' and 'data indicates' language\n"
+                "- Never diagnose, suggest causes, or recommend treatments\n"
+                "- Include the symptom narrative and prioritized concerns\n"
+                "- Structure: Title, Patient Context, Symptom Summary, Key Concerns, Conclusion\n"
+                "- Use markdown formatting (# ## - * for structure)\n"
+                "- Keep to ~1–2 pages of markdown"
+            )
+            user_prompt = (
+                f"Create a professional provider summary with this information:\n\n"
+                f"**Symptom Narrative:**\n{narrative}\n\n"
+                f"**Prioritized Concerns:**\n{concerns_text}\n\n"
+                f"**Patient Context:**\n"
+                f"- Appointment type: {appointment_type.replace('_', ' ')}\n"
+                f"- Goal: {goal.replace('_', ' ')}\n"
+                f"- Age: {age_str}\n\n"
+                "Generate a professional one-page summary in markdown format. "
+                "Use 'logs show' language. No diagnoses or treatment recommendations."
+            )
+        else:  # personal_cheatsheet
+            system_prompt = (
+                "You are creating a personal reference document for a patient to use during a healthcare appointment. "
+                "This is private and can use more conversational language.\n\n"
+                "Requirements:\n"
+                "- Personal, empowering tone\n"
+                "- Lists key concerns in order of priority\n"
+                "- Includes talking points and questions\n"
+                "- Acknowledges the frustration of dismissal (if applicable)\n"
+                "- Provides concrete phrases to use ('I need...' 'Can we...' 'I've been tracking...')\n"
+                "- Use markdown formatting (# ## - * for structure)\n"
+                "- Keep to 1–2 pages of markdown"
+            )
+            user_prompt = (
+                f"Create a personal cheat sheet for an appointment with this information:\n\n"
+                f"**Symptom Summary:**\n{narrative}\n\n"
+                f"**Your Top Priorities (in order):**\n{concerns_text}\n\n"
+                f"**About This Appointment:**\n"
+                f"- Type: {appointment_type.replace('_', ' ')}\n"
+                f"- What you want: {goal.replace('_', ' ')}\n"
+                f"- Age: {age_str}\n\n"
+                "Generate a personal, empowering cheat sheet in markdown. "
+                "Include concrete phrases to use. Focus on self-advocacy and data presentation."
+            )
+
+        logger.info("Generating PDF content: type=%s", content_type)
+
+        content = await self.provider.chat_completion(
+            system_prompt=system_prompt,
+            user_prompt=user_prompt,
+            max_tokens=1200,
+            temperature=0.6,
+        )
+
+        logger.info("PDF content generated: type=%s length=%d", content_type, len(content))
+        return content

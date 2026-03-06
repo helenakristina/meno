@@ -231,3 +231,97 @@ class AppointmentPrepNarrativeResponse(BaseModel):
         default="prioritize",
         description="Next step in the flow (always 'prioritize' after Step 2)",
     )
+
+
+# ============================================================================
+# Step 3: Prioritize Concerns
+# ============================================================================
+
+
+class PrioritizeConcernsRequest(BaseModel):
+    """
+    Request model for PUT /api/appointment-prep/{id}/prioritize (Step 3).
+
+    User submits their prioritized concerns in ranked order.
+    """
+
+    concerns: list[str] = Field(
+        min_length=1,
+        description="Ordered list of prioritized concerns (non-empty)",
+    )
+
+
+class AppointmentPrepPrioritizeResponse(BaseModel):
+    """
+    Response model for PUT /api/appointment-prep/{id}/prioritize (Step 3).
+
+    Confirms concerns were saved and indicates next step.
+    """
+
+    appointment_id: str = Field(description="UUID of the appointment context")
+    concerns: list[str] = Field(description="Saved prioritized concerns")
+    next_step: str = Field(
+        default="scenarios",
+        description="Next step in the flow (always 'scenarios' after Step 3)",
+    )
+
+
+# ============================================================================
+# Step 4: Generate Scenarios
+# ============================================================================
+
+
+class ScenarioCard(BaseModel):
+    """
+    A single scenario card for practice responses.
+
+    Represents one dismissal situation and a suggested response.
+    """
+
+    id: str = Field(description="Unique scenario ID (e.g. 'scenario-1')")
+    title: str = Field(description="Short title (e.g. 'Provider dismisses concerns')")
+    situation: str = Field(
+        description="The dismissal scenario text (e.g. 'If your provider says...')"
+    )
+    suggestion: str = Field(
+        description="LLM-generated response suggestion for this scenario"
+    )
+    category: str = Field(
+        description="Scenario category: dismissal, hrt-concerns, side-effects, validation, general"
+    )
+
+
+class AppointmentPrepScenariosResponse(BaseModel):
+    """
+    Response model for POST /api/appointment-prep/{id}/scenarios (Step 4).
+
+    Returns generated scenario cards and next step.
+    """
+
+    appointment_id: str = Field(description="UUID of the appointment context")
+    scenarios: list[ScenarioCard] = Field(description="List of generated scenario cards")
+    next_step: str = Field(
+        default="generate",
+        description="Next step in the flow (always 'generate' after Step 4)",
+    )
+
+
+# ============================================================================
+# Step 5: Generate Outputs
+# ============================================================================
+
+
+class AppointmentPrepGenerateResponse(BaseModel):
+    """
+    Response model for POST /api/appointment-prep/{id}/generate (Step 5).
+
+    Returns URLs to the generated PDF outputs.
+    """
+
+    appointment_id: str = Field(description="UUID of the appointment context")
+    provider_summary_url: str = Field(description="Public URL to provider summary PDF")
+    personal_cheat_sheet_url: str = Field(description="Public URL to personal cheat sheet PDF")
+    message: str = Field(
+        default="Your appointment prep is ready!",
+        description="Confirmation message",
+    )

@@ -15,6 +15,7 @@ from app.services.llm import LLMService
 from app.services.llm_base import LLMProvider
 from app.services.openai_provider import OpenAIProvider
 from app.services.citations import CitationService
+from app.services.storage import StorageService
 
 logger = logging.getLogger(__name__)
 
@@ -171,3 +172,15 @@ def get_citation_service() -> CitationService:
         CitationService instance for citation extraction and sanitization.
     """
     return CitationService()
+
+
+def get_storage_service(client: AsyncClient = Depends(get_client)) -> StorageService:
+    """Dependency for StorageService.
+
+    Args:
+        client: Supabase AsyncClient.
+
+    Returns:
+        StorageService instance for file uploads.
+    """
+    return StorageService(client=client)
