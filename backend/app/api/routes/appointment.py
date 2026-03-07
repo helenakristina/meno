@@ -917,54 +917,63 @@ async def generate_appointment_outputs(
 def _select_scenarios(context: AppointmentContext, journey_stage: str) -> list[str]:
     """Select 5-7 scenarios based on appointment context.
 
-    Returns a list of dismissal scenario titles to generate suggestions for.
+    Uses real dismissals that women experience with healthcare providers,
+    selected based on appointment goal and prior dismissal experience.
 
     Args:
         context: AppointmentContext with appointment_type, goal, dismissed_before.
         journey_stage: User's journey stage (exploration, preparation, transition, active).
 
     Returns:
-        List of 5-7 scenario titles.
+        List of 5-7 scenario titles (real dismissals).
     """
     scenarios = []
 
-    # Add goal-specific scenarios
+    # Goal-specific scenarios (what providers commonly dismiss based on what you're asking for)
     if context.goal.value == "explore_hrt":
         scenarios.extend(
             [
-                "That's too much to be perimenopause — you're too young",
-                "Hormone therapy is dangerous",
+                "Hormone therapy increases breast cancer risk",
+                "I don't prescribe that, I give the birth control pill instead",
                 "Let's try an antidepressant first",
             ]
         )
     elif context.goal.value == "optimize_current_treatment":
         scenarios.extend(
             [
-                "Your symptoms are normal — just deal with it",
-                "That dose is already high",
-                "You don't need to change anything",
+                "Your symptoms aren't severe enough to treat",
+                "That dose is already too high",
+                "Let's try lifestyle changes first",
+            ]
+        )
+    elif context.goal.value == "assess_status":
+        scenarios.extend(
+            [
+                "Your symptoms will go away on their own",
+                "You're just stressed or anxious",
             ]
         )
 
-    # Add dismissal experience-specific scenarios
+    # Dismissal experience-specific scenarios
     if context.dismissed_before.value == "multiple_times":
         scenarios.extend(
             [
-                "You're overreacting about your symptoms",
-                "I don't think your symptoms are that bad",
+                "You're too old to start hormone therapy",
+                "What are the triggers?",
+            ]
+        )
+    elif context.dismissed_before.value == "once_or_twice":
+        scenarios.extend(
+            [
+                "What are the triggers?",
             ]
         )
 
-    # Always add universal scenarios
-    scenarios.extend(
-        [
-            "Provider dismisses your concerns",
-            "Provider minimizes the impact on your life",
-        ]
-    )
+    # Cap at 7 scenarios, ensuring diversity
+    # Deduplicate and limit
+    scenarios = list(dict.fromkeys(scenarios))[:7]
 
-    # Cap at 7 scenarios
-    return scenarios[:7]
+    return scenarios
 
 
 def _get_scenario_category(title: str) -> str:
@@ -974,17 +983,23 @@ def _get_scenario_category(title: str) -> str:
         title: Scenario title text.
 
     Returns:
-        Category string (dismissal, hrt-concerns, side-effects, validation, general).
+        Category string for frontend grouping (hrt-concerns, dismissal-psychology,
+        alternative-treatment, treatment-adjustment, deflection, dismissal, general).
     """
     title_lower = title.lower()
-    if "dismisses" in title_lower or "overreacting" in title_lower:
-        return "dismissal"
-    elif "hrt" in title_lower or "hormone" in title_lower:
+
+    if "breast cancer" in title_lower or "hormone therapy increases" in title_lower:
         return "hrt-concerns"
-    elif "danger" in title_lower or "risk" in title_lower:
-        return "side-effects"
-    elif "validate" in title_lower or "understand" in title_lower:
-        return "validation"
+    elif "antidepressant" in title_lower or "stressed" in title_lower or "anxious" in title_lower:
+        return "dismissal-psychology"
+    elif "birth control" in title_lower or "pill" in title_lower:
+        return "alternative-treatment"
+    elif "dose" in title_lower or "high" in title_lower or "severe" in title_lower:
+        return "treatment-adjustment"
+    elif "triggers" in title_lower or "lifestyle" in title_lower:
+        return "deflection"
+    elif "too old" in title_lower or "go away" in title_lower:
+        return "dismissal"
     else:
         return "general"
 
