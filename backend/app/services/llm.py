@@ -274,27 +274,44 @@ class LLMService:
         age_str = str(user_age) if user_age else "not specified"
 
         system_prompt = (
-            "You are helping someone practice responses to dismissive comments from healthcare providers. "
-            "Your suggestions are grounded, assertive, and focus on self-advocacy without being confrontational.\n\n"
-            "Rules:\n"
-            "- Generate realistic, assertive response suggestions\n"
-            "- Never recommend medical advice or specific treatments\n"
-            "- Focus on self-advocacy, data presentation, and boundary-setting\n"
-            "- Keep responses concise and suitable for an actual conversation\n"
+            "You are helping a woman prepare for a healthcare appointment about perimenopause or menopause. "
+            "Your role is to help her respond to common dismissals she might encounter from healthcare providers.\n\n"
+            "Guidelines:\n"
+            "- Ground responses in current evidence and research (NAMS guidelines, peer-reviewed studies, major medical organizations)\n"
+            "- Address the specific dismissal directly and acknowledge the provider's perspective\n"
+            "- Provide concrete language she can use in the appointment\n"
+            "- Reference specific research/statistics when relevant (e.g., 'Research shows...', 'The NAMS guidelines state...')\n"
+            "- Never diagnose or prescribe, but DO reference evidence-based information\n"
+            "- Empower her to advocate for herself\n"
+            "- Acknowledge her experience and validate her concerns\n"
+            "- Make responses conversational and natural (2-3 sentences max)\n"
             "- Return ONLY a valid JSON array with no markdown, no explanation\n"
             "- Each object must have: {\"scenario_title\": string, \"suggestion\": string}"
         )
 
         user_prompt = (
-            f"Generate suggestions for practicing responses to these dismissal scenarios:\n{scenarios_text}\n\n"
-            f"User context:\n"
-            f"- Appointment type: {appointment_type.replace('_', ' ')}\n"
-            f"- Goal: {goal.replace('_', ' ')}\n"
-            f"- Prior dismissal experience: {dismissed_before.replace('_', ' ')}\n"
+            f"A woman is preparing for an appointment and may encounter these dismissals from her provider:\n\n"
+            f"{scenarios_text}\n\n"
+            f"Her context:\n"
             f"- Age: {age_str}\n"
-            f"- Prioritized concerns: {concerns_text}\n\n"
-            "Return a JSON array where each scenario gets a suggested response:\n"
-            "[{\"scenario_title\": \"...\", \"suggestion\": \"...\"}, ...]"
+            f"- Appointment type: {appointment_type.replace('_', ' ')}\n"
+            f"- What she wants to accomplish: {goal.replace('_', ' ')}\n"
+            f"- Prior dismissal experience: {dismissed_before.replace('_', ' ')}\n"
+            f"- Her top concerns (in order):\n{concerns_text}\n\n"
+            f"For EACH dismissal scenario above, generate a response she could use in her appointment. Each response should:\n\n"
+            f"1. Acknowledge the provider's perspective/concern\n"
+            f"2. Reference relevant evidence or guidelines (be specific—cite research, statistics, organization names like NAMS)\n"
+            f"3. Redirect toward evidence-based options for her specific situation\n"
+            f"4. Use conversational 'I' statements ('I understand...', 'I've read...', 'Can we...')\n"
+            f"5. Be 2-3 sentences MAXIMUM (she needs to say this in an appointment)\n"
+            f"6. Empower her to advocate for herself without being confrontational\n\n"
+            f"Examples of good responses for perimenopause/menopause:\n"
+            f"- \"I understand the concern about breast cancer risk. Recent NAMS research shows the risk varies based on individual factors. Can we discuss which risk factors apply to me?\"\n"
+            f"- \"I appreciate your suggestion, but the NAMS guidelines recommend discussing hormone therapy options for my symptoms. Would you be willing to review those with me?\"\n"
+            f"- \"I've read that hot flashes aren't just a normal part of aging—they're a treatable medical symptom. What options do you recommend for my situation?\"\n"
+            f"- \"I understand wanting to try lifestyle changes, but my symptoms are significantly impacting my quality of life. Can we discuss all available options?\"\n\n"
+            f"Return a JSON array with one suggestion per scenario:\n"
+            f"[{{\"scenario_title\": \"...\", \"suggestion\": \"...\"}}, ...]"
         )
 
         logger.info(
@@ -305,8 +322,8 @@ class LLMService:
         raw = await self.provider.chat_completion(
             system_prompt=system_prompt,
             user_prompt=user_prompt,
-            max_tokens=800,
-            temperature=0.5,
+            max_tokens=1200,
+            temperature=0.6,
         )
 
         logger.info("Scenario suggestions generated: %d characters", len(raw))
