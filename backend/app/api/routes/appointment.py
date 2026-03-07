@@ -240,9 +240,7 @@ async def generate_appointment_narrative(
         )
 
     # Convert SymptomLogResponse objects to dicts with raw symptom IDs for stats calculation
-    raw_logs = [
-        {"symptoms": [sym.id for sym in log.symptoms]} for log in logs
-    ]
+    raw_logs = [{"symptoms": [sym.id for sym in log.symptoms]} for log in logs]
 
     # Fetch symptoms reference for stat calculations
     try:
@@ -255,7 +253,11 @@ async def generate_appointment_narrative(
                 .in_("id", list(symptom_ids))
                 .execute()
             )
-            response_data = response.data if response.data and isinstance(response.data, list) else []
+            response_data = (
+                response.data
+                if response.data and isinstance(response.data, list)
+                else []
+            )
             symptoms_ref = {
                 row["id"]: {"name": row["name"], "category": row["category"]}
                 for row in response_data
@@ -664,7 +666,9 @@ async def generate_appointment_scenarios(
             }
             for card in scenario_cards
         ]
-        await appointment_repo.save_scenarios(appointment_id, user_id, scenarios_to_save)
+        await appointment_repo.save_scenarios(
+            appointment_id, user_id, scenarios_to_save
+        )
     except HTTPException:
         raise
     except Exception as exc:
@@ -785,8 +789,8 @@ async def generate_appointment_outputs(
         )
 
     # Ensure narrative and concerns are proper types
-    narrative_text = narrative if isinstance(narrative, str) else str(narrative)
-    concerns_list = concerns if isinstance(concerns, list) else []
+    narrative_text: str = narrative if isinstance(narrative, str) else str(narrative)
+    concerns_list: list = concerns if isinstance(concerns, list) else []
 
     # Generate provider summary
     try:
@@ -925,31 +929,39 @@ def _select_scenarios(context: AppointmentContext, journey_stage: str) -> list[s
     scenarios = []
 
     # Add goal-specific scenarios
-    if context.goal.value == "discuss_starting_hrt":
-        scenarios.extend([
-            "That's too much to be perimenopause — you're too young",
-            "Hormone therapy is dangerous",
-            "Let's try an antidepressant first",
-        ])
-    elif context.goal.value == "evaluate_current_treatment":
-        scenarios.extend([
-            "Your symptoms are normal — just deal with it",
-            "That dose is already high",
-            "You don't need to change anything",
-        ])
+    if context.goal.value == "explore_hrt":
+        scenarios.extend(
+            [
+                "That's too much to be perimenopause — you're too young",
+                "Hormone therapy is dangerous",
+                "Let's try an antidepressant first",
+            ]
+        )
+    elif context.goal.value == "optimize_current_treatment":
+        scenarios.extend(
+            [
+                "Your symptoms are normal — just deal with it",
+                "That dose is already high",
+                "You don't need to change anything",
+            ]
+        )
 
     # Add dismissal experience-specific scenarios
     if context.dismissed_before.value == "multiple_times":
-        scenarios.extend([
-            "You're overreacting about your symptoms",
-            "I don't think your symptoms are that bad",
-        ])
+        scenarios.extend(
+            [
+                "You're overreacting about your symptoms",
+                "I don't think your symptoms are that bad",
+            ]
+        )
 
     # Always add universal scenarios
-    scenarios.extend([
-        "Provider dismisses your concerns",
-        "Provider minimizes the impact on your life",
-    ])
+    scenarios.extend(
+        [
+            "Provider dismisses your concerns",
+            "Provider minimizes the impact on your life",
+        ]
+    )
 
     # Cap at 7 scenarios
     return scenarios[:7]
@@ -984,16 +996,16 @@ def _inline_md(text: str) -> str:
     Process bold-italic first to avoid partial matches.
     """
     # Bold italic: ***text*** or ___text___
-    text = re.sub(r'\*{3}(.+?)\*{3}', r'<b><i>\1</i></b>', text)
-    text = re.sub(r'_{3}(.+?)_{3}', r'<b><i>\1</i></b>', text)
+    text = re.sub(r"\*{3}(.+?)\*{3}", r"<b><i>\1</i></b>", text)
+    text = re.sub(r"_{3}(.+?)_{3}", r"<b><i>\1</i></b>", text)
     # Bold: **text** or __text__
-    text = re.sub(r'\*{2}(.+?)\*{2}', r'<b>\1</b>', text)
-    text = re.sub(r'_{2}(.+?)_{2}', r'<b>\1</b>', text)
+    text = re.sub(r"\*{2}(.+?)\*{2}", r"<b>\1</b>", text)
+    text = re.sub(r"_{2}(.+?)_{2}", r"<b>\1</b>", text)
     # Italic: *text* or _text_
-    text = re.sub(r'\*(.+?)\*', r'<i>\1</i>', text)
-    text = re.sub(r'_(.+?)_', r'<i>\1</i>', text)
+    text = re.sub(r"\*(.+?)\*", r"<i>\1</i>", text)
+    text = re.sub(r"_(.+?)_", r"<i>\1</i>", text)
     # Inline code: `text`
-    text = re.sub(r'`(.+?)`', r'<font face="Courier">\1</font>', text)
+    text = re.sub(r"`(.+?)`", r'<font face="Courier">\1</font>', text)
     return text
 
 
@@ -1099,10 +1111,12 @@ def _markdown_to_pdf(markdown_text: str, title: str = "") -> bytes:
             story.append(Paragraph(_inline_md(stripped[2:]), h1_style))
         elif stripped.startswith("- ") or stripped.startswith("* "):
             story.append(Paragraph(f"• {_inline_md(stripped[2:])}", bullet_style))
-        elif re.match(r'^\d+\. ', stripped):
-            m = re.match(r'^(\d+)\. (.+)', stripped)
+        elif re.match(r"^\d+\. ", stripped):
+            m = re.match(r"^(\d+)\. (.+)", stripped)
             if m:
-                story.append(Paragraph(f"{m.group(1)}. {_inline_md(m.group(2))}", numbered_style))
+                story.append(
+                    Paragraph(f"{m.group(1)}. {_inline_md(m.group(2))}", numbered_style)
+                )
         elif stripped in ("---", "***", "___"):
             story.append(Spacer(1, 0.08 * inch))
         else:

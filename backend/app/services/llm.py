@@ -258,7 +258,7 @@ class LLMService:
             scenarios_to_generate: List of scenario titles (e.g., ["Provider dismisses concerns"]).
             concerns: User's prioritized concerns from Step 3.
             appointment_type: Type of appointment (new_provider or established_relationship).
-            goal: Appointment goal (understand_where_i_am, discuss_starting_hrt, etc.).
+            goal: Appointment goal (assess_status, explore_hrt, etc.).
             dismissed_before: Prior dismissal experience (no, once_or_twice, multiple_times).
             user_age: User's age in years (optional).
 
@@ -330,7 +330,7 @@ class LLMService:
             narrative: The LLM-generated narrative from Step 2.
             concerns: User's prioritized concerns from Step 3.
             appointment_type: Type of appointment (new_provider or established_relationship).
-            goal: Appointment goal (understand_where_i_am, discuss_starting_hrt, etc.).
+            goal: Appointment goal (assess_status, explore_hrt, etc.).
             user_age: User's age in years (optional).
 
         Returns:

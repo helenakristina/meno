@@ -23,10 +23,10 @@ class AppointmentType(str, Enum):
 class AppointmentGoal(str, Enum):
     """Primary goal for the appointment."""
 
-    understand_where_i_am = "understand_where_i_am"
-    discuss_starting_hrt = "discuss_starting_hrt"
-    evaluate_current_treatment = "evaluate_current_treatment"
-    address_specific_symptom = "address_specific_symptom"
+    assess_status = "assess_status"
+    explore_hrt = "explore_hrt"
+    optimize_current_treatment = "optimize_current_treatment"
+    urgent_symptom = "urgent_symptom"
 
 
 class DismissalExperience(str, Enum):

@@ -282,12 +282,12 @@ This is the flagship V2 feature. Build it great.
 - **File:** `backend/app/api/routes/appointment.py`
 - **Effort:** 4 hours
 - **Checklist:**
-  - [ ] Endpoint created
-  - [ ] Calls SymptomsRepository to get logs
-  - [ ] Calls stats service to calculate patterns
-  - [ ] Calls LLMService to write narrative
-  - [ ] Handles edge cases (no logs, no patterns)
-  - [ ] Tests pass
+  - [x] Endpoint created
+  - [x] Calls SymptomsRepository to get logs
+  - [x] Calls stats service to calculate patterns
+  - [x] Calls LLMService to write narrative
+  - [x] Handles edge cases (no logs, no patterns)
+  - [x] Tests pass
 
 #### Task 2.2.3: Step 3 — Prioritize Concerns API
 

@@ -83,7 +83,7 @@ def make_mock_client(
                 "id": created_context_id,
                 "user_id": "test-user-uuid",
                 "appointment_type": "new_provider",
-                "goal": "discuss_starting_hrt",
+                "goal": "explore_hrt",
                 "dismissed_before": "once_or_twice",
             }
         ]
@@ -107,7 +107,7 @@ AUTH_HEADER = {"Authorization": "Bearer valid-jwt-token"}
 
 VALID_PAYLOAD = {
     "appointment_type": "new_provider",
-    "goal": "discuss_starting_hrt",
+    "goal": "explore_hrt",
     "dismissed_before": "once_or_twice",
 }
 
@@ -152,7 +152,7 @@ class TestCreateAppointmentContext:
             with TestClient(app) as client:
                 payload = {
                     "appointment_type": "invalid_type",
-                    "goal": "discuss_starting_hrt",
+                    "goal": "explore_hrt",
                     "dismissed_before": "once_or_twice",
                 }
                 response = client.post(
@@ -195,7 +195,7 @@ class TestCreateAppointmentContext:
             with TestClient(app) as client:
                 payload = {
                     "appointment_type": "new_provider",
-                    "goal": "discuss_starting_hrt",
+                    "goal": "explore_hrt",
                     "dismissed_before": "invalid",
                 }
                 response = client.post(
@@ -290,7 +290,7 @@ class TestCreateAppointmentContext:
                 with TestClient(app) as client:
                     payload = {
                         "appointment_type": appt_type,
-                        "goal": "discuss_starting_hrt",
+                        "goal": "explore_hrt",
                         "dismissed_before": "once_or_twice",
                     }
                     response = client.post(
@@ -307,10 +307,10 @@ class TestCreateAppointmentContext:
     def test_create_context_all_goals(self):
         """Test creating context with each valid goal."""
         goals = [
-            "understand_where_i_am",
-            "discuss_starting_hrt",
-            "evaluate_current_treatment",
-            "address_specific_symptom",
+            "assess_status",
+            "explore_hrt",
+            "optimize_current_treatment",
+            "urgent_symptom",
         ]
         for goal in goals:
             mock = make_mock_client()
@@ -342,7 +342,7 @@ class TestCreateAppointmentContext:
                 with TestClient(app) as client:
                     payload = {
                         "appointment_type": "new_provider",
-                        "goal": "discuss_starting_hrt",
+                        "goal": "explore_hrt",
                         "dismissed_before": experience,
                     }
                     response = client.post(
@@ -364,7 +364,7 @@ class TestCreateAppointmentContext:
                 # Missing dismissed_before
                 payload = {
                     "appointment_type": "new_provider",
-                    "goal": "discuss_starting_hrt",
+                    "goal": "explore_hrt",
                 }
                 response = client.post(
                     "/api/appointment-prep/context",
@@ -432,7 +432,7 @@ class TestGenerateAppointmentNarrative:
                                 "id": CONTEXT_ID,
                                 "user_id": "test-user-uuid",
                                 "appointment_type": "new_provider",
-                                "goal": "discuss_starting_hrt",
+                                "goal": "explore_hrt",
                                 "dismissed_before": "once_or_twice",
                                 "narrative": None,
                             }

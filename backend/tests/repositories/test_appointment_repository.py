@@ -77,7 +77,7 @@ async def test_save_context_success():
                     "id": created_id,
                     "user_id": "user-123",
                     "appointment_type": "new_provider",
-                    "goal": "discuss_starting_hrt",
+                    "goal": "explore_hrt",
                     "dismissed_before": "once_or_twice",
                 }
             ]
@@ -87,7 +87,7 @@ async def test_save_context_success():
 
     context = AppointmentContext(
         appointment_type=AppointmentType.new_provider,
-        goal=AppointmentGoal.discuss_starting_hrt,
+        goal=AppointmentGoal.explore_hrt,
         dismissed_before=DismissalExperience.once_or_twice,
     )
 
@@ -107,7 +107,7 @@ async def test_save_context_db_error():
 
     context = AppointmentContext(
         appointment_type=AppointmentType.new_provider,
-        goal=AppointmentGoal.discuss_starting_hrt,
+        goal=AppointmentGoal.explore_hrt,
         dismissed_before=DismissalExperience.once_or_twice,
     )
 
@@ -126,7 +126,7 @@ async def test_save_context_no_data_returned():
 
     context = AppointmentContext(
         appointment_type=AppointmentType.new_provider,
-        goal=AppointmentGoal.discuss_starting_hrt,
+        goal=AppointmentGoal.explore_hrt,
         dismissed_before=DismissalExperience.once_or_twice,
     )
 
@@ -152,7 +152,7 @@ async def test_get_context_success():
                     "id": appointment_id,
                     "user_id": "user-123",
                     "appointment_type": "new_provider",
-                    "goal": "discuss_starting_hrt",
+                    "goal": "explore_hrt",
                     "dismissed_before": "once_or_twice",
                 }
             ]
@@ -164,7 +164,7 @@ async def test_get_context_success():
 
     assert isinstance(result, AppointmentContext)
     assert result.appointment_type == AppointmentType.new_provider
-    assert result.goal == AppointmentGoal.discuss_starting_hrt
+    assert result.goal == AppointmentGoal.explore_hrt
     assert result.dismissed_before == DismissalExperience.once_or_twice
 
 
