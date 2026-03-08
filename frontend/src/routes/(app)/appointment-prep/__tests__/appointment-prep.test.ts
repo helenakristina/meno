@@ -21,7 +21,7 @@ describe('Appointment Prep — Context schema (Step 1)', () => {
 	it('accepts valid context', () => {
 		const result = contextSchema.safeParse({
 			appointment_type: AppointmentType.new_provider,
-			goal: AppointmentGoal.discuss_starting_hrt,
+			goal: AppointmentGoal.explore_hrt,
 			dismissed_before: DismissalExperience.once_or_twice,
 		});
 		expect(result.success).toBe(true);
@@ -64,7 +64,7 @@ describe('Appointment Prep — Context schema (Step 1)', () => {
 		for (const type of Object.values(AppointmentType)) {
 			const result = contextSchema.safeParse({
 				appointment_type: type,
-				goal: AppointmentGoal.understand_where_i_am,
+				goal: AppointmentGoal.assess_status,
 				dismissed_before: DismissalExperience.no,
 			});
 			expect(result.success).toBe(true);
@@ -86,7 +86,7 @@ describe('Appointment Prep — Context schema (Step 1)', () => {
 		for (const dismissed of Object.values(DismissalExperience)) {
 			const result = contextSchema.safeParse({
 				appointment_type: AppointmentType.new_provider,
-				goal: AppointmentGoal.discuss_starting_hrt,
+				goal: AppointmentGoal.explore_hrt,
 				dismissed_before: dismissed,
 			});
 			expect(result.success).toBe(true);
@@ -136,8 +136,8 @@ describe('Appointment Prep — Default concerns (Step 3)', () => {
 		}
 	});
 
-	it('returns hrt-specific defaults for discuss_starting_hrt goal', () => {
-		const defaults = DEFAULT_CONCERNS[AppointmentGoal.discuss_starting_hrt];
+	it('returns hrt-specific defaults for explore_hrt goal', () => {
+		const defaults = DEFAULT_CONCERNS[AppointmentGoal.explore_hrt];
 		const hasHrtContent = defaults.some(
 			(c) => c.toLowerCase().includes('hormone') || c.toLowerCase().includes('hrt')
 		);
