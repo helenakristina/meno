@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { fly, fade } from 'svelte/transition';
+	import { goto } from '$app/navigation';
 	import { supabase } from '$lib/supabase/client';
 	import { apiClient } from '$lib/api/client';
 	import { SkeletonLoader } from '$lib/components/shared';
@@ -94,9 +95,8 @@
 		}
 	}
 
-	function resetForm() {
-		success = false;
-		error = '';
+	function goToDashboard() {
+		goto('/dashboard');
 	}
 </script>
 
@@ -135,10 +135,10 @@
 			<h2 class="text-xl font-semibold text-emerald-800">Log saved!</h2>
 			<p class="mt-1 text-sm text-emerald-700">Your symptoms have been recorded for today.</p>
 			<button
-				onclick={resetForm}
+				onclick={goToDashboard}
 				class="mt-6 rounded-lg border border-emerald-300 bg-white px-5 py-2.5 text-sm font-medium text-emerald-800 transition-colors hover:bg-emerald-50"
 			>
-				Log more symptoms
+				Go to Dashboard
 			</button>
 		</section>
 	{:else if loadingSymptoms}
