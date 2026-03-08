@@ -157,9 +157,7 @@
 	function handleKeydown(e: KeyboardEvent) {
 		if (e.key === 'Enter' && !e.shiftKey) {
 			e.preventDefault();
-			// Submit the form by finding and clicking the button
-			const submitBtn = document.querySelector('form button[type="submit"]') as HTMLButtonElement;
-			submitBtn?.click();
+			onSubmit();
 		}
 	}
 
