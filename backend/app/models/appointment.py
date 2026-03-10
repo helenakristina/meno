@@ -291,15 +291,19 @@ class ScenarioCard(BaseModel):
     """
 
     id: str = Field(description="Unique scenario ID (e.g. 'scenario-1')")
-    title: str = Field(description="Short title (e.g. 'Provider dismisses concerns')")
+    title: str = Field(description="The dismissal scenario (e.g. 'Brain fog is just normal aging')")
     situation: str = Field(
         description="The dismissal scenario text (e.g. 'If your provider says...')"
     )
     suggestion: str = Field(
-        description="LLM-generated response suggestion for this scenario"
+        description="LLM-generated response suggestion with evidence-based language and source links"
     )
     category: str = Field(
-        description="Scenario category: dismissal, hrt-concerns, side-effects, validation, general"
+        description="Scenario category based on dismissal type"
+    )
+    sources: list[str] = Field(
+        default_factory=list,
+        description="URLs referenced in the suggestion (e.g., NAMS links)"
     )
 
 

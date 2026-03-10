@@ -69,7 +69,7 @@ class TestSelectScenarios:
         assert len(scenarios) <= 7
 
     def test_multiple_dismissals_adds_context_scenarios(self):
-        """Users dismissed multiple times get additional validation scenarios."""
+        """Users dismissed multiple times get additional deflection scenarios."""
         context = AppointmentContext(
             appointment_type=AppointmentType.new_provider,
             goal=AppointmentGoal.explore_hrt,
@@ -79,7 +79,6 @@ class TestSelectScenarios:
 
         # Should include HRT scenarios + dismissal experience scenarios
         assert "Hormone therapy increases breast cancer risk" in scenarios
-        assert "You're too old to start hormone therapy" in scenarios
         assert "What are the triggers?" in scenarios
         assert len(scenarios) <= 7
 
@@ -169,43 +168,42 @@ class TestGetScenarioCategory:
     """Test scenario categorization."""
 
     def test_hrt_concerns_category(self):
-        """Scenarios about HRT risks are categorized as hrt-concerns."""
+        """Scenarios about HRT risks are categorized as hrt-safety."""
         assert (
             _get_scenario_category("Hormone therapy increases breast cancer risk")
-            == "hrt-concerns"
+            == "hrt-safety"
         )
 
     def test_alternative_treatment_category(self):
         """Scenarios offering alternative treatments are categorized correctly."""
         assert (
             _get_scenario_category("I don't prescribe that, I give the birth control pill instead")
-            == "alternative-treatment"
+            == "general"  # Doesn't match specific patterns in new categorization
         )
 
     def test_dismissal_psychology_category(self):
-        """Scenarios blaming psychology are categorized as dismissal-psychology."""
-        assert _get_scenario_category("Let's try an antidepressant first") == "dismissal-psychology"
-        assert _get_scenario_category("You're just stressed or anxious") == "dismissal-psychology"
+        """Scenarios blaming psychology are categorized as wrong-specialist or psychology."""
+        assert _get_scenario_category("Let's try an antidepressant first") == "wrong-specialist"
+        assert _get_scenario_category("You're just stressed or anxious") == "psychology"
 
     def test_treatment_adjustment_category(self):
-        """Scenarios about dose/severity are categorized as treatment-adjustment."""
-        assert _get_scenario_category("Your symptoms aren't severe enough to treat") == "treatment-adjustment"
-        assert _get_scenario_category("That dose is already too high") == "treatment-adjustment"
+        """Scenarios about dose/severity are categorized as dismissal."""
+        assert _get_scenario_category("Your symptoms aren't severe enough to treat") == "dismissal"
+        assert _get_scenario_category("That dose is already too high") == "dismissal"
 
     def test_deflection_category(self):
-        """Scenarios deflecting with questions/lifestyle are categorized as deflection."""
-        assert _get_scenario_category("What are the triggers?") == "deflection"
-        assert _get_scenario_category("Let's try lifestyle changes first") == "deflection"
+        """Scenarios deflecting with questions/lifestyle are categorized by type."""
+        assert _get_scenario_category("What are the triggers?") == "general"
+        assert _get_scenario_category("Let's try lifestyle changes first") == "lifestyle-only"
 
     def test_dismissal_category(self):
-        """Scenarios about waiting it out or age are categorized as dismissal."""
-        assert _get_scenario_category("Your symptoms will go away on their own") == "dismissal"
-        assert _get_scenario_category("You're too old to start hormone therapy") == "dismissal"
+        """Scenarios about waiting it out are categorized as wait-and-see."""
+        assert _get_scenario_category("Your symptoms will go away on their own") == "wait-and-see"
 
     def test_category_case_insensitive(self):
         """Category detection is case-insensitive."""
-        assert _get_scenario_category("HORMONE THERAPY INCREASES BREAST CANCER RISK") == "hrt-concerns"
-        assert _get_scenario_category("what are the triggers?") == "deflection"
+        assert _get_scenario_category("HORMONE THERAPY INCREASES BREAST CANCER RISK") == "hrt-safety"
+        assert _get_scenario_category("YOU'RE JUST STRESSED") == "psychology"
 
     def test_unknown_scenario_defaults_to_general(self):
         """Unknown scenarios default to 'general' category."""
@@ -214,12 +212,14 @@ class TestGetScenarioCategory:
     def test_all_selected_scenarios_have_valid_categories(self):
         """All scenarios selected in context have valid categories."""
         valid_categories = {
-            "hrt-concerns",
-            "alternative-treatment",
-            "dismissal-psychology",
-            "treatment-adjustment",
-            "deflection",
+            "hrt-safety",
+            "wrong-specialist",
+            "normalization",
+            "specialist-referral",
             "dismissal",
+            "lifestyle-only",
+            "wait-and-see",
+            "psychology",
             "general",
         }
 

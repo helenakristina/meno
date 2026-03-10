@@ -1,100 +1,137 @@
-I'm building the Appointment Prep Flow feature for Meno V2 (outlined in docs/dev/DESIGN.md section 15).
+I'm removing the fake/hallucinated URLs from scenario suggestions. We'll keep strong evidence-based language but remove citations until we have proper RAG.
 
-This task covers the data model and database schema for Appointment Prep.
+## What Changed
 
-## Reference Documents
-- **Code Standards:** Use patterns from docs/dev/backend/V2CODE_EXAMPLES.md (repositories, DI, type hints)
-- **Backend Standards:** Follow CLAUDE.md for Pydantic models, docstrings, and best practices
-- **Feature Design:** See docs/dev/DESIGN.md section 15 (Appointment Prep Flow)
+Remove all URL generation from scenario suggestions. Keep the evidence-based claims, just don't cite fake sources.
 
-## Task 2.1.1: Create Data Models
+## File: `backend/app/services/llm.py`
 
-**File:** `backend/app/models/appointment.py`
+In `generate_scenario_suggestions()`, replace the user_prompt:
+```python
+user_prompt = f"""Generate a confident, evidence-based response for this dismissal scenario.
 
-Create Pydantic models for:
+CONTEXT: Patient's urgent concern is: {goal}
 
-1. **AppointmentContext** — User's selections from Step 1
-   - `appointment_type`: enum (new_provider, established_relationship)
-   - `goal`: enum (understand_where_i_am, discuss_starting_hrt, evaluate_current_treatment, address_specific_symptom)
-   - `dismissed_before`: enum (no, once_or_twice, multiple_times)
+DISMISSAL: "{scenario_title}"
 
-2. **AppointmentPrep** — Full appointment prep data
-   - `user_id`: str (UUID)
-   - `context`: AppointmentContext
-   - `narrative`: str (LLM-generated summary of symptoms, editable by user)
-   - `concerns`: list[str] (prioritized list of concerns from user)
-   - `scenarios`: list[dict] (scenario cards with suggestions)
-   - `created_at`: datetime
-   - `updated_at`: datetime
+Patient Context:
+- Appointment type: {appointment_type}
+- Her concerns: {', '.join(concerns) if concerns else 'Not specified'}
 
-3. **ProviderSummary** — One-page clinical overview
-   - `content`: str (markdown/HTML, safe to share with provider)
-   - `generated_at`: datetime
+Generate a response she can use IN THIS EXACT APPOINTMENT. Requirements:
 
-4. **PersonalCheatSheet** — Prioritized concerns + conversation anchors
-   - `content`: str (markdown, more candid than provider summary)
-   - `generated_at`: datetime
+1. Acknowledge the provider's concern (don't dismiss them)
+2. Provide evidence-based reasoning (don't make up sources)
+3. Redirect to actionable discussion
+4. Keep to 2-3 sentences (realistic for appointment)
 
-5. **AppointmentPrepOutput** — Combined outputs
-   - `provider_summary`: ProviderSummary
-   - `personal_cheat_sheet`: PersonalCheatSheet
-   - `generated_at`: datetime
+CRITICAL: Do NOT include URLs or citations. We don't have verified sources to cite yet.
+Focus on clear, confident, evidence-based language.
 
-**Requirements:**
-- Use Pydantic BaseModel or similar
-- Include type hints on all fields
-- Include docstrings explaining what each field represents
-- Use enums for appointment_type, goal, dismissed_before (not strings)
-- Include optional fields where appropriate (e.g., scenarios might not exist until Step 4)
-- Follow the pattern from existing models (e.g., ChatMessage in app/models/chat.py)
+Examples of strong responses (use these as templates):
 
-## Task 2.1.2: Create Database Migration
+DISMISSAL: "Hot flashes will go away on their own"
+RESPONSE: "They might eventually, but I've had them for several months and they're significantly impacting my sleep and work. Research shows hormone therapy can be effective for hot flashes. Can we discuss what timeline you're thinking and what options exist in the meantime?"
 
-**File:** `backend/app/migrations/add_appointment_prep_tables.sql`
+DISMISSAL: "Brain fog is just normal aging"
+RESPONSE: "I understand, but research shows cognitive changes during perimenopause can be significant and distinct from normal aging. Can we talk about whether treatment might help in my case?"
 
-Create SQL migration for:
+DISMISSAL: "You should see a sleep specialist instead"
+RESPONSE: "I'm open to that if needed, but I'd like to explore what you can do first since this is directly related to my perimenopause. Can we start with your approach?"
 
-1. **appointment_prep_contexts** table
-   - `id`: uuid (primary key)
-   - `user_id`: uuid (foreign key to auth.users, cascade delete)
-   - `appointment_type`: text enum (new_provider, established_relationship)
-   - `goal`: text enum (understand_where_i_am, discuss_starting_hrt, evaluate_current_treatment, address_specific_symptom)
-   - `dismissed_before`: text enum (no, once_or_twice, multiple_times)
-   - `created_at`: timestamp (default now)
-   - `updated_at`: timestamp (default now)
+DISMISSAL: "Let's try an antidepressant first"
+RESPONSE: "I appreciate that option, but my anxiety started with my perimenopause symptoms. Can we discuss whether hormone therapy might address both?"
 
-2. **appointment_prep_outputs** table
-   - `id`: uuid (primary key)
-   - `user_id`: uuid (foreign key to auth.users, cascade delete)
-   - `context_id`: uuid (foreign key to appointment_prep_contexts, cascade delete)
-   - `provider_summary_content`: text (markdown/HTML)
-   - `provider_summary_generated_at`: timestamp
-   - `personal_cheat_sheet_content`: text (markdown)
-   - `personal_cheat_sheet_generated_at`: timestamp
-   - `created_at`: timestamp (default now)
-   - `updated_at`: timestamp (default now)
+Guidelines:
+- Sound confident and informed
+- Reference "research shows" where appropriate (without fake citations)
+- Be collaborative, not confrontational
+- Be specific to the dismissal
+- Don't apologize or minimize her concerns
+- Don't invent sources
 
-**Security Requirements:**
-- Add RLS policies so users can only see their own contexts and outputs
-- Use authenticated role for all policies
-- Policy: SELECT/INSERT/UPDATE/DELETE only where user_id = auth.uid()
+Output as JSON:
+{{
+  "suggestion": "Full response text (no URLs)",
+  "sources": []
+}}"""
+```
 
-**Quality Requirements:**
-- Add indexes on (user_id, created_at) for common queries
-- Add foreign key constraints with CASCADE DELETE
-- Include comments on tables explaining purpose
-- Ensure migration is idempotent (can run multiple times safely)
-- Include timestamp columns (created_at, updated_at) on all tables
+## Update Response Model
 
-**Testing:**
-- Migration should run without errors
-- RLS policies should prevent users from accessing others' data
-- Verify schema with: `\\d appointment_prep_contexts` and `\\d appointment_prep_outputs`
+File: `backend/app/models/appointment.py`
+```python
+class ScenarioCard(BaseModel):
+    """Single scenario card for appointment prep."""
+    id: str
+    title: str
+    situation: str
+    suggestion: str  # Evidence-based, no URLs
+    category: str
+    sources: list[str] = []  # Empty for now (reserved for RAG)
+```
 
-## Guidelines
-- Follow the same patterns as existing migrations in backend/app/migrations/
-- Use Supabase's RLS policies (Row Level Security)
-- Keep timestamps consistent (created_at, updated_at on all tables)
-- Use CASCADE DELETE for foreign keys (data belongs to user)
-- Reference existing models (app/models/chat.py, app/models/symptoms.py) for Pydantic style
-- Use enums for bounded values (not strings) in both Python and SQL
+## Update Frontend Display
+
+File: `frontend/src/routes/(app)/appointment-prep/Step4Scenarios.svelte`
+
+Remove the sources section:
+```svelte
+<div class="space-y-2">
+  <p class="text-slate-700">{scenario.suggestion}</p>
+  
+  <!-- REMOVE sources display -->
+  <!-- {#if scenario.sources && scenario.sources.length > 0}
+    <div class="pt-2 border-t border-slate-200">
+      ...
+    </div>
+  {/if} -->
+</div>
+```
+
+Also update the personal cheat sheet PDF generation to NOT include sources in "If Things Go Sideways":
+
+File: `backend/app/services/llm.py`
+
+In `generate_pdf_content()` for personal_cheatsheet, update:
+```python
+# Build "If Things Go Sideways" section from scenarios
+sideways_section = ""
+if dismissals:
+    sideways_items = []
+    for dismissal in dismissals:
+        # dismissal format: "If they say: '...' You can say: '...'"
+        sideways_items.append(dismissal)
+    
+    sideways_section = "5. 'IF THINGS GO SIDEWAYS'\n\n" + "\n\n".join(sideways_items)
+```
+
+## Add to V2 Roadmap
+
+File: `docs/planning/V2_V3_ROADMAP.md`
+
+Add to V2 or post-launch section:
+```
+## High Priority: RAG for Scenarios (Post-V2)
+
+Implement proper RAG to ground scenario responses in real sources:
+- Retrieve actual NAMS guidelines for each symptom
+- Retrieve peer-reviewed research papers
+- Generate real, verified links
+- Replace "research shows" with actual citations
+
+This will enable:
+- Credible, verifiable evidence
+- Real URLs user can click
+- Trust in the tool
+- Professional quality
+
+Estimated effort: 2-3 days
+Blocker: Need access to curated knowledge base (NAMS, PubMed, etc.)
+```
+
+## That's it
+
+Quick, clean, honest. No fake citations. Strong language without made-up sources.
+
+Ready to run it?

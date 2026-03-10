@@ -290,28 +290,39 @@ class LLMService:
         )
 
         user_prompt = (
-            f"A woman is preparing for an appointment and may encounter these dismissals from her provider:\n\n"
+            f"A woman is preparing for a healthcare appointment. She may encounter these dismissals specific to her situation:\n\n"
             f"{scenarios_text}\n\n"
             f"Her context:\n"
-            f"- Age: {age_str}\n"
             f"- Appointment type: {appointment_type.replace('_', ' ')}\n"
-            f"- What she wants to accomplish: {goal.replace('_', ' ')}\n"
+            f"- What she's here to discuss: {goal.replace('_', ' ')}\n"
             f"- Prior dismissal experience: {dismissed_before.replace('_', ' ')}\n"
             f"- Her top concerns (in order):\n{concerns_text}\n\n"
-            f"For EACH dismissal scenario above, generate a response she could use in her appointment. Each response should:\n\n"
-            f"1. Acknowledge the provider's perspective/concern\n"
-            f"2. Reference relevant evidence or guidelines (be specific—cite research, statistics, organization names like NAMS)\n"
-            f"3. Redirect toward evidence-based options for her specific situation\n"
-            f"4. Use conversational 'I' statements ('I understand...', 'I've read...', 'Can we...')\n"
-            f"5. Be 2-3 sentences MAXIMUM (she needs to say this in an appointment)\n"
-            f"6. Empower her to advocate for herself without being confrontational\n\n"
-            f"Examples of good responses for perimenopause/menopause:\n"
-            f"- \"I understand the concern about breast cancer risk. Recent NAMS research shows the risk varies based on individual factors. Can we discuss which risk factors apply to me?\"\n"
-            f"- \"I appreciate your suggestion, but the NAMS guidelines recommend discussing hormone therapy options for my symptoms. Would you be willing to review those with me?\"\n"
-            f"- \"I've read that hot flashes aren't just a normal part of aging—they're a treatable medical symptom. What options do you recommend for my situation?\"\n"
-            f"- \"I understand wanting to try lifestyle changes, but my symptoms are significantly impacting my quality of life. Can we discuss all available options?\"\n\n"
-            f"Return a JSON array with one suggestion per scenario:\n"
-            f"[{{\"scenario_title\": \"...\", \"suggestion\": \"...\"}}, ...]"
+            f"For EACH dismissal scenario above, generate a confident, evidence-based response she can use IN THIS EXACT APPOINTMENT. Requirements:\n\n"
+            f"1. Acknowledge the provider's concern (don't dismiss them)\n"
+            f"2. Provide evidence-based reasoning (don't make up sources)\n"
+            f"3. Redirect to actionable discussion\n"
+            f"4. Keep to 2-3 sentences (realistic for appointment)\n"
+            f"5. Use conversational 'I' language\n\n"
+            f"CRITICAL: Do NOT include URLs or citations. We don't have verified sources to cite yet.\n"
+            f"Focus on clear, confident, evidence-based language.\n\n"
+            f"Examples of strong responses (use as templates):\n\n"
+            f"DISMISSAL: \"Hot flashes will go away on their own\"\n"
+            f"RESPONSE: \"They might eventually, but I've had them for several months and they're significantly impacting my sleep and work. Research shows hormone therapy can be effective for hot flashes. Can we discuss what timeline you're thinking and what options exist in the meantime?\"\n\n"
+            f"DISMISSAL: \"Brain fog is just normal aging\"\n"
+            f"RESPONSE: \"I understand, but research shows cognitive changes during perimenopause can be significant and distinct from normal aging. Can we talk about whether treatment might help in my case?\"\n\n"
+            f"DISMISSAL: \"You should see a sleep specialist instead\"\n"
+            f"RESPONSE: \"I'm open to that if needed, but I'd like to explore what you can do first since this is directly related to my perimenopause. Can we start with your approach?\"\n\n"
+            f"DISMISSAL: \"Let's try an antidepressant first\"\n"
+            f"RESPONSE: \"I appreciate that option, but my anxiety started with my perimenopause symptoms. Can we discuss whether hormone therapy might address both?\"\n\n"
+            f"Guidelines:\n"
+            f"- Sound confident and informed\n"
+            f"- Reference 'research shows' where appropriate (without fake citations)\n"
+            f"- Be collaborative, not confrontational\n"
+            f"- Be specific to the dismissal\n"
+            f"- Don't apologize or minimize her concerns\n"
+            f"- Don't invent sources\n\n"
+            f"Return ONLY valid JSON with one object per scenario, no markdown or explanation:\n"
+            f"[{{\"scenario_title\": \"...\", \"suggestion\": \"...\", \"sources\": []}}]"
         )
 
         logger.info(
@@ -338,6 +349,7 @@ class LLMService:
         goal: str,
         user_age: int | None,
         urgent_symptom: str | None = None,
+        scenarios: list[dict] | None = None,
     ) -> str:
         """Generate markdown content for PDF outputs.
 
@@ -353,6 +365,8 @@ class LLMService:
             goal: Appointment goal (assess_status, explore_hrt, etc.).
             user_age: User's age in years (optional).
             urgent_symptom: If goal is "urgent_symptom", the specific symptom user selected (optional).
+            scenarios: List of scenario cards from Step 4 (optional, used for personal_cheatsheet).
+                      Each dict should have: {"title": str, "suggestion": str, "sources": list[str]}.
 
         Returns:
             Markdown string suitable for PDF conversion.
@@ -446,6 +460,15 @@ class LLMService:
                     f"This is your primary concern for this appointment. Make sure it's the focus of your conversation."
                 )
 
+            # Build "If Things Go Sideways" section from scenarios if provided
+            sideways_section = ""
+            if scenarios and isinstance(scenarios, list) and len(scenarios) > 0:
+                sideways_section = "5. 'IF THINGS GO SIDEWAYS'\n\n"
+                for scenario in scenarios[:5]:  # Use up to 5 scenarios
+                    title = scenario.get("title", "")
+                    suggestion = scenario.get("suggestion", "")
+                    sideways_section += f"- **If they say:** \"{title}\"\n  **You can say:** {suggestion}\n\n"
+
             user_prompt = (
                 f"Write a personal preparation document for a patient's healthcare appointment.\n"
                 f"This is HER working document—concise, actionable, no fluff.\n\n"
@@ -460,6 +483,7 @@ class LLMService:
                 f"- Prioritized Concerns: {concerns_text}\n"
                 f"- Narrative Summary: {narrative}\n"
                 f"{urgent_emphasis}\n\n"
+                f"{sideways_section}"
                 f"Structure:\n\n"
                 f"1. OPENING STATEMENT (2-3 sentences)\n"
                 f"   - Start with age and menopause stage (from narrative)\n"
@@ -484,10 +508,12 @@ class LLMService:
                 f"   - Questions about other concerns (if any)\n"
                 f"   - Questions about monitoring/tracking\n"
                 f"   - Keep questions open-ended, not leading\n\n"
-                f"5. 'IF THINGS GO SIDEWAYS' (only if she mentioned past dismissal)\n"
-                f"   - Common dismissals she might hear\n"
-                f"   - Evidence-based responses\n"
-                f"   - Do NOT invent dismissal scenarios\n\n"
+                f"5. 'IF THINGS GO SIDEWAYS'\n"
+                f"   - Use ONLY the dismissal scenarios and responses provided above\n"
+                f"   - For EACH scenario, include the response she practiced in Step 4\n"
+                f"   - Use the exact response text provided (don't modify)\n"
+                f"   - Do NOT generate new scenarios\n"
+                f"   - Format: Bold dismissal followed by bold response\n\n"
                 f"6. WHAT TO BRING\n"
                 f"   - Symptom tracking log\n"
                 f"   - Current medications/supplements\n"
@@ -499,7 +525,8 @@ class LLMService:
                 f"- Only reference symptoms/concerns that are actually in the data\n"
                 f"- Do NOT suggest treatments ('start hormone therapy', 'try this medication', etc.)\n"
                 f"- Do NOT invent context ('you probably also have...' or 'you likely experience...')\n"
-                f"- Do NOT add emotional language or encouragement\n\n"
+                f"- Do NOT add emotional language or encouragement\n"
+                f"- For 'If Things Go Sideways': Use EXACT dismissals and responses from Step 4\n\n"
                 f"Tone: Professional, concise, working document. No motivation speeches or platitudes.\n"
                 f"Length: 2-3 pages maximum."
             )
