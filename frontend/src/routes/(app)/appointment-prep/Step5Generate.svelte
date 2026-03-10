@@ -121,12 +121,20 @@
 			</a>
 		</div>
 
-		<button
-			type="button"
-			onclick={onStartOver}
-			class="w-full rounded-xl border border-slate-200 py-3 text-sm font-medium text-slate-600 transition-colors hover:bg-slate-50"
-		>
-			Start over
-		</button>
+		<div class="flex flex-col gap-3 sm:flex-row sm:gap-2">
+			<button
+				type="button"
+				onclick={onStartOver}
+				class="flex-1 rounded-xl border border-slate-200 py-3 text-sm font-medium text-slate-600 transition-colors hover:bg-slate-50"
+			>
+				Start over
+			</button>
+			<a
+				href="/appointment-prep/history"
+				class="flex-1 rounded-xl border border-slate-200 py-3 text-sm font-medium text-slate-600 transition-colors hover:bg-slate-50 text-center"
+			>
+				View all my preps
+			</a>
+		</div>
 	{/if}
 </div>

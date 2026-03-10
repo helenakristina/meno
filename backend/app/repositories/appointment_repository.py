@@ -5,6 +5,7 @@ Keeps data access logic out of routes and services.
 """
 
 import logging
+from datetime import datetime, timezone
 from typing import Any, Optional
 
 from fastapi import HTTPException, status
@@ -463,3 +464,125 @@ class AppointmentRepository:
             appointment_id,
             len(scenarios),
         )
+
+    async def save_pdf_metadata(
+        self,
+        user_id: str,
+        appointment_id: str,
+        provider_summary_path: str,
+        personal_cheatsheet_path: str,
+    ) -> str:
+        """Save metadata about generated PDFs for history tracking.
+
+        Args:
+            user_id: User who generated the prep.
+            appointment_id: Associated appointment prep.
+            provider_summary_path: Path to provider summary PDF in storage.
+            personal_cheatsheet_path: Path to personal cheat sheet PDF in storage.
+
+        Returns:
+            Metadata ID.
+
+        Raises:
+            HTTPException: 500 if database operation fails.
+        """
+        try:
+            response = (
+                await self.client.table("appointment_prep_metadata")
+                .insert({
+                    "user_id": user_id,
+                    "appointment_id": appointment_id,
+                    "provider_summary_path": provider_summary_path,
+                    "personal_cheatsheet_path": personal_cheatsheet_path,
+                    "generated_at": datetime.now(timezone.utc).isoformat(),
+                })
+                .execute()
+            )
+
+            if not response.data:
+                raise HTTPException(
+                    status_code=500,
+                    detail="Failed to save PDF metadata",
+                )
+
+            metadata_id = response.data[0].get("id")
+            logger.info(
+                "Saved PDF metadata: appointment_id=%s metadata_id=%s",
+                appointment_id,
+                metadata_id,
+            )
+            return metadata_id
+
+        except HTTPException:
+            raise
+        except Exception as exc:
+            logger.error(
+                "Failed to save PDF metadata: %s",
+                exc,
+                exc_info=True,
+            )
+            raise HTTPException(
+                status_code=500,
+                detail="Failed to save PDF metadata",
+            )
+
+    async def get_user_prep_history(
+        self,
+        user_id: str,
+        limit: int = 50,
+        offset: int = 0,
+    ) -> tuple[list[dict], int]:
+        """Get user's appointment prep history (newest first).
+
+        Args:
+            user_id: User ID.
+            limit: Max results to return (default 50).
+            offset: Pagination offset (default 0).
+
+        Returns:
+            Tuple of (list of preps, total count).
+
+        Raises:
+            HTTPException: 500 if database operation fails.
+        """
+        try:
+            # Get total count
+            count_response = (
+                await self.client.table("appointment_prep_metadata")
+                .select("id", count="exact")
+                .eq("user_id", user_id)
+                .execute()
+            )
+            total = count_response.count if count_response.count is not None else 0
+
+            # Get paginated results
+            response = (
+                await self.client.table("appointment_prep_metadata")
+                .select("*")
+                .eq("user_id", user_id)
+                .order("generated_at", desc=True)
+                .range(offset, offset + limit - 1)
+                .execute()
+            )
+
+            preps = response.data if response.data and isinstance(response.data, list) else []
+
+            logger.info(
+                "Fetched appointment prep history: user=%s count=%d total=%d",
+                user_id,
+                len(preps),
+                total,
+            )
+
+            return preps, total
+
+        except Exception as exc:
+            logger.error(
+                "Failed to fetch appointment prep history: %s",
+                exc,
+                exc_info=True,
+            )
+            raise HTTPException(
+                status_code=500,
+                detail="Failed to fetch appointment prep history",
+            )

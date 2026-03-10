@@ -325,3 +325,35 @@ class AppointmentPrepGenerateResponse(BaseModel):
         default="Your appointment prep is ready!",
         description="Confirmation message",
     )
+
+
+# ============================================================================
+# Appointment Prep History
+# ============================================================================
+
+
+class AppointmentPrepHistoryResponse(BaseModel):
+    """
+    Single item in appointment prep history.
+
+    Contains metadata about a generated appointment prep with download links.
+    """
+
+    id: str = Field(description="Metadata record ID")
+    appointment_id: str = Field(description="Associated appointment prep ID")
+    generated_at: str = Field(description="ISO format datetime when PDFs were generated")
+    provider_summary_path: str = Field(description="Signed URL to provider summary PDF")
+    personal_cheatsheet_path: str = Field(description="Signed URL to personal cheat sheet PDF")
+
+
+class AppointmentPrepHistoryListResponse(BaseModel):
+    """
+    List of all appointment preps user has generated.
+
+    Provides paginated history with total count for UI pagination.
+    """
+
+    preps: list[AppointmentPrepHistoryResponse] = Field(
+        description="List of appointment prep metadata items (newest first)"
+    )
+    total: int = Field(description="Total count of appointment preps for this user")

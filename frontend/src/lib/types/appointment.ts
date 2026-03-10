@@ -101,3 +101,18 @@ export const STEP_TITLES: Record<number, string> = {
 	4: 'Practice scenarios',
 	5: 'Get your materials'
 };
+
+/** History and persistence types */
+
+export interface AppointmentPrepHistory {
+	id: string;
+	appointment_id: string;
+	generated_at: string; // ISO datetime
+	provider_summary_path: string; // Signed URL
+	personal_cheatsheet_path: string; // Signed URL
+}
+
+export interface AppointmentPrepHistoryResponse {
+	preps: AppointmentPrepHistory[];
+	total: number;
+}

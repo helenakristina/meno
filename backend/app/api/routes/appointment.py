@@ -44,6 +44,8 @@ from app.models.appointment import (
     ScenarioCard,
     AppointmentPrepScenariosResponse,
     AppointmentPrepGenerateResponse,
+    AppointmentPrepHistoryListResponse,
+    AppointmentPrepHistoryResponse,
 )
 from supabase import AsyncClient
 
@@ -874,15 +876,18 @@ async def generate_appointment_outputs(
         )
 
     # Upload PDFs to Supabase Storage
+    summary_path = f"{user_id}/{appointment_id}/provider-summary.pdf"
+    cheatsheet_path = f"{user_id}/{appointment_id}/personal-cheatsheet.pdf"
+
     try:
         summary_url = await storage_service.upload_pdf(
             bucket="appointment-prep",
-            path=f"{user_id}/{appointment_id}/provider-summary.pdf",
+            path=summary_path,
             content=provider_summary_pdf,
         )
         cheatsheet_url = await storage_service.upload_pdf(
             bucket="appointment-prep",
-            path=f"{user_id}/{appointment_id}/personal-cheatsheet.pdf",
+            path=cheatsheet_path,
             content=cheatsheet_pdf,
         )
     except Exception as exc:
@@ -896,6 +901,28 @@ async def generate_appointment_outputs(
             detail="Failed to upload PDF files",
         )
 
+    # Save metadata for history tracking
+    try:
+        await appointment_repo.save_pdf_metadata(
+            user_id=user_id,
+            appointment_id=appointment_id,
+            provider_summary_path=summary_path,
+            personal_cheatsheet_path=cheatsheet_path,
+        )
+    except HTTPException:
+        raise
+    except Exception as exc:
+        logger.error(
+            "Failed to save PDF metadata: %s",
+            exc,
+            exc_info=True,
+        )
+        # Don't fail the entire endpoint if metadata save fails
+        logger.warning(
+            "Continuing without metadata save: appointment_id=%s",
+            appointment_id,
+        )
+
     logger.info(
         "PDFs generated and uploaded: appointment_id=%s",
         appointment_id,
@@ -906,6 +933,120 @@ async def generate_appointment_outputs(
         provider_summary_url=summary_url,
         personal_cheat_sheet_url=cheatsheet_url,
         message="Your appointment prep is ready!",
+    )
+
+
+@router.get(
+    "/history",
+    response_model=AppointmentPrepHistoryListResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Get appointment prep history",
+    description=(
+        "Retrieve list of all appointment preps the user has generated. "
+        "Returns metadata with dates and paths to download PDFs."
+    ),
+)
+async def get_appointment_prep_history(
+    user_id: CurrentUser,
+    limit: int = 50,
+    offset: int = 0,
+    appointment_repo: AppointmentRepository = Depends(get_appointment_repo),
+    storage_service: StorageService = Depends(get_storage_service),
+) -> AppointmentPrepHistoryListResponse:
+    """Get user's appointment prep history with download links.
+
+    Returns list of all appointment preps generated, newest first.
+    Includes paths to download PDFs via signed URLs.
+
+    Args:
+        user_id: Authenticated user ID.
+        limit: Max results to return (default 50, max 100).
+        offset: Pagination offset (default 0).
+        appointment_repo: AppointmentRepository for data access.
+        storage_service: StorageService for generating download URLs.
+
+    Returns:
+        AppointmentPrepHistoryListResponse with list of preps and total count.
+
+    Raises:
+        HTTPException: 401 if not authenticated.
+        HTTPException: 500 if database operation fails.
+    """
+    # Validate limit
+    if limit > 100:
+        limit = 100
+    if limit < 1:
+        limit = 1
+
+    logger.info(
+        "Fetching appointment prep history: user=%s limit=%d offset=%d",
+        user_id,
+        limit,
+        offset,
+    )
+
+    try:
+        preps, total = await appointment_repo.get_user_prep_history(
+            user_id=user_id,
+            limit=limit,
+            offset=offset,
+        )
+    except HTTPException:
+        raise
+    except Exception as exc:
+        logger.error(
+            "Failed to fetch history: %s",
+            exc,
+            exc_info=True,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to fetch appointment prep history",
+        )
+
+    # Build response with download URLs
+    history_items: list[AppointmentPrepHistoryResponse] = []
+    for prep in preps:
+        try:
+            # Generate signed URLs for both PDFs (24-hour expiration)
+            summary_url = await storage_service.create_signed_url(
+                bucket="appointment-prep",
+                path=prep.get("provider_summary_path"),
+                expires_in=86400,  # 24 hours
+            )
+            cheatsheet_url = await storage_service.create_signed_url(
+                bucket="appointment-prep",
+                path=prep.get("personal_cheatsheet_path"),
+                expires_in=86400,  # 24 hours
+            )
+
+            history_items.append(
+                AppointmentPrepHistoryResponse(
+                    id=prep.get("id"),
+                    appointment_id=prep.get("appointment_id"),
+                    generated_at=prep.get("generated_at"),
+                    provider_summary_path=summary_url,
+                    personal_cheatsheet_path=cheatsheet_url,
+                )
+            )
+        except Exception as exc:
+            logger.warning(
+                "Failed to generate signed URL for prep %s: %s",
+                prep.get("id"),
+                exc,
+            )
+            # Continue processing other preps
+            continue
+
+    logger.info(
+        "Returning %d appointment preps from history (total %d)",
+        len(history_items),
+        total,
+    )
+
+    return AppointmentPrepHistoryListResponse(
+        preps=history_items,
+        total=total,
     )
 
 

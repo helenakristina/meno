@@ -85,6 +85,7 @@
 	let shortlist = $state<ShortlistEntry[]>([]);
 	let savedProviderIds = $state(new Set<string>());
 	let shortlistExpanded = $state(false);
+	let expandedEntries = $state(new Set<string>());
 	let notesDraft = $state<Record<string, string>>({});
 	let notesSaving = $state<Record<string, boolean>>({});
 	let notesSaved = $state<Record<string, boolean>>({});
@@ -94,7 +95,7 @@
 		to_call: { label: 'To Call', badge: 'bg-blue-100 text-blue-700' },
 		called: { label: 'Called', badge: 'bg-teal-100 text-teal-700' },
 		left_voicemail: { label: 'Left Voicemail', badge: 'bg-amber-100 text-amber-700' },
-		booking: { label: 'Booking Appointment', badge: 'bg-green-100 text-green-700' },
+		booking: { label: 'Booked Appointment', badge: 'bg-green-100 text-green-700' },
 		not_available: { label: 'Not Available', badge: 'bg-slate-100 text-slate-500' }
 	};
 
@@ -414,79 +415,195 @@
 			<ul id="shortlist-entries" class="divide-y divide-slate-100 border-t border-slate-100">
 				{#each visibleShortlist as entry (entry.provider_id)}
 					{@const statusCfg = STATUS_CONFIG[entry.status] ?? STATUS_CONFIG.to_call}
-					<li class="px-6 py-4">
-						<div class="flex items-start justify-between gap-3">
-							<!-- Provider info -->
-							<div class="min-w-0">
-								<p class="text-sm font-medium text-slate-800">
-									{entry.provider.name}{entry.provider.credentials
-										? `, ${entry.provider.credentials}`
-										: ''}
-								</p>
-								<p class="mt-0.5 text-sm text-slate-500">
-									{entry.provider.city}, {entry.provider.state}
-								</p>
+					{@const isExpanded = expandedEntries.has(entry.provider_id)}
+					{@const TYPE_LABELS = {
+						ob_gyn: 'OB/GYN',
+						internal_medicine: 'Internal Medicine',
+						np_pa: 'NP/PA',
+						integrative_medicine: 'Integrative Medicine',
+						other: 'Other'
+					}}
+					{@const MAX_INSURANCE = 2}
+					{@const visibleIns = entry.provider.insurance_accepted.slice(0, MAX_INSURANCE)}
+					{@const extraIns = entry.provider.insurance_accepted.length > MAX_INSURANCE
+						? entry.provider.insurance_accepted.length - MAX_INSURANCE
+						: 0}
+					<li class="border-b-0">
+						<!-- Compact row (always visible) -->
+						<div class="flex items-center justify-between gap-2 px-6 py-3">
+							<!-- Name, phone, status in a row -->
+							<div class="min-w-0 flex-1">
+								<div class="flex flex-col sm:flex-row sm:items-center sm:gap-4 gap-1">
+									<h4 class="text-sm font-semibold text-slate-900 truncate">
+										{entry.provider.name}
+									</h4>
+									{#if entry.provider.phone}
+										<a
+											href="tel:{entry.provider.phone}"
+											class="text-xs text-teal-600 hover:text-teal-800 font-medium whitespace-nowrap"
+										>
+											{entry.provider.phone}
+										</a>
+									{/if}
+									<span
+										class="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium w-fit {statusCfg.badge}"
+									>
+										{statusCfg.label}
+									</span>
+								</div>
 							</div>
 
-							<!-- Remove button -->
-							<button
-								onclick={() => handleRemoveFromShortlist(entry.provider_id)}
-								aria-label="Remove from shortlist"
-								class="flex h-11 w-11 shrink-0 items-center justify-center rounded text-slate-300 transition-colors hover:bg-slate-100 hover:text-slate-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-300"
-							>
-								<svg
-									xmlns="http://www.w3.org/2000/svg"
-									class="size-4"
-									viewBox="0 0 24 24"
-									fill="none"
-									stroke="currentColor"
-									stroke-width="2"
+							<!-- Expand/collapse button and remove button -->
+							<div class="flex shrink-0 items-center gap-1">
+								<button
+									onclick={() => {
+										const updated = new Set(expandedEntries);
+										if (updated.has(entry.provider_id)) {
+											updated.delete(entry.provider_id);
+										} else {
+											updated.add(entry.provider_id);
+										}
+										expandedEntries = updated;
+									}}
+									aria-label={isExpanded ? 'Collapse details' : 'Expand details'}
+									class="flex h-9 w-9 items-center justify-center rounded text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-300"
 								>
-									<path d="M18 6 6 18M6 6l12 12" />
-								</svg>
-							</button>
+									<svg
+										xmlns="http://www.w3.org/2000/svg"
+										class="size-4 transition-transform {isExpanded ? 'rotate-180' : ''}"
+										viewBox="0 0 24 24"
+										fill="none"
+										stroke="currentColor"
+										stroke-width="2"
+									>
+										<path d="m6 9 6 6 6-6" />
+									</svg>
+								</button>
+								<button
+									onclick={() => handleRemoveFromShortlist(entry.provider_id)}
+									aria-label="Remove from shortlist"
+									class="flex h-9 w-9 items-center justify-center rounded text-slate-300 transition-colors hover:bg-slate-100 hover:text-slate-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-300"
+								>
+									<svg
+										xmlns="http://www.w3.org/2000/svg"
+										class="size-4"
+										viewBox="0 0 24 24"
+										fill="none"
+										stroke="currentColor"
+										stroke-width="2"
+									>
+										<path d="M18 6 6 18M6 6l12 12" />
+									</svg>
+								</button>
+							</div>
 						</div>
 
-						<!-- Status row -->
-						<div class="mt-2 flex flex-wrap items-center gap-2">
-							<!-- Status badge (current) -->
-							<span
-								class="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium {statusCfg.badge}"
-							>
-								{statusCfg.label}
-							</span>
+						<!-- Expandable details -->
+						{#if isExpanded}
+							<div class="border-t border-slate-100 bg-slate-50 px-6 py-4 space-y-3">
+								<!-- Provider info -->
+								<div>
+									<p class="text-xs font-medium text-slate-500 mb-1">Provider Details</p>
+									{#if entry.provider.practice_name}
+										<p class="text-xs text-slate-600">{entry.provider.practice_name}</p>
+									{/if}
+									<p class="text-xs text-slate-600">{entry.provider.city}, {entry.provider.state}</p>
+								</div>
 
-							<!-- Status dropdown -->
-							<select
-								value={entry.status}
-								onchange={(e) =>
-									handleUpdateStatus(entry.provider_id, (e.target as HTMLSelectElement).value)}
-								class="rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs text-slate-600 shadow-sm focus:border-teal-400 focus:ring-1 focus:ring-teal-200 focus:outline-none"
-								aria-label="Update call status"
-							>
-								{#each STATUSES as s (s.value)}
-									<option value={s.value}>{s.label}</option>
-								{/each}
-							</select>
-						</div>
+								<!-- Type, NAMS, Website -->
+								{#if entry.provider.provider_type || entry.provider.nams_certified || entry.provider.website}
+									<div class="flex flex-wrap items-center gap-2">
+										{#if entry.provider.provider_type}
+											<span
+												class="inline-flex text-xs font-medium rounded-full border border-teal-100 bg-teal-50 px-2 py-0.5 text-teal-700"
+											>
+												{TYPE_LABELS[entry.provider.provider_type] ?? entry.provider.provider_type}
+											</span>
+										{/if}
+										{#if entry.provider.nams_certified}
+											<span
+												class="inline-flex text-xs font-semibold rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-amber-700"
+												title="NAMS Certified Menopause Practitioner"
+											>
+												✦ NAMS
+											</span>
+										{/if}
+										{#if entry.provider.website}
+											<a
+												href={entry.provider.website}
+												target="_blank"
+												rel="noopener noreferrer"
+												class="text-xs text-teal-600 hover:text-teal-800 font-medium"
+											>
+												Website ↗
+											</a>
+										{/if}
+									</div>
+								{/if}
 
-						<!-- Notes textarea -->
-						<div class="relative mt-2">
-							<textarea
-								rows="2"
-								placeholder="Add notes…"
-								value={notesDraft[entry.provider_id] ?? entry.notes ?? ''}
-								oninput={(e) => {
-									notesDraft[entry.provider_id] = (e.target as HTMLTextAreaElement).value;
-								}}
-								onblur={() => handleNotesSave(entry.provider_id)}
-								disabled={notesSaving[entry.provider_id]}
-								class="w-full resize-none rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-700 placeholder-slate-400 focus:border-teal-400 focus:ring-1 focus:ring-teal-200 focus:outline-none disabled:opacity-60"
-							></textarea>
-							{#if notesSaved[entry.provider_id]}
-								<span class="absolute right-2 bottom-2 text-xs text-teal-500">Saved</span>
-							{/if}
-						</div>
+								<!-- Insurance -->
+								{#if entry.provider.insurance_accepted.length > 0}
+									<div>
+										<p class="text-xs font-medium text-slate-500 mb-1">Insurance</p>
+										<div class="flex flex-wrap gap-1">
+											{#each visibleIns as ins (ins)}
+												<span class="text-xs rounded border border-slate-200 bg-white px-1.5 py-0.5 text-slate-600">
+													{ins}
+												</span>
+											{/each}
+											{#if extraIns > 0}
+												<span class="text-xs text-slate-400">+{extraIns}</span>
+											{/if}
+										</div>
+									</div>
+								{/if}
+
+								<!-- Actions -->
+								<div class="flex gap-2 pt-1">
+									<button
+										onclick={() => {
+											const card = document.querySelector(`[data-provider-id="${entry.provider_id}"]`) as HTMLElement;
+											if (card) {
+												const btn = card.querySelector('[data-action="generate-script"]') as HTMLButtonElement;
+												btn?.click();
+											}
+										}}
+										class="text-xs font-medium rounded px-2.5 py-1.5 border border-slate-200 bg-white text-slate-700 hover:border-teal-300 hover:bg-teal-50 hover:text-teal-700 transition-colors"
+									>
+										Generate Script
+									</button>
+									<select
+										value={entry.status}
+										onchange={(e) =>
+											handleUpdateStatus(entry.provider_id, (e.target as HTMLSelectElement).value)}
+										class="text-xs rounded border border-slate-200 bg-white px-2 py-1 text-slate-600 focus:border-teal-400 focus:ring-1 focus:ring-teal-200 focus:outline-none"
+										aria-label="Update call status"
+									>
+										{#each STATUSES as s (s.value)}
+											<option value={s.value}>{s.label}</option>
+										{/each}
+									</select>
+								</div>
+
+								<!-- Notes -->
+								<div class="relative">
+									<textarea
+										rows="2"
+										placeholder="Add notes…"
+										value={notesDraft[entry.provider_id] ?? entry.notes ?? ''}
+										oninput={(e) => {
+											notesDraft[entry.provider_id] = (e.target as HTMLTextAreaElement).value;
+										}}
+										onblur={() => handleNotesSave(entry.provider_id)}
+										disabled={notesSaving[entry.provider_id]}
+										class="w-full resize-none rounded text-xs border border-slate-200 bg-white px-2.5 py-2 text-slate-700 placeholder-slate-400 focus:border-teal-400 focus:ring-1 focus:ring-teal-200 focus:outline-none disabled:opacity-60"
+									></textarea>
+									{#if notesSaved[entry.provider_id]}
+										<span class="absolute right-2 bottom-2 text-xs text-teal-500">Saved</span>
+									{/if}
+								</div>
+							</div>
+						{/if}
 					</li>
 				{/each}
 			</ul>

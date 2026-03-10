@@ -72,3 +72,52 @@ class StorageService:
                 exc_info=True,
             )
             raise RuntimeError(f"Failed to upload PDF: {exc}") from exc
+
+    async def create_signed_url(
+        self,
+        bucket: str,
+        path: str,
+        expires_in: int = 3600,
+    ) -> str:
+        """Create a signed URL for accessing a file in storage.
+
+        Args:
+            bucket: Bucket name.
+            path: File path in bucket.
+            expires_in: URL expiration time in seconds (default 1 hour).
+
+        Returns:
+            Signed URL string.
+
+        Raises:
+            RuntimeError: If URL generation fails.
+        """
+        try:
+            response = await self.client.storage.from_(bucket).create_signed_url(
+                path=path,
+                expires_in=expires_in,
+            )
+
+            if response and "signedURL" in response:
+                logger.debug(
+                    "Generated signed URL: bucket=%s path=%s expires=%d",
+                    bucket,
+                    path,
+                    expires_in,
+                )
+                return response["signedURL"]
+
+            logger.error(
+                "Failed to generate signed URL: bucket=%s path=%s",
+                bucket,
+                path,
+            )
+            raise RuntimeError("Failed to generate signed URL")
+
+        except Exception as exc:
+            logger.error(
+                "Error generating signed URL: %s",
+                exc,
+                exc_info=True,
+            )
+            raise RuntimeError(f"Failed to generate signed URL: {exc}") from exc
