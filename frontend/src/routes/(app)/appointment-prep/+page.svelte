@@ -40,6 +40,7 @@
 				appointment_type: context.appointment_type,
 				goal: context.goal,
 				dismissed_before: context.dismissed_before,
+				urgent_symptom: context.urgent_symptom || null,
 			});
 			state.appointmentId = res.appointment_id;
 			state.context = context;

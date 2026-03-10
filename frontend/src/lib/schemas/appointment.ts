@@ -9,6 +9,7 @@ export const contextSchema = z.object({
 	appointment_type: z.nativeEnum(AppointmentType),
 	goal: z.nativeEnum(AppointmentGoal),
 	dismissed_before: z.nativeEnum(DismissalExperience),
+	urgent_symptom: z.string().optional().nullable(),
 });
 
 export type AppointmentContextForm = z.infer<typeof contextSchema>;

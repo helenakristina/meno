@@ -337,6 +337,7 @@ class LLMService:
         appointment_type: str,
         goal: str,
         user_age: int | None,
+        urgent_symptom: str | None = None,
     ) -> str:
         """Generate markdown content for PDF outputs.
 
@@ -351,6 +352,7 @@ class LLMService:
             appointment_type: Type of appointment (new_provider or established_relationship).
             goal: Appointment goal (assess_status, explore_hrt, etc.).
             user_age: User's age in years (optional).
+            urgent_symptom: If goal is "urgent_symptom", the specific symptom user selected (optional).
 
         Returns:
             Markdown string suitable for PDF conversion.
@@ -379,77 +381,127 @@ class LLMService:
         )
 
         if content_type == "provider_summary":
+            # Build urgent symptom emphasis if provided
+            urgent_lead = ""
+            if urgent_symptom:
+                urgent_lead = f"Patient's urgent concern: {urgent_symptom}. "
+
             user_prompt = (
-                f"Write a clinical summary for a healthcare provider based on this patient's appointment prep data.\n\n"
-                f"Patient Context:\n"
+                f"Write a brief clinical summary for a healthcare provider seeing this patient.\n\n"
+                f"CRITICAL: Only use information provided below. Do NOT invent or assume anything.\n"
+                f"Do NOT make recommendations. Describe the picture, let provider decide.\n\n"
+                f"Patient Data:\n"
                 f"- Age: {age_str}\n"
                 f"- Appointment Type: {appointment_type.replace('_', ' ')}\n"
                 f"- Goal: {goal.replace('_', ' ')}\n"
-                f"- Concerns: {concerns_text}\n"
-                f"- Narrative Summary: {narrative}\n\n"
-                f"Requirements:\n"
-                f"1. OPENING: State the appointment context clearly (age, goal, type of provider visit)\n"
-                f"2. SYMPTOM PICTURE: Describe the symptom pattern in clinical language\n"
-                f"   - Use 'logs show', 'data indicates' language\n"
-                f"   - Highlight severity and impact on daily life/function\n"
-                f"   - Reference co-occurrence patterns that suggest systemic issues\n"
-                f"3. KEY PATTERNS: Call out meaningful patterns (e.g., sleep disruption affecting cognition, systemic dryness)\n"
-                f"4. PRIORITIZED CONCERNS: List in order of impact (not frequency)\n"
-                f"5. NO RECOMMENDATIONS: Don't suggest specific treatments—let the provider decide\n"
-                f"6. TONE: Professional, data-driven, patient-informed (not patronizing)\n\n"
-                f"Length: 2-3 pages maximum. Be specific and clinically useful.\n"
-                f"Include only what a provider needs to understand the patient's situation.\n"
-                f"No disclaimers needed (patient will add those)."
+                f"- Urgent Concern: {urgent_symptom if urgent_symptom else 'None specified'}\n"
+                f"- Narrative Summary: {narrative}\n"
+                f"- Concerns: {concerns_text}\n\n"
+                f"{urgent_lead}\n\n"
+                f"Structure:\n\n"
+                f"1. OPENING (2-3 sentences)\n"
+                f"   - Who: Patient age, menopausal stage (extract from narrative)\n"
+                f"   - Why: Goal for appointment\n"
+                f"   - Urgent: If provided, mention urgent concern\n"
+                f"   - Example: 'Jane is a 50-year-old in late perimenopause presenting for evaluation. "\
+                f"Her urgent concern is hot flashes, which she reports are occurring 16 times in the past 60 days "\
+                f"and significantly affecting her work. She's interested in understanding her options.'\n\n"
+                f"2. SYMPTOM PICTURE (3-4 sentences)\n"
+                f"   - Extract key symptoms from narrative (only what's there)\n"
+                f"   - Use actual frequencies from narrative\n"
+                f"   - Describe impact on function\n"
+                f"   - Do NOT add symptoms not in narrative\n"
+                f"   - Example: 'Logs show 16 hot flash episodes in 60 days, 11 night sweats, and 10 instances "\
+                f"of insomnia. She reports sleep disruption is impacting her cognitive function during the day.'\n\n"
+                f"3. KEY PATTERNS (2-3 sentences, only if narrative mentions them)\n"
+                f"   - Co-occurrence patterns explicitly mentioned in narrative\n"
+                f"   - Do NOT invent connections\n"
+                f"   - Example: 'Her logs show difficulty concentrating consistently co-occurs with frequent "\
+                f"nighttime waking, suggesting sleep disruption is driving cognitive symptoms.'\n\n"
+                f"4. PRIORITIZED CONCERNS (bulleted, as provided)\n"
+                f"   - Use exact concerns from the list provided\n"
+                f"   - Do NOT add, remove, or reorder concerns\n"
+                f"   - Do NOT comment on or interpret them\n\n"
+                f"5. CLOSING (1-2 sentences)\n"
+                f"   - Brief statement of what patient is seeking\n"
+                f"   - Do NOT make recommendations\n"
+                f"   - Example: 'Patient is well-informed and motivated. She's seeking discussion of her options "\
+                f"for the symptom picture described.'\n\n"
+                f"CRITICAL RULES:\n"
+                f"- If urgent symptom provided: Lead with it, make it central\n"
+                f"- Use only data provided (narrative, concerns list, goals)\n"
+                f"- Do NOT invent symptoms, frequencies, or patterns\n"
+                f"- Do NOT suggest treatments or tests\n"
+                f"- Do NOT add psychological interpretation\n"
+                f"- Do NOT make assumptions about root causes\n\n"
+                f"Tone: Conversational clinical. Busy provider reading in 2 minutes.\n"
+                f"Length: Maximum 2 pages."
             )
         else:  # personal_cheatsheet
+            # Build urgent symptom emphasis if provided
+            urgent_emphasis = ""
+            if urgent_symptom:
+                urgent_emphasis = (
+                    f"\nURGENT SYMPTOM: {urgent_symptom}\n"
+                    f"This is your primary concern for this appointment. Make sure it's the focus of your conversation."
+                )
+
             user_prompt = (
-                f"Write a personal preparation document for a patient attending a healthcare appointment.\n"
-                f"This is HER cheat sheet to use during the appointment—help her be informed, confident, and heard.\n\n"
-                f"Patient Context:\n"
+                f"Write a personal preparation document for a patient's healthcare appointment.\n"
+                f"This is HER working document—concise, actionable, no fluff.\n\n"
+                f"CRITICAL: Only use information provided below. Do NOT invent or assume content.\n"
+                f"Do NOT suggest treatments or medications. Do NOT add context that wasn't provided.\n\n"
+                f"Patient Data:\n"
                 f"- Age: {age_str}\n"
                 f"- Appointment Type: {appointment_type.replace('_', ' ')}\n"
-                f"- Goal: {goal.replace('_', ' ')}\n"
-                f"- Concerns (prioritized): {concerns_text}\n"
-                f"- Narrative Summary: {narrative}\n\n"
-                f"Structure (follow this exactly):\n\n"
-                f"1. OPENING STATEMENT ('Your Story in 60 Seconds')\n"
-                f"   - Write a 2-3 sentence opening she can read or hand to her provider\n"
-                f"   - Should establish: her age, stage (perimenopause/menopause), key symptoms, her goal\n"
-                f"   - Should sound like HER voice, not generic\n"
-                f"   - Example: 'I am 50, in late perimenopause. I have been experiencing significant sleep "\
-                f"disruption, hot flashes, and anxiety. My goal today is to discuss hormone therapy options.'\n"
-                f"   - NO PLATITUDES\n\n"
+                f"- Primary Goal: {goal.replace('_', ' ')}\n"
+                f"- Urgent Concern: {urgent_symptom if urgent_symptom else 'None specified'}\n"
+                f"- Symptoms Logged: {', '.join([s.split('(')[0].strip() for s in narrative.split(chr(10)) if '(' in s][:5]) if narrative else 'See narrative below'}\n"
+                f"- Prioritized Concerns: {concerns_text}\n"
+                f"- Narrative Summary: {narrative}\n"
+                f"{urgent_emphasis}\n\n"
+                f"Structure:\n\n"
+                f"1. OPENING STATEMENT (2-3 sentences)\n"
+                f"   - Start with age and menopause stage (from narrative)\n"
+                f"   - Lead with urgent symptom if provided\n"
+                f"   - State goal\n"
+                f"   - Example: 'I am 50 and in late perimenopause. My urgent concern is hot flashes, "\
+                f"which are significantly affecting my daily life. I'm here today to understand my options.'\n\n"
                 f"2. SYMPTOMS RANKED BY IMPACT\n"
-                f"   - List symptoms in order of impact on daily life (not frequency)\n"
-                f"   - For each, include: the symptom, its impact, what she wants to discuss\n"
-                f"   - Example format:\n"
-                f"     '1. Sleep Disruption (5-10 wakings per night)\n"
-                f"      Impact: Chronic fatigue, cognitive difficulty, affecting ability to work\n"
-                f"      What to say: \"Sleep disruption is my primary concern. Can we discuss what's causing "\
-                f"the wakings and how we address it?\"'\n\n"
-                f"3. KEY CONCERNS SECTION\n"
-                f"   - What she wants to accomplish in this appointment\n"
-                f"   - Specific, prioritized, actionable\n"
-                f"   - Example: 'I want to discuss starting systemic hormone therapy and understand my options'\n\n"
-                f"4. QUESTIONS TO ASK\n"
-                f"   - Grouped by topic (on treatment, on her specific symptoms, on monitoring)\n"
-                f"   - Clinical questions that show she's informed\n"
-                f"   - Example: 'Given my insulin resistance, which estrogen delivery method do you recommend?'\n\n"
-                f"5. 'IF THINGS GO SIDEWAYS' SECTION\n"
-                f"   - Common dismissals she might hear (based on her goal/situation)\n"
-                f"   - Evidence-based response for each\n"
-                f"   - Give her language she can actually use\n"
-                f"   - Example:\n"
-                f"     'If they say: \"HRT increases breast cancer risk\"\n"
-                f"      You can say: \"I understand the original WHI concern, but recent evidence shows...\""\
-                f"\n      or ask: \"Can you walk me through the current evidence for my specific situation?\"'\n\n"
+                f"   - IF urgent symptom is provided: Make it #1, describe impact, provide suggested language\n"
+                f"   - Then add other concerns from the prioritized list (in order provided)\n"
+                f"   - For each symptom, include:\n"
+                f"     * Name and frequency (from narrative if available)\n"
+                f"     * Impact on daily life\n"
+                f"     * What to say in appointment\n"
+                f"   - Do NOT add symptoms not mentioned in data\n\n"
+                f"3. KEY CONCERNS (bulleted)\n"
+                f"   - Use ONLY the concerns provided in the prioritized list\n"
+                f"   - Do NOT invent additional concerns\n"
+                f"   - Do NOT suggest treatments\n\n"
+                f"4. QUESTIONS TO ASK (grouped by topic)\n"
+                f"   - Questions about the urgent symptom (if provided)\n"
+                f"   - Questions about other concerns (if any)\n"
+                f"   - Questions about monitoring/tracking\n"
+                f"   - Keep questions open-ended, not leading\n\n"
+                f"5. 'IF THINGS GO SIDEWAYS' (only if she mentioned past dismissal)\n"
+                f"   - Common dismissals she might hear\n"
+                f"   - Evidence-based responses\n"
+                f"   - Do NOT invent dismissal scenarios\n\n"
                 f"6. WHAT TO BRING\n"
-                f"   - Specific items relevant to her situation\n"
-                f"   - Lab results, medication list, relevant history\n\n"
-                f"TONE: Professional, informed, empowering. NO motivation, NO encouragement, NO platitudes.\n"
-                f"This is a working document, not a pep talk.\n\n"
-                f"Length: 2-3 pages. Be specific to her situation, not generic.\n"
-                f"Reference her actual symptoms and concerns, not template text."
+                f"   - Symptom tracking log\n"
+                f"   - Current medications/supplements\n"
+                f"   - Relevant medical history\n"
+                f"   - Recent labs\n\n"
+                f"CRITICAL RULES:\n"
+                f"- If no urgent symptom: Make first concern from list the focus\n"
+                f"- If urgent symptom provided: Make it #1 and emphasize it throughout\n"
+                f"- Only reference symptoms/concerns that are actually in the data\n"
+                f"- Do NOT suggest treatments ('start hormone therapy', 'try this medication', etc.)\n"
+                f"- Do NOT invent context ('you probably also have...' or 'you likely experience...')\n"
+                f"- Do NOT add emotional language or encouragement\n\n"
+                f"Tone: Professional, concise, working document. No motivation speeches or platitudes.\n"
+                f"Length: 2-3 pages maximum."
             )
 
         logger.info("Generating PDF content: type=%s age=%s goal=%s", content_type, age_str, goal)

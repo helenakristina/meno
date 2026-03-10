@@ -97,6 +97,38 @@ async def test_save_context_success():
 
 
 @pytest.mark.asyncio
+async def test_save_context_with_urgent_symptom():
+    """Test saving appointment context with urgent_symptom when goal is urgent_symptom."""
+    created_id = "550e8400-e29b-41d4-a716-446655440000"
+    mock_client = make_sequential_client(
+        MagicMock(
+            data=[
+                {
+                    "id": created_id,
+                    "user_id": "user-123",
+                    "appointment_type": "new_provider",
+                    "goal": "urgent_symptom",
+                    "dismissed_before": "once_or_twice",
+                    "urgent_symptom": "hot flashes",
+                }
+            ]
+        )
+    )
+    repo = AppointmentRepository(client=mock_client)
+
+    context = AppointmentContext(
+        appointment_type=AppointmentType.new_provider,
+        goal=AppointmentGoal.urgent_symptom,
+        dismissed_before=DismissalExperience.once_or_twice,
+        urgent_symptom="hot flashes",
+    )
+
+    result = await repo.save_context("user-123", context)
+
+    assert result == created_id
+
+
+@pytest.mark.asyncio
 async def test_save_context_db_error():
     """Test save_context when database insert fails."""
     mock_client = MagicMock()
@@ -166,6 +198,35 @@ async def test_get_context_success():
     assert result.appointment_type == AppointmentType.new_provider
     assert result.goal == AppointmentGoal.explore_hrt
     assert result.dismissed_before == DismissalExperience.once_or_twice
+
+
+@pytest.mark.asyncio
+async def test_get_context_with_urgent_symptom():
+    """Test fetching appointment context with urgent_symptom."""
+    appointment_id = "550e8400-e29b-41d4-a716-446655440000"
+    mock_client = make_sequential_client(
+        MagicMock(
+            data=[
+                {
+                    "id": appointment_id,
+                    "user_id": "user-123",
+                    "appointment_type": "new_provider",
+                    "goal": "urgent_symptom",
+                    "dismissed_before": "once_or_twice",
+                    "urgent_symptom": "sleep disruption",
+                }
+            ]
+        )
+    )
+    repo = AppointmentRepository(client=mock_client)
+
+    result = await repo.get_context(appointment_id, "user-123")
+
+    assert isinstance(result, AppointmentContext)
+    assert result.appointment_type == AppointmentType.new_provider
+    assert result.goal == AppointmentGoal.urgent_symptom
+    assert result.dismissed_before == DismissalExperience.once_or_twice
+    assert result.urgent_symptom == "sleep disruption"
 
 
 @pytest.mark.asyncio

@@ -26,6 +26,7 @@ export interface AppointmentContext {
 	appointment_type: AppointmentType;
 	goal: AppointmentGoal;
 	dismissed_before: DismissalExperience;
+	urgent_symptom?: string | null;
 }
 
 export interface ScenarioCard {

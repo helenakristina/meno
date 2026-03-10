@@ -43,7 +43,7 @@ class AppointmentRepository:
 
         Args:
             user_id: ID of the user creating the appointment prep.
-            context: AppointmentContext with appointment_type, goal, dismissed_before.
+            context: AppointmentContext with appointment_type, goal, dismissed_before, urgent_symptom.
 
         Returns:
             UUID string of the created appointment context.
@@ -57,6 +57,7 @@ class AppointmentRepository:
                 "appointment_type": context.appointment_type.value,
                 "goal": context.goal.value,
                 "dismissed_before": context.dismissed_before.value,
+                "urgent_symptom": context.urgent_symptom,
             }
             response = (
                 await self.client.table("appointment_prep_contexts")
@@ -143,6 +144,7 @@ class AppointmentRepository:
             appointment_type=row["appointment_type"],
             goal=row["goal"],
             dismissed_before=row["dismissed_before"],
+            urgent_symptom=row.get("urgent_symptom"),
         )
 
     async def save_outputs(
@@ -297,7 +299,7 @@ class AppointmentRepository:
             response = (
                 await self.client.table("appointment_prep_outputs")
                 .select(
-                    "*, appointment_prep_contexts(appointment_type, goal, dismissed_before, created_at)"
+                    "*, appointment_prep_contexts(appointment_type, goal, dismissed_before, urgent_symptom, created_at)"
                 )
                 .eq("user_id", user_id)
                 .order("created_at", desc=True)

@@ -53,6 +53,10 @@ class AppointmentContext(BaseModel):
     dismissed_before: DismissalExperience = Field(
         description="Whether the user has been dismissed by providers before"
     )
+    urgent_symptom: str | None = Field(
+        default=None,
+        description="Which symptom is urgent (only set when goal is 'urgent_symptom')"
+    )
 
 
 class ProviderSummary(BaseModel):
@@ -140,6 +144,10 @@ class AppointmentContextResponse(BaseModel):
     appointment_type: AppointmentType
     goal: AppointmentGoal
     dismissed_before: DismissalExperience
+    urgent_symptom: str | None = Field(
+        default=None,
+        description="Which symptom is urgent (only set when goal is 'urgent_symptom')"
+    )
     created_at: datetime
 
     model_config = {"from_attributes": True}
@@ -185,6 +193,10 @@ class CreateAppointmentContextRequest(BaseModel):
     )
     dismissed_before: DismissalExperience = Field(
         description="Whether the user has been dismissed by providers before"
+    )
+    urgent_symptom: str | None = Field(
+        default=None,
+        description="Which symptom is urgent (only set when goal is 'urgent_symptom')"
     )
 
 

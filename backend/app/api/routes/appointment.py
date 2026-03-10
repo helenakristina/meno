@@ -100,6 +100,7 @@ async def create_appointment_context(
         appointment_type=payload.appointment_type,
         goal=payload.goal,
         dismissed_before=payload.dismissed_before,
+        urgent_symptom=payload.urgent_symptom,
     )
 
     # Save context and get appointment ID
@@ -107,10 +108,11 @@ async def create_appointment_context(
 
     # Log context creation (user_id hashed for privacy)
     logger.info(
-        "Appointment prep started: appointment_id=%s appointment_type=%s goal=%s",
+        "Appointment prep started: appointment_id=%s appointment_type=%s goal=%s urgent_symptom=%s",
         appointment_id,
         context.appointment_type.value,
         context.goal.value,
+        context.urgent_symptom,
     )
 
     return CreateAppointmentContextResponse(
@@ -803,6 +805,7 @@ async def generate_appointment_outputs(
             appointment_type=context.appointment_type.value,
             goal=context.goal.value,
             user_age=age,
+            urgent_symptom=context.urgent_symptom,
         )
     except TimeoutError:
         logger.error(
@@ -833,6 +836,7 @@ async def generate_appointment_outputs(
             appointment_type=context.appointment_type.value,
             goal=context.goal.value,
             user_age=age,
+            urgent_symptom=context.urgent_symptom,
         )
     except TimeoutError:
         logger.error(

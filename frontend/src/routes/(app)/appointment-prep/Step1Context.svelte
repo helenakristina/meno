@@ -29,16 +29,24 @@
 
 	const { form: formData, errors } = form;
 
-	let canSubmit = $derived(
-		!!$formData.appointment_type && !!$formData.goal && !!$formData.dismissed_before
-	);
+	let showUrgentSymptomField = $derived($formData.goal === AppointmentGoal.urgent_symptom);
+
+	let canSubmit = $derived(() => {
+		const hasRequired =
+			!!$formData.appointment_type && !!$formData.goal && !!$formData.dismissed_before;
+		const urgentSymptomValid = showUrgentSymptomField
+			? !!$formData.urgent_symptom?.trim()
+			: true;
+		return hasRequired && urgentSymptomValid;
+	});
 
 	function handleNext() {
-		if (!canSubmit) return;
+		if (!canSubmit()) return;
 		onNext({
 			appointment_type: $formData.appointment_type as AppointmentType,
 			goal: $formData.goal as AppointmentGoal,
 			dismissed_before: $formData.dismissed_before as DismissalExperience,
+			urgent_symptom: $formData.urgent_symptom || null,
 		});
 	}
 </script>
@@ -137,12 +145,35 @@
 		{/if}
 	</fieldset>
 
+	<!-- CONDITIONAL: Urgent Symptom Text Field -->
+	{#if showUrgentSymptomField}
+		<fieldset class="rounded-xl border border-amber-200 bg-amber-50 p-4">
+			<legend class="font-semibold text-amber-900">
+				Which symptom is most urgent?
+			</legend>
+			<p class="mt-1 text-sm text-amber-800">
+				This helps us tailor your preparation materials to your most pressing concern.
+			</p>
+			<input
+				type="text"
+				name="urgent_symptom"
+				placeholder="e.g., sleep disruption, hot flashes, anxiety, cognitive difficulties"
+				bind:value={$formData.urgent_symptom}
+				class="mt-3 w-full rounded-lg border border-amber-300 px-3 py-2 text-slate-900 focus:border-amber-400 focus:outline-none focus:ring-2 focus:ring-amber-200"
+				aria-invalid={showUrgentSymptomField && !$formData.urgent_symptom?.trim()}
+			/>
+			{#if $errors.urgent_symptom}
+				<p class="mt-1 text-sm text-red-600">{$errors.urgent_symptom}</p>
+			{/if}
+		</fieldset>
+	{/if}
+
 	<button
 		type="button"
 		onclick={handleNext}
-		disabled={!canSubmit}
+		disabled={!canSubmit()}
 		class="w-full rounded-xl bg-teal-600 py-3 text-sm font-semibold text-white transition-colors hover:bg-teal-700 disabled:cursor-not-allowed disabled:opacity-40"
-		aria-disabled={!canSubmit}
+		aria-disabled={!canSubmit()}
 	>
 		Next: Generate symptom summary
 	</button>
