@@ -48,7 +48,7 @@
 		{ value: 'to_call', label: 'To Call' },
 		{ value: 'called', label: 'Called' },
 		{ value: 'left_voicemail', label: 'Left Voicemail' },
-		{ value: 'booking', label: 'Booking Appointment' },
+		{ value: 'booking', label: 'Booked Appointment' },
 		{ value: 'not_available', label: 'Not Available' }
 	] as const;
 
@@ -137,22 +137,25 @@
 	// Also sync call tracker state from props.
 	$effect(() => {
 		if (open) {
-			modalState = 'form';
-			insuranceType = '';
-			insurancePlanName = '';
-			insurancePlanUnknown = false;
-			interestedInTelehealth = false;
-			generatedScript = '';
-			error = '';
-			copied = false;
+			// Only reset form state when opening or returning to form state,
+			// preserve result state to keep modal visible when user saves to shortlist
+			if (modalState !== 'result') {
+				modalState = 'form';
+				insuranceType = '';
+				insurancePlanName = '';
+				insurancePlanUnknown = false;
+				interestedInTelehealth = false;
+				generatedScript = '';
+				error = '';
+				copied = false;
+				loadInsurancePreference();
+			}
 
-			// Sync call tracker from parent props
+			// Always sync call tracker from parent props
 			localIsSaved = isSaved;
 			localStatus = (shortlistEntry?.status as ShortlistStatus) ?? 'to_call';
 			localNotes = shortlistEntry?.notes ?? '';
 			notesSaved = false;
-
-			loadInsurancePreference();
 		}
 	});
 

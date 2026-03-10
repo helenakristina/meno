@@ -127,6 +127,7 @@
 </script>
 
 <article
+	data-provider-id={provider.id}
 	class="rounded-2xl border border-slate-200 bg-white px-6 py-5 shadow-sm transition-shadow hover:shadow-md"
 >
 	<!-- Top row: name/location + badges -->
@@ -274,7 +275,8 @@
 		</div>
 
 		<button
-			onclick={() => (modalOpen = true)}
+			data-action="generate-script"
+		onclick={() => (modalOpen = true)}
 			class="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 shadow-sm transition-colors hover:border-teal-300 hover:bg-teal-50 hover:text-teal-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-300"
 		>
 			Generate Calling Script
