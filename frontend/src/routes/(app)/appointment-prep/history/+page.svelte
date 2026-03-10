@@ -47,15 +47,6 @@
 		});
 	}
 
-	function downloadPdf(url: string, filename: string) {
-		const link = document.createElement('a');
-		link.href = url;
-		link.download = filename;
-		document.body.appendChild(link);
-		link.click();
-		document.body.removeChild(link);
-	}
-
 	function handlePrevPage() {
 		if (offset > 0) {
 			offset = Math.max(0, offset - limit);
@@ -115,14 +106,16 @@
 						<div class="flex gap-2 w-full sm:w-auto">
 							<a
 								href={prep.provider_summary_path}
-								download={`provider-summary-${prep.appointment_id.slice(0, 8)}.pdf`}
+								target="_blank"
+								rel="noopener noreferrer"
 								class="flex-1 sm:flex-none rounded-lg bg-teal-600 px-4 py-2 text-sm text-white text-center hover:bg-teal-700 transition-colors min-h-10 flex items-center justify-center"
 							>
 								Provider Summary
 							</a>
 							<a
 								href={prep.personal_cheatsheet_path}
-								download={`cheat-sheet-${prep.appointment_id.slice(0, 8)}.pdf`}
+								target="_blank"
+								rel="noopener noreferrer"
 								class="flex-1 sm:flex-none rounded-lg bg-teal-600 px-4 py-2 text-sm text-white text-center hover:bg-teal-700 transition-colors min-h-10 flex items-center justify-center"
 							>
 								Cheat Sheet
