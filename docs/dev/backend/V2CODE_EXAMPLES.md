@@ -1145,6 +1145,157 @@ Before committing code, verify:
 
 ---
 
+## Part 7: Retry & Resilience Patterns
+
+### Why Retry?
+
+External services (OpenAI, Claude, Supabase, etc.) can fail transiently:
+- **Rate limits (429)** — common when processing lots of LLM calls
+- **Timeouts** — network latency, service load
+- **Connection errors** — temporary network issues
+
+For critical user flows (appointment prep, export generation), a single transient failure causes hard errors. Retry logic makes the app resilient.
+
+### Pattern: @retry_transient Decorator
+
+All external API calls should have retry logic. Use the `@retry_transient` decorator from `app/utils/retry.py`.
+
+**Example: LLM Provider with Retry**
+
+```python
+# backend/app/services/openai_provider.py
+
+import logging
+from openai import AsyncOpenAI
+from app.utils.retry import retry_transient
+
+logger = logging.getLogger(__name__)
+
+
+class OpenAIProvider:
+    """OpenAI implementation with automatic retry on transient failures."""
+
+    def __init__(self, api_key: str):
+        self.client = AsyncOpenAI(api_key=api_key)
+        self.model = "gpt-4o-mini"
+
+    @retry_transient(max_attempts=3, initial_wait=1, max_wait=10)
+    async def chat_completion(
+        self,
+        system_prompt: str,
+        user_prompt: str,
+        max_tokens: int = 1024,
+        temperature: float = 0.7,
+    ) -> str:
+        """Call OpenAI API.
+
+        Automatically retries on:
+        - Timeouts (network latency)
+        - Rate limits (429)
+        - Connection errors
+
+        Does NOT retry on:
+        - Auth errors (401) — permanent
+        - Not found (404) — permanent
+        - Bad request (400) — permanent
+
+        See app/utils/retry.py for retry logic.
+        """
+        response = await self.client.chat.completions.create(
+            model=self.model,
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt},
+            ],
+            max_tokens=max_tokens,
+            temperature=temperature,
+        )
+        return (response.choices[0].message.content or "").strip()
+```
+
+### How Retry Works
+
+1. **First call:** Attempt API call normally
+2. **Transient error:** Catch it (timeout, connection error, 429), wait 1 second, retry
+3. **Still failing:** Wait 2 seconds (exponential backoff), retry again
+4. **Still failing:** Wait 4 seconds (capped at max_wait=10), retry once more
+5. **All retries exhausted:** Re-raise exception to caller (route catches it)
+
+### Retry Behavior Summary
+
+| Scenario | Behavior |
+|----------|----------|
+| Success on 1st attempt | Return immediately |
+| Timeout on 1st, success on 2nd | Wait 1s, retry, return |
+| Timeout on 1st & 2nd, success on 3rd | Wait 1s, retry, wait 2s, retry, return |
+| Timeout on all 3 attempts | Wait 1s, 2s, 4s, then raise error to caller |
+| 401 Unauthorized | Don't retry, raise immediately |
+| 404 Not Found | Don't retry, raise immediately |
+| Rate limit (429) | Retry with exponential backoff (up to 10s waits) |
+
+### Customizing Retry Behavior
+
+```python
+# More aggressive: 5 attempts, up to 30 second waits
+@retry_transient(max_attempts=5, initial_wait=1, max_wait=30)
+async def call_slow_api():
+    pass
+
+# Conservative: 2 attempts, quick waits
+@retry_transient(max_attempts=2, initial_wait=0.5, max_wait=5)
+async def call_fast_api():
+    pass
+```
+
+### When to Add @retry_transient
+
+**YES, add retry:**
+- External API calls (OpenAI, Claude, Anthropic, Supabase storage, etc.)
+- Any network-dependent operation
+- LLM provider methods
+- Storage/file upload operations
+
+**NO, don't add retry:**
+- Database queries (connection is separate from query)
+- Local function calls
+- Validation logic
+- Auth checks (401 is permanent)
+
+### Testing Retry Logic
+
+When testing decorated functions, the retry logic is transparent — the mock will be called multiple times:
+
+```python
+@pytest.mark.asyncio
+async def test_retries_on_timeout():
+    """Test that timeout is retried."""
+    provider = OpenAIProvider("fake-key")
+
+    call_count = 0
+    async def mock_create(*args, **kwargs):
+        nonlocal call_count
+        call_count += 1
+        if call_count == 1:
+            raise TimeoutError("timeout")
+        return Mock(choices=[Mock(message=Mock(content="Success"))])
+
+    provider.client.chat.completions.create = mock_create
+    result = await provider.chat_completion("system", "user")
+
+    assert result == "Success"
+    assert call_count == 2  # Called twice (retry worked)
+```
+
+### Implementation Details
+
+See `backend/app/utils/retry.py`:
+- `retry_transient()` — Decorator that applies retry logic
+- `is_retryable_exception()` — Determines if exception is transient
+- Automatically logs each retry attempt as warning
+- Uses tenacity library for robust, tested retry logic
+
+---
+
 ## Quick Reference: File Templates
 
 ### New Service Template

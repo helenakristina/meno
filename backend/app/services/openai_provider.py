@@ -9,6 +9,7 @@ import logging
 from openai import AsyncOpenAI
 
 from app.services.llm_base import LLMProvider
+from app.utils.retry import retry_transient
 
 logger = logging.getLogger(__name__)
 
@@ -33,6 +34,7 @@ class OpenAIProvider(LLMProvider):
         self.client = AsyncOpenAI(api_key=api_key)
         self.model = "gpt-4o-mini"  # Cost-effective for development
 
+    @retry_transient(max_attempts=3, initial_wait=1, max_wait=10)
     async def chat_completion(
         self,
         system_prompt: str,
@@ -42,6 +44,9 @@ class OpenAIProvider(LLMProvider):
         response_format: str | None = None,
     ) -> str:
         """Generate a chat completion using OpenAI.
+
+        Automatically retries transient failures (timeouts, rate limits) with
+        exponential backoff. See app/utils/retry.py for retry logic.
 
         Args:
             system_prompt: System-level instructions.
@@ -112,6 +117,7 @@ class OpenAIProvider(LLMProvider):
             logger.error("OpenAI API error: %s", e, exc_info=True)
             raise RuntimeError(f"OpenAI API error: {e}") from e
 
+    @retry_transient(max_attempts=3, initial_wait=1, max_wait=10)
     async def chat_completion_with_usage(
         self,
         system_prompt: str,
@@ -121,6 +127,9 @@ class OpenAIProvider(LLMProvider):
         response_format: str | None = None,
     ) -> tuple[str, int, int]:
         """Generate a chat completion and return usage information.
+
+        Automatically retries transient failures (timeouts, rate limits) with
+        exponential backoff. See app/utils/retry.py for retry logic.
 
         Args:
             system_prompt: System-level instructions.

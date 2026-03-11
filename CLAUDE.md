@@ -254,6 +254,74 @@ except EntityNotFoundError:
 - Include request IDs in logs for tracing
 - Never log sensitive data (passwords, API keys, health data)
 
+**Retry & Resilience Patterns**
+
+**Rule: All external API calls must have retry logic. Use `@retry_transient` decorator.**
+
+External services (OpenAI, Supabase, etc.) can fail transiently:
+- Rate limits (429 Too Many Requests) — common when processing lots of LLM calls
+- Timeouts — network latency, service load
+- Connection errors — temporary network issues
+
+For critical user flows (appointment prep), a single transient failure causes hard errors. Retry logic makes the app resilient.
+
+**Pattern: Use @retry_transient Decorator**
+
+```python
+from app.utils.retry import retry_transient
+
+class OpenAIProvider(LLMProvider):
+    @retry_transient(max_attempts=3, initial_wait=1, max_wait=10)
+    async def chat_completion(self, system_prompt: str, user_prompt: str, **kwargs) -> str:
+        """Call OpenAI API with automatic retry on transient failures.
+
+        Automatically retries on:
+        - Timeouts (network latency)
+        - Rate limits (429)
+        - Connection errors
+
+        Does NOT retry on:
+        - Auth errors (401) — permanent
+        - Not found (404) — permanent
+        - Bad request (400) — permanent
+        """
+        response = await self.client.chat.completions.create(...)
+        return response.choices[0].message.content
+```
+
+**Behavior:**
+- **Max attempts:** 3 attempts by default (customizable)
+- **Exponential backoff:** Wait 1s, then 2s, then 4s between attempts
+- **Smart retry:** Only retries transient errors (timeouts, rate limits, connection errors)
+- **Doesn't retry:** Auth errors (401), not found (404), bad request (400)
+- **Logging:** Each retry attempt logged as warning
+- **Reraises:** If all retries fail, exception re-raised to caller
+
+**Customizing Retry Behavior:**
+
+```python
+# More aggressive: 5 attempts, up to 30 second waits
+@retry_transient(max_attempts=5, initial_wait=1, max_wait=30)
+async def call_slow_api():
+    pass
+
+# Conservative: 2 attempts, quick waits
+@retry_transient(max_attempts=2, initial_wait=0.5, max_wait=5)
+async def call_fast_api():
+    pass
+```
+
+**When NOT to Retry:**
+
+Do NOT add retry logic to:
+- Database queries (Supabase RLS enforcement happens at connection time)
+- Auth checks (401 is permanent, no point retrying)
+- Pydantic validation (400 is permanent)
+
+**Default:** Only decorate external API calls (OpenAI, Claude, etc.)
+
+See `app/utils/retry.py` for implementation details and `is_retryable_exception()` logic.
+
 ### TypeScript (Frontend)
 
 **Style:**
