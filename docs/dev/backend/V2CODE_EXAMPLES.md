@@ -1045,6 +1045,105 @@ def test_frequency_stats_counts_and_sorts():
     assert result[1].count == 1
 ```
 
+### Repository Tests (Supabase Mocking)
+
+**The Problem:** Supabase uses a fluent query API that's easy to mock incorrectly.
+
+```python
+# ❌ FRAGILE: Breaks if query chain changes
+mock.table("users").select.return_value.eq.return_value.execute = ...
+# If code adds .order() or removes .eq(), mock returns wrong data silently
+```
+
+**The Solution:** Use the `setup_supabase_response()` helper from `tests/fixtures/supabase.py`.
+
+```python
+# ✅ ROBUST: Works with any query chain
+from tests.fixtures.supabase import setup_supabase_response
+
+setup_supabase_response(mock_client, data=[{"id": "123"}])
+
+# Now these ALL work correctly:
+await mock_client.table("users").select("*").execute()
+await mock_client.table("users").select("*").eq("id", "123").execute()
+await mock_client.table("users").select("*").eq("id", "123").order("name").execute()
+# Any chain, any length, any order
+```
+
+**How it works:**
+
+The helper sets up all Supabase chainable methods (select, eq, order, limit, etc.)
+to return the same chain object. This allows unlimited chaining without breaking.
+Only `execute()` actually returns the result.
+
+**Example Test:**
+
+```python
+# backend/tests/repositories/test_user_repository.py
+
+import pytest
+from unittest.mock import MagicMock
+from tests.fixtures.supabase import (
+    setup_supabase_response,
+    setup_supabase_error,
+    setup_supabase_not_found,
+)
+from app.repositories.user_repository import UserRepository
+from app.exceptions import EntityNotFoundError, DatabaseError
+
+
+@pytest.mark.asyncio
+async def test_get_user_success(mock_supabase):
+    """Test successful user fetch."""
+    # Set up what data to return
+    setup_supabase_response(
+        mock_supabase,
+        data=[{"id": "user-123", "email": "jane@example.com", "journey_stage": "active"}]
+    )
+
+    # Create repo with mock
+    repo = UserRepository(mock_supabase)
+
+    # Query chain length doesn't matter — mock handles it
+    user = await repo.get("user-123")
+
+    assert user["id"] == "user-123"
+    assert user["email"] == "jane@example.com"
+
+
+@pytest.mark.asyncio
+async def test_get_user_not_found(mock_supabase):
+    """Test when user doesn't exist."""
+    # Empty data = not found
+    setup_supabase_not_found(mock_supabase)
+
+    repo = UserRepository(mock_supabase)
+
+    result = await repo.get("nonexistent-id")
+    assert result is None
+
+
+@pytest.mark.asyncio
+async def test_get_user_error(mock_supabase):
+    """Test when database has an error."""
+    # Set error instead of data
+    setup_supabase_error(mock_supabase, "Connection failed")
+
+    repo = UserRepository(mock_supabase)
+
+    with pytest.raises(DatabaseError):
+        await repo.get("user-123")
+```
+
+**Available Helpers:**
+
+- `setup_supabase_response(mock, data=[], error=None)` — Success with data
+- `setup_supabase_error(mock, message)` — Error response
+- `setup_supabase_not_found(mock)` — Empty result
+- `@pytest.fixture mock_supabase` — Pre-configured fixture
+
+All are in `tests/fixtures/supabase.py`.
+
 ### Service Tests (Mock Dependencies)
 
 ```python

@@ -1199,23 +1199,45 @@ Always use Context7 for live documentation on:
 - PostgreSQL functions (trust the DB)
 - Third-party APIs (mock them)
 
-**Mock Strategy:**
+**Mock Strategy: Supabase Fluent API Mocking**
+
+The Supabase client uses a fluent query API (`table().select().eq().execute()`) that's easy to mock incorrectly.
+Naive mocking breaks when code adds/removes chain calls.
+
+**Use `setup_supabase_response()` helper for chain-agnostic mocks:**
 
 ```python
-from unittest.mock import AsyncMock, patch
+from tests.fixtures.supabase import setup_supabase_response
 
 @pytest.mark.asyncio
-async def test_create_symptom_log():
-    mock_supabase = AsyncMock()
-    mock_supabase.from_().insert().execute.return_value = {
-        "data": [{"id": "123", "symptoms": ["fatigue"]}],
-        "error": None
-    }
+async def test_create_symptom_log(mock_supabase):
+    """Test symptom log creation."""
+    # Set up response data
+    setup_supabase_response(
+        mock_supabase,
+        data=[{"id": "123", "symptoms": ["fatigue"]}]
+    )
 
-    with patch('app.core.supabase.supabase', mock_supabase):
-        response = await create_symptom_log(...)
-        assert response.status_code == 201
+    # Query chain doesn't matter — mock handles any length/order
+    repo = SymptomRepository(mock_supabase)
+    result = await repo.create("user-123", {"symptoms": ["fatigue"]})
+
+    assert result["id"] == "123"
 ```
+
+**Why this works:**
+
+The helper sets up all Supabase chainable methods to return the same mock chain object.
+This allows unlimited chaining without breaking when code changes.
+
+**Available helpers (in `tests/fixtures/supabase.py`):**
+
+- `setup_supabase_response(mock, data=[], error=None)` — Success response
+- `setup_supabase_error(mock, message)` — Error response
+- `setup_supabase_not_found(mock)` — Empty result
+- `@pytest.fixture mock_supabase` — Pre-configured fixture
+
+See "Part 4: Testing Patterns" in `docs/dev/backend/V2CODE_EXAMPLES.md` for full examples.
 
 ### Frontend Testing (Vitest)
 
