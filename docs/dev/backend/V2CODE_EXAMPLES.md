@@ -359,6 +359,11 @@ class AnthropicProvider(LLMProvider):
 
 ## Part 2: Repository Pattern (For Data Access)
 
+**IMPORTANT:** Repositories should raise domain exceptions (EntityNotFoundError, DatabaseError),
+not HTTPException. This keeps repositories reusable across contexts (routes, services, background jobs).
+
+See CLAUDE.md "Error Handling: Domain Exceptions Pattern" for full pattern.
+
 ### The Pattern
 
 **Bad (Mixed concerns - data access in route):**
@@ -386,25 +391,35 @@ async def ask_meno(payload: ChatRequest, user_id: CurrentUser, client: SupabaseC
 ```python
 # ✅ Do this - repositories/user_repository.py
 
+from app.exceptions import EntityNotFoundError, DatabaseError
+
 class UserRepository:
     def __init__(self, client: AsyncClient):
         self.client = client
 
     async def get_context(self, user_id: str) -> tuple[str, int | None]:
-        """Get user journey stage and age."""
-        response = (
-            await self.client.table("users")
-            .select("journey_stage, date_of_birth")
-            .eq("id", user_id)
-            .execute()
-        )
-        if response.data:
-            row = response.data[0]
-            journey_stage = row.get("journey_stage") or "unsure"
-            dob_raw = row.get("date_of_birth")
-            age = self._calculate_age(dob_raw) if dob_raw else None
-            return journey_stage, age
-        return "unsure", None
+        """Get user journey stage and age.
+
+        Raises:
+            DatabaseError: Database operation failed.
+        """
+        try:
+            response = (
+                await self.client.table("users")
+                .select("journey_stage, date_of_birth")
+                .eq("id", user_id)
+                .execute()
+            )
+            if response.data:
+                row = response.data[0]
+                journey_stage = row.get("journey_stage") or "unsure"
+                dob_raw = row.get("date_of_birth")
+                age = self._calculate_age(dob_raw) if dob_raw else None
+                return journey_stage, age
+            return "unsure", None
+        except Exception as exc:
+            logger.error("Failed to fetch user context: %s", exc, exc_info=True)
+            raise DatabaseError(f"Failed to fetch user context: {exc}") from exc
 
     @staticmethod
     def _calculate_age(dob: str) -> int:
@@ -419,7 +434,7 @@ class UserRepository:
         )
 
 
-# Then in routes/chat.py:
+# Then in routes/chat.py - domain exceptions caught by global handlers:
 
 @router.post("/api/chat")
 async def ask_meno(
@@ -442,6 +457,7 @@ Use this for EVERY repository (user, symptoms, conversation, appointment, period
 import logging
 from typing import Optional
 from supabase import AsyncClient
+from app.exceptions import EntityNotFoundError, DatabaseError
 
 logger = logging.getLogger(__name__)
 
@@ -451,6 +467,7 @@ class EntityRepository:
 
     Handles all Supabase queries for [Entity].
     Keeps data access logic out of routes and services.
+    Raises domain exceptions (not HTTPException) for clean separation of concerns.
     """
 
     def __init__(self, client: AsyncClient):
@@ -472,7 +489,8 @@ class EntityRepository:
             Entity dict or None if not found.
 
         Raises:
-            HTTPException: 404 if entity not found or doesn't belong to user.
+            EntityNotFoundError: Entity not found or doesn't belong to user.
+            DatabaseError: Database operation failed.
         """
         try:
             response = (
@@ -484,16 +502,10 @@ class EntityRepository:
             )
         except Exception as exc:
             logger.error("DB query failed: %s", exc, exc_info=True)
-            raise HTTPException(
-                status_code=500,
-                detail="Failed to fetch entity",
-            )
+            raise DatabaseError(f"Failed to fetch entity: {exc}") from exc
 
         if not response.data:
-            raise HTTPException(
-                status_code=404,
-                detail="Entity not found",
-            )
+            raise EntityNotFoundError(f"Entity {entity_id} not found")
 
         return response.data[0]
 

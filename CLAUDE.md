@@ -159,12 +159,86 @@ meno/
 - Async/await throughout - FastAPI is async-first
 - Docstrings for all public functions (Google style)
 
-**Error Handling:**
+**Error Handling: Domain Exceptions Pattern**
 
-- Use FastAPI's `HTTPException` for API errors
-- Let exceptions bubble to FastAPI's exception handlers
-- Log errors with context using Python's `logging` module
-- Return proper HTTP status codes (400 for validation, 404 for not found, 500 for server errors)
+**Rule: Never raise HTTPException in repositories or services. Only routes should know about HTTP.**
+
+Use domain exceptions from `app.exceptions`:
+
+```
+MenoBaseError (base)
+├── EntityNotFoundError (404) - Resource not found or doesn't belong to user
+├── DatabaseError (500) - Database operation failed
+├── ValidationError (400) - Input/business rule validation failed
+├── UnauthorizedError (401) - User not authenticated
+└── PermissionError (403) - User authenticated but not authorized
+```
+
+**Pattern: Repository Layer**
+
+```python
+from app.exceptions import EntityNotFoundError, DatabaseError
+
+async def get_context(self, appointment_id: str, user_id: str) -> AppointmentContext:
+    """Fetch appointment context.
+
+    Raises:
+        EntityNotFoundError: Appointment not found or doesn't belong to user.
+        DatabaseError: Database operation failed.
+    """
+    try:
+        response = await self.client.table("appointment_prep_contexts").select("*").execute()
+        if not response.data:
+            raise EntityNotFoundError(f"Appointment {appointment_id} not found")
+        return AppointmentContext(**response.data[0])
+    except EntityNotFoundError:
+        raise  # Re-raise domain exceptions
+    except Exception as e:
+        raise DatabaseError(f"Failed to fetch context: {e}") from e
+```
+
+**Pattern: Route Layer**
+
+Global exception handlers in `main.py` automatically convert domain exceptions to HTTP responses. Routes can leverage them:
+
+```python
+from app.exceptions import EntityNotFoundError
+
+@router.post("/appointment-prep/context")
+async def create_appointment_context(
+    payload: CreateAppointmentContextRequest,
+    user_id: CurrentUser,
+    appointment_repo: AppointmentRepository = Depends(get_appointment_repo),
+) -> CreateAppointmentContextResponse:
+    """Create appointment context.
+
+    Domain exceptions are caught by global handlers:
+    - EntityNotFoundError → 404
+    - DatabaseError → 500
+    - ValidationError → 400
+    """
+    appointment_id = await appointment_repo.save_context(user_id, context)
+    return CreateAppointmentContextResponse(appointment_id=appointment_id, next_step="narrative")
+```
+
+Or explicit handling in route when custom logic needed:
+
+```python
+from app.exceptions import EntityNotFoundError
+from fastapi import HTTPException
+
+try:
+    result = await appointment_repo.get_context(appointment_id, user_id)
+except EntityNotFoundError:
+    raise HTTPException(status_code=404, detail="Appointment not found")
+```
+
+**Benefits:**
+
+- **Testable:** Services work without HTTP context (routes, background jobs, scripts)
+- **Reusable:** Same code across different contexts
+- **Clean separation:** Each layer has clear concerns
+- **Maintainable:** Exception mapping is centralized in global handlers
 
 **Testing:**
 
@@ -179,33 +253,6 @@ meno/
 - Log levels: DEBUG (development), INFO (key events), WARNING (recoverable issues), ERROR (failures)
 - Include request IDs in logs for tracing
 - Never log sensitive data (passwords, API keys, health data)
-
-**Key Patterns:**
-
-```python
-from fastapi import HTTPException, status
-import logging
-
-logger = logging.getLogger(__name__)
-
-async def some_endpoint():
-    try:
-        # Business logic here
-        logger.info("User action completed", extra={"user_id": user_id})
-        return {"status": "success"}
-    except ValueError as e:
-        logger.warning(f"Validation error: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(e)
-        )
-    except Exception as e:
-        logger.error(f"Unexpected error: {e}", exc_info=True)
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="An unexpected error occurred"
-        )
-```
 
 ### TypeScript (Frontend)
 

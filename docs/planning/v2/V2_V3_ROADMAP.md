@@ -178,13 +178,24 @@ Women arrive at menopause appointments unprepared, often having forgotten key co
 
 **Refactoring Work:**
 
-1. Create repository layer (UserRepository, SymptomsRepository, ConversationRepository, etc.)
-2. Refactor LLM service with dependency injection
-3. Extract CitationService from chat route
-4. Add test coverage as services are refactored
+1. ✅ Establish domain exception pattern (EntityNotFoundError, DatabaseError, ValidationError, etc.)
+   - Separates business logic from HTTP concerns
+   - Repositories/services raise domain exceptions (not HTTPException)
+   - Global exception handlers in main.py convert to HTTP responses
+   - See `app/exceptions.py` and CLAUDE.md for pattern
+
+2. Create repository layer (UserRepository, SymptomsRepository, ConversationRepository, etc.)
+   - Use domain exceptions (not HTTPException) per pattern
+   - Raises EntityNotFoundError, DatabaseError
+
+3. Refactor LLM service with dependency injection
+4. Extract CitationService from chat route
+5. Add test coverage as services are refactored
 
 **Why This Matters:**
 
+- Domain exception pattern keeps code testable across contexts (routes, services, background jobs)
+- Repositories are independent of HTTP semantics
 - New features (Appointment Prep, multi-step flows) need DI for testability
 - Repositories make it easy to add new data (period, meds, labs)
 - Existing features (chat, symptoms) become easier to modify
@@ -219,6 +230,29 @@ Before shipping V2:
 **Launch Date Target:** Q4 2026 or Q1 2027
 
 **Focus:** Deep insights from collected data. Infrastructure for scale.
+
+### V3.0: Legacy Code Refactor (Ongoing, Post-Launch)
+
+**Goal:** Convert all repositories/services to domain exception pattern over time.
+
+**Status:** Foundation in place (new code uses domain exceptions), legacy code to be refactored gradually.
+
+**What's Needed:**
+
+- [ ] Update existing repositories to raise domain exceptions instead of HTTPException
+- [ ] Update existing services to handle domain exceptions properly
+- [ ] Update existing routes (optional - global handlers already work)
+- [ ] Add tests for exception handling
+
+**Estimated Effort:** 1-2 days total (1-2 hours per repository)
+
+**Priority:** Low (code quality, doesn't affect user features)
+
+**Constraint:** All NEW code MUST follow domain exception pattern.
+
+**Note:** This is ongoing maintenance, not blocking V2 or V3 features. Can be done incrementally as we touch existing code.
+
+---
 
 ### V3.1: Enhanced Pattern Analysis
 
