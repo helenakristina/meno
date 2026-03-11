@@ -247,8 +247,13 @@ class LLMProvider(Protocol):
 
 ```python
 # backend/app/services/openai_provider.py
+import logging
 from openai import AsyncOpenAI
 from app.services.llm_base import LLMProvider
+from app.utils.logging import safe_len
+
+logger = logging.getLogger(__name__)
+
 
 class OpenAIProvider(LLMProvider):
     """OpenAI implementation of LLMProvider."""
@@ -265,7 +270,19 @@ class OpenAIProvider(LLMProvider):
         temperature: float = 0.7,
         response_format: str | None = None,
     ) -> str:
-        """Implement with real OpenAI API call."""
+        """Implement with real OpenAI API call.
+
+        **Important:** Never logs prompt content or response.
+        Uses safe_len() to log only metadata for debugging.
+        """
+        # Log only metadata, not the actual prompts (may contain medical data)
+        logger.debug(
+            "LLM request: system=%d chars, user=%d chars, max_tokens=%d",
+            safe_len(system_prompt),
+            safe_len(user_prompt),
+            max_tokens,
+        )
+
         # Build request
         create_kwargs = {
             "model": self.model,
@@ -281,26 +298,54 @@ class OpenAIProvider(LLMProvider):
         if response_format == "json":
             create_kwargs["response_format"] = {"type": "json_object"}
 
-        response = await self.client.chat.completions.create(**create_kwargs)
-        return (response.choices[0].message.content or "").strip()
+        try:
+            response = await self.client.chat.completions.create(**create_kwargs)
+            content = (response.choices[0].message.content or "").strip()
+
+            # Log only the response size, not the content
+            logger.debug("LLM response: %d chars", safe_len(content))
+            return content
+
+        except Exception as e:
+            logger.error("LLM error: %s", type(e).__name__)
+            raise
 ```
 
 **3. Service Uses It (llm.py):**
 
 ```python
 # backend/app/services/llm.py
+import logging
 from app.services.llm_base import LLMProvider
+from app.utils.logging import hash_user_id, safe_summary
+
+logger = logging.getLogger(__name__)
+
 
 class LLMService:
     def __init__(self, provider: LLMProvider):
         self.provider = provider
 
-    async def chat_completion(self, system_prompt, user_prompt, **kwargs):
-        return await self.provider.chat_completion(
-            system_prompt=system_prompt,
-            user_prompt=user_prompt,
-            **kwargs
-        )
+    async def chat_completion(self, user_id: str, system_prompt: str, user_prompt: str, **kwargs):
+        """Generate a completion for a user.
+
+        **Important:** Never logs user_id, system_prompt, or user_prompt content.
+        Logs only the user (hashed) and operation status.
+        """
+        logger.debug("Generating completion for user: %s", hash_user_id(user_id))
+
+        try:
+            result = await self.provider.chat_completion(
+                system_prompt=system_prompt,
+                user_prompt=user_prompt,
+                **kwargs
+            )
+            logger.info(safe_summary("generate completion", "success"))
+            return result
+
+        except Exception as e:
+            logger.error(safe_summary("generate completion", "error"))
+            raise
 ```
 
 **4. In V3, Add Claude Support (anthropic_provider.py):**
@@ -1414,7 +1459,15 @@ Before committing code, verify:
 - [ ] All endpoints require auth
 - [ ] RLS policies enforced (user can only see own data)
 - [ ] No secrets in code
-- [ ] No PII in logs (hash user IDs)
+- [ ] **No PII in logs** — use safe logging utilities:
+  - [ ] User IDs hashed (use `hash_user_id()` from `app.utils.logging`)
+  - [ ] No prompt/response content logged (use `safe_len()`)
+  - [ ] No medical data logged (symptoms, personal notes, etc.)
+  - [ ] No user-generated content in logs
+  - [ ] Use `safe_summary()` for operation logging
+  - [ ] Sensitive API calls don't log request/response bodies
+  - [ ] Database queries don't log user data
+- [ ] Tests verify no PII in logs (use `caplog` fixture)
 
 ---
 

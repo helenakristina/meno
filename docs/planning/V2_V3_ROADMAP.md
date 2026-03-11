@@ -70,6 +70,46 @@
 
 ---
 
+**PII-Safe Logging Refactor**
+
+**Goal:** Audit and refactor all existing logging to use safe patterns. Health app logs must never contain personal or medical data.
+
+**Status:** In progress (V2 new code uses safe logging utilities, legacy code to be refactored)
+
+**Critical Issue:** Current logging in LLM providers and some services logs prompt content, symptom descriptions, and user-generated data. This violates HIPAA and GDPR.
+
+**Pattern:**
+- Use `hash_user_id()` for user IDs (never plaintext)
+- Use `safe_len()` for data sizes (never log content)
+- Never log symptom descriptions, medical data, prompts, or user-generated content
+- Use `safe_summary()` for operation logging
+- See `app/utils/logging.py` for utilities
+
+**Implementation:**
+- [x] Create logging utilities (`app/utils/logging.py`)
+- [x] Document patterns in CLAUDE.md
+- [ ] Audit existing code for dangerous logging patterns:
+  - [ ] LLM providers (currently logs prompt content — DANGEROUS)
+  - [ ] Services (may log user data)
+  - [ ] Routes (check response logging)
+  - [ ] Repositories (check query logging)
+- [ ] Update all dangerous logging calls
+- [ ] Add tests to catch PII in logs (grep for plaintext user IDs, symptom terms, etc.)
+
+**Estimated effort:** 3-5 hours
+**Blocked by:** None
+**Priority:** HIGH (legal/ethical compliance, HIPAA/GDPR)
+**Timing:** Weeks 16-17 (right after V2 launch)
+
+**New Code Requirement:** All new code MUST use safe logging utilities (enforced in code review).
+
+**Legal/Ethical Notes:**
+- Logging PII violates HIPAA (US), GDPR (EU), and state health privacy laws
+- Even "debug" logs can be accessed via log aggregation, monitoring systems, or backups
+- Treat all logs as potentially readable by others
+
+---
+
 **Streaming & Performance (V2.1 Later)**
 
 - Response streaming for narrative generation (Step 2) — currently 10-15s wait

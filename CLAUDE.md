@@ -1111,6 +1111,124 @@ The design of Meno (Python calculates, LLM narrates) means the LLM provider is a
 - Supabase handles auth token security
 - Backend validates all requests even though RLS provides defense-in-depth
 
+### PII-Safe Logging for Health Data
+
+**CRITICAL: Health app logs must NEVER contain personal or medical data.**
+
+This includes:
+- Symptom descriptions or medical information
+- User-generated free-text entries or notes
+- Personal health information (age, DOB, medical history)
+- Even brief snippets or previews of sensitive data
+- User IDs in plaintext (hash them instead)
+
+#### What NOT to Log
+
+```python
+# ❌ DANGEROUS: Logs sensitive health data
+logger.debug("Processing symptom log: %s", data[:100])
+logger.debug("User context: %s", user_data)
+logger.debug("LLM input: %s", prompt[:200])  # Could contain medical info
+logger.info("Generated narrative: %s", narrative[:500])
+```
+
+#### What TO Log (Safe Patterns)
+
+Log structure and status, not content:
+
+```python
+# ✅ SAFE: Only logs metadata and length
+
+from app.utils.logging import safe_len, safe_keys, safe_summary, hash_user_id
+
+# Log operation status
+logger.debug(safe_summary("fetch logs", "success", count=47))
+
+# Log data structure without revealing content
+logger.debug("Response keys: %s, length: %d", safe_keys(response), safe_len(response))
+
+# Log user with hashed ID
+logger.info("Processing for user: %s", hash_user_id(user_id))
+
+# Log LLM operation without prompt content
+logger.debug("LLM call: %d input chars, %d output tokens",
+             safe_len(prompt), len(response_text))
+```
+
+#### Using the Logging Utilities
+
+Import from `app.utils.logging`:
+
+```python
+from app.utils.logging import (
+    hash_user_id,
+    hash_appointment_id,
+    safe_len,
+    safe_type,
+    safe_keys,
+    safe_summary,
+)
+
+# Hash user identifiers
+logger.info("Processing user: %s", hash_user_id(user_id))
+logger.info("Appointment: %s", hash_appointment_id(appointment_id))
+
+# Log data structure without revealing content
+logger.debug("Received response: type=%s, keys=%s",
+             safe_type(response), safe_keys(response))
+
+# Log operation with summary
+logger.info(safe_summary("generate narrative", "success", duration_ms=234.5))
+
+# Log counts and sizes, never content
+logger.debug("Processing %d symptom logs (%d bytes)",
+             log_count, safe_len(all_logs_json))
+```
+
+#### In Providers and Services
+
+```python
+# ❌ BAD: Logs prompt content (may contain medical data)
+async def chat_completion(self, system_prompt: str, user_prompt: str, **kwargs) -> str:
+    logger.debug("Calling LLM with prompt: %s", user_prompt[:200])
+    response = await self.client.chat.completions.create(...)
+    return response.choices[0].message.content
+
+# ✅ GOOD: Only logs metadata
+async def chat_completion(self, system_prompt: str, user_prompt: str, **kwargs) -> str:
+    logger.debug("Calling LLM: %d input chars", safe_len(user_prompt))
+    response = await self.client.chat.completions.create(...)
+    logger.debug("LLM response: %d chars", safe_len(response.choices[0].message.content))
+    return response.choices[0].message.content
+```
+
+#### Legal and Ethical Responsibility
+
+Logging PII in a health app can:
+- **Violate HIPAA** (if US-based or handling US health data)
+- **Violate GDPR** (if EU users)
+- **Violate state health privacy laws** (California, etc.)
+- **Breach user trust** (users expect health data to be private)
+
+Even debug logs should be treated as potentially accessible to others (log aggregation, monitoring systems, backups). **Always assume logs are readable.**
+
+#### Testing Logging
+
+```python
+# Test that logs don't contain sensitive data
+def test_no_pii_in_logs(caplog):
+    """Verify logs don't contain user health data."""
+    # ... run some operation ...
+
+    # Check log output for sensitive terms
+    log_text = caplog.text
+    assert "symptom" not in log_text.lower()  # Don't log symptom descriptions
+    assert user_id not in log_text  # User ID should be hashed
+    assert prompt not in log_text  # Prompt may contain medical info
+```
+
+**Full documentation:** See `docs/dev/backend/LOGGING.md` for comprehensive PII-safe logging guide.
+
 ---
 
 ## Current Development Phase
