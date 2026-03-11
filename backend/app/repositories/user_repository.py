@@ -5,11 +5,12 @@ Keeps data access logic out of routes and services.
 """
 
 import logging
-from datetime import date
 from typing import Optional
 
 from fastapi import HTTPException, status
 from supabase import AsyncClient
+
+from app.utils.dates import calculate_age
 
 logger = logging.getLogger(__name__)
 
@@ -69,7 +70,13 @@ class UserRepository:
         journey_stage = row.get("journey_stage") or "unsure"
 
         dob_raw = row.get("date_of_birth")
-        age = self._calculate_age(dob_raw) if dob_raw else None
+        age = None
+        if dob_raw:
+            try:
+                age = calculate_age(dob_raw)
+            except ValueError as e:
+                logger.warning("Invalid DOB for user %s: %s", user_id, e)
+                age = None
 
         return journey_stage, age
 
@@ -285,21 +292,3 @@ class UserRepository:
             )
 
         logger.info("User deleted: id=%s", user_id)
-
-    @staticmethod
-    def _calculate_age(dob: str) -> int:
-        """Calculate age from ISO date string.
-
-        Args:
-            dob: Date of birth as ISO format string (YYYY-MM-DD).
-
-        Returns:
-            Age in years.
-        """
-        dob_date = date.fromisoformat(dob)
-        today = date.today()
-        return (
-            today.year
-            - dob_date.year
-            - ((today.month, today.day) < (dob_date.month, dob_date.day))
-        )

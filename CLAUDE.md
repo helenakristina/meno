@@ -596,6 +596,74 @@ def test_counts_sorted_descending():
     assert stats[0].count == 2
 ```
 
+### Business Logic Utilities
+
+**Rule: Shared business logic should live in `app/utils/`, not scattered across repositories or services.**
+
+#### What Goes in Utils
+
+Business logic that's used by multiple layers:
+- Date calculations (age, date ranges, formatting)
+- Statistical functions
+- Data transformations
+- Validation helpers
+- Formatting utilities
+
+#### What Stays in Repositories/Services
+
+- Data access queries (repositories only)
+- Service orchestration (services only)
+- API request handling (routes only)
+
+#### Pattern: Centralized Date Utilities
+
+```python
+# app/utils/dates.py - Shared across all layers
+
+from app.utils.dates import calculate_age, get_date_range
+
+# In repository
+age = calculate_age(user_dob)
+start, end = get_date_range(60)
+
+# In service
+age = calculate_age(user_dob)
+start, end = get_date_range(90)
+
+# In cycle analysis (future feature)
+age = calculate_age(user_dob)
+start, end = get_date_range(120)
+```
+
+**Available date utilities:**
+- `calculate_age(date_of_birth: str) -> int` — Age from ISO date string
+- `get_date_range(days_back: int) -> tuple[date, date]` — Date range for past N days (1-365)
+- `is_valid_iso_date(date_string: str) -> bool` — Validate ISO date format
+- `iso_date_to_display(iso_date: str) -> str` — Convert ISO date to human-readable
+- `days_since(iso_date: str) -> int` — Days elapsed since a date
+
+#### Benefits
+
+- **DRY:** Single source of truth for calculations
+- **Testable:** Business logic tested independently (no DB mocks needed)
+- **Reusable:** Works across repositories, services, background jobs, CLI scripts
+- **Maintainable:** Changes to logic in one place
+- **Clear separation:** Each layer has clear responsibilities
+
+#### When You Add New Business Logic
+
+1. Does it need to be used by multiple repositories/services?
+   - YES → Create in `app/utils/`
+   - NO → Keep it where it's used
+
+2. Is it a calculation, transformation, or formatting?
+   - YES → Belongs in utils
+   - NO → Might belong in service layer
+
+3. Can it be tested independently?
+   - YES (easier to test as util)
+   - NO (might be too tightly coupled, reconsider design)
+
 ---
 
 ### Frontend API Client

@@ -477,8 +477,10 @@ async def test_delete_db_error():
 
 def test_calculate_age_simple():
     """Test age calculation with simple case."""
+    from app.utils.dates import calculate_age
+
     dob = "1975-03-15"
-    age = UserRepository._calculate_age(dob)
+    age = calculate_age(dob)
     # Age depends on today's date, so just verify it's reasonable
     assert age >= 50
     assert age <= 51  # Assuming current year is around 2026
@@ -486,17 +488,21 @@ def test_calculate_age_simple():
 
 def test_calculate_age_birthday_not_occurred_yet():
     """Test age calculation when birthday hasn't occurred yet this year."""
+    from app.utils.dates import calculate_age
+
     # Someone born on Dec 1, 1980
     dob = "1980-12-01"
-    age = UserRepository._calculate_age(dob)
+    age = calculate_age(dob)
     # Should be 45 or 46 depending on current date
     assert 45 <= age <= 46
 
 
 def test_calculate_age_birthday_already_occurred():
     """Test age calculation when birthday already occurred this year."""
+    from app.utils.dates import calculate_age
+
     # Someone born on Jan 1, 1975
     dob = "1975-01-01"
-    age = UserRepository._calculate_age(dob)
+    age = calculate_age(dob)
     # Should be 51 or 50 depending on whether Jan 1 has passed
     assert 50 <= age <= 51
