@@ -1839,6 +1839,40 @@ def test_calculate_frequency_stats():
 
 ---
 
+## Part 9: Complete Vertical Slice Example
+
+**See CLAUDE.md section "Complete Vertical Slice Example: Appointment Prep Step 2" for full walkthrough.**
+
+This section shows how a real feature comes together across all layers:
+
+**Files involved:**
+- `app/models/appointment.py` — Pydantic models
+- `app/repositories/appointment_repository.py` — Data access
+- `app/services/appointment.py` — Business logic orchestration
+- `app/api/dependencies.py` — Dependency injection wiring
+- `app/api/routes/appointment.py` — HTTP endpoint
+- `backend/tests/services/test_appointment.py` — Unit tests
+
+**Build order:**
+1. Models (shapes)
+2. Repositories (data access)
+3. Services (orchestration)
+4. Dependencies (wiring)
+5. Routes (HTTP)
+6. Tests (verification)
+
+**Key patterns demonstrated:**
+- Dependency injection (each layer declares its dependencies)
+- Domain exceptions (EntityNotFoundError, DatabaseError)
+- Typed return values (Pydantic models)
+- Safe logging (hashed IDs, no PII)
+- Error handling (try/except with domain exceptions in layers, HTTPException in routes)
+- Testing with mocks (no real DB/API calls)
+
+**Use this as reference when building new V2 features.** Copy the patterns, adapt to your feature.
+
+---
+
 ## When in Doubt
 
 1. **Reference CLAUDE.md** — "Code Standards" section has definitive patterns

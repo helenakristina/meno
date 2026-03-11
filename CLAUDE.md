@@ -971,6 +971,555 @@ The `PUBLIC_` prefix in SvelteKit means the var is exposed to the browser.
 
 ---
 
+## Complete Vertical Slice Example: Appointment Prep Step 2
+
+**This section shows how all patterns fit together for a real feature.**
+
+When implementing a new feature, you'll touch multiple layers: models, repositories, services, routes, and tests. This example walks through building **Appointment Prep Step 2: Generate Narrative Summary**.
+
+### The Feature
+
+User submits their appointment context (type, goal, dismissed history) + 60 days of symptom logs. The system generates a narrative summary showing symptom frequency, co-occurrence patterns, and notable changes. User reviews and edits before Step 3.
+
+### Architecture Overview
+
+```
+User Input (appointment_id)
+    ↓
+Route Handler (@router.post("/appointment-prep/{id}/narrative"))
+    ↓
+Service Layer (AppointmentService.generate_narrative)
+    ├─ Repository 1: Get appointment context
+    ├─ Repository 2: Get symptom logs (60 days)
+    ├─ Utility: Calculate frequency stats
+    ├─ Utility: Calculate co-occurrence stats
+    ├─ LLM Service: Generate narrative from stats
+    ├─ Repository 3: Save narrative
+    └─ Service returns typed response
+    ↓
+Response Model (AppointmentNarrativeResponse)
+    ↓
+User receives JSON with narrative_id, narrative_text, next_step
+```
+
+### Build Order: Step by Step
+
+#### 1. Data Models (Define the Shape)
+
+**File:** `backend/app/models/appointment.py`
+
+```python
+from pydantic import BaseModel
+from datetime import datetime
+
+class AppointmentContext(BaseModel):
+    """Appointment prep context (Step 1 output)."""
+    appointment_type: str
+    goal: str
+    dismissed_before: str
+    urgent_symptom: str | None = None
+
+class AppointmentNarrativeResponse(BaseModel):
+    """Response with generated narrative (Step 2 output)."""
+    narrative_id: str
+    narrative_text: str
+    next_step: str = "prioritize"  # Step 3
+    created_at: datetime
+```
+
+Models are first because everything else depends on them.
+
+#### 2. Repository Layer (Data Access)
+
+**File:** `backend/app/repositories/appointment_repository.py`
+
+```python
+from app.exceptions import EntityNotFoundError, DatabaseError
+from app.models.appointment import AppointmentContext
+from app.utils.logging import hash_user_id
+
+class AppointmentRepository:
+    """Repository for appointment prep data access."""
+
+    def __init__(self, client: AsyncClient):
+        self.client = client
+
+    async def get_context(
+        self,
+        appointment_id: str,
+        user_id: str
+    ) -> AppointmentContext:
+        """Fetch appointment context from Step 1.
+
+        Returns:
+            AppointmentContext typed model
+
+        Raises:
+            EntityNotFoundError: Not found or doesn't belong to user
+            DatabaseError: Query failed
+        """
+        try:
+            response = (
+                await self.client.table("appointment_prep_contexts")
+                .select("*")
+                .eq("id", appointment_id)
+                .eq("user_id", user_id)
+                .single()
+                .execute()
+            )
+
+            if not response.data:
+                raise EntityNotFoundError(f"Appointment {appointment_id} not found")
+
+            return AppointmentContext(**response.data)
+
+        except EntityNotFoundError:
+            raise
+        except Exception as exc:
+            logger.error(
+                "Failed to fetch appointment context for user %s: %s",
+                hash_user_id(user_id),
+                type(exc).__name__,
+                exc_info=True
+            )
+            raise DatabaseError(f"Failed to fetch appointment context: {exc}") from exc
+
+    async def save_narrative(
+        self,
+        appointment_id: str,
+        user_id: str,
+        narrative_text: str,
+    ) -> str:
+        """Save generated narrative to database.
+
+        Returns:
+            narrative_id
+
+        Raises:
+            DatabaseError: Insert failed
+        """
+        try:
+            response = (
+                await self.client.table("appointment_prep_narratives")
+                .insert({
+                    "appointment_id": appointment_id,
+                    "user_id": user_id,
+                    "narrative_text": narrative_text,
+                    "created_at": datetime.now().isoformat(),
+                })
+                .execute()
+            )
+
+            if not response.data:
+                raise DatabaseError("Failed to save narrative")
+
+            return response.data[0]["id"]
+
+        except Exception as exc:
+            logger.error(
+                "Failed to save narrative for user %s: %s",
+                hash_user_id(user_id),
+                type(exc).__name__,
+                exc_info=True
+            )
+            raise DatabaseError(f"Failed to save narrative: {exc}") from exc
+```
+
+**Key patterns:**
+- Domain exceptions (EntityNotFoundError, DatabaseError) not HTTPException
+- Safe logging with hashed user IDs
+- Typed return values (AppointmentContext model)
+- Separate success/error paths
+
+#### 3. Service Layer (Orchestration & Business Logic)
+
+**File:** `backend/app/services/appointment.py`
+
+```python
+from app.repositories.appointment_repository import AppointmentRepository
+from app.repositories.symptoms_repository import SymptomsRepository
+from app.services.llm import LLMService
+from app.utils.stats import calculate_frequency_stats, calculate_cooccurrence_stats
+from app.utils.dates import get_date_range
+from app.utils.logging import hash_user_id, safe_summary
+from app.exceptions import EntityNotFoundError, DatabaseError
+
+class AppointmentService:
+    """Service for appointment prep features."""
+
+    def __init__(
+        self,
+        appointment_repo: AppointmentRepository,
+        symptoms_repo: SymptomsRepository,
+        llm_service: LLMService,
+    ):
+        """Inject dependencies (repositories and services)."""
+        self.appointment_repo = appointment_repo
+        self.symptoms_repo = symptoms_repo
+        self.llm_service = llm_service
+
+    async def generate_narrative(
+        self,
+        appointment_id: str,
+        user_id: str,
+    ) -> str:
+        """Generate narrative summary for appointment (Step 2).
+
+        Orchestrates:
+        1. Fetch appointment context
+        2. Fetch symptom logs (60 days)
+        3. Calculate statistics
+        4. Call LLM to generate narrative
+        5. Save narrative to database
+
+        Args:
+            appointment_id: Appointment to generate for
+            user_id: User (for ownership verification)
+
+        Returns:
+            narrative_text generated by LLM
+
+        Raises:
+            EntityNotFoundError: Appointment not found
+            DatabaseError: Database operation failed
+        """
+        logger.info(
+            "Generating narrative for user: %s",
+            hash_user_id(user_id),
+        )
+
+        # Step 1: Fetch appointment context
+        try:
+            context = await self.appointment_repo.get_context(appointment_id, user_id)
+        except EntityNotFoundError:
+            logger.warning("Appointment not found: %s", appointment_id)
+            raise
+
+        # Step 2: Fetch symptom logs (last 60 days)
+        start_date, end_date = get_date_range(60)
+        try:
+            logs = await self.symptoms_repo.get_logs(
+                user_id=user_id,
+                start_date=start_date,
+                end_date=end_date,
+            )
+        except DatabaseError:
+            logger.error("Failed to fetch symptom logs")
+            raise
+
+        # Step 3: Calculate statistics from logs
+        symptoms_ref = await self._get_symptoms_reference()
+        freq_stats = calculate_frequency_stats(logs, symptoms_ref)
+        coocc_stats = calculate_cooccurrence_stats(logs, symptoms_ref)
+
+        logger.debug(safe_summary("calculate statistics", "success", count=len(freq_stats)))
+
+        # Step 4: Call LLM to generate narrative
+        try:
+            narrative = await self.llm_service.generate_narrative(
+                context=context,
+                freq_stats=freq_stats,
+                coocc_stats=coocc_stats,
+            )
+        except Exception as exc:
+            logger.error("LLM generation failed: %s", type(exc).__name__)
+            raise
+
+        # Step 5: Save narrative
+        try:
+            narrative_id = await self.appointment_repo.save_narrative(
+                appointment_id=appointment_id,
+                user_id=user_id,
+                narrative_text=narrative,
+            )
+        except DatabaseError:
+            logger.error("Failed to save narrative")
+            raise
+
+        logger.info("Generated narrative: %s", narrative_id)
+        return narrative
+
+    async def _get_symptoms_reference(self) -> dict:
+        """Fetch symptoms reference data (cached)."""
+        # Implementation would fetch from database or cache
+        pass
+```
+
+**Key patterns:**
+- Dependency injection in `__init__`
+- Clear orchestration: repository → utils → service → repository
+- Domain exceptions raised (not HTTP)
+- Safe logging with utility functions
+- Each step has try/except with appropriate error handling
+
+#### 4. Dependency Injection (Wire It Up)
+
+**File:** `backend/app/api/dependencies.py`
+
+```python
+from fastapi import Depends
+from supabase import AsyncClient
+from app.repositories.appointment_repository import AppointmentRepository
+from app.repositories.symptoms_repository import SymptomsRepository
+from app.services.appointment import AppointmentService
+from app.services.llm import LLMService
+from app.services.openai_provider import OpenAIProvider
+
+def get_openai_provider() -> OpenAIProvider:
+    """Provide OpenAI LLM provider."""
+    return OpenAIProvider(api_key=settings.OPENAI_API_KEY)
+
+def get_llm_service(
+    provider: OpenAIProvider = Depends(get_openai_provider),
+) -> LLMService:
+    """Provide LLM service with injected provider."""
+    return LLMService(provider=provider)
+
+def get_supabase_client() -> AsyncClient:
+    """Provide Supabase client."""
+    return supabase.create_client(...)
+
+def get_appointment_repository(
+    client: AsyncClient = Depends(get_supabase_client),
+) -> AppointmentRepository:
+    """Provide appointment repository."""
+    return AppointmentRepository(client=client)
+
+def get_symptoms_repository(
+    client: AsyncClient = Depends(get_supabase_client),
+) -> SymptomsRepository:
+    """Provide symptoms repository."""
+    return SymptomsRepository(client=client)
+
+def get_appointment_service(
+    appointment_repo: AppointmentRepository = Depends(get_appointment_repository),
+    symptoms_repo: SymptomsRepository = Depends(get_symptoms_repository),
+    llm_service: LLMService = Depends(get_llm_service),
+) -> AppointmentService:
+    """Provide appointment service with all dependencies."""
+    return AppointmentService(
+        appointment_repo=appointment_repo,
+        symptoms_repo=symptoms_repo,
+        llm_service=llm_service,
+    )
+```
+
+**Key pattern:**
+- Each dependency function declares what it needs
+- FastAPI auto-resolves the dependency graph
+- Testable: can inject mocks instead of real implementations
+
+#### 5. Route Handler (HTTP Endpoint)
+
+**File:** `backend/app/api/routes/appointment.py`
+
+```python
+from fastapi import APIRouter, Depends
+from app.api.dependencies import get_appointment_service
+from app.models.appointment import AppointmentNarrativeResponse
+from app.services.appointment import AppointmentService
+from app.dependencies import CurrentUser
+from app.exceptions import EntityNotFoundError, DatabaseError
+
+router = APIRouter(prefix="/api/appointment-prep", tags=["appointment"])
+
+@router.post("/{appointment_id}/narrative")
+async def generate_narrative(
+    appointment_id: str,
+    user_id: CurrentUser,
+    service: AppointmentService = Depends(get_appointment_service),
+) -> AppointmentNarrativeResponse:
+    """Generate narrative summary for appointment (Step 2).
+
+    Takes appointment context from Step 1 + symptom logs,
+    generates narrative summary, returns for user review.
+
+    Returns:
+        AppointmentNarrativeResponse with narrative_text and next_step
+
+    Raises:
+        HTTPException (404): Appointment not found
+        HTTPException (500): Database or LLM error
+    """
+    try:
+        narrative = await service.generate_narrative(
+            appointment_id=appointment_id,
+            user_id=user_id,
+        )
+
+        return AppointmentNarrativeResponse(
+            narrative_id=appointment_id,
+            narrative_text=narrative,
+            next_step="prioritize",
+        )
+
+    except EntityNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc))
+    except DatabaseError as exc:
+        raise HTTPException(status_code=500, detail="Database error")
+```
+
+**Key pattern:**
+- Thin route: just calls service
+- Catches domain exceptions and converts to HTTP
+- Returns typed response model
+- `CurrentUser` dependency handles auth
+
+#### 6. Tests (Verify It Works)
+
+**File:** `backend/tests/services/test_appointment.py`
+
+```python
+import pytest
+from unittest.mock import AsyncMock
+from app.services.appointment import AppointmentService
+from app.models.appointment import AppointmentContext
+from app.exceptions import EntityNotFoundError, DatabaseError
+
+@pytest.fixture
+def mock_appointment_repo():
+    """Mock appointment repository."""
+    mock = AsyncMock()
+    return mock
+
+@pytest.fixture
+def mock_symptoms_repo():
+    """Mock symptoms repository."""
+    mock = AsyncMock()
+    return mock
+
+@pytest.fixture
+def mock_llm_service():
+    """Mock LLM service."""
+    mock = AsyncMock()
+    return mock
+
+@pytest.fixture
+def service(mock_appointment_repo, mock_symptoms_repo, mock_llm_service):
+    """Create service with mocked dependencies."""
+    return AppointmentService(
+        appointment_repo=mock_appointment_repo,
+        symptoms_repo=mock_symptoms_repo,
+        llm_service=mock_llm_service,
+    )
+
+@pytest.mark.asyncio
+async def test_generate_narrative_success(service, mock_appointment_repo, mock_symptoms_repo, mock_llm_service):
+    """Test happy path: narrative generated successfully."""
+    # Setup mocks
+    mock_appointment_repo.get_context.return_value = AppointmentContext(
+        appointment_type="new_provider",
+        goal="explore_hrt",
+        dismissed_before="multiple",
+    )
+    mock_symptoms_repo.get_logs.return_value = [
+        {"symptoms": ["hot-flash", "night-sweat"]},
+        {"symptoms": ["hot-flash"]},
+    ]
+    mock_llm_service.generate_narrative.return_value = "Generated narrative..."
+    mock_appointment_repo.save_narrative.return_value = "narrative-123"
+
+    # Execute
+    narrative = await service.generate_narrative(
+        appointment_id="appt-456",
+        user_id="user-789",
+    )
+
+    # Verify
+    assert narrative == "Generated narrative..."
+    mock_appointment_repo.get_context.assert_called_once()
+    mock_symptoms_repo.get_logs.assert_called_once()
+    mock_llm_service.generate_narrative.assert_called_once()
+    mock_appointment_repo.save_narrative.assert_called_once()
+
+@pytest.mark.asyncio
+async def test_generate_narrative_appointment_not_found(service, mock_appointment_repo):
+    """Test error case: appointment doesn't exist."""
+    mock_appointment_repo.get_context.side_effect = EntityNotFoundError("Not found")
+
+    with pytest.raises(EntityNotFoundError):
+        await service.generate_narrative("nonexistent", "user-789")
+
+@pytest.mark.asyncio
+async def test_generate_narrative_database_error(service, mock_appointment_repo, mock_symptoms_repo):
+    """Test error case: database fails during symptom fetch."""
+    mock_appointment_repo.get_context.return_value = AppointmentContext(
+        appointment_type="new_provider",
+        goal="explore_hrt",
+        dismissed_before="multiple",
+    )
+    mock_symptoms_repo.get_logs.side_effect = DatabaseError("Query failed")
+
+    with pytest.raises(DatabaseError):
+        await service.generate_narrative("appt-456", "user-789")
+```
+
+**Key patterns:**
+- Mock each dependency independently
+- Test happy path + error cases
+- Use fixtures for setup
+- No real database or API calls (all mocked)
+
+### Build Order Summary
+
+**When implementing a complete feature, build in this order:**
+
+1. **Data Models** (`app/models/`) — Define input/output shapes first
+2. **Repositories** (`app/repositories/`) — Implement data access layer
+3. **Services** (`app/services/`) — Implement business logic and orchestration
+4. **Dependency Injection** (`app/api/dependencies.py`) — Wire everything together
+5. **Routes** (`app/api/routes/`) — Create HTTP endpoints (thin, just calls service)
+6. **Tests** (`backend/tests/`) — Test each layer independently
+
+**Key principle:** Each layer depends on the one below it. Testing is isolated (no cascading failures).
+
+### Patterns in Action
+
+**Dependency Graph:**
+
+```
+models/
+  └─ Repository depends on models
+
+repositories/
+  └─ Service depends on repositories + models
+
+services/
+  ├─ Depends on repositories + utilities
+  └─ Returns models
+
+dependencies.py
+  └─ Wires services + repositories together
+
+routes/
+  └─ Depends on services (via DI)
+
+tests/
+  └─ Test each layer independently (with mocks)
+```
+
+**Error Handling Flow:**
+
+```
+Repository raises EntityNotFoundError/DatabaseError
+  ↓
+Service catches and re-raises (or logs + wraps)
+  ↓
+Route catches and converts to HTTPException (404/500)
+  ↓
+Client receives appropriate HTTP status code
+```
+
+**Testing Flow:**
+
+```
+Service test: Mock repos → Call service → Assert behavior
+Repository test: Mock Supabase → Call repo → Assert query correct
+Route test: Mock service → Call endpoint → Assert response model
+```
+
+---
+
 ## Key Architectural Decisions
 
 ### Monorepo
