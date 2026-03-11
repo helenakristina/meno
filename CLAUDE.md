@@ -604,7 +604,7 @@ def test_counts_sorted_descending():
 
 Business logic that's used by multiple layers:
 - Date calculations (age, date ranges, formatting)
-- Statistical functions
+- Statistical calculations (frequency, co-occurrence analysis)
 - Data transformations
 - Validation helpers
 - Formatting utilities
@@ -612,10 +612,12 @@ Business logic that's used by multiple layers:
 #### What Stays in Repositories/Services
 
 - Data access queries (repositories only)
-- Service orchestration (services only)
+- Service orchestration — calling multiple repos/utils together (services only)
 - API request handling (routes only)
 
-#### Pattern: Centralized Date Utilities
+#### Pattern: Utils in Action
+
+**Date utilities example:**
 
 ```python
 # app/utils/dates.py - Shared across all layers
@@ -629,18 +631,38 @@ start, end = get_date_range(60)
 # In service
 age = calculate_age(user_dob)
 start, end = get_date_range(90)
-
-# In cycle analysis (future feature)
-age = calculate_age(user_dob)
-start, end = get_date_range(120)
 ```
 
-**Available date utilities:**
+**Stats utilities example:**
+
+```python
+# app/utils/stats.py - Pure calculations, no DB access
+
+from app.utils.stats import calculate_frequency_stats, calculate_cooccurrence_stats
+
+# In appointment prep service (narrative generation)
+freq_stats = calculate_frequency_stats(logs, symptoms_ref)
+coocc_stats = calculate_cooccurrence_stats(logs, symptoms_ref)
+prompt = self._build_prompt(freq_stats, coocc_stats)
+narrative = await self.provider.chat_completion(...)
+
+# In future cycle analysis feature
+freq_stats = calculate_frequency_stats(logs, symptoms_ref)
+patterns = analyze_cycles(freq_stats)
+```
+
+**Available utilities:**
+
+*Dates:*
 - `calculate_age(date_of_birth: str) -> int` — Age from ISO date string
 - `get_date_range(days_back: int) -> tuple[date, date]` — Date range for past N days (1-365)
 - `is_valid_iso_date(date_string: str) -> bool` — Validate ISO date format
 - `iso_date_to_display(iso_date: str) -> str` — Convert ISO date to human-readable
 - `days_since(iso_date: str) -> int` — Days elapsed since a date
+
+*Statistics:*
+- `calculate_frequency_stats(logs: list[dict], symptoms_reference: dict) -> list[SymptomFrequency]` — Per-symptom counts
+- `calculate_cooccurrence_stats(logs: list[dict], symptoms_reference: dict) -> list[SymptomPair]` — Symptom pair co-occurrence rates
 
 #### Benefits
 

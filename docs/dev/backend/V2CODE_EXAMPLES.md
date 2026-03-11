@@ -854,7 +854,7 @@ async def some_endpoint(
 ```python
 # backend/tests/services/test_stats.py
 
-from app.services.stats import calculate_frequency_stats
+from app.utils.stats import calculate_frequency_stats
 
 
 def test_frequency_stats_counts_and_sorts():
@@ -1321,6 +1321,177 @@ backend/app/api/routes/[feature].py
 └── Copy from "Part 3: Route with DI" example
 └── Create test file: backend/tests/api/routes/test_[feature].py
 ```
+
+---
+
+## Part 8: Business Logic Utilities
+
+### Pure Calculations Live in Utils
+
+Shared calculations (no side effects, no dependencies on repos) belong in `app/utils/` alongside dates and other utilities.
+
+### Example: Statistics Utilities
+
+**Location:** `backend/app/utils/stats.py`
+
+Pure functions that calculate symptom statistics from pre-fetched data. No DB access, no state management.
+
+```python
+# backend/app/utils/stats.py
+
+from collections import Counter
+from app.models.symptoms import SymptomFrequency, SymptomPair
+
+MAX_COOCCURRENCE_PAIRS = 10
+
+
+def calculate_frequency_stats(
+    logs: list[dict],
+    symptoms_reference: dict[str, dict],
+) -> list[SymptomFrequency]:
+    """Calculate per-symptom occurrence counts across logs.
+
+    Pure function - no side effects.
+    Can be used by any layer (services, routes, jobs, CLI, analysis).
+
+    Args:
+        logs: Raw symptom log rows. Each row has a ``symptoms`` field
+              containing list of symptom UUIDs.
+        symptoms_reference: Mapping of symptom_id → ``{name, category}``.
+
+    Returns:
+        List of SymptomFrequency objects sorted by count descending.
+    """
+    counts: Counter[str] = Counter(
+        sid for row in logs for sid in (row.get("symptoms") or [])
+    )
+
+    stats: list[SymptomFrequency] = []
+    for symptom_id, count in counts.most_common():
+        ref = symptoms_reference.get(symptom_id)
+        if ref:
+            stats.append(
+                SymptomFrequency(
+                    symptom_id=symptom_id,
+                    symptom_name=ref["name"],
+                    category=ref["category"],
+                    count=count,
+                )
+            )
+
+    return stats
+
+
+def calculate_cooccurrence_stats(
+    logs: list[dict],
+    symptoms_reference: dict[str, dict],
+    min_threshold: int = 2,
+) -> list[SymptomPair]:
+    """Calculate symptom pair co-occurrence rates.
+
+    For each pair (A, B), rate = how often B appears when A appears.
+    Only returns pairs with co-occurrence_count ≥ min_threshold.
+    Capped at MAX_COOCCURRENCE_PAIRS (10 by default).
+
+    Pure function - no side effects.
+    """
+    # Implementation...
+    pass
+```
+
+### Using Stats Utils in Services
+
+```python
+# backend/app/services/llm.py - Uses utils for calculations
+
+from app.utils.stats import calculate_frequency_stats, calculate_cooccurrence_stats
+
+class LLMService:
+    async def generate_narrative(self, logs: list[dict], symptoms_ref: dict):
+        """Generate narrative from symptom logs.
+
+        Uses pure calculation utilities (stats), then does LLM orchestration.
+
+        Separation of concerns:
+        - Stats layer: Pure calculations (testable, reusable)
+        - Service layer: Orchestration (calls stats + LLM + other services)
+        """
+        # Step 1: Pure calculations (from utils)
+        freq_stats = calculate_frequency_stats(logs, symptoms_ref)
+        coocc_stats = calculate_cooccurrence_stats(logs, symptoms_ref)
+
+        # Step 2: Service orchestration (build prompt, call LLM)
+        prompt = self._build_prompt_with_stats(freq_stats, coocc_stats)
+        narrative = await self.provider.chat_completion(
+            system_prompt=SYSTEM_PROMPT,
+            user_prompt=prompt,
+        )
+
+        return narrative
+
+    def _build_prompt_with_stats(self, freq_stats, coocc_stats) -> str:
+        """Internal helper - builds prompt from statistics."""
+        # Format stats for LLM...
+        return prompt
+```
+
+### Reuse Across Multiple Features
+
+```python
+# Same stats utilities used by different features
+
+# Feature 1: Appointment prep (narrative generation)
+from app.utils.stats import calculate_frequency_stats
+narrative = await llm_service.generate_narrative(logs, freq_stats)
+
+# Feature 2: Future cycle analysis (V2.2)
+from app.utils.stats import calculate_frequency_stats, calculate_cooccurrence_stats
+cycles = await cycle_analyzer.analyze(logs, freq_stats, coocc_stats)
+
+# Feature 3: Future trending/anomaly detection (V3)
+from app.utils.stats import calculate_frequency_stats
+trends = await trend_analyzer.detect_trends(freq_stats)
+
+# Feature 4: Exports/reports
+from app.utils.stats import calculate_frequency_stats
+report = generate_symptom_report(freq_stats)
+```
+
+### Testing Pure Utilities
+
+Tests are straightforward — no mocks needed. Just pass constructed data:
+
+```python
+# backend/tests/utils/test_stats.py
+
+def test_calculate_frequency_stats():
+    """Test that frequencies are counted and sorted correctly."""
+    logs = [
+        {"symptoms": ["id-a", "id-b"]},
+        {"symptoms": ["id-a", "id-c"]},
+        {"symptoms": ["id-a"]},
+    ]
+    ref = {
+        "id-a": {"name": "Hot Flashes", "category": "vasomotor"},
+        "id-b": {"name": "Fatigue", "category": "energy"},
+        "id-c": {"name": "Brain Fog", "category": "cognitive"},
+    }
+
+    stats = calculate_frequency_stats(logs, ref)
+
+    # id-a appears 3 times, id-b and id-c appear 1 time
+    assert stats[0].symptom_id == "id-a"
+    assert stats[0].count == 3
+    assert stats[1].symptom_id == "id-b"  # or id-c (both count=1)
+```
+
+### Pattern Benefits
+
+- **DRY:** Single source of truth for calculations
+- **Testable:** Pure functions tested independently
+- **Reusable:** Works across services, background jobs, exports, CLI scripts
+- **Clear separation:** Utils = calculation, Services = orchestration
+- **Scalable:** Easy to add more utilities without coupling to services
 
 ---
 

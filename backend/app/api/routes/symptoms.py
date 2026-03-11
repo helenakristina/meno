@@ -13,7 +13,7 @@ from app.models.symptoms import (
     SymptomLogResponse,
 )
 from app.repositories.symptoms_repository import SymptomsRepository
-from app.services.stats import calculate_cooccurrence_stats, calculate_frequency_stats
+from app.utils.stats import calculate_cooccurrence_stats, calculate_frequency_stats
 
 logger = logging.getLogger(__name__)
 

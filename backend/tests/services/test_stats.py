@@ -4,7 +4,7 @@ No DB or network access; all inputs are constructed inline.
 """
 
 from typing import Dict, List, Optional
-from app.services.stats import calculate_cooccurrence_stats, calculate_frequency_stats
+from app.utils.stats import calculate_cooccurrence_stats, calculate_frequency_stats
 
 # ---------------------------------------------------------------------------
 # Shared fixtures
@@ -123,7 +123,7 @@ class TestCalculateCooccurrenceStats:
         assert pairs == []
 
     def test_capped_at_max_pairs(self):
-        from app.services.stats import MAX_COOCCURRENCE_PAIRS
+        from app.utils.stats import MAX_COOCCURRENCE_PAIRS
 
         # Create more pairs than the cap by using many distinct symptom IDs
         many_ref = {f"id-{i}": {"name": f"Symptom {i}", "category": "other"} for i in range(20)}

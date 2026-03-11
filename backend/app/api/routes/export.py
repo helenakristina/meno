@@ -32,7 +32,7 @@ from app.models.export import ExportRequest
 from app.models.symptoms import SymptomFrequency, SymptomPair
 from app.repositories.symptoms_repository import SymptomsRepository
 from app.services.llm import LLMService
-from app.services.stats import calculate_cooccurrence_stats, calculate_frequency_stats
+from app.utils.stats import calculate_cooccurrence_stats, calculate_frequency_stats
 from supabase import AsyncClient
 
 logger = logging.getLogger(__name__)

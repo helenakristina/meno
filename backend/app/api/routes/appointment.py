@@ -32,7 +32,7 @@ from app.repositories.user_repository import UserRepository
 from app.repositories.symptoms_repository import SymptomsRepository
 from app.services.llm import LLMService
 from app.services.storage import StorageService
-from app.services.stats import calculate_frequency_stats, calculate_cooccurrence_stats
+from app.utils.stats import calculate_frequency_stats, calculate_cooccurrence_stats
 from app.models.appointment import (
     AppointmentContext,
     CreateAppointmentContextRequest,
