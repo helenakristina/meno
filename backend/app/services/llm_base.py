@@ -9,6 +9,14 @@ changing route code. The LLMProvider protocol defines the contract; concrete
 implementations (OpenAIProvider, AnthropicProvider) plug in via dependency injection.
 """
 
+# TODO: V2.1 - Streaming & Structured Output
+# The following improvements are planned for V2.1:
+# - Add stream_completion() method for streaming long-running LLM calls
+# - Implement true structured outputs (response_format="json" with JSON schema)
+# - This will improve UX for narrative generation (Step 2) and scenarios (Step 4)
+#   where users currently wait 10-20 seconds for responses
+# - Streaming will buffer chunks and return complete response (initially)
+
 import logging
 from typing import Protocol
 
@@ -28,6 +36,7 @@ class LLMProvider(Protocol):
         user_prompt: str,
         max_tokens: int = 1024,
         temperature: float = 0.7,
+        response_format: str | None = None,
     ) -> str:
         """Generate a chat completion response.
 
@@ -37,6 +46,9 @@ class LLMProvider(Protocol):
             max_tokens: Maximum tokens in the response (1–4096). Defaults to 1024.
             temperature: Sampling temperature (0–2). 0 is deterministic, 2 is most random.
                 Defaults to 0.7 (balanced).
+            response_format: Output format hint. "json" for structured JSON output.
+                None (default) returns plain text.
+                V2.1 will implement true structured outputs with JSON schema validation.
 
         Returns:
             The completed text response from the LLM.

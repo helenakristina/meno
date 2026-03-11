@@ -39,6 +39,7 @@ class OpenAIProvider(LLMProvider):
         user_prompt: str,
         max_tokens: int = 1024,
         temperature: float = 0.7,
+        response_format: str | None = None,
     ) -> str:
         """Generate a chat completion using OpenAI.
 
@@ -47,6 +48,8 @@ class OpenAIProvider(LLMProvider):
             user_prompt: User's message or query.
             max_tokens: Maximum tokens in response (1–4096).
             temperature: Sampling temperature (0–2).
+            response_format: Output format hint. "json" enables JSON mode (OpenAI only).
+                None (default) returns plain text.
 
         Returns:
             The completed text response from OpenAI.
@@ -57,20 +60,29 @@ class OpenAIProvider(LLMProvider):
         """
         try:
             logger.debug(
-                "OpenAI request: model=%s max_tokens=%d temperature=%.1f",
+                "OpenAI request: model=%s max_tokens=%d temperature=%.1f response_format=%s",
                 self.model,
                 max_tokens,
                 temperature,
+                response_format or "text",
             )
-            response = await self.client.chat.completions.create(
-                model=self.model,
-                messages=[
+
+            # Build request kwargs
+            create_kwargs = {
+                "model": self.model,
+                "messages": [
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": user_prompt},
                 ],
-                max_tokens=max_tokens,
-                temperature=temperature,
-            )
+                "max_tokens": max_tokens,
+                "temperature": temperature,
+            }
+
+            # Add response_format if specified (OpenAI supports JSON mode)
+            if response_format == "json":
+                create_kwargs["response_format"] = {"type": "json_object"}
+
+            response = await self.client.chat.completions.create(**create_kwargs)
 
             # Extract response text safely
             if not response.choices:
@@ -106,6 +118,7 @@ class OpenAIProvider(LLMProvider):
         user_prompt: str,
         max_tokens: int = 800,
         temperature: float = 0.5,
+        response_format: str | None = None,
     ) -> tuple[str, int, int]:
         """Generate a chat completion and return usage information.
 
@@ -114,6 +127,8 @@ class OpenAIProvider(LLMProvider):
             user_prompt: User's message or query.
             max_tokens: Maximum tokens in response (1–4096).
             temperature: Sampling temperature (0–2).
+            response_format: Output format hint. "json" enables JSON mode (OpenAI only).
+                None (default) returns plain text.
 
         Returns:
             Tuple of (response_text, prompt_tokens, completion_tokens).
@@ -124,20 +139,29 @@ class OpenAIProvider(LLMProvider):
         """
         try:
             logger.debug(
-                "OpenAI request with usage: model=%s max_tokens=%d temperature=%.1f",
+                "OpenAI request with usage: model=%s max_tokens=%d temperature=%.1f response_format=%s",
                 self.model,
                 max_tokens,
                 temperature,
+                response_format or "text",
             )
-            response = await self.client.chat.completions.create(
-                model=self.model,
-                messages=[
+
+            # Build request kwargs
+            create_kwargs = {
+                "model": self.model,
+                "messages": [
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": user_prompt},
                 ],
-                max_tokens=max_tokens,
-                temperature=temperature,
-            )
+                "max_tokens": max_tokens,
+                "temperature": temperature,
+            }
+
+            # Add response_format if specified (OpenAI supports JSON mode)
+            if response_format == "json":
+                create_kwargs["response_format"] = {"type": "json_object"}
+
+            response = await self.client.chat.completions.create(**create_kwargs)
 
             # Extract response text safely
             if not response.choices:

@@ -221,21 +221,26 @@ This shows the actual pattern used in V2:
 
 ```python
 # backend/app/services/llm_base.py
-from abc import ABC, abstractmethod
+from typing import Protocol
 
-class LLMProvider(ABC):
+class LLMProvider(Protocol):
     """Abstract LLM provider interface."""
 
-    @abstractmethod
     async def chat_completion(
         self,
         system_prompt: str,
         user_prompt: str,
         max_tokens: int = 1024,
         temperature: float = 0.7,
+        response_format: str | None = None,
     ) -> str:
-        """Generate a chat completion. Subclasses implement this."""
-        pass
+        """Generate a chat completion. Subclasses implement this.
+
+        Args:
+            response_format: Output format hint. "json" for structured JSON output,
+                None (default) for plain text. V2.1 will add true structured outputs.
+        """
+        ...
 ```
 
 **2. Concrete Implementation (openai_provider.py):**
@@ -258,17 +263,25 @@ class OpenAIProvider(LLMProvider):
         user_prompt: str,
         max_tokens: int = 1024,
         temperature: float = 0.7,
+        response_format: str | None = None,
     ) -> str:
         """Implement with real OpenAI API call."""
-        response = await self.client.chat.completions.create(
-            model=self.model,
-            messages=[
+        # Build request
+        create_kwargs = {
+            "model": self.model,
+            "messages": [
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": user_prompt},
             ],
-            max_tokens=max_tokens,
-            temperature=temperature,
-        )
+            "max_tokens": max_tokens,
+            "temperature": temperature,
+        }
+
+        # OpenAI supports JSON mode - pass if requested
+        if response_format == "json":
+            create_kwargs["response_format"] = {"type": "json_object"}
+
+        response = await self.client.chat.completions.create(**create_kwargs)
         return (response.choices[0].message.content or "").strip()
 ```
 
@@ -302,7 +315,7 @@ class AnthropicProvider(LLMProvider):
 
     def __init__(self, api_key: str):
         self.client = AsyncAnthropic(api_key=api_key)
-        self.model = "claude-3-5-sonnet-20241022"
+        self.model = "claude-opus-4-6"
 
     async def chat_completion(
         self,
@@ -310,8 +323,13 @@ class AnthropicProvider(LLMProvider):
         user_prompt: str,
         max_tokens: int = 1024,
         temperature: float = 0.7,
+        response_format: str | None = None,
     ) -> str:
-        """Implement with real Claude API call."""
+        """Implement with real Claude API call.
+
+        Note: response_format is accepted but ignored. Anthropic's structured outputs
+        (V2.1) will handle this parameter properly.
+        """
         response = await self.client.messages.create(
             model=self.model,
             max_tokens=max_tokens,
@@ -322,8 +340,6 @@ class AnthropicProvider(LLMProvider):
             temperature=temperature,
         )
         return (response.content[0].text or "").strip()
-
-        response = await self.client.messages.create()
 ```
 
 **No changes needed to LLMService!** Just swap the provider in dependency injection.
