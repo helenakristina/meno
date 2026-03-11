@@ -240,6 +240,127 @@ except EntityNotFoundError:
 - **Clean separation:** Each layer has clear concerns
 - **Maintainable:** Exception mapping is centralized in global handlers
 
+**Repository Return Types: Use Pydantic Models**
+
+**Rule: Repositories MUST return typed Pydantic models, never raw dicts.**
+
+**Why Pydantic Models?**
+
+- **Type safety:** IDE knows what fields exist, autocomplete works
+- **Validation:** Pydantic validates data shape and types on construction
+- **Self-documenting:** Model definition shows exact expected structure
+- **Reduces bugs:** Type checker catches missing/wrong field access
+- **Claude Code generation:** Claude learns from examples; showing models produces better code
+
+**Pattern: Model Return Types**
+
+Define a Pydantic model for each entity the repository returns:
+
+```python
+# backend/app/models/user.py
+
+from pydantic import BaseModel
+
+class UserContext(BaseModel):
+    """User journey and demographic context."""
+    journey_stage: str = "exploration"
+    age: int | None = None
+```
+
+Then return it from repository:
+
+```python
+# backend/app/repositories/user_repository.py
+
+from app.models.user import UserContext
+
+class UserRepository:
+    async def get_context(self, user_id: str) -> UserContext:
+        """Fetch user's journey stage and age.
+
+        Returns:
+            UserContext with journey_stage and age (age may be None if DOB not set).
+
+        Raises:
+            EntityNotFoundError: User not found.
+            DatabaseError: Database query failed.
+        """
+        try:
+            response = (
+                await self.client.table("user_profiles")
+                .select("journey_stage, date_of_birth")
+                .eq("id", user_id)
+                .single()
+                .execute()
+            )
+
+            if not response.data:
+                raise EntityNotFoundError(f"User {user_id} not found")
+
+            data = response.data
+            age = None
+            if data.get("date_of_birth"):
+                try:
+                    age = calculate_age(data["date_of_birth"])
+                except ValueError:
+                    logger.warning("Invalid DOB for user %s", user_id)
+
+            # Return typed model, not dict
+            return UserContext(
+                journey_stage=data.get("journey_stage", "exploration"),
+                age=age,
+            )
+
+        except EntityNotFoundError:
+            raise
+        except Exception as exc:
+            logger.error("Failed to fetch user context: %s", exc, exc_info=True)
+            raise DatabaseError(f"Failed to fetch user context: {exc}") from exc
+```
+
+**Benefits in Practice**
+
+```python
+# With models (better)
+context = await user_repo.get_context(user_id)
+print(context.journey_stage)  # IDE autocomplete works
+print(context.age)  # Type checker knows it's int | None
+# Can't get field name wrong
+```
+
+**Pydantic Model Best Practices**
+
+```python
+# ✅ GOOD: Clear, typed, documented
+
+class AppointmentContext(BaseModel):
+    """Appointment prep context from Step 1."""
+    appointment_type: str
+    goal: str
+    dismissed_before: str
+    urgent_symptom: str | None = None
+
+
+# ✅ GOOD: Optional fields with defaults
+
+class UserContext(BaseModel):
+    journey_stage: str = "exploration"  # Default value
+    age: int | None = None  # Explicitly optional
+```
+
+**When to Create Models**
+
+Create a model when:
+- Repository returns multiple fields (not just an ID or single value)
+- Those fields are used together across services/routes
+- The structure is stable (unlikely to change per-request)
+
+Examples:
+- ✅ UserContext (journey_stage + age)
+- ✅ AppointmentContext (type + goal + dismissal + urgent symptom)
+- ✅ SymptomLog (id + date + symptoms + notes)
+- ❌ Single value like user_id or count (just use the primitive type)
+
 **Testing:**
 
 - Use `pytest` with `pytest-asyncio`

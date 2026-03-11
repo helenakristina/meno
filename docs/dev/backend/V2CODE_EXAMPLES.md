@@ -686,6 +686,174 @@ async def test_create_db_error(repository, mock_supabase):
     assert exc_info.value.status_code == 500
 ```
 
+### Repository Return Types: Pydantic Models
+
+Repositories should return typed Pydantic models, not raw dicts. This enables type safety, IDE autocomplete, and helps Claude Code generate correct implementations.
+
+**Pattern: Define Model → Return Typed Model**
+
+Step 1: Create Pydantic model for the data
+
+```python
+# backend/app/models/appointment.py
+
+from pydantic import BaseModel
+
+class AppointmentContext(BaseModel):
+    """Appointment prep context (Step 1 data)."""
+    appointment_type: str
+    goal: str
+    dismissed_before: str
+    urgent_symptom: str | None = None
+```
+
+Step 2: Repository method returns the model
+
+```python
+# backend/app/repositories/appointment_repository.py
+
+from app.models.appointment import AppointmentContext
+from app.exceptions import EntityNotFoundError, DatabaseError
+
+class AppointmentRepository:
+    async def get_context(
+        self,
+        appointment_id: str,
+        user_id: str,
+    ) -> AppointmentContext:  # ← Return typed model, not dict
+        """Fetch appointment context.
+
+        Returns:
+            AppointmentContext with appointment setup data.
+
+        Raises:
+            EntityNotFoundError: Appointment not found or doesn't belong to user.
+            DatabaseError: Database query failed.
+        """
+        try:
+            response = (
+                await self.client.table("appointment_prep_contexts")
+                .select("appointment_type, goal, dismissed_before, urgent_symptom")
+                .eq("id", appointment_id)
+                .eq("user_id", user_id)
+                .single()
+                .execute()
+            )
+
+            if not response.data:
+                raise EntityNotFoundError(f"Appointment {appointment_id} not found")
+
+            data = response.data
+
+            # Construct and return typed model
+            return AppointmentContext(
+                appointment_type=data["appointment_type"],
+                goal=data["goal"],
+                dismissed_before=data["dismissed_before"],
+                urgent_symptom=data.get("urgent_symptom"),  # Optional
+            )
+
+        except EntityNotFoundError:
+            raise
+        except Exception as exc:
+            logger.error("Failed to fetch context: %s", exc, exc_info=True)
+            raise DatabaseError(f"Failed to fetch context: {exc}") from exc
+```
+
+Step 3: Services and routes use the typed model
+
+```python
+# In a service
+
+from app.models.appointment import AppointmentContext
+
+class AppointmentService:
+    async def generate_narrative(self, appointment_id: str, user_id: str) -> str:
+        # Repository returns typed model
+        context = await self.appointment_repo.get_context(appointment_id, user_id)
+
+        # IDE autocomplete works — knows context has these fields
+        goal = context.goal
+        urgent = context.urgent_symptom
+
+        # Type checker catches errors
+        # If you typo: context.gola → Type error
+
+        # Build prompt with context...
+        return await self.llm_service.generate_narrative(...)
+```
+
+**Benefits**
+
+- **Type safety:** IDE knows all fields and types
+- **Validation:** Pydantic validates data on construction (catches bad data early)
+- **Self-documenting:** Model definition is the schema
+- **IDE support:** Autocomplete and type checking work perfectly
+- **Claude Code generation:** Claude learns from examples; showing models produces better code
+
+**Models vs Tuples**
+
+```python
+# ❌ BAD: Confusing, error-prone
+async def get_context(...) -> tuple[str, int | None]:
+    return journey_stage, age
+    # Caller has to remember: journey_stage is first, age is second
+
+# ✅ GOOD: Clear, safe, self-documenting
+async def get_context(...) -> UserContext:
+    return UserContext(journey_stage=..., age=...)
+    # Caller uses named fields: context.journey_stage
+```
+
+### Quick Checklist: Repository Method
+
+When writing a repository method, use this checklist:
+
+- [ ] Method has clear docstring (purpose, args, returns, raises)
+- [ ] Returns a Pydantic model (or list of models), not dict/tuple
+- [ ] Model is defined in app/models/ and imported
+- [ ] Query has .eq("user_id", user_id) for ownership verification
+- [ ] Raises EntityNotFoundError if data not found
+- [ ] Raises DatabaseError if query fails (wrapped in try/except)
+- [ ] Logs important operations (info for success, error for failures)
+- [ ] All Supabase calls are awaited (async/await)
+- [ ] Type hints on all parameters and return type
+
+**❌ Bad:**
+
+```python
+async def get_context(self, user_id: str):
+    response = await self.client.table(...).execute()
+    return response.data[0]  # Raw dict
+```
+
+**✅ Good:**
+
+```python
+async def get_context(self, user_id: str) -> UserContext:
+    """Fetch user context.
+
+    Returns:
+        UserContext with journey_stage and age.
+
+    Raises:
+        EntityNotFoundError: User not found.
+        DatabaseError: Query failed.
+    """
+    try:
+        response = await self.client.table(...).eq("user_id", user_id).execute()
+        if not response.data:
+            raise EntityNotFoundError(f"User {user_id} not found")
+
+        return UserContext(**response.data[0])  # Typed model
+
+    except EntityNotFoundError:
+        raise
+    except Exception as exc:
+        logger.error("Failed to fetch context: %s", exc, exc_info=True)
+        raise DatabaseError(...) from exc
+```
+
 ---
 
 ## Part 3: Route with DI (Thin & Focused)
@@ -1010,22 +1178,28 @@ This repository handles all data access for [Entity]. It should:
 - Take AsyncClient in **init**
 - Have get(), create(), update(), delete() methods
 - Use Supabase queries for [table_name]
+- **Return typed Pydantic models (not raw dicts)**
 - Enforce user ownership (all queries filter by user_id)
-- Return typed Pydantic models where possible
-- Handle errors with proper HTTPExceptions
+- Handle errors with proper domain exceptions (EntityNotFoundError, DatabaseError)
 - Log important operations
 - Be fully testable (all Supabase calls are mockable)
 
 Data model (from DESIGN.md):
 [Paste relevant schema info]
 
+Pydantic models to use (or create if missing):
+- [Entity]Context or similar from app/models/[entity].py
+- See "Repository Return Types: Pydantic Models" subsection for examples
+
 Reference:
 
-- This code examples file: "Part 2: Repository Pattern"
-- CLAUDE.md: "Code Standards" for error handling patterns
+- This code examples file: "Part 2: Repository Pattern" (includes Pydantic model example)
+- CLAUDE.md: "Repository Return Types: Use Pydantic Models"
+- CLAUDE.md: "Error Handling: Domain Exceptions Pattern"
+- DESIGN.md: Data model and schema information
 - Context7 MCP: For Supabase SDK patterns
 
-Start with the class definition and **init**, then implement each CRUD method.
+Start with the Pydantic model definition, then class definition and __init__, then implement each CRUD method returning typed models.
 ```
 
 ### Prompt for Route Creation
