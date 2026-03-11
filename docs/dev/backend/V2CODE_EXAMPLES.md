@@ -315,12 +315,15 @@ class AnthropicProvider(LLMProvider):
         response = await self.client.messages.create(
             model=self.model,
             max_tokens=max_tokens,
+            system=system_prompt,
             messages=[
-                {"role": "user", "content": f"{system_prompt}\n\n{user_prompt}"},
+                {"role": "user", "content": user_prompt},
             ],
             temperature=temperature,
         )
         return (response.content[0].text or "").strip()
+
+        response = await self.client.messages.create()
 ```
 
 **No changes needed to LLMService!** Just swap the provider in dependency injection.
