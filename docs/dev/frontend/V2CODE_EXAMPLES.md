@@ -1223,20 +1223,67 @@ describe('Ask Meno Page', () => {
 });
 ```
 
-### 7.3 E2E Tests (Playwright)
+### 7.2 Test Environment Setup
+
+**Authentication for E2E tests:**
+
+E2E tests need test credentials to log in. Create a `.env.test` file in the frontend directory:
+
+```bash
+# frontend/.env.test
+
+# Test user credentials (username/password auth - current system)
+TEST_USERNAME=testuser@example.com
+TEST_PASSWORD=test_password_123
+
+# These credentials should be for a dedicated test account in development
+# Never use real user credentials in tests
+```
+
+**Creating a test account:**
+
+1. Sign up manually in development with test credentials
+2. Use those credentials in `.env.test`
+3. `.env.test` is already in `.gitignore` — never commit it
+
+**Future: Magic Link Migration**
+
+When we migrate to magic links (see `docs/planning/V2_V3_ROADMAP.md`), this will change to use authenticated sessions instead of form filling. The `beforeEach` hook will be updated at that time.
+
+---
+
+### 7.3 E2E Tests (Current: Username/Password Auth)
+
+*Note: Uses username/password login. Will change when migrating to magic links.*
 
 ```typescript
 // frontend/tests/e2e/ask-meno.spec.ts
 
 import { test, expect } from '@playwright/test';
 
+/**
+ * Current authentication: username/password
+ *
+ * This logs in with credentials stored in .env.test
+ * Future: Will migrate to magic links (see docs/planning/V2_V3_ROADMAP.md)
+ */
+
 test.describe('Ask Meno E2E Flow', () => {
   test.beforeEach(async ({ page }) => {
-    // Login
+    // Navigate to login page
     await page.goto('/login');
-    await page.fill('input[type="email"]', 'test@example.com');
-    await page.fill('input[type="password"]', 'password');
-    await page.click('button:has-text("Sign In")');
+
+    // Fill in credentials from environment
+    const username = process.env.TEST_USERNAME || 'testuser@example.com';
+    const password = process.env.TEST_PASSWORD || 'test_password_123';
+
+    await page.fill('input[type="email"]', username);
+    await page.fill('input[type="password"]', password);
+
+    // Submit form
+    await page.click('button[type="submit"]');
+
+    // Wait for navigation to dashboard (auth successful)
     await page.waitForURL('/dashboard');
   });
 
@@ -1927,6 +1974,29 @@ const apiUrl = 'https://api.example.com/secret';
 const apiUrl = import.meta.env.VITE_API_BASE_URL; // Only public vars
 // API key stays in backend, accessed via authenticated endpoint
 ```
+
+### 12.5 Don't: Hardcode Credentials in Tests
+
+```typescript
+// ❌ BAD: Credentials in source code
+test.beforeEach(async ({ page }) => {
+  await page.fill('input[type="email"]', 'testuser@example.com');
+  await page.fill('input[type="password"]', 'password123');
+  await page.click('button:has-text("Sign In")');
+});
+
+// ✅ GOOD: Credentials from environment
+test.beforeEach(async ({ page }) => {
+  const username = process.env.TEST_USERNAME || 'default@example.com';
+  const password = process.env.TEST_PASSWORD || 'default_password';
+
+  await page.fill('input[type="email"]', username);
+  await page.fill('input[type="password"]', password);
+  await page.click('button:has-text("Sign In")');
+});
+```
+
+Never commit test credentials. Use environment variables (`.env.test` in `.gitignore`) or a test account setup script. See Part 7.2 for test environment setup.
 
 ---
 

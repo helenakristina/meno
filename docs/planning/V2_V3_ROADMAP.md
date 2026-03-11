@@ -154,6 +154,73 @@
 
 ---
 
+**Future: Authentication Migration to Magic Links + Passkeys**
+
+**Goal:** Migrate from username/password to magic links and optional passkey enrollment.
+
+**Status:** Planned for post-launch (after legal review with health tech attorney).
+
+**Why this matters:**
+- Username/password has known security/UX issues (forgotten passwords, reuse across sites)
+- Magic links (email-based) are more secure and frictionless for health apps
+- Passkeys (biometric) provide optional enhanced security
+- Supabase has native support for both
+
+**Current state:**
+- Username/password authentication
+- E2E tests use `.env.test` with credentials (see docs/dev/frontend/V2CODE_EXAMPLES.md Part 7.2)
+
+**Migration plan:**
+1. Legal review: Confirm compliance with HIPAA/privacy requirements (TBD - depends on deployment timeline)
+2. Design: Plan user flow for magic link signup/login
+3. Backend: Update Supabase auth configuration
+4. Frontend: Update login pages and E2E tests
+5. Deployment: Gradual rollout (existing users can still use passwords, new users get magic links)
+6. Cleanup: Deprecate/remove password auth after user migration period
+
+**E2E Test Changes Required:**
+
+When migrating, update `beforeEach` in tests:
+
+```typescript
+// CURRENT (username/password)
+test.beforeEach(async ({ page }) => {
+  const username = process.env.TEST_USERNAME || 'testuser@example.com';
+  const password = process.env.TEST_PASSWORD || 'test_password_123';
+
+  await page.fill('input[type="email"]', username);
+  await page.fill('input[type="password"]', password);
+  await page.click('button[type="submit"]');
+  await page.waitForURL('/dashboard');
+});
+
+// FUTURE (magic links - session seeding)
+test.beforeEach(async ({ page }) => {
+  await page.goto('/');
+  await page.evaluate(async () => {
+    const { supabase } = await import('$lib/supabase/client');
+    await supabase.auth.setSession({
+      access_token: process.env.TEST_ACCESS_TOKEN!,
+      refresh_token: process.env.TEST_REFRESH_TOKEN!,
+    });
+  });
+  await page.goto('/dashboard');
+});
+```
+
+**Estimated effort:** 5-8 hours
+**Blocked by:** Legal review, deployment planning
+**Priority:** Medium (improves security/UX, not blocking V2 launch)
+**Timeline:** Post-V2 launch, after attorney consultation
+
+**Documentation to update:**
+- [ ] Frontend E2E test docs (Part 7 of V2CODE_EXAMPLES.md)
+- [ ] Login flow documentation
+- [ ] User onboarding guides
+- [ ] API documentation (if auth endpoints change)
+
+---
+
 **Streaming & Performance (V2.1 Later)**
 
 - Response streaming for narrative generation (Step 2) — currently 10-15s wait
