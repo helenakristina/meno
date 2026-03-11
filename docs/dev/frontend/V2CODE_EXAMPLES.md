@@ -388,6 +388,57 @@ export const actions: Actions = {
 
 ## Part 3: State Management
 
+### The Stores vs. Runes Boundary (Important!)
+
+**TL;DR:** Use `$state` and `$derived` in `.svelte` files. Use `writable`/`derived` from `svelte/store` in plain `.ts` files. Both will eventually merge, but today they have different scopes.
+
+**Why both exist:**
+
+Svelte 5 runes (`$state`, `$derived`, `$effect`) only work inside:
+- `.svelte` component files
+- `.svelte.ts` files (rune-aware modules — coming soon)
+
+Svelte 5 runes do **NOT** work in plain `.ts` files (module context). That's why you need `svelte/store` for:
+- Shared authentication state (`authStore.ts`)
+- Global app state (`themeStore.ts`)
+- Services that manage state (`sessionStore.ts`)
+
+**The Technical Reason:**
+
+Runes are compiled by Svelte's compiler. Plain `.ts` files aren't compiled by Svelte, so the compiler can't recognize `$state`. Stores use runtime reactivity instead, which works anywhere.
+
+**Migration Path:**
+
+Svelte 5's "universal reactivity" (runes everywhere) is coming. When it lands:
+- We'll convert `.ts` stores to `.svelte.ts` files
+- All state will use `$state` and `$derived`
+- `svelte/store` becomes optional
+
+**For now, the rule is simple:**
+
+| File Type | Use This | Example |
+|-----------|----------|---------|
+| `.svelte` | `$state`, `$derived` | `let count = $state(0)` |
+| `.svelte.ts` (future) | `$state`, `$derived` | When available |
+| `.ts` (plain JS modules) | `writable`, `derived` | `export const authStore = writable(...)` |
+
+**Common mistake:**
+
+```typescript
+// ❌ WRONG: $state doesn't work in .ts files
+// authStore.ts
+export let user = $state(null);  // ERROR: $ is not defined
+
+// ✅ RIGHT: Use writable in .ts files
+// authStore.ts
+import { writable } from 'svelte/store';
+export const authStore = writable(null);
+```
+
+**Both approaches are correct right now.** Don't mix them in the same file (confusing), but use the right tool for the right context.
+
+---
+
 ### 3.1 Svelte Stores for Shared State
 
 Use Svelte's built-in stores (writable, readable, derived). Don't over-engineer.
@@ -432,6 +483,30 @@ export async function initializeAuth() {
 }
 ```
 
+**Why `writable` here instead of `$state`?**
+
+This file is `.ts` (plain TypeScript), not `.svelte`. Runes like `$state` only work in `.svelte` files. Stores work in both `.ts` and `.svelte` files, so they're the right choice for shared state in modules.
+
+In components, you can subscribe to this store:
+
+```svelte
+<!-- Component can use runes for local state, subscribe to stores for shared state -->
+<script lang="ts">
+  import { authState } from '$lib/stores/auth';
+
+  let localCount = $state(0);  // ✅ Rune (local component state)
+
+  // Subscribe to store (shared state)
+  $: auth = $authState;  // ✅ Store subscription (shared across app)
+</script>
+
+<p>User: {auth.user?.email}</p>
+<p>Loading: {auth.isLoading}</p>
+<p>Count: {localCount}</p>
+```
+
+---
+
 ### 3.2 Derived Stores for Computed State
 
 ```typescript
@@ -458,9 +533,33 @@ export const userHasData = derived(
 // {/if}
 ```
 
-### 3.3 Page-Local State with Runes
+### 3.3 Decision Tree: Stores vs. Local State vs. Runes
 
-For state that doesn't need to be shared, use `$state` in the component.
+**Step 1: Where is your code?**
+
+```
+Is it in a `.svelte` file?
+├─ YES → Is state shared across components?
+│  ├─ YES → Subscribe to a store (see 3.1)
+│  └─ NO → Use $state (see example below)
+│
+└─ NO (plain `.ts` file) → Use svelte/store (writable/derived)
+   └─ See 3.1 for examples
+```
+
+**Step 2: Quick Reference**
+
+| Scenario | Use This | File Type | Example |
+|----------|----------|-----------|---------|
+| Component-local counter | `$state` | `.svelte` | `let count = $state(0)` |
+| Computed value in component | `$derived` | `.svelte` | `let doubled = $derived(count * 2)` |
+| Shared auth across app | `writable` store | `.ts` | `export const authStore = writable(...)` |
+| Subscribe to store in component | Store subscription | `.svelte` | `$: user = $authStore` |
+| Side effect in component | `$effect` | `.svelte` | `$effect(() => { ... })` |
+
+**Step 3: Component-Local State Example**
+
+For state that doesn't need to be shared, use `$state` in the component:
 
 ```typescript
 // ✅ GOOD: Local to component
@@ -472,12 +571,29 @@ let error = $state<string | null>(null);
 // export const messages = writable<Message[]>([]);
 ```
 
-**Decision Tree:**
+**Step 4: Don't Mix!**
 
-- **Shared across pages?** → Store
+```typescript
+// ❌ BAD: Don't mix runes and stores in the same file
+// authStore.ts
+let user = $state(null);  // ERROR: Can't use runes in .ts
+export const authStore = writable(user);  // ERROR: $state doesn't exist
+
+// ✅ GOOD: Use the right tool for context
+// authStore.ts (plain .ts file)
+export const authStore = writable(null);
+
+// MyComponent.svelte (component file)
+let localCount = $state(0);  // ✅ Rune in .svelte
+const user = $authStore;      // ✅ Store subscription in .svelte
+```
+
+**Decision Shortcut:**
+- **Shared across pages?** → Store (`.ts` file with `writable`)
 - **Persists across navigation?** → Store
-- **Only used in this component?** → `$state`
-- **Computed from another store?** → Derived store
+- **Only used in this component?** → `$state` (`.svelte` file)
+- **Computed from another store?** → Derived store (in `.ts`) or `$derived` (in `.svelte`)
+- **When in doubt:** If your code is in a `.ts` file, use `svelte/store`. If it's in a `.svelte` file and state isn't shared, use runes.
 
 ---
 
@@ -1213,11 +1329,21 @@ const count = writable(0); // Only for shared state
 
 **When to use:**
 
+**In `.svelte` files:**
 - `$state` — Component-local reactive variables
 - `$derived` — Computed values (auto-update when dependencies change)
 - `$effect` — Side effects (fetching data, subscriptions)
 - `$props` — Component props (always type with `$props<Type>()`)
-- Stores (writable, readable, derived) — Shared state across components
+
+**In `.ts` files (plain modules):**
+- `writable` / `readable` / `derived` from `svelte/store` — Shared state
+- Runes don't work in `.ts` files (not compiled by Svelte)
+- See "Part 3: Stores vs. Runes Boundary" for why
+
+**Future (Svelte 5 universal reactivity):**
+- `$state` will work in `.svelte.ts` files too
+- We'll migrate all stores to `.svelte.ts` eventually
+- For now, use stores for shared module-level state
 
 ---
 
@@ -1639,6 +1765,7 @@ const apiUrl = import.meta.env.VITE_API_BASE_URL; // Only public vars
 Every time you add frontend code, verify:
 
 - [ ] **Types:** All props, API responses, and state are typed
+- [ ] **State Management:** Runes in `.svelte` files, stores in `.ts` files (see Part 3)
 - [ ] **Validation:** Forms validated with Zod + Superforms server-side
 - [ ] **Error Handling:** Predictable error flow with user-friendly messages
 - [ ] **Loading States:** Isloading pattern + UI feedback (spinner/skeleton)
