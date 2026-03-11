@@ -1,9 +1,6 @@
 import { test, expect, viewports } from './fixtures';
 import { seedTestData } from './seed';
 
-const TEST_EMAIL = 'helena@example.com';
-const TEST_PASSWORD = 'testing';
-
 interface ResponsivenessIssue {
 	severity: 'critical' | 'medium' | 'low';
 	title: string;

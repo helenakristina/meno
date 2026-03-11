@@ -24,13 +24,16 @@ export const test = base.extend<TestContext>({
 			await page.goto('/login');
 			await page.waitForLoadState('networkidle');
 
-			// Fill in credentials
+			// Fill in credentials from environment
+			const username = process.env.TEST_USERNAME || 'testuser@example.com';
+			const password = process.env.TEST_PASSWORD || 'test_password_123';
+
 			const emailInput = page.locator('input[type="email"]');
 			const passwordInput = page.locator('input[type="password"]');
 			const submitButton = page.locator('button[type="submit"]');
 
-			await emailInput.fill('helena@example.com');
-			await passwordInput.fill('testing');
+			await emailInput.fill(username);
+			await passwordInput.fill(password);
 
 			// Submit form and wait for navigation
 			await submitButton.click();
