@@ -159,6 +159,66 @@ meno/
 - Async/await throughout - FastAPI is async-first
 - Docstrings for all public functions (Google style)
 
+**Dependency Injection & Abstract Base Classes (ABC)**
+
+**Rule: All repositories and services use Abstract Base Class (ABC) to define interfaces, not Protocols.**
+
+```python
+from abc import ABC, abstractmethod
+
+# ✅ CORRECT: ABC for explicit interface contract
+class LLMProvider(ABC):
+    @abstractmethod
+    async def chat_completion(self, prompt: str) -> str:
+        pass
+
+class OpenAIProvider(LLMProvider):
+    async def chat_completion(self, prompt: str) -> str:
+        # Concrete implementation
+        pass
+```
+
+**Why ABC (not Protocol)?**
+
+| Aspect | ABC | Protocol |
+|--------|-----|----------|
+| **Inheritance** | Explicit (`class X(ABC)`) | Implicit (duck typing) |
+| **Type Checking** | Verifies all abstract methods implemented | Only checks method signatures match |
+| **isinstance()** | Works (`isinstance(obj, ABC)`) | Doesn't work |
+| **Intent** | "This is a required interface" | "If it quacks like a duck..." |
+
+**For Meno, always use ABC because:**
+- ✅ Explicit contracts are clearer for team and AI assistance
+- ✅ Type checking catches missing implementations early
+- ✅ `isinstance()` checks useful for debugging and conditional logic
+- ✅ Matches current codebase pattern (consistency matters)
+
+**Pattern: Define interfaces in `[service_name]_base.py`:**
+
+```python
+# backend/app/services/llm_base.py
+from abc import ABC, abstractmethod
+
+class LLMProvider(ABC):
+    """Abstract base class for LLM providers."""
+
+    @abstractmethod
+    async def chat_completion(self, system_prompt: str, user_prompt: str) -> str:
+        """Generate a chat completion."""
+
+# backend/app/services/openai_provider.py
+from app.services.llm_base import LLMProvider
+
+class OpenAIProvider(LLMProvider):
+    """OpenAI implementation."""
+
+    async def chat_completion(self, system_prompt: str, user_prompt: str) -> str:
+        # Real implementation
+        pass
+```
+
+**Use ABC everywhere:** Services, repositories, providers, any dependency that needs to be injected or tested.
+
 **Error Handling: Domain Exceptions Pattern**
 
 **Rule: Never raise HTTPException in repositories or services. Only routes should know about HTTP.**

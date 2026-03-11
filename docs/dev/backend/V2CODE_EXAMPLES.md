@@ -59,10 +59,16 @@ logger = logging.getLogger(__name__)
 
 
 class SomeDependency(ABC):
-    """Abstract interface for dependency.
+    """Abstract base class (explicit dependency contract).
 
     Concrete implementations (e.g., ConcreteProvider, AnotherProvider)
-    inherit from this and implement abstract methods.
+    must inherit from this and implement all abstract methods.
+
+    Why ABC (not Protocol)?
+    - Explicit inheritance contract: implementations must explicitly inherit
+    - Type checking: mypy verifies all abstract methods are implemented
+    - Clear intent: "this is a required interface"
+    - Works with isinstance() checks
     """
 
     @abstractmethod
@@ -221,11 +227,17 @@ This shows the actual pattern used in V2:
 
 ```python
 # backend/app/services/llm_base.py
-from typing import Protocol
+from abc import ABC, abstractmethod
 
-class LLMProvider(Protocol):
-    """Abstract LLM provider interface."""
+class LLMProvider(ABC):
+    """Abstract base class defining the LLM provider contract.
 
+    All LLM providers (OpenAI, Anthropic, etc.) must inherit from this
+    and implement all abstract methods. Using ABC ensures explicit contract
+    and type safety.
+    """
+
+    @abstractmethod
     async def chat_completion(
         self,
         system_prompt: str,
@@ -240,7 +252,6 @@ class LLMProvider(Protocol):
             response_format: Output format hint. "json" for structured JSON output,
                 None (default) for plain text. V2.1 will add true structured outputs.
         """
-        ...
 ```
 
 **2. Concrete Implementation (openai_provider.py):**
@@ -1286,7 +1297,11 @@ Follow the patterns in CLAUDE.md "Service Layer" section and reference Context7 
 
 Requirements:
 
-- Use dependency injection (take dependencies in **init**, not hardcoded)
+- Use dependency injection with Abstract Base Classes (ABC)
+  - Define dependency as ABC in [service_name]_base.py
+  - Implement concrete class inheriting from ABC
+  - Inject via FastAPI Depends() in routes
+  - See Part 1: Dependency Injection for pattern
 - Pure functions where possible (no side effects)
 - Complete type hints
 - Docstrings for all public methods (explain why, not just what)
@@ -1296,7 +1311,7 @@ Requirements:
 
 Use this structure:
 
-1. Define dependency interface (Protocol)
+1. Define dependency interface as ABC in [service_name]_base.py
 2. Create service class with injected dependency
 3. Implement methods
 4. Create tests with mocked dependency
@@ -1319,6 +1334,8 @@ Follow the patterns in the "Part 2: Repository Pattern" section of the code exam
 
 This repository handles all data access for [Entity]. It should:
 
+- Define abstract interface as ABC (e.g., [Entity]Repository as ABC)
+- Implement concrete repository inheriting from ABC
 - Take AsyncClient in **init**
 - Have get(), create(), update(), delete() methods
 - Use Supabase queries for [table_name]
@@ -1327,6 +1344,7 @@ This repository handles all data access for [Entity]. It should:
 - Handle errors with proper domain exceptions (EntityNotFoundError, DatabaseError)
 - Log important operations
 - Be fully testable (all Supabase calls are mockable)
+- See Part 1: Dependency Injection for ABC pattern
 
 Data model (from DESIGN.md):
 [Paste relevant schema info]

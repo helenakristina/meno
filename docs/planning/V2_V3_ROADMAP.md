@@ -110,6 +110,50 @@
 
 ---
 
+**Dependency Injection: ABC Refactor**
+
+**Goal:** Audit and refactor all repositories and services to use Abstract Base Class (ABC) consistently. Current code may use ABC, interfaces mixed with concrete classes, or incomplete inheritance patterns.
+
+**Status:** In progress (V2 new code uses ABC, legacy code to be refactored)
+
+**Pattern:**
+- All dependencies defined as ABC in `[service_name]_base.py`
+- Concrete implementations inherit from ABC explicitly
+- All abstract methods implemented (marked with `@abstractmethod`)
+- Injected via FastAPI Depends() in routes
+
+**Implementation:**
+- [x] Document ABC pattern in CLAUDE.md and V2CODE_EXAMPLES.md
+- [ ] Audit existing repositories for ABC usage:
+  - [ ] UserRepository — define ABC, verify inheritance
+  - [ ] SymptomsRepository — define ABC, verify inheritance
+  - [ ] AppointmentRepository — define ABC, verify inheritance
+  - [ ] ExportRepository — define ABC, verify inheritance
+  - [ ] (others as discovered)
+- [ ] Audit existing services for ABC usage:
+  - [ ] LLMService — verify ABC pattern
+  - [ ] LLMProvider — verify ABC pattern (now done: Protocol → ABC)
+  - [ ] CitationService — verify ABC pattern
+  - [ ] (others as discovered)
+- [ ] Update all non-ABC interfaces to ABC
+- [ ] Verify all abstract methods have `@abstractmethod` decorator
+- [ ] Verify no Protocol usage (should all be ABC)
+
+**Estimated effort:** 2-3 hours
+**Blocked by:** None
+**Priority:** Low (code consistency, not blocking features)
+**Timing:** Weeks 17-18 (can defer if time-constrained)
+
+**New Code Requirement:** All new repositories and services MUST use ABC (enforced in code review).
+
+**Why ABC Over Protocol:**
+- Explicit inheritance contract catches missing implementations at type-check time
+- isinstance() checks work (useful for debugging)
+- Clear intent: "this is a required interface"
+- Consistent with Meno codebase pattern
+
+---
+
 **Streaming & Performance (V2.1 Later)**
 
 - Response streaming for narrative generation (Step 2) — currently 10-15s wait
