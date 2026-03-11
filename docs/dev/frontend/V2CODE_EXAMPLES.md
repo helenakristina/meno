@@ -1,7 +1,7 @@
 # Frontend V2 Code Standards (SvelteKit + TypeScript)
 
 **Status:** Living document for V2 and beyond
-**Last Updated:** March 4, 2026
+**Last Updated:** March 11, 2026
 **Framework:** SvelteKit 2.x + Svelte 5 runes
 
 ---
@@ -219,39 +219,32 @@ export type ApiRequest<T extends ApiMethod> = ApiEndpoints[T]['request'];
 export type ApiResponse<T extends ApiMethod> = ApiEndpoints[T]['response'];
 ```
 
-Then use it in the API client:
+**Usage Examples:**
 
 ```typescript
-// frontend/src/lib/api/client.ts
-
-import type { ApiRequest, ApiResponse, ApiMethod } from '$lib/types/api';
-
-class ApiClient {
-  async post<T extends ApiMethod>(
-    path: T,
-    body: ApiRequest<T>,
-  ): Promise<ApiResponse<T>> {
-    // ... implementation
-  }
-
-  async get<T extends ApiMethod>(
-    path: T,
-    params?: Record<string, string | number>,
-  ): Promise<ApiResponse<T>> {
-    // ... implementation
-  }
-}
-
-export const apiClient = new ApiClient();
-
-// Usage - fully typed!
-const response = await apiClient.post('/api/chat', {
-  message: 'Hello', // ✅ TypeScript checks this field
+// ✅ TYPED: Known endpoint, full type safety
+const chatResponse = await apiClient.post('/api/chat', {
+  message: 'Hello',
   conversation_id: '123',
 });
+// TypeScript checks:
+// - path '/api/chat' is valid
+// - body must have message and optional conversation_id
+// - chatResponse has message and citations fields
 
-// response is typed as ChatResponse automatically
-console.log(response.citations); // ✅ TypeScript knows this exists
+// ✅ ESCAPE HATCH: Unknown endpoint, explicit generic
+const customResponse = await apiClient.post<MyCustomType>(
+  '/api/custom/endpoint',
+  { some: 'data' }
+);
+// TypeScript allows any path and body, returns MyCustomType
+// Use only for ad-hoc or external APIs
+
+// ❌ TYPE ERROR: Can't use typed endpoint with wrong body
+await apiClient.post('/api/chat', {
+  // ERROR: missing 'message' field
+  conversation_id: '123',
+});
 ```
 
 ---
@@ -1230,12 +1223,13 @@ const count = writable(0); // Only for shared state
 
 ## Part 11: API Client Best Practices
 
-### 11.1 Complete Client Implementation
+### 11.1 Complete Client Implementation (Typed with ApiEndpoints)
 
 ```typescript
 // frontend/src/lib/api/client.ts
 
 import { supabase } from '$lib/supabase/client';
+import type { ApiMethod, ApiRequest, ApiResponse } from '$lib/types/api';
 
 export interface ApiError extends Error {
   status: number;
@@ -1268,7 +1262,27 @@ class ApiClient {
     return token;
   }
 
+  /**
+   * GET: Typed endpoints from ApiEndpoints map
+   * Usage: await apiClient.get('/api/users/profile')
+   */
+  async get<T extends ApiMethod>(
+    path: T,
+    params?: Record<string, string | number | boolean>,
+    options?: RequestOptions,
+  ): Promise<ApiResponse<T>>;
+
+  /**
+   * GET: Escape hatch for unknown endpoints
+   * Usage: await apiClient.get<MyType>('https://external-api.com/data')
+   */
   async get<T = unknown>(
+    path: string,
+    params?: Record<string, string | number | boolean>,
+    options?: RequestOptions,
+  ): Promise<T>;
+
+  async get<T>(
     path: string,
     params?: Record<string, string | number | boolean>,
     options?: RequestOptions,
@@ -1277,7 +1291,27 @@ class ApiClient {
     return this.request<T>('GET', url, undefined, options);
   }
 
+  /**
+   * POST: Typed endpoints from ApiEndpoints map
+   * Usage: await apiClient.post('/api/chat', { message: 'Hello' })
+   */
+  async post<T extends ApiMethod>(
+    path: T,
+    body: ApiRequest<T>,
+    options?: RequestOptions,
+  ): Promise<ApiResponse<T>>;
+
+  /**
+   * POST: Escape hatch for unknown endpoints
+   * Usage: await apiClient.post<MyType>('/custom/endpoint', { data: ... })
+   */
   async post<T = unknown>(
+    path: string,
+    body?: unknown,
+    options?: RequestOptions,
+  ): Promise<T>;
+
+  async post<T>(
     path: string,
     body?: unknown,
     options?: RequestOptions,
@@ -1285,7 +1319,25 @@ class ApiClient {
     return this.request<T>('POST', path, body, options);
   }
 
+  /**
+   * PUT: Typed endpoints from ApiEndpoints map
+   */
+  async put<T extends ApiMethod>(
+    path: T,
+    body: ApiRequest<T>,
+    options?: RequestOptions,
+  ): Promise<ApiResponse<T>>;
+
+  /**
+   * PUT: Escape hatch for unknown endpoints
+   */
   async put<T = unknown>(
+    path: string,
+    body?: unknown,
+    options?: RequestOptions,
+  ): Promise<T>;
+
+  async put<T>(
     path: string,
     body?: unknown,
     options?: RequestOptions,
@@ -1293,7 +1345,23 @@ class ApiClient {
     return this.request<T>('PUT', path, body, options);
   }
 
+  /**
+   * DELETE: Typed endpoints from ApiEndpoints map
+   */
+  async delete<T extends ApiMethod>(
+    path: T,
+    options?: RequestOptions,
+  ): Promise<ApiResponse<T>>;
+
+  /**
+   * DELETE: Escape hatch for unknown endpoints
+   */
   async delete<T = unknown>(
+    path: string,
+    options?: RequestOptions,
+  ): Promise<T>;
+
+  async delete<T>(
     path: string,
     options?: RequestOptions,
   ): Promise<T> {
@@ -1394,6 +1462,97 @@ class ApiClient {
 
 export const apiClient = new ApiClient();
 ```
+
+### 11.2 Type Safety: ApiEndpoints Enforcement
+
+The ApiClient enforces the types defined in Part 1.4's ApiEndpoints map through method overloads.
+
+**How it works:**
+
+1. **Known Endpoints** (in ApiEndpoints map)
+   ```typescript
+   const response = await apiClient.post('/api/chat', { message: 'Hello' });
+   // ✅ path '/api/chat' is validated
+   // ✅ body is validated: must have { message: string; conversation_id?: string }
+   // ✅ response type is { message: string; citations: Citation[]; conversation_id: string }
+   // ✅ IDE autocomplete works for all fields
+   ```
+
+2. **Unknown Endpoints** (escape hatch)
+   ```typescript
+   const response = await apiClient.post<MyType>('/custom/endpoint', { any: 'data' });
+   // ✅ path is not validated (any string allowed)
+   // ✅ body is not validated (any shape allowed)
+   // ✅ response type is MyType (explicit generic)
+   // ⚠️ Use only for external APIs or development
+   ```
+
+**Type Error Examples:**
+
+```typescript
+// ❌ TYPE ERROR: Missing required field
+await apiClient.post('/api/chat', {
+  conversation_id: '123',
+  // ERROR: 'message' is missing in type
+});
+
+// ❌ TYPE ERROR: Wrong field name
+await apiClient.post('/api/chat', {
+  msg: 'Hello',  // ERROR: 'msg' does not exist, did you mean 'message'?
+});
+
+// ❌ TYPE ERROR: Invalid path
+await apiClient.get('/api/nonexistent', {});
+// ERROR: Argument of type '/api/nonexistent' is not assignable to parameter of type ApiMethod
+
+// ✅ CORRECT: All type checking passes
+const response = await apiClient.post('/api/chat', {
+  message: 'Hello',
+  conversation_id: 'conv-123',
+});
+// response.message ✓
+// response.citations ✓
+// response.conversation_id ✓
+```
+
+**Adding New Endpoints:**
+
+When you add a new API endpoint, follow this workflow:
+
+1. **Add to ApiEndpoints in `lib/types/api.ts`**
+   ```typescript
+   export interface ApiEndpoints {
+     '/api/chat': { ... };
+     '/api/new-feature': {  // ← Add here
+       request: { name: string; age: number };
+       response: { id: string; created_at: string };
+     };
+   }
+   ```
+
+2. **Client automatically gets typed methods** (no code changes needed!)
+   ```typescript
+   // TypeScript automatically knows:
+   const result = await apiClient.post('/api/new-feature', {
+     name: 'Alice',
+     age: 30,
+   });
+   // result.id ✓
+   // result.created_at ✓
+   ```
+
+3. **Add to backend API docs** (reference in CLAUDE.md or API docs)
+
+**Rule: Always use known endpoints from ApiEndpoints.**
+
+Use escape hatch only for:
+- **External APIs** (outside your control, e.g., weather API, external CMS)
+- **Ad-hoc development calls** (log as TODO: add to ApiEndpoints)
+- **Temporary integration** (pending final API spec)
+
+**Key Principle:**
+
+Part 1.4's ApiEndpoints is not documentation—it's your **compile-time contract**. Add one type definition, get checking everywhere. This turns the map from "helpful reference" into actual guardrails that catch bugs during development.
 
 ---
 
@@ -1502,4 +1661,3 @@ Every time you add frontend code, verify:
 - **Testing Library:** https://testing-library.com
 - **Playwright:** https://playwright.dev
 - **WCAG 2.1:** https://www.w3.org/WAI/WCAG21/quickref/
-
