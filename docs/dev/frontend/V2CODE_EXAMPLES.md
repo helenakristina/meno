@@ -599,6 +599,11 @@ const user = $authStore;      // ✅ Store subscription in .svelte
 
 ## Part 4: Error Handling
 
+Svelte and SvelteKit provide different error handling mechanisms depending on context:
+- **Route-level** (server and page components): Use SvelteKit's `+error.svelte`
+- **Component-level** (within components): Use try/catch + reactive state
+- **Complex async flows**: Use the `<AsyncLoader>` wrapper component for cleaner code
+
 ### 4.1 Predictable Error Types
 
 ```typescript
@@ -706,35 +711,200 @@ async function sendMessage() {
 }
 ```
 
-### 4.3 Error Boundaries (Components)
+### 4.3 Error Handling in Components
+
+Svelte doesn't have built-in error boundaries like React. Instead, use SvelteKit's route-level error handling and component-level try/catch.
+
+#### Route-Level Errors (SvelteKit +error.svelte)
+
+SvelteKit catches errors in `+page.server.ts` and `+layout.server.ts` and renders `+error.svelte`:
 
 ```typescript
-// frontend/src/lib/components/ErrorBoundary.svelte
+// frontend/src/routes/(app)/+page.server.ts
 
-<script lang="ts">
-  interface Props {
-    children?: import('svelte').Snippet;
-    fallback?: import('svelte').Snippet;
-  }
+export const load = async () => {
+  const data = await fetchData();  // If this throws, caught by SvelteKit
+  return data;
+};
+```
 
-  let { children, fallback } = $props<Props>();
-  let error = $state<Error | null>(null);
+```svelte
+<!-- frontend/src/routes/+error.svelte -->
 
-  // Svelte 5: Use onerror lifecycle? Or wrap in try-catch?
-  // This is a simplified example; Svelte doesn't have error boundaries yet
+<script>
+  import { page } from '$app/stores';
 </script>
 
-{#if error && fallback}
-  {@render fallback()}
+<div role="alert" class="rounded-lg bg-red-50 p-4">
+  <h1 class="font-bold text-red-900">Something went wrong</h1>
+  <p class="text-sm text-red-700">{$page.error?.message}</p>
+</div>
+```
+
+#### Component-Level Errors (Try/Catch + State)
+
+For errors within components, use try/catch and render based on state:
+
+```svelte
+<!-- ✅ GOOD: Component catches and handles errors -->
+
+<script lang="ts">
+  let data = $state(null);
+  let error = $state<Error | null>(null);
+  let isLoading = $state(false);
+
+  async function fetchData() {
+    isLoading = true;
+    error = null;
+    try {
+      data = await apiClient.get('/api/data');
+    } catch (e) {
+      error = e instanceof Error ? e : new Error(String(e));
+    } finally {
+      isLoading = false;
+    }
+  }
+
+  // Fetch on mount
+  $effect(() => {
+    fetchData();
+  });
+</script>
+
+{#if isLoading}
+  <div class="flex justify-center p-4">
+    <Spinner />
+  </div>
 {:else if error}
-  <div class="rounded-lg bg-red-50 p-4">
-    <p class="text-sm font-semibold text-red-900">Something went wrong</p>
+  <div role="alert" class="rounded-lg bg-red-50 p-4">
+    <p class="text-sm text-red-700">{error.message}</p>
+    <button onclick={fetchData} class="mt-2 text-red-700 underline">Retry</button>
+  </div>
+{:else}
+  <div>{JSON.stringify(data)}</div>
+{/if}
+```
+
+#### AsyncLoader: Wrapper Component (Advanced Pattern)
+
+For complex flows that need to handle errors from nested async operations, use a wrapper component:
+
+```svelte
+<!-- frontend/src/lib/components/AsyncLoader.svelte -->
+
+<script lang="ts">
+  import type { Snippet } from 'svelte';
+
+  interface Props {
+    /**
+     * Async function to execute. If it throws, error is caught and rendered.
+     */
+    loader: () => Promise<void>;
+    /**
+     * Main content to render on success.
+     */
+    children: Snippet;
+    /**
+     * Optional fallback to render on error. Receives the Error object.
+     */
+    fallback?: Snippet<[error: Error]>;
+    /**
+     * Optional loading state (for long-running operations).
+     */
+    loading?: Snippet;
+  }
+
+  let { loader, children, fallback, loading } = $props<Props>();
+
+  let error = $state<Error | null>(null);
+  let isLoading = $state(false);
+
+  // Run loader on mount and when loader changes
+  $effect(() => {
+    isLoading = true;
+    error = null;
+
+    loader()
+      .catch((e) => {
+        error = e instanceof Error ? e : new Error(String(e));
+      })
+      .finally(() => {
+        isLoading = false;
+      });
+  });
+</script>
+
+{#if isLoading && loading}
+  {@render loading()}
+{:else if error && fallback}
+  {@render fallback(error)}
+{:else if error}
+  <!-- Default error UI -->
+  <div role="alert" class="rounded-lg bg-red-50 p-4">
+    <h2 class="font-semibold text-red-900">Error loading content</h2>
     <p class="text-sm text-red-700">{error.message}</p>
   </div>
-{:else if children}
+{:else}
   {@render children()}
 {/if}
 ```
+
+**Usage:**
+
+```svelte
+<AsyncLoader
+  loader={async () => {
+    const data = await fetchUserData();
+    user = data;
+  }}
+  loading={<Spinner />}
+  fallback={(error) => (
+    <div class="text-red-600">
+      <p>{error.message}</p>
+      <button onclick={() => location.reload()}>Reload</button>
+    </div>
+  )}
+>
+  <UserCard {user} />
+</AsyncLoader>
+```
+
+#### Key Patterns
+
+**❌ Don't:**
+```svelte
+<!-- Don't assume fetch won't throw -->
+<script>
+  let data = fetch('/api/data');
+</script>
+```
+
+**✅ Do:**
+```svelte
+<!-- Wrap in try/catch -->
+<script>
+  let data = null;
+  let error = null;
+
+  $effect(() => {
+    fetch('/api/data')
+      .then(r => r.json())
+      .then(d => { data = d; })
+      .catch(e => { error = e; });
+  });
+</script>
+
+{#if error}
+  <ErrorMessage {error} />
+{:else}
+  <Content {data} />
+{/if}
+```
+
+**Summary:**
+- **Route-level:** Use SvelteKit's `+error.svelte`
+- **Component-level:** Use try/catch + state
+- **Complex flows:** Use `<AsyncLoader>` wrapper for cleaner code
 
 ---
 
@@ -1767,7 +1937,7 @@ Every time you add frontend code, verify:
 - [ ] **Types:** All props, API responses, and state are typed
 - [ ] **State Management:** Runes in `.svelte` files, stores in `.ts` files (see Part 3)
 - [ ] **Validation:** Forms validated with Zod + Superforms server-side
-- [ ] **Error Handling:** Predictable error flow with user-friendly messages
+- [ ] **Error Handling:** Route errors in `+error.svelte`, component errors in try/catch + state (see Part 4)
 - [ ] **Loading States:** Isloading pattern + UI feedback (spinner/skeleton)
 - [ ] **Accessibility:** Semantic HTML, ARIA labels, 44×44px targets, keyboard nav
 - [ ] **Responsive:** Tested at 375px, 667px, 768px, 1440px with no overflow
