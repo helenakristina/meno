@@ -384,6 +384,226 @@ export const actions: Actions = {
 - Disable submit button while `$submitting`
 - Use `use:enhance` for progressive enhancement
 
+### 2.2.1 Server-Side API Calls: Using the Auth Token from Locals
+
+**⚠️ CRITICAL:** The browser `apiClient` in Part 11 cannot be used in `+page.server.ts`. It depends on `supabase.auth.getSession()`, which only exists in the browser. Server-side requires a different approach.
+
+#### Architecture: Where Auth Tokens Come From
+
+```
+Browser: apiClient.getToken()
+  ↓
+  Calls: supabase.auth.getSession()
+  ↓
+  Returns: Bearer token for FastAPI
+
+Server: +page.server.ts
+  ↗ CAN'T use apiClient (no browser)
+  ↓
+  Use: locals.user from +layout.server.ts
+  ↓
+  Token is set by: +layout.server.ts → verifyAuth()
+  ↓
+  Comes from: Supabase session cookie (set by Supabase on login)
+```
+
+#### Pattern: Server-Side API Calls in Actions
+
+```typescript
+// frontend/src/routes/(app)/+layout.server.ts
+// Sets up locals with auth token
+
+import { verifyAuth } from '$lib/supabase/server';
+
+export const load = async ({ locals, cookies }) => {
+  const session = await verifyAuth(cookies);
+  locals.user = session?.user || null;
+  locals.token = session?.access_token || null;
+  return { user: locals.user };
+};
+```
+
+```typescript
+// frontend/src/routes/(app)/appointment-prep/+page.server.ts
+// Uses the token from locals
+
+import { fail, type Actions } from '@sveltejs/kit';
+import { superValidate } from 'sveltekit-superforms';
+import { zod } from 'sveltekit-superforms/adapters';
+import { appointmentContextSchema } from '$lib/schemas/appointment';
+
+export const actions: Actions = {
+  async context({ request, locals }) {
+    // Validate input
+    const form = await superValidate(request, zod(appointmentContextSchema));
+
+    if (!form.valid) {
+      return fail(400, { form });
+    }
+
+    // Check auth (from locals, set in +layout.server.ts)
+    if (!locals.user || !locals.token) {
+      return fail(401, { form, error: 'Not authenticated' });
+    }
+
+    // Call FastAPI backend using fetch + token from locals
+    try {
+      const response = await fetch(
+        'http://localhost:8000/api/appointment-prep/context',
+        {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${locals.token}`,  // ← Token from locals
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(form.data),
+        }
+      );
+
+      if (!response.ok) {
+        return fail(response.status, {
+          form,
+          error: `API error: ${response.statusText}`,
+        });
+      }
+
+      const data = await response.json();
+
+      return {
+        form,
+        success: true,
+        appointmentId: data.appointment_id,
+      };
+    } catch (error) {
+      return fail(500, {
+        form,
+        error: 'Failed to create appointment context',
+      });
+    }
+  },
+};
+```
+
+#### Key Differences: Browser Client vs. Server Fetch
+
+```typescript
+// ❌ WRONG: Can't use browser apiClient in +page.server.ts
+export const actions = {
+  async context({ request }) {
+    const form = await superValidate(request, zod(schema));
+
+    // ERROR: apiClient needs supabase.auth.getSession()
+    // which doesn't exist server-side
+    const result = await apiClient.post('/api/appointment-prep/context', form.data);
+  },
+};
+
+// ✅ RIGHT: Use fetch + token from locals
+export const actions = {
+  async context({ request, locals }) {
+    const form = await superValidate(request, zod(schema));
+
+    // Get token from locals (set in +layout.server.ts)
+    if (!locals.token) {
+      return fail(401, { form, error: 'Not authenticated' });
+    }
+
+    // Use native fetch with Bearer token
+    const response = await fetch('http://localhost:8000/api/...', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${locals.token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(form.data),
+    });
+
+    return response.json();
+  },
+};
+```
+
+#### Server-Side API Helper (Optional)
+
+If you have many server actions calling the API, create a helper to reduce duplication:
+
+```typescript
+// frontend/src/lib/api/server.ts
+
+export async function serverFetch<T>(
+  path: string,
+  options: {
+    method?: 'GET' | 'POST' | 'PUT' | 'DELETE';
+    body?: unknown;
+    token: string;  // Passed from locals.token
+  }
+): Promise<T> {
+  const baseUrl = 'http://localhost:8000';
+  const url = new URL(path, baseUrl);
+
+  const response = await fetch(url, {
+    method: options.method || 'GET',
+    headers: {
+      'Authorization': `Bearer ${options.token}`,
+      'Content-Type': 'application/json',
+    },
+    body: options.body ? JSON.stringify(options.body) : undefined,
+  });
+
+  if (!response.ok) {
+    throw new Error(`API error: ${response.status} ${response.statusText}`);
+  }
+
+  return response.json();
+}
+```
+
+Then use it in actions:
+
+```typescript
+import { serverFetch } from '$lib/api/server';
+
+export const actions = {
+  async context({ request, locals }) {
+    const form = await superValidate(request, zod(schema));
+
+    if (!form.valid || !locals.token) {
+      return fail(400, { form });
+    }
+
+    try {
+      const data = await serverFetch('/api/appointment-prep/context', {
+        method: 'POST',
+        body: form.data,
+        token: locals.token,
+      });
+
+      return { form, success: true, appointmentId: data.appointment_id };
+    } catch (error) {
+      return fail(500, { form, error: error.message });
+    }
+  },
+};
+```
+
+#### Environment Configuration
+
+The FastAPI base URL should be an environment variable (not hardcoded `localhost:8000`):
+
+```bash
+# frontend/.env.local
+VITE_API_BASE_URL=http://localhost:8000  # For browser client
+SECRET_API_BASE_URL=http://backend:8000  # For server-side (internal network)
+```
+
+```typescript
+// frontend/src/lib/api/server.ts
+
+const SERVER_API_BASE_URL = import.meta.env.SECRET_API_BASE_URL || 'http://localhost:8000';
+```
+
+This allows different URLs for browser (public) vs. server (internal).
+
 ---
 
 ## Part 3: State Management
@@ -1566,6 +1786,12 @@ const count = writable(0); // Only for shared state
 
 ## Part 11: API Client Best Practices
 
+### 11.0 Browser Client Only ⚠️
+
+**The `apiClient` in this section is for browser code only.** It uses `supabase.auth.getSession()`, which doesn't exist server-side.
+
+**For server-side API calls in `+page.server.ts`**, see **Part 2.2.1: Server-Side API Calls**. Use `fetch` + token from `locals` instead.
+
 ### 11.1 Complete Client Implementation (Typed with ApiEndpoints)
 
 ```typescript
@@ -1998,6 +2224,51 @@ test.beforeEach(async ({ page }) => {
 
 Never commit test credentials. Use environment variables (`.env.test` in `.gitignore`) or a test account setup script. See Part 7.2 for test environment setup.
 
+### 12.6 Don't: Use Browser apiClient in Server Actions
+
+```typescript
+// ❌ WRONG: apiClient doesn't work server-side
+// frontend/src/routes/(app)/+page.server.ts
+
+import { apiClient } from '$lib/api/client';
+
+export const actions = {
+  async chat({ request, locals }) {
+    const form = await superValidate(request, zod(schema));
+
+    // FAILS: apiClient.getToken() calls supabase.auth.getSession()
+    // which only exists in the browser, not on the server
+    const response = await apiClient.post('/api/chat', form.data);
+  },
+};
+
+// ✅ CORRECT: Use fetch + token from locals
+export const actions = {
+  async chat({ request, locals }) {
+    const form = await superValidate(request, zod(schema));
+
+    if (!locals.token) {
+      return fail(401, { error: 'Not authenticated' });
+    }
+
+    const response = await fetch('http://localhost:8000/api/chat', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${locals.token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(form.data),
+    });
+
+    return response.json();
+  },
+};
+```
+
+**Why?** The browser `apiClient` uses `supabase.auth.getSession()`, which only works in the browser. Server-side code needs a different approach: use the token from `locals` (set in `+layout.server.ts`) and call the API directly with `fetch`.
+
+**Solution:** Either use raw `fetch` (as above) or create a `serverFetch` helper (see Part 2.2.1 for full implementation).
+
 ---
 
 ## Part 13: Multi-Step Flows (Wizards)
@@ -2389,6 +2660,7 @@ Every time you add frontend code, verify:
 - [ ] **Types:** All props, API responses, and state are typed
 - [ ] **State Management:** Runes in `.svelte` files, stores in `.ts` files (see Part 3)
 - [ ] **Validation:** Forms validated with Zod + Superforms server-side
+- [ ] **Forms:** Server actions validate input, use `fetch` + token from locals for API calls (not browser `apiClient`), see Part 2.2.1
 - [ ] **Error Handling:** Route errors in `+error.svelte`, component errors in try/catch + state (see Part 4)
 - [ ] **Loading States:** Isloading pattern + UI feedback (spinner/skeleton)
 - [ ] **Accessibility:** Semantic HTML, ARIA labels, 44×44px targets, keyboard nav
