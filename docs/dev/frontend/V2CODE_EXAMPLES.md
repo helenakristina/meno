@@ -31,7 +31,7 @@ Define all SvelteKit global types upfront. This document is your contract with T
 ```typescript
 // frontend/src/app.d.ts
 
-import type { User } from '@supabase/supabase-js';
+import type { User } from "@supabase/supabase-js";
 
 declare global {
   namespace App {
@@ -82,13 +82,13 @@ Create a `lib/types/` folder for domain types. Don't scatter types across files.
 // frontend/src/lib/types/index.ts
 // Central export point for all types
 
-export type { User } from './user';
-export type { Chat, Message, Citation } from './chat';
-export type { SymptomLog, Symptom } from './symptoms';
-export type { Provider, Shortlist } from './providers';
+export type { User } from "./user";
+export type { Chat, Message, Citation } from "./chat";
+export type { SymptomLog, Symptom } from "./symptoms";
+export type { Provider, Shortlist } from "./providers";
 
 // Re-export API error type
-export type { ApiError } from '../api/client';
+export type { ApiError } from "../api/client";
 ```
 
 **Example: Chat Types**
@@ -104,7 +104,7 @@ export interface Citation {
 }
 
 export interface Message {
-  role: 'user' | 'assistant';
+  role: "user" | "assistant";
   content: string;
   citations?: Citation[];
   timestamp?: string;
@@ -141,7 +141,7 @@ Always type component props explicitly. Use `$props` in Svelte 5.
 // ✅ GOOD: Explicit types, with defaults where sensible
 interface ButtonProps {
   label: string;
-  variant?: 'primary' | 'secondary' | 'danger';
+  variant?: "primary" | "secondary" | "danger";
   disabled?: boolean;
   loading?: boolean;
   onclick?: () => void | Promise<void>;
@@ -149,10 +149,10 @@ interface ButtonProps {
 
 let {
   label,
-  variant = 'primary',
+  variant = "primary",
   disabled = false,
   loading = false,
-  onclick
+  onclick,
 } = $props<ButtonProps>();
 
 // ❌ BAD: Implicit types, no defaults
@@ -181,51 +181,60 @@ Never use bare `fetch()` or untyped API calls. Define endpoint types once.
  */
 export interface ApiEndpoints {
   // Chat endpoints
-  '/api/chat': {
+  "/api/chat": {
     request: { message: string; conversation_id?: string };
-    response: { message: string; citations: Citation[]; conversation_id: string };
+    response: {
+      message: string;
+      citations: Citation[];
+      conversation_id: string;
+    };
   };
 
   // Symptom endpoints
-  '/api/symptoms/logs': {
-    request: { symptoms: string[]; source: 'cards' | 'export' };
+  "/api/symptoms/logs": {
+    request: { symptoms: string[]; source: "cards" | "export" };
     response: { id: string; symptoms: string[]; logged_at: string };
   };
-  '/api/symptoms/logs/get': {
+  "/api/symptoms/logs/get": {
     request: { start_date?: string; end_date?: string; limit?: number };
     response: { logs: SymptomLog[]; total: number };
   };
 
   // Provider endpoints
-  '/api/providers/shortlist': {
+  "/api/providers/shortlist": {
     request: never;
     response: { provider_id: string }[];
   };
-  '/api/providers/search': {
+  "/api/providers/search": {
     request: { query: string; state?: string };
     response: Provider[];
   };
 
   // User endpoints
-  '/api/users/profile': {
+  "/api/users/profile": {
     request: never;
-    response: { id: string; email: string; age?: number; journey_stage?: string };
+    response: {
+      id: string;
+      email: string;
+      age?: number;
+      journey_stage?: string;
+    };
   };
 }
 
 // Type-safe API call wrapper
 export type ApiMethod = keyof ApiEndpoints;
-export type ApiRequest<T extends ApiMethod> = ApiEndpoints[T]['request'];
-export type ApiResponse<T extends ApiMethod> = ApiEndpoints[T]['response'];
+export type ApiRequest<T extends ApiMethod> = ApiEndpoints[T]["request"];
+export type ApiResponse<T extends ApiMethod> = ApiEndpoints[T]["response"];
 ```
 
 **Usage Examples:**
 
 ```typescript
 // ✅ TYPED: Known endpoint, full type safety
-const chatResponse = await apiClient.post('/api/chat', {
-  message: 'Hello',
-  conversation_id: '123',
+const chatResponse = await apiClient.post("/api/chat", {
+  message: "Hello",
+  conversation_id: "123",
 });
 // TypeScript checks:
 // - path '/api/chat' is valid
@@ -234,16 +243,16 @@ const chatResponse = await apiClient.post('/api/chat', {
 
 // ✅ ESCAPE HATCH: Unknown endpoint, explicit generic
 const customResponse = await apiClient.post<MyCustomType>(
-  '/api/custom/endpoint',
-  { some: 'data' }
+  "/api/custom/endpoint",
+  { some: "data" },
 );
 // TypeScript allows any path and body, returns MyCustomType
 // Use only for ad-hoc or external APIs
 
 // ❌ TYPE ERROR: Can't use typed endpoint with wrong body
-await apiClient.post('/api/chat', {
+await apiClient.post("/api/chat", {
   // ERROR: missing 'message' field
-  conversation_id: '123',
+  conversation_id: "123",
 });
 ```
 
@@ -258,13 +267,13 @@ Use **Zod** + **Superforms** for type-safe, server-safe forms. Never validate on
 ```typescript
 // frontend/src/lib/schemas/chat.ts
 
-import { z } from 'zod';
+import { z } from "zod";
 
 export const chatMessageSchema = z.object({
   message: z
     .string()
-    .min(1, 'Message cannot be empty')
-    .max(2000, 'Message must be under 2000 characters')
+    .min(1, "Message cannot be empty")
+    .max(2000, "Message must be under 2000 characters")
     .trim(),
   conversation_id: z.string().uuid().optional(),
 });
@@ -286,11 +295,11 @@ Always validate on server, even if client also validates.
 ```typescript
 // frontend/src/routes/(app)/ask/+page.server.ts
 
-import { fail, type Actions } from '@sveltejs/kit';
-import { superValidate } from 'sveltekit-superforms';
-import { zod } from 'sveltekit-superforms/adapters';
-import { chatMessageSchema } from '$lib/schemas/chat';
-import { apiClient } from '$lib/api/client';
+import { fail, type Actions } from "@sveltejs/kit";
+import { superValidate } from "sveltekit-superforms";
+import { zod } from "sveltekit-superforms/adapters";
+import { chatMessageSchema } from "$lib/schemas/chat";
+import { apiClient } from "$lib/api/client";
 
 export const actions: Actions = {
   async chat({ request, locals }) {
@@ -303,12 +312,12 @@ export const actions: Actions = {
 
     // Check auth (from Locals set in +layout.server.ts)
     if (!locals.user) {
-      return fail(401, { form, error: 'Not authenticated' });
+      return fail(401, { form, error: "Not authenticated" });
     }
 
     try {
       // Send to API
-      const response = await apiClient.post('/api/chat', {
+      const response = await apiClient.post("/api/chat", {
         message: form.data.message,
         conversation_id: form.data.conversation_id,
       });
@@ -320,10 +329,10 @@ export const actions: Actions = {
       };
     } catch (error) {
       // Log server-side, return user-friendly message
-      console.error('Chat API error:', error);
+      console.error("Chat API error:", error);
       return fail(500, {
         form,
-        error: 'Failed to get response. Please try again.',
+        error: "Failed to get response. Please try again.",
       });
     }
   },
@@ -348,24 +357,21 @@ export const actions: Actions = {
   });
 
   const { form: formData, errors, enhance, submitting } = form;
-
-  let message = $state('');
-
-  function handleSubmit() {
-    message = '';
-  }
 </script>
 
 <form use:enhance method="POST" action="?/chat">
+  <!-- ✅ Bind directly to $formData — this is what gets submitted -->
   <textarea
     name="message"
-    bind:value={message}
+    bind:value={$formData.message}
     placeholder="Ask a question..."
     disabled={$submitting}
+    aria-invalid={!!$errors.message}
+    aria-describedby={$errors.message ? 'message-error' : undefined}
   />
 
   {#if $errors.message}
-    <p class="text-sm text-red-600" role="alert">
+    <p id="message-error" class="text-sm text-red-600" role="alert">
       {$errors.message}
     </p>
   {/if}
@@ -378,11 +384,107 @@ export const actions: Actions = {
 
 **Key Rules:**
 
+- **Always bind directly to `$formData`** — this is what gets submitted to the server
 - Always validate server-side with Superforms
 - Client-side validation is UX enhancement, not security
 - Display errors with `$errors` from form
+- Link errors with `aria-describedby` for accessibility
 - Disable submit button while `$submitting`
 - Use `use:enhance` for progressive enhancement
+
+### 2.3.1 Form Data Binding: Single Source of Truth
+
+**Rule:** Form inputs must bind to `$formData` from Superforms, not a separate local state variable.
+
+#### Why This Matters
+
+When you create a separate local state (`let message = $state('')`) and bind to it instead of `$formData.message`:
+
+```typescript
+// ❌ WRONG: Two separate things
+let message = $state('');  // Local state
+<textarea bind:value={message} />  // Bound to local state
+
+// User types "hello" → message = "hello"
+// But $formData.message remains empty
+// Form submits $formData.message (empty!)
+```
+
+The form submits `$formData`, not your local state. They become out of sync silently.
+
+```typescript
+// ✅ CORRECT: One source of truth
+<textarea bind:value={$formData.message} />
+
+// User types "hello" → $formData.message = "hello"
+// Form submits $formData.message ✅
+```
+
+#### Pattern: Direct Binding (Recommended)
+
+Bind form inputs directly to `$formData`:
+
+```svelte
+<textarea bind:value={$formData.message} />
+<input bind:value={$formData.email} />
+<input type="checkbox" bind:checked={$formData.subscribe} />
+```
+
+**Pros:**
+- Simple, one source of truth
+- No sync bugs
+- User input always matches submitted data
+
+**Cons:**
+- Can't easily clear field after submit (would need to manually reset `$formData`)
+- No local UX state (character count, unsaved indicator)
+
+#### Pattern: Synced Local State (For UX Features)
+
+If you need local state for UX (clearing after submit, character counting, unsaved badge), sync it back to `$formData`:
+
+```svelte
+<script>
+  const form = superForm(...);
+  const { form: formData } = form;
+
+  let localMessage = $state('');
+  let isSubmitting = $state(false);
+
+  // Keep $formData in sync with local state
+  $effect(() => {
+    $formData.message = localMessage;
+  });
+
+  async function handleSuccess() {
+    localMessage = '';  // Clear after submit
+  }
+</script>
+
+<!-- Bound to local state (synced to $formData via $effect) -->
+<textarea bind:value={localMessage} />
+```
+
+**Pros:**
+- Can implement UX features (clearing, character count, unsaved indicators)
+- Still maintains sync between input and submitted data
+
+**Cons:**
+- More complex, requires explicit sync logic
+- Easier to introduce sync bugs if not careful
+
+#### Anti-Pattern: Separate Unsynced States
+
+```typescript
+// ❌ DON'T: This loses user input
+let message = $state('');  // Local state
+const { form: formData } = form;
+
+<textarea bind:value={message} />
+
+// Submits formData.message (likely empty), not the typed message
+// Data loss without any indication to user
+```
 
 ### 2.2.1 Server-Side API Calls: Using the Auth Token from Locals
 
@@ -413,7 +515,7 @@ Server: +page.server.ts
 // frontend/src/routes/(app)/+layout.server.ts
 // Sets up locals with auth token
 
-import { verifyAuth } from '$lib/supabase/server';
+import { verifyAuth } from "$lib/supabase/server";
 
 export const load = async ({ locals, cookies }) => {
   const session = await verifyAuth(cookies);
@@ -427,10 +529,10 @@ export const load = async ({ locals, cookies }) => {
 // frontend/src/routes/(app)/appointment-prep/+page.server.ts
 // Uses the token from locals
 
-import { fail, type Actions } from '@sveltejs/kit';
-import { superValidate } from 'sveltekit-superforms';
-import { zod } from 'sveltekit-superforms/adapters';
-import { appointmentContextSchema } from '$lib/schemas/appointment';
+import { fail, type Actions } from "@sveltejs/kit";
+import { superValidate } from "sveltekit-superforms";
+import { zod } from "sveltekit-superforms/adapters";
+import { appointmentContextSchema } from "$lib/schemas/appointment";
 
 export const actions: Actions = {
   async context({ request, locals }) {
@@ -443,21 +545,21 @@ export const actions: Actions = {
 
     // Check auth (from locals, set in +layout.server.ts)
     if (!locals.user || !locals.token) {
-      return fail(401, { form, error: 'Not authenticated' });
+      return fail(401, { form, error: "Not authenticated" });
     }
 
     // Call FastAPI backend using fetch + token from locals
     try {
       const response = await fetch(
-        'http://localhost:8000/api/appointment-prep/context',
+        "http://localhost:8000/api/appointment-prep/context",
         {
-          method: 'POST',
+          method: "POST",
           headers: {
-            'Authorization': `Bearer ${locals.token}`,  // ← Token from locals
-            'Content-Type': 'application/json',
+            Authorization: `Bearer ${locals.token}`, // ← Token from locals
+            "Content-Type": "application/json",
           },
           body: JSON.stringify(form.data),
-        }
+        },
       );
 
       if (!response.ok) {
@@ -477,7 +579,7 @@ export const actions: Actions = {
     } catch (error) {
       return fail(500, {
         form,
-        error: 'Failed to create appointment context',
+        error: "Failed to create appointment context",
       });
     }
   },
@@ -494,7 +596,10 @@ export const actions = {
 
     // ERROR: apiClient needs supabase.auth.getSession()
     // which doesn't exist server-side
-    const result = await apiClient.post('/api/appointment-prep/context', form.data);
+    const result = await apiClient.post(
+      "/api/appointment-prep/context",
+      form.data,
+    );
   },
 };
 
@@ -505,15 +610,15 @@ export const actions = {
 
     // Get token from locals (set in +layout.server.ts)
     if (!locals.token) {
-      return fail(401, { form, error: 'Not authenticated' });
+      return fail(401, { form, error: "Not authenticated" });
     }
 
     // Use native fetch with Bearer token
-    const response = await fetch('http://localhost:8000/api/...', {
-      method: 'POST',
+    const response = await fetch("http://localhost:8000/api/...", {
+      method: "POST",
       headers: {
-        'Authorization': `Bearer ${locals.token}`,
-        'Content-Type': 'application/json',
+        Authorization: `Bearer ${locals.token}`,
+        "Content-Type": "application/json",
       },
       body: JSON.stringify(form.data),
     });
@@ -533,19 +638,19 @@ If you have many server actions calling the API, create a helper to reduce dupli
 export async function serverFetch<T>(
   path: string,
   options: {
-    method?: 'GET' | 'POST' | 'PUT' | 'DELETE';
+    method?: "GET" | "POST" | "PUT" | "DELETE";
     body?: unknown;
-    token: string;  // Passed from locals.token
-  }
+    token: string; // Passed from locals.token
+  },
 ): Promise<T> {
-  const baseUrl = 'http://localhost:8000';
+  const baseUrl = "http://localhost:8000";
   const url = new URL(path, baseUrl);
 
   const response = await fetch(url, {
-    method: options.method || 'GET',
+    method: options.method || "GET",
     headers: {
-      'Authorization': `Bearer ${options.token}`,
-      'Content-Type': 'application/json',
+      Authorization: `Bearer ${options.token}`,
+      "Content-Type": "application/json",
     },
     body: options.body ? JSON.stringify(options.body) : undefined,
   });
@@ -561,7 +666,7 @@ export async function serverFetch<T>(
 Then use it in actions:
 
 ```typescript
-import { serverFetch } from '$lib/api/server';
+import { serverFetch } from "$lib/api/server";
 
 export const actions = {
   async context({ request, locals }) {
@@ -572,8 +677,8 @@ export const actions = {
     }
 
     try {
-      const data = await serverFetch('/api/appointment-prep/context', {
-        method: 'POST',
+      const data = await serverFetch("/api/appointment-prep/context", {
+        method: "POST",
         body: form.data,
         token: locals.token,
       });
@@ -599,7 +704,8 @@ SECRET_API_BASE_URL=http://backend:8000  # For server-side (internal network)
 ```typescript
 // frontend/src/lib/api/server.ts
 
-const SERVER_API_BASE_URL = import.meta.env.SECRET_API_BASE_URL || 'http://localhost:8000';
+const SERVER_API_BASE_URL =
+  import.meta.env.SECRET_API_BASE_URL || "http://localhost:8000";
 ```
 
 This allows different URLs for browser (public) vs. server (internal).
@@ -615,10 +721,12 @@ This allows different URLs for browser (public) vs. server (internal).
 **Why both exist:**
 
 Svelte 5 runes (`$state`, `$derived`, `$effect`) only work inside:
+
 - `.svelte` component files
 - `.svelte.ts` files (rune-aware modules — coming soon)
 
 Svelte 5 runes do **NOT** work in plain `.ts` files (module context). That's why you need `svelte/store` for:
+
 - Shared authentication state (`authStore.ts`)
 - Global app state (`themeStore.ts`)
 - Services that manage state (`sessionStore.ts`)
@@ -630,16 +738,17 @@ Runes are compiled by Svelte's compiler. Plain `.ts` files aren't compiled by Sv
 **Migration Path:**
 
 Svelte 5's "universal reactivity" (runes everywhere) is coming. When it lands:
+
 - We'll convert `.ts` stores to `.svelte.ts` files
 - All state will use `$state` and `$derived`
 - `svelte/store` becomes optional
 
 **For now, the rule is simple:**
 
-| File Type | Use This | Example |
-|-----------|----------|---------|
-| `.svelte` | `$state`, `$derived` | `let count = $state(0)` |
-| `.svelte.ts` (future) | `$state`, `$derived` | When available |
+| File Type                | Use This              | Example                                  |
+| ------------------------ | --------------------- | ---------------------------------------- |
+| `.svelte`                | `$state`, `$derived`  | `let count = $state(0)`                  |
+| `.svelte.ts` (future)    | `$state`, `$derived`  | When available                           |
 | `.ts` (plain JS modules) | `writable`, `derived` | `export const authStore = writable(...)` |
 
 **Common mistake:**
@@ -647,11 +756,11 @@ Svelte 5's "universal reactivity" (runes everywhere) is coming. When it lands:
 ```typescript
 // ❌ WRONG: $state doesn't work in .ts files
 // authStore.ts
-export let user = $state(null);  // ERROR: $ is not defined
+export let user = $state(null); // ERROR: $ is not defined
 
 // ✅ RIGHT: Use writable in .ts files
 // authStore.ts
-import { writable } from 'svelte/store';
+import { writable } from "svelte/store";
 export const authStore = writable(null);
 ```
 
@@ -666,8 +775,8 @@ Use Svelte's built-in stores (writable, readable, derived). Don't over-engineer.
 ```typescript
 // frontend/src/lib/stores/auth.ts
 
-import { writable, type Writable } from 'svelte/store';
-import type { User } from '@supabase/supabase-js';
+import { writable, type Writable } from "svelte/store";
+import type { User } from "@supabase/supabase-js";
 
 export interface AuthState {
   user: User | null;
@@ -697,7 +806,7 @@ export async function initializeAuth() {
     authState.set({
       user: null,
       isLoading: false,
-      error: 'Failed to load session',
+      error: "Failed to load session",
     });
   }
 }
@@ -732,7 +841,7 @@ In components, you can subscribe to this store:
 ```typescript
 // frontend/src/lib/stores/app.ts
 
-import { writable, derived } from 'svelte/store';
+import { writable, derived } from "svelte/store";
 
 export const symptoms = writable<SymptomLog[]>([]);
 export const medications = writable<Medication[]>([]);
@@ -769,13 +878,13 @@ Is it in a `.svelte` file?
 
 **Step 2: Quick Reference**
 
-| Scenario | Use This | File Type | Example |
-|----------|----------|-----------|---------|
-| Component-local counter | `$state` | `.svelte` | `let count = $state(0)` |
-| Computed value in component | `$derived` | `.svelte` | `let doubled = $derived(count * 2)` |
-| Shared auth across app | `writable` store | `.ts` | `export const authStore = writable(...)` |
-| Subscribe to store in component | Store subscription | `.svelte` | `$: user = $authStore` |
-| Side effect in component | `$effect` | `.svelte` | `$effect(() => { ... })` |
+| Scenario                        | Use This           | File Type | Example                                  |
+| ------------------------------- | ------------------ | --------- | ---------------------------------------- |
+| Component-local counter         | `$state`           | `.svelte` | `let count = $state(0)`                  |
+| Computed value in component     | `$derived`         | `.svelte` | `let doubled = $derived(count * 2)`      |
+| Shared auth across app          | `writable` store   | `.ts`     | `export const authStore = writable(...)` |
+| Subscribe to store in component | Store subscription | `.svelte` | `$: user = $authStore`                   |
+| Side effect in component        | `$effect`          | `.svelte` | `$effect(() => { ... })`                 |
 
 **Step 3: Component-Local State Example**
 
@@ -796,19 +905,20 @@ let error = $state<string | null>(null);
 ```typescript
 // ❌ BAD: Don't mix runes and stores in the same file
 // authStore.ts
-let user = $state(null);  // ERROR: Can't use runes in .ts
-export const authStore = writable(user);  // ERROR: $state doesn't exist
+let user = $state(null); // ERROR: Can't use runes in .ts
+export const authStore = writable(user); // ERROR: $state doesn't exist
 
 // ✅ GOOD: Use the right tool for context
 // authStore.ts (plain .ts file)
 export const authStore = writable(null);
 
 // MyComponent.svelte (component file)
-let localCount = $state(0);  // ✅ Rune in .svelte
-const user = $authStore;      // ✅ Store subscription in .svelte
+let localCount = $state(0); // ✅ Rune in .svelte
+const user = $authStore; // ✅ Store subscription in .svelte
 ```
 
 **Decision Shortcut:**
+
 - **Shared across pages?** → Store (`.ts` file with `writable`)
 - **Persists across navigation?** → Store
 - **Only used in this component?** → `$state` (`.svelte` file)
@@ -820,6 +930,7 @@ const user = $authStore;      // ✅ Store subscription in .svelte
 ## Part 4: Error Handling
 
 Svelte and SvelteKit provide different error handling mechanisms depending on context:
+
 - **Route-level** (server and page components): Use SvelteKit's `+error.svelte`
 - **Component-level** (within components): Use try/catch + reactive state
 - **Complex async flows**: Use the `<AsyncLoader>` wrapper component for cleaner code
@@ -837,7 +948,7 @@ export class ApiError extends Error {
 
   constructor(status: number, code: string, detail: string) {
     super(detail);
-    this.name = 'ApiError';
+    this.name = "ApiError";
     this.status = status;
     this.code = code;
     this.detail = detail;
@@ -859,12 +970,12 @@ function parseApiError(status: number, body: unknown): ApiError {
   let detail = `Request failed with status ${status}`;
   let code = `HTTP_${status}`;
 
-  if (body && typeof body === 'object') {
+  if (body && typeof body === "object") {
     const err = body as Record<string, unknown>;
-    if (typeof err.detail === 'string') {
+    if (typeof err.detail === "string") {
       detail = err.detail;
     }
-    if (typeof err.code === 'string') {
+    if (typeof err.code === "string") {
       code = err.code;
     }
   }
@@ -872,11 +983,15 @@ function parseApiError(status: number, body: unknown): ApiError {
   return new ApiError(status, code, detail);
 }
 
-async function request<T>(method: string, path: string, body?: unknown): Promise<T> {
+async function request<T>(
+  method: string,
+  path: string,
+  body?: unknown,
+): Promise<T> {
   try {
     const response = await fetch(path, {
       method,
-      headers: { 'Authorization': `Bearer ${token}` },
+      headers: { Authorization: `Bearer ${token}` },
       body: body ? JSON.stringify(body) : undefined,
     });
 
@@ -897,7 +1012,11 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
     }
 
     // Network error or JSON parse error
-    throw new ApiError(0, 'NETWORK_ERROR', 'Network error. Check your connection.');
+    throw new ApiError(
+      0,
+      "NETWORK_ERROR",
+      "Network error. Check your connection.",
+    );
   }
 }
 ```
@@ -907,7 +1026,7 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
 ```typescript
 // In a component:
 
-import type { ApiError } from '$lib/types';
+import type { ApiError } from "$lib/types";
 
 let error = $state<ApiError | null>(null);
 
@@ -915,7 +1034,7 @@ async function sendMessage() {
   error = null; // Clear previous error
 
   try {
-    const response = await apiClient.post('/api/chat', { message });
+    const response = await apiClient.post("/api/chat", { message });
     // Success
   } catch (err) {
     // ✅ NOW WORKS CORRECTLY: instanceof checks pass because ApiError is a real class
@@ -931,8 +1050,12 @@ async function sendMessage() {
       }
     } else {
       // Unexpected error type
-      console.error('Unexpected error:', err);
-      error = new ApiError(500, 'UNKNOWN_ERROR', 'An unexpected error occurred');
+      console.error("Unexpected error:", err);
+      error = new ApiError(
+        500,
+        "UNKNOWN_ERROR",
+        "An unexpected error occurred",
+      );
     }
   }
 }
@@ -952,7 +1075,7 @@ SvelteKit catches errors in `+page.server.ts` and `+layout.server.ts` and render
 // frontend/src/routes/(app)/+page.server.ts
 
 export const load = async () => {
-  const data = await fetchData();  // If this throws, caught by SvelteKit
+  const data = await fetchData(); // If this throws, caught by SvelteKit
   return data;
 };
 ```
@@ -1101,6 +1224,7 @@ For complex flows that need to handle errors from nested async operations, use a
 #### Key Patterns
 
 **❌ Don't:**
+
 ```svelte
 <!-- Don't assume fetch won't throw -->
 <script>
@@ -1109,6 +1233,7 @@ For complex flows that need to handle errors from nested async operations, use a
 ```
 
 **✅ Do:**
+
 ```svelte
 <!-- Wrap in try/catch -->
 <script>
@@ -1131,9 +1256,159 @@ For complex flows that need to handle errors from nested async operations, use a
 ```
 
 **Summary:**
+
 - **Route-level:** Use SvelteKit's `+error.svelte`
 - **Component-level:** Use try/catch + state
 - **Complex flows:** Use `<AsyncLoader>` wrapper for cleaner code
+
+### 4.4 Form Error Handling with Superforms
+
+Form validation errors (from the server) are handled differently than async errors. Superforms provides `$errors` object with field-level error messages.
+
+**Complete example with proper binding and error display:**
+
+```svelte
+<!-- frontend/src/routes/(app)/ask/+page.svelte -->
+
+<script lang="ts">
+  import { superForm } from 'sveltekit-superforms/client';
+  import { zod } from 'sveltekit-superforms/adapters';
+  import { chatMessageSchema } from '$lib/schemas/chat';
+
+  let { data } = $props();
+
+  const form = superForm(data.form, {
+    validators: zod(chatMessageSchema),
+    delayMs: 200, // Debounce client-side validation
+  });
+
+  const { form: formData, errors, enhance, submitting } = form;
+</script>
+
+<form use:enhance method="POST" action="?/chat" class="space-y-4">
+  <!-- Input field with error aria labels -->
+  <div>
+    <label for="message" class="block text-sm font-medium mb-2">
+      Message
+    </label>
+    <textarea
+      id="message"
+      name="message"
+      bind:value={$formData.message}
+      placeholder="Ask a question..."
+      disabled={$submitting}
+      aria-invalid={!!$errors.message}
+      aria-describedby={$errors.message ? 'message-error' : undefined}
+      class="w-full p-2 border rounded"
+      class:border-red-500={!!$errors.message}
+    />
+
+    <!-- Error message linked with aria-describedby -->
+    {#if $errors.message}
+      <p
+        id="message-error"
+        class="mt-1 text-sm text-red-600"
+        role="alert"
+      >
+        {$errors.message}
+      </p>
+    {/if}
+  </div>
+
+  <button
+    type="submit"
+    disabled={$submitting}
+    class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
+  >
+    {$submitting ? 'Sending...' : 'Send'}
+  </button>
+
+  <!-- Optional: Show server-side error if form submission failed -->
+  {#if $page.form?.error}
+    <div role="alert" class="rounded-lg bg-red-50 p-4">
+      <p class="text-sm text-red-700">{$page.form.error}</p>
+    </div>
+  {/if}
+</form>
+```
+
+**Key accessibility patterns:**
+
+- **`aria-invalid={!!$errors.message}`** — Screen readers announce field has validation error
+- **`aria-describedby="message-error"`** — Links error message to input (screen reader announces both)
+- **`<label for="id">`** — Labels all inputs with `for` attribute
+- **`role="alert"`** — Error messages announced as alerts
+- **Visual feedback** — Red border on invalid fields
+
+**Server-side validation (from Part 2.2):**
+
+```typescript
+// frontend/src/routes/(app)/ask/+page.server.ts
+
+import { fail } from "@sveltejs/kit";
+import { superValidate } from "sveltekit-superforms";
+import { zod } from "sveltekit-superforms/adapters";
+import { chatMessageSchema } from "$lib/schemas/chat";
+
+export const actions = {
+  async chat({ request, locals }) {
+    // Validates and returns errors if invalid
+    const form = await superValidate(request, zod(chatMessageSchema));
+
+    if (!form.valid) {
+      // Returns form with $errors populated
+      // Component displays errors from $errors.message
+      return fail(400, { form });
+    }
+
+    // Form is valid, process it
+    try {
+      const response = await fetch("http://localhost:8000/api/chat", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${locals.token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(form.data),
+      });
+
+      if (!response.ok) {
+        // Server-side error (network, API, etc)
+        return fail(response.status, {
+          form,
+          error: "Failed to send message. Please try again.",
+        });
+      }
+
+      const data = await response.json();
+      return { form, success: true, response: data };
+    } catch (error) {
+      return fail(500, {
+        form,
+        error: "Connection error. Please try again.",
+      });
+    }
+  },
+};
+```
+
+**How validation flows:**
+
+```
+User types → $formData.message = "hello"
+            ↓
+User clicks Submit
+            ↓
+Form POSTs to server action
+            ↓
+Server validates with Zod
+            ↓
+If invalid: return fail(400, { form }) with $errors populated
+           ├─ Component receives form with errors
+           └─ Displays $errors.message in UI
+            ↓
+If valid: Process and return success
+```
 
 ---
 
@@ -1153,9 +1428,9 @@ async function fetchData() {
   error = null;
 
   try {
-    data = await apiClient.get('/api/some-endpoint');
+    data = await apiClient.get("/api/some-endpoint");
   } catch (err) {
-    error = err instanceof Error ? err.message : 'Failed to load data';
+    error = err instanceof Error ? err.message : "Failed to load data";
     data = null;
   } finally {
     isLoading = false;
@@ -1343,27 +1618,27 @@ Test pure functions and utilities.
 ```typescript
 // frontend/src/lib/__tests__/markdown.test.ts
 
-import { describe, it, expect } from 'vitest';
-import { renderMarkdown, sanitizeMarkdownHtml } from '$lib/utils/markdown';
+import { describe, it, expect } from "vitest";
+import { renderMarkdown, sanitizeMarkdownHtml } from "$lib/utils/markdown";
 
-describe('renderMarkdown', () => {
-  it('renders bold text correctly', () => {
-    const result = renderMarkdown('This is **bold** text');
-    expect(result).toContain('<strong>bold</strong>');
+describe("renderMarkdown", () => {
+  it("renders bold text correctly", () => {
+    const result = renderMarkdown("This is **bold** text");
+    expect(result).toContain("<strong>bold</strong>");
   });
 
-  it('renders headers', () => {
-    const result = renderMarkdown('## Heading');
-    expect(result).toContain('<h2>Heading</h2>');
+  it("renders headers", () => {
+    const result = renderMarkdown("## Heading");
+    expect(result).toContain("<h2>Heading</h2>");
   });
 
-  it('escapes XSS attempts', () => {
+  it("escapes XSS attempts", () => {
     const result = renderMarkdown('<script>alert("xss")</script>');
-    expect(result).not.toContain('<script>');
+    expect(result).not.toContain("<script>");
   });
 
-  it('handles empty string', () => {
-    expect(renderMarkdown('')).toBe('');
+  it("handles empty string", () => {
+    expect(renderMarkdown("")).toBe("");
   });
 });
 ```
@@ -1373,17 +1648,17 @@ describe('renderMarkdown', () => {
 ```typescript
 // frontend/src/routes/(app)/ask/__tests__/+page.test.ts
 
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/svelte';
-import userEvent from '@testing-library/user-event';
-import AskMenoPage from '../+page.svelte';
+import { describe, it, expect, vi, beforeEach } from "vitest";
+import { render, screen, waitFor } from "@testing-library/svelte";
+import userEvent from "@testing-library/user-event";
+import AskMenoPage from "../+page.svelte";
 
-describe('Ask Meno Page', () => {
+describe("Ask Meno Page", () => {
   beforeEach(() => {
     // Reset mocks, auth state, etc.
   });
 
-  it('renders empty state with starter prompts', () => {
+  it("renders empty state with starter prompts", () => {
     render(AskMenoPage, {
       props: { data: { form: { data: {} } } },
     });
@@ -1391,24 +1666,24 @@ describe('Ask Meno Page', () => {
     expect(screen.getByText(/What causes brain fog/)).toBeInTheDocument();
   });
 
-  it('sends message on Enter key', async () => {
+  it("sends message on Enter key", async () => {
     const user = userEvent.setup();
     render(AskMenoPage, {
       props: { data: { form: { data: {} } } },
     });
 
     const textarea = screen.getByPlaceholderText(/Ask a question/);
-    await user.type(textarea, 'Test message');
-    await user.keyboard('{Enter}');
+    await user.type(textarea, "Test message");
+    await user.keyboard("{Enter}");
 
     // Verify message was sent (check store, API call, etc.)
   });
 
-  it('shows error message on API failure', async () => {
+  it("shows error message on API failure", async () => {
     // Mock API to fail
-    vi.mock('$lib/api/client', () => ({
+    vi.mock("$lib/api/client", () => ({
       apiClient: {
-        post: vi.fn().mockRejectedValue(new Error('API error')),
+        post: vi.fn().mockRejectedValue(new Error("API error")),
       },
     }));
 
@@ -1418,15 +1693,17 @@ describe('Ask Meno Page', () => {
     });
 
     const textarea = screen.getByPlaceholderText(/Ask a question/);
-    await user.type(textarea, 'Test');
-    await user.keyboard('{Enter}');
+    await user.type(textarea, "Test");
+    await user.keyboard("{Enter}");
 
     await waitFor(() => {
-      expect(screen.getByRole('alert')).toHaveTextContent(/Something went wrong/);
+      expect(screen.getByRole("alert")).toHaveTextContent(
+        /Something went wrong/,
+      );
     });
   });
 
-  it('renders citations as links', () => {
+  it("renders citations as links", () => {
     render(AskMenoPage, {
       props: {
         data: {
@@ -1434,9 +1711,9 @@ describe('Ask Meno Page', () => {
             data: {
               messages: [
                 {
-                  role: 'assistant',
-                  content: 'Answer [Source 1]',
-                  citations: [{ url: 'https://example.com', title: 'Example' }],
+                  role: "assistant",
+                  content: "Answer [Source 1]",
+                  citations: [{ url: "https://example.com", title: "Example" }],
                 },
               ],
             },
@@ -1445,9 +1722,9 @@ describe('Ask Meno Page', () => {
       },
     });
 
-    const link = screen.getByRole('link', { name: /\[1\]/ });
-    expect(link).toHaveAttribute('href', 'https://example.com');
-    expect(link).toHaveAttribute('target', '_blank');
+    const link = screen.getByRole("link", { name: /\[1\]/ });
+    expect(link).toHaveAttribute("href", "https://example.com");
+    expect(link).toHaveAttribute("target", "_blank");
   });
 });
 ```
@@ -1483,12 +1760,12 @@ When we migrate to magic links (see `docs/planning/V2_V3_ROADMAP.md`), this will
 
 ### 7.3 E2E Tests (Current: Username/Password Auth)
 
-*Note: Uses username/password login. Will change when migrating to magic links.*
+_Note: Uses username/password login. Will change when migrating to magic links._
 
 ```typescript
 // frontend/tests/e2e/ask-meno.spec.ts
 
-import { test, expect } from '@playwright/test';
+import { test, expect } from "@playwright/test";
 
 /**
  * Current authentication: username/password
@@ -1497,14 +1774,14 @@ import { test, expect } from '@playwright/test';
  * Future: Will migrate to magic links (see docs/planning/V2_V3_ROADMAP.md)
  */
 
-test.describe('Ask Meno E2E Flow', () => {
+test.describe("Ask Meno E2E Flow", () => {
   test.beforeEach(async ({ page }) => {
     // Navigate to login page
-    await page.goto('/login');
+    await page.goto("/login");
 
     // Fill in credentials from environment
-    const username = process.env.TEST_USERNAME || 'testuser@example.com';
-    const password = process.env.TEST_PASSWORD || 'test_password_123';
+    const username = process.env.TEST_USERNAME || "testuser@example.com";
+    const password = process.env.TEST_PASSWORD || "test_password_123";
 
     await page.fill('input[type="email"]', username);
     await page.fill('input[type="password"]', password);
@@ -1513,53 +1790,61 @@ test.describe('Ask Meno E2E Flow', () => {
     await page.click('button[type="submit"]');
 
     // Wait for navigation to dashboard (auth successful)
-    await page.waitForURL('/dashboard');
+    await page.waitForURL("/dashboard");
   });
 
-  test('user can ask a question and see formatted response', async ({ page }) => {
-    await page.goto('/ask');
+  test("user can ask a question and see formatted response", async ({
+    page,
+  }) => {
+    await page.goto("/ask");
 
-    const textarea = page.locator('textarea');
-    await textarea.fill('What causes hot flashes?');
+    const textarea = page.locator("textarea");
+    await textarea.fill("What causes hot flashes?");
     await page.click('button:has-text("Send")');
 
     // Wait for response
-    await page.waitForSelector('[aria-label="Chat messages"] >> text=hot flashes');
+    await page.waitForSelector(
+      '[aria-label="Chat messages"] >> text=hot flashes',
+    );
 
     // Verify markdown is rendered (no ** visible)
-    const messageText = await page.locator('[aria-label="Chat messages"]').textContent();
-    expect(messageText).not.toContain('**');
+    const messageText = await page
+      .locator('[aria-label="Chat messages"]')
+      .textContent();
+    expect(messageText).not.toContain("**");
 
     // Verify citations are links
     const citations = await page.locator('a[target="_blank"]').count();
     expect(citations).toBeGreaterThan(0);
   });
 
-  test('message input is cleared after sending', async ({ page }) => {
-    await page.goto('/ask');
+  test("message input is cleared after sending", async ({ page }) => {
+    await page.goto("/ask");
 
-    const textarea = page.locator('textarea');
-    await textarea.fill('Test message');
+    const textarea = page.locator("textarea");
+    await textarea.fill("Test message");
     await page.click('button:has-text("Send")');
 
     await page.waitForTimeout(500); // Wait for state update
 
-    expect(await textarea.inputValue()).toBe('');
+    expect(await textarea.inputValue()).toBe("");
   });
 
-  test('error message is shown on API failure', async ({ page }) => {
+  test("error message is shown on API failure", async ({ page }) => {
     // Mock API to fail
-    await page.route('/api/chat', route => {
-      route.abort('failed');
+    await page.route("/api/chat", (route) => {
+      route.abort("failed");
     });
 
-    await page.goto('/ask');
+    await page.goto("/ask");
 
-    const textarea = page.locator('textarea');
-    await textarea.fill('Test');
+    const textarea = page.locator("textarea");
+    await textarea.fill("Test");
     await page.click('button:has-text("Send")');
 
-    await expect(page.locator('[role="alert"]')).toContainText(/Something went wrong/);
+    await expect(page.locator('[role="alert"]')).toContainText(
+      /Something went wrong/,
+    );
   });
 });
 ```
@@ -1736,7 +2021,7 @@ Always test at **375px, 667px (landscape), 768px, 1440px**.
 ### 9.3 Typography Scaling
 
 ```css
-/* ✅ GOOD: Base size on mobile, scales up -->
+/* ✅ GOOD: Base size on mobile, scales up */
 .text {
   font-size: 0.875rem; /* 14px on mobile */
 }
@@ -1769,24 +2054,27 @@ function increment() {
 }
 
 // ❌ BAD: Old Svelte 4 patterns
-import { writable } from 'svelte/store';
+import { writable } from "svelte/store";
 const count = writable(0); // Only for shared state
 ```
 
 **When to use:**
 
 **In `.svelte` files:**
+
 - `$state` — Component-local reactive variables
 - `$derived` — Computed values (auto-update when dependencies change)
 - `$effect` — Side effects (fetching data, subscriptions)
 - `$props` — Component props (always type with `$props<Type>()`)
 
 **In `.ts` files (plain modules):**
+
 - `writable` / `readable` / `derived` from `svelte/store` — Shared state
 - Runes don't work in `.ts` files (not compiled by Svelte)
 - See "Part 3: Stores vs. Runes Boundary" for why
 
 **Future (Svelte 5 universal reactivity):**
+
 - `$state` will work in `.svelte.ts` files too
 - We'll migrate all stores to `.svelte.ts` eventually
 - For now, use stores for shared module-level state
@@ -1806,12 +2094,12 @@ const count = writable(0); // Only for shared state
 ```typescript
 // frontend/src/lib/api/client.ts
 
-import { supabase } from '$lib/supabase/client';
-import type { ApiMethod, ApiRequest, ApiResponse } from '$lib/types/api';
-import { ApiError } from '$lib/types/api';
+import { supabase } from "$lib/supabase/client";
+import type { ApiMethod, ApiRequest, ApiResponse } from "$lib/types/api";
+import { ApiError } from "$lib/types/api";
 
 export interface RequestOptions {
-  responseType?: 'json' | 'blob' | 'text';
+  responseType?: "json" | "blob" | "text";
   timeout?: number;
   headers?: Record<string, string>;
 }
@@ -1820,7 +2108,7 @@ class ApiClient {
   private baseUrl: string;
 
   constructor() {
-    this.baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
+    this.baseUrl = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000";
   }
 
   private async getToken(): Promise<string> {
@@ -1828,7 +2116,7 @@ class ApiClient {
     const token = data.session?.access_token;
 
     if (!token) {
-      throw new Error('Not authenticated');
+      throw new Error("Not authenticated");
     }
 
     return token;
@@ -1860,7 +2148,7 @@ class ApiClient {
     options?: RequestOptions,
   ): Promise<T> {
     const url = this.buildUrl(path, params);
-    return this.request<T>('GET', url, undefined, options);
+    return this.request<T>("GET", url, undefined, options);
   }
 
   /**
@@ -1888,7 +2176,7 @@ class ApiClient {
     body?: unknown,
     options?: RequestOptions,
   ): Promise<T> {
-    return this.request<T>('POST', path, body, options);
+    return this.request<T>("POST", path, body, options);
   }
 
   /**
@@ -1914,7 +2202,7 @@ class ApiClient {
     body?: unknown,
     options?: RequestOptions,
   ): Promise<T> {
-    return this.request<T>('PUT', path, body, options);
+    return this.request<T>("PUT", path, body, options);
   }
 
   /**
@@ -1928,16 +2216,10 @@ class ApiClient {
   /**
    * DELETE: Escape hatch for unknown endpoints
    */
-  async delete<T = unknown>(
-    path: string,
-    options?: RequestOptions,
-  ): Promise<T>;
+  async delete<T = unknown>(path: string, options?: RequestOptions): Promise<T>;
 
-  async delete<T>(
-    path: string,
-    options?: RequestOptions,
-  ): Promise<T> {
-    return this.request<T>('DELETE', path, undefined, options);
+  async delete<T>(path: string, options?: RequestOptions): Promise<T> {
+    return this.request<T>("DELETE", path, undefined, options);
   }
 
   private async request<T>(
@@ -1948,7 +2230,7 @@ class ApiClient {
   ): Promise<T> {
     const token = await this.getToken();
     const url = new URL(path, this.baseUrl).toString();
-    const { responseType = 'json', timeout = 30000, headers = {} } = options;
+    const { responseType = "json", timeout = 30000, headers = {} } = options;
 
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), timeout);
@@ -1957,8 +2239,8 @@ class ApiClient {
       const response = await fetch(url, {
         method,
         headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
           ...headers,
         },
         body: body ? JSON.stringify(body) : undefined,
@@ -1969,11 +2251,11 @@ class ApiClient {
         throw await this.parseError(response);
       }
 
-      if (responseType === 'blob') {
+      if (responseType === "blob") {
         return (await response.blob()) as T;
       }
 
-      if (responseType === 'text') {
+      if (responseType === "text") {
         return (await response.text()) as T;
       }
 
@@ -1984,7 +2266,7 @@ class ApiClient {
       }
 
       if (error instanceof TypeError) {
-        throw new Error('Network error. Check your connection.');
+        throw new Error("Network error. Check your connection.");
       }
 
       throw error;
@@ -2036,8 +2318,9 @@ The ApiClient enforces the types defined in Part 1.4's ApiEndpoints map through 
 **How it works:**
 
 1. **Known Endpoints** (in ApiEndpoints map)
+
    ```typescript
-   const response = await apiClient.post('/api/chat', { message: 'Hello' });
+   const response = await apiClient.post("/api/chat", { message: "Hello" });
    // ✅ path '/api/chat' is validated
    // ✅ body is validated: must have { message: string; conversation_id?: string }
    // ✅ response type is { message: string; citations: Citation[]; conversation_id: string }
@@ -2046,7 +2329,9 @@ The ApiClient enforces the types defined in Part 1.4's ApiEndpoints map through 
 
 2. **Unknown Endpoints** (escape hatch)
    ```typescript
-   const response = await apiClient.post<MyType>('/custom/endpoint', { any: 'data' });
+   const response = await apiClient.post<MyType>("/custom/endpoint", {
+     any: "data",
+   });
    // ✅ path is not validated (any string allowed)
    // ✅ body is not validated (any shape allowed)
    // ✅ response type is MyType (explicit generic)
@@ -2057,24 +2342,24 @@ The ApiClient enforces the types defined in Part 1.4's ApiEndpoints map through 
 
 ```typescript
 // ❌ TYPE ERROR: Missing required field
-await apiClient.post('/api/chat', {
-  conversation_id: '123',
+await apiClient.post("/api/chat", {
+  conversation_id: "123",
   // ERROR: 'message' is missing in type
 });
 
 // ❌ TYPE ERROR: Wrong field name
-await apiClient.post('/api/chat', {
-  msg: 'Hello',  // ERROR: 'msg' does not exist, did you mean 'message'?
+await apiClient.post("/api/chat", {
+  msg: "Hello", // ERROR: 'msg' does not exist, did you mean 'message'?
 });
 
 // ❌ TYPE ERROR: Invalid path
-await apiClient.get('/api/nonexistent', {});
+await apiClient.get("/api/nonexistent", {});
 // ERROR: Argument of type '/api/nonexistent' is not assignable to parameter of type ApiMethod
 
 // ✅ CORRECT: All type checking passes
-const response = await apiClient.post('/api/chat', {
-  message: 'Hello',
-  conversation_id: 'conv-123',
+const response = await apiClient.post("/api/chat", {
+  message: "Hello",
+  conversation_id: "conv-123",
 });
 // response.message ✓
 // response.citations ✓
@@ -2086,6 +2371,7 @@ const response = await apiClient.post('/api/chat', {
 When you add a new API endpoint, follow this workflow:
 
 1. **Add to ApiEndpoints in `lib/types/api.ts`**
+
    ```typescript
    export interface ApiEndpoints {
      '/api/chat': { ... };
@@ -2097,10 +2383,11 @@ When you add a new API endpoint, follow this workflow:
    ```
 
 2. **Client automatically gets typed methods** (no code changes needed!)
+
    ```typescript
    // TypeScript automatically knows:
-   const result = await apiClient.post('/api/new-feature', {
-     name: 'Alice',
+   const result = await apiClient.post("/api/new-feature", {
+     name: "Alice",
      age: 30,
    });
    // result.id ✓
@@ -2112,6 +2399,7 @@ When you add a new API endpoint, follow this workflow:
 **Rule: Always use known endpoints from ApiEndpoints.**
 
 Use escape hatch only for:
+
 - **External APIs** (outside your control, e.g., weather API, external CMS)
 - **Ad-hoc development calls** (log as TODO: add to ApiEndpoints)
 - **Temporary integration** (pending final API spec)
@@ -2165,7 +2453,7 @@ export const actions: Actions = {
 export const actions: Actions = {
   async chat({ request, locals }) {
     if (!locals.user) {
-      return fail(401, { error: 'Not authenticated' });
+      return fail(401, { error: "Not authenticated" });
     }
     const form = await superValidate(request, zod(schema));
   },
@@ -2190,8 +2478,8 @@ import DOMPurify from 'dompurify';
 
 ```typescript
 // ❌ BAD
-const OPENAI_KEY = 'sk-xxx'; // Never in frontend!
-const apiUrl = 'https://api.example.com/secret';
+const OPENAI_KEY = "sk-xxx"; // Never in frontend!
+const apiUrl = "https://api.example.com/secret";
 
 // ✅ GOOD
 const apiUrl = import.meta.env.VITE_API_BASE_URL; // Only public vars
@@ -2203,15 +2491,15 @@ const apiUrl = import.meta.env.VITE_API_BASE_URL; // Only public vars
 ```typescript
 // ❌ BAD: Credentials in source code
 test.beforeEach(async ({ page }) => {
-  await page.fill('input[type="email"]', 'testuser@example.com');
-  await page.fill('input[type="password"]', 'password123');
+  await page.fill('input[type="email"]', "testuser@example.com");
+  await page.fill('input[type="password"]', "password123");
   await page.click('button:has-text("Sign In")');
 });
 
 // ✅ GOOD: Credentials from environment
 test.beforeEach(async ({ page }) => {
-  const username = process.env.TEST_USERNAME || 'default@example.com';
-  const password = process.env.TEST_PASSWORD || 'default_password';
+  const username = process.env.TEST_USERNAME || "default@example.com";
+  const password = process.env.TEST_PASSWORD || "default_password";
 
   await page.fill('input[type="email"]', username);
   await page.fill('input[type="password"]', password);
@@ -2227,7 +2515,7 @@ Never commit test credentials. Use environment variables (`.env.test` in `.gitig
 // ❌ WRONG: apiClient doesn't work server-side
 // frontend/src/routes/(app)/+page.server.ts
 
-import { apiClient } from '$lib/api/client';
+import { apiClient } from "$lib/api/client";
 
 export const actions = {
   async chat({ request, locals }) {
@@ -2235,7 +2523,7 @@ export const actions = {
 
     // FAILS: apiClient.getToken() calls supabase.auth.getSession()
     // which only exists in the browser, not on the server
-    const response = await apiClient.post('/api/chat', form.data);
+    const response = await apiClient.post("/api/chat", form.data);
   },
 };
 
@@ -2245,14 +2533,14 @@ export const actions = {
     const form = await superValidate(request, zod(schema));
 
     if (!locals.token) {
-      return fail(401, { error: 'Not authenticated' });
+      return fail(401, { error: "Not authenticated" });
     }
 
-    const response = await fetch('http://localhost:8000/api/chat', {
-      method: 'POST',
+    const response = await fetch("http://localhost:8000/api/chat", {
+      method: "POST",
       headers: {
-        'Authorization': `Bearer ${locals.token}`,
-        'Content-Type': 'application/json',
+        Authorization: `Bearer ${locals.token}`,
+        "Content-Type": "application/json",
       },
       body: JSON.stringify(form.data),
     });
@@ -2279,9 +2567,9 @@ export interface ApiError extends Error {
 // Object literal — not an instance of Error
 const error: ApiError = {
   status: 404,
-  code: 'NOT_FOUND',
-  message: '',
-  name: 'ApiError',
+  code: "NOT_FOUND",
+  message: "",
+  name: "ApiError",
 };
 
 if (error instanceof ApiError) {
@@ -2298,7 +2586,7 @@ export class ApiError extends Error {
 
   constructor(status: number, code: string, detail: string) {
     super(detail);
-    this.name = 'ApiError';
+    this.name = "ApiError";
     this.status = status;
     this.code = code;
     this.detail = detail;
@@ -2307,7 +2595,7 @@ export class ApiError extends Error {
 }
 
 // Now instanceof works
-const error = new ApiError(404, 'NOT_FOUND', 'Not found');
+const error = new ApiError(404, "NOT_FOUND", "Not found");
 if (error instanceof ApiError) {
   // ✅ TRUE — error is a real instance of ApiError
 }
@@ -2316,6 +2604,7 @@ if (error instanceof ApiError) {
 **Why:** Interfaces are TypeScript-only (erased at runtime). Object literals don't create class instances. Classes create actual runtime instances that `instanceof` can check.
 
 Without a proper class:
+
 - `instanceof` checks always fail
 - Error handling bypasses specific status code handling (401, 429, etc.)
 - Falls through to generic catch blocks
@@ -2386,8 +2675,14 @@ Define a single typed interface for the entire flow state:
 ```typescript
 // lib/types/appointment.ts
 
-export type AppointmentType = 'new_provider' | 'existing_provider' | 'telehealth';
-export type AppointmentGoal = 'assess_status' | 'explore_hrt' | 'optimize_current_treatment';
+export type AppointmentType =
+  | "new_provider"
+  | "existing_provider"
+  | "telehealth";
+export type AppointmentGoal =
+  | "assess_status"
+  | "explore_hrt"
+  | "optimize_current_treatment";
 
 export interface AppointmentContext {
   appointment_type: AppointmentType;
@@ -2456,7 +2751,7 @@ function startOver() {
     error: null,
     currentStep: 1,
   };
-  sessionStorage.removeItem('appointmentPrepState');
+  sessionStorage.removeItem("appointmentPrepState");
 }
 ```
 
@@ -2566,14 +2861,14 @@ let savedStateExists = $state(false);
 
 // Load saved state on mount
 $effect(() => {
-  const saved = sessionStorage.getItem('appointmentPrepState');
+  const saved = sessionStorage.getItem("appointmentPrepState");
   if (saved) {
     try {
       const parsed = JSON.parse(saved);
       state = parsed;
       savedStateExists = true;
     } catch (e) {
-      console.error('Failed to restore appointment prep state:', e);
+      console.error("Failed to restore appointment prep state:", e);
       savedStateExists = false;
     }
   }
@@ -2581,7 +2876,7 @@ $effect(() => {
 
 // Save state whenever it changes
 $effect(() => {
-  sessionStorage.setItem('appointmentPrepState', JSON.stringify(state));
+  sessionStorage.setItem("appointmentPrepState", JSON.stringify(state));
 });
 ```
 
