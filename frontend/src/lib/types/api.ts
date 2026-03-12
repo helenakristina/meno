@@ -244,6 +244,7 @@ export interface ApiEndpoints {
       appointment_type: string;
       goal: string;
       dismissed_before: string;
+      urgent_symptom?: string | null;
     };
     response: {
       appointment_id: string;

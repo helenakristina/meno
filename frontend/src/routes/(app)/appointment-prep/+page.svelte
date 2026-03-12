@@ -26,7 +26,33 @@
 		currentStep: 1,
 	});
 
+	let savedStateExists = $state(false);
+
 	let progressPercent = $derived((state.currentStep / 5) * 100);
+
+	// =========================================================================
+	// State persistence
+	// =========================================================================
+
+	// Load saved state from sessionStorage on mount
+	$effect(() => {
+		const saved = sessionStorage.getItem('appointmentPrepState');
+		if (saved) {
+			try {
+				const parsed = JSON.parse(saved);
+				state = parsed;
+				savedStateExists = true;
+			} catch (e) {
+				console.error('Failed to restore appointment prep state:', e);
+				savedStateExists = false;
+			}
+		}
+	});
+
+	// Save state to sessionStorage whenever it changes
+	$effect(() => {
+		sessionStorage.setItem('appointmentPrepState', JSON.stringify(state));
+	});
 
 	// =========================================================================
 	// Step handlers
@@ -92,6 +118,7 @@
 			error: null,
 			currentStep: 1,
 		};
+		sessionStorage.removeItem('appointmentPrepState');
 	}
 </script>
 
@@ -169,13 +196,45 @@
 		class="flex-1 overflow-y-auto px-4 py-6 sm:px-6 lg:px-8"
 		aria-label="Appointment prep step {state.currentStep}"
 	>
+		{#if savedStateExists && state.currentStep > 1}
+			<div role="dialog" class="mb-6 rounded-lg border border-blue-200 bg-blue-50 p-4">
+				<div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+					<div>
+						<h3 class="font-semibold text-blue-900">Resume Previous Session?</h3>
+						<p class="mt-1 text-sm text-blue-700">
+							We found your previous appointment prep session at Step {state.currentStep}. You can continue where you left off or start fresh.
+						</p>
+					</div>
+					<div class="flex flex-shrink-0 gap-2">
+						<button
+							type="button"
+							onclick={() => (savedStateExists = false)}
+							class="rounded-lg bg-blue-600 px-3 py-2 text-sm font-semibold text-white transition-colors hover:bg-blue-700"
+						>
+							Resume
+						</button>
+						<button
+							type="button"
+							onclick={() => {
+								sessionStorage.removeItem('appointmentPrepState');
+								startOver();
+								savedStateExists = false;
+							}}
+							class="rounded-lg border border-blue-600 px-3 py-2 text-sm font-semibold text-blue-600 transition-colors hover:bg-blue-50"
+						>
+							Start Fresh
+						</button>
+					</div>
+				</div>
+			</div>
+		{/if}
+
 		{#if state.currentStep === 1}
 			<Step1Context data={data.form} onNext={handleStep1} />
 		{:else if state.currentStep === 2 && state.appointmentId}
 			<Step2Narrative
 				appointmentId={state.appointmentId}
 				onNext={handleStep2}
-				onError={handleStepError}
 			/>
 		{:else if state.currentStep === 3 && state.appointmentId && state.context}
 			<Step3Prioritize
@@ -188,7 +247,6 @@
 			<Step4Scenarios
 				appointmentId={state.appointmentId}
 				onNext={handleStep4}
-				onError={handleStepError}
 			/>
 		{:else if state.currentStep === 5 && state.appointmentId}
 			<Step5Generate

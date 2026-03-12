@@ -239,6 +239,39 @@ test.beforeEach(async ({ page }) => {
 
 ---
 
+**Appointment Prep Polish (Post-Launch)**
+
+**Goal:** Address remaining quality issues and refinements from code review.
+
+**Status:** Issues identified (see APPOINTMENT_PREP_REVIEW.md). Fixes for Priorities 1-5 completed. Deferred improvements below.
+
+**Priority 1-5 Completed:**
+- ✅ Fixed broken test enum references (W36/W42)
+- ✅ Added urgent_symptom to API type definition (W41)
+- ✅ Unified error reporting pattern (W15/W24)
+- ✅ Fixed touch targets to 44px minimum (W18)
+- ✅ Added sessionStorage state persistence (W2)
+
+**Deferred Improvements (V2.1 or later):**
+- [ ] W9: Replace `$effect` with `onMount` in Steps 2 and 4 for semantic clarity
+- [ ] W10: Add path builder utility to eliminate dynamic API path casting (`as` assertions)
+- [ ] W11: Add confirmation dialog before "Start over" in Step 5
+- [ ] W14: Add proper ARIA attributes to history page (role="status", aria-live)
+- [ ] W15: Replace magic `7rem` height with CSS variable
+- [ ] W16: Simplify canSubmit pattern (use `$derived`, not `$derived(() => () => ...)`)
+- [ ] W17: Add character limits to narrative textarea
+- [ ] W18: Add maximum concern count in Step 3
+- [ ] W19: Add user agency to Step 4 (allow dismissing or flagging scenarios)
+- [ ] W20: Add `download` attribute to PDF download links
+- [ ] W21: Add aria-live announcements for drag-and-drop operations
+- [ ] W22: Add AbortController for LLM API calls (cancel on back-navigation)
+
+**Estimated effort:** 3-4 hours (not blocking V2 launch)
+**Priority:** Low (nice-to-have polish, all critical issues resolved)
+**Timeline:** V2.1 or later
+
+---
+
 **Accessibility & UX (V2.1)**
 
 - Full WCAG 2.1 Level AA compliance audit

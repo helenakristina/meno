@@ -29,7 +29,7 @@ describe('Appointment Prep — Context schema (Step 1)', () => {
 
 	it('rejects missing appointment_type', () => {
 		const result = contextSchema.safeParse({
-			goal: AppointmentGoal.understand_where_i_am,
+			goal: AppointmentGoal.assess_status,
 			dismissed_before: DismissalExperience.no,
 		});
 		expect(result.success).toBe(false);
@@ -46,7 +46,7 @@ describe('Appointment Prep — Context schema (Step 1)', () => {
 	it('rejects missing dismissed_before', () => {
 		const result = contextSchema.safeParse({
 			appointment_type: AppointmentType.new_provider,
-			goal: AppointmentGoal.address_specific_symptom,
+			goal: AppointmentGoal.optimize_current_treatment,
 		});
 		expect(result.success).toBe(false);
 	});
@@ -54,7 +54,7 @@ describe('Appointment Prep — Context schema (Step 1)', () => {
 	it('rejects invalid enum values', () => {
 		const result = contextSchema.safeParse({
 			appointment_type: 'unknown_type',
-			goal: AppointmentGoal.discuss_starting_hrt,
+			goal: AppointmentGoal.explore_hrt,
 			dismissed_before: DismissalExperience.no,
 		});
 		expect(result.success).toBe(false);
@@ -206,7 +206,7 @@ describe('Appointment Prep — State management', () => {
 			appointmentId: 'appt-123',
 			context: {
 				appointment_type: AppointmentType.new_provider,
-				goal: AppointmentGoal.discuss_starting_hrt,
+				goal: AppointmentGoal.explore_hrt,
 				dismissed_before: DismissalExperience.once_or_twice,
 			},
 			currentStep: 2 as const,
@@ -222,7 +222,7 @@ describe('Appointment Prep — State management', () => {
 			appointmentId: 'appt-123',
 			context: {
 				appointment_type: AppointmentType.new_provider,
-				goal: AppointmentGoal.discuss_starting_hrt,
+				goal: AppointmentGoal.explore_hrt,
 				dismissed_before: DismissalExperience.no,
 			},
 			narrative,
@@ -242,7 +242,7 @@ describe('Appointment Prep — State management', () => {
 			appointmentId: 'appt-123',
 			context: {
 				appointment_type: AppointmentType.new_provider,
-				goal: AppointmentGoal.discuss_starting_hrt,
+				goal: AppointmentGoal.explore_hrt,
 				dismissed_before: DismissalExperience.no,
 			},
 			narrative: 'Some narrative',
@@ -270,7 +270,7 @@ describe('Appointment Prep — State management', () => {
 			appointmentId: 'appt-123',
 			context: {
 				appointment_type: AppointmentType.new_provider,
-				goal: AppointmentGoal.discuss_starting_hrt,
+				goal: AppointmentGoal.explore_hrt,
 				dismissed_before: DismissalExperience.no,
 			},
 			narrative: 'Some narrative',

@@ -144,7 +144,7 @@
 						onclick={() => moveUp(i)}
 						disabled={i === 0}
 						aria-label="Move '{concern}' up"
-						class="flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600 disabled:cursor-not-allowed disabled:opacity-30"
+						class="flex h-11 w-11 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600 disabled:cursor-not-allowed disabled:opacity-30"
 					>
 						▲
 					</button>
@@ -153,7 +153,7 @@
 						onclick={() => moveDown(i)}
 						disabled={i === concerns.length - 1}
 						aria-label="Move '{concern}' down"
-						class="flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600 disabled:cursor-not-allowed disabled:opacity-30"
+						class="flex h-11 w-11 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600 disabled:cursor-not-allowed disabled:opacity-30"
 					>
 						▼
 					</button>
@@ -161,7 +161,7 @@
 						type="button"
 						onclick={() => removeConcern(i)}
 						aria-label="Remove '{concern}'"
-						class="flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-red-50 hover:text-red-500"
+						class="flex h-11 w-11 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-red-50 hover:text-red-500"
 					>
 						×
 					</button>

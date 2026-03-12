@@ -5,11 +5,9 @@
 	let {
 		appointmentId,
 		onNext,
-		onError,
 	}: {
 		appointmentId: string;
 		onNext: (narrative: string) => void;
-		onError: (msg: string) => void;
 	} = $props();
 
 	let narrative = $state('');
@@ -35,7 +33,6 @@
 					? (e as ApiError).detail
 					: 'Failed to generate narrative. Please try again.';
 			loadError = msg;
-			onError(msg);
 		} finally {
 			isLoading = false;
 		}

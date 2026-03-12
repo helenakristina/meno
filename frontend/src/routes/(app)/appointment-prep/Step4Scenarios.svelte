@@ -6,11 +6,9 @@
 	let {
 		appointmentId,
 		onNext,
-		onError,
 	}: {
 		appointmentId: string;
 		onNext: (scenarios: ScenarioCard[]) => void;
-		onError: (msg: string) => void;
 	} = $props();
 
 	let scenarios = $state<ScenarioCard[]>([]);
@@ -35,7 +33,6 @@
 					? (e as ApiError).detail
 					: 'Failed to generate scenarios. Please try again.';
 			loadError = msg;
-			onError(msg);
 		} finally {
 			isLoading = false;
 		}
