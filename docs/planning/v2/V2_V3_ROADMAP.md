@@ -84,6 +84,110 @@ Women arrive at menopause appointments unprepared, often having forgotten key co
 
 ---
 
+### V2.1 Polish: Appointment Prep PDF Quality and Formatting
+
+**Goal:** Improve the visual quality, formatting, and professional presentation of generated PDFs (Personal Cheatsheet and Provider Summary).
+
+**Current State:** PDFs are functional and contain correct data, but formatting could be more polished for professional presentation to healthcare providers.
+
+**Files Involved:**
+- `backend/app/services/pdf.py` — PDF generation logic
+- `backend/app/services/llm.py` — Content generation for PDFs
+- Frontend: Step 5 component that displays generated PDFs
+
+**Areas for Improvement:**
+
+1. **Visual Design and Branding**
+   - Add Meno logo/header to PDFs
+   - Use consistent color scheme (teal accent colors from app design)
+   - Improve typography hierarchy (font sizes, weights, spacing)
+   - Add page numbers and footer with date/user info
+   - Ensure PDFs look professional enough to hand to a healthcare provider
+   - Effort: 2-3 hours
+
+2. **Content Structure and Readability**
+   - Organize information with clear sections and subsections
+   - Use bullet points, tables, and whitespace effectively
+   - Ensure no orphaned text or awkward page breaks
+   - Add table of contents for multi-page documents
+   - Effort: 1-2 hours
+
+3. **Data Presentation**
+   - Symptom frequency data (charts vs. tables vs. narrative)
+   - Co-occurrence patterns (how to display relationships clearly)
+   - Prioritized concerns (ranked list with reasoning)
+   - Practice scenarios (formatted for easy reading)
+   - Effort: 1.5-2 hours
+
+4. **Accessibility in PDFs**
+   - Ensure PDF is properly tagged (headings, lists, tables)
+   - Add alt text to charts/images if included
+   - Ensure text contrast meets WCAG standards
+   - Test screen reader compatibility
+   - Effort: 1 hour
+
+5. **Provider-Specific Polish (Provider Summary)**
+   - Clinical tone and appropriate language
+   - Key metrics highlighted for easy scanning
+   - Summary at top (appointment goal, urgent symptom, key concerns)
+   - Symptom data presented in clinically relevant way
+   - Practice scenarios formatted as reference material
+   - Effort: 1.5-2 hours
+
+6. **Personal Cheatsheet Polish**
+   - User-friendly tone (less clinical than provider summary)
+   - Key talking points highlighted
+   - Practice scenarios formatted as "things to say"
+   - FAQ or tips section
+   - Effort: 1-1.5 hours
+
+7. **Technical Improvements**
+   - Handle edge cases (very long symptom descriptions, special characters)
+   - Ensure consistent font embedding (no missing fonts when shared)
+   - Test PDF generation with various data sizes (1 symptom vs. 100 symptoms)
+   - Add error handling if PDF generation fails
+   - Effort: 1 hour
+
+8. **Testing and Validation**
+   - Manual PDF review across different data scenarios
+   - Print test (ensure PDFs look good printed, not just on screen)
+   - Mobile view test (readable on phone, not just desktop)
+   - Provider feedback (show to actual healthcare providers if possible)
+   - Effort: 1-2 hours (ongoing)
+
+**Definition of Done:**
+- [ ] PDFs have professional header with Meno branding
+- [ ] Typography is clear and well-organized (headings, body, emphasis)
+- [ ] Color scheme matches app design (teal accents)
+- [ ] No awkward page breaks or orphaned text
+- [ ] Provider Summary is clinically appropriate and easy to scan
+- [ ] Personal Cheatsheet is user-friendly and actionable
+- [ ] All data displays correctly across various input sizes
+- [ ] PDFs are tagged for accessibility
+- [ ] Manual testing on print and mobile views passes
+- [ ] At least one healthcare provider has reviewed and approved format
+
+**Estimated Total Effort:** 10-14 hours
+
+**Priority:** Medium (improves user experience and professional impression, but not blocking V2 launch)
+
+**Timeline:** V2.1 (1-2 weeks after V2 launch)
+
+**Dependencies:** None — can be done independently after V2 ships
+
+**Notes:**
+- This is high-visibility to users (PDFs are the final output of Appointment Prep)
+- Consider using a PDF library with better formatting support (ReportLab, WeasyPrint, or similar)
+- May require backend changes to improve PDF generation quality
+- Coordinate with UX/design team on visual direction if available
+- Consider creating PDF templates/styles that can be reused
+
+**Related Issues:**
+- Part 4: Error Handling (ensure PDF generation errors are handled gracefully)
+- Part 13: Multi-Step Flows (PDF generation is Step 5 output)
+
+---
+
 ### V2.2: Ask Meno Enhancements
 
 **Conversation History**

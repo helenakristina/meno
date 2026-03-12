@@ -297,10 +297,10 @@ This is the flagship V2 feature. Build it great.
 - **File:** `backend/app/api/routes/appointment.py`
 - **Effort:** 2 hours
 - **Checklist:**
-  - [ ] Endpoint accepts ordered list
-  - [ ] Saves order to database
-  - [ ] Returns ordered concerns
-  - [ ] Tests pass
+  - [x] Endpoint accepts ordered list
+  - [x] Saves order to database
+  - [x] Returns ordered concerns
+  - [x] Tests pass
 
 #### Task 2.2.4: Step 4 — Scenario Generation API
 
@@ -314,11 +314,11 @@ This is the flagship V2 feature. Build it great.
 - **File:** `backend/app/api/routes/appointment.py`
 - **Effort:** 4 hours
 - **Checklist:**
-  - [ ] Endpoint created
-  - [ ] Selects scenarios based on appointment goal
-  - [ ] Calls LLMService for each scenario
-  - [ ] Handles edge cases (no matching scenarios)
-  - [ ] Tests pass
+  - [x] Endpoint created
+  - [x] Selects scenarios based on appointment goal
+  - [x] Calls LLMService for each scenario
+  - [x] Handles edge cases (no matching scenarios)
+  - [x] Tests pass
 
 #### Task 2.2.5: Step 5 — Generate Output PDFs
 
@@ -332,11 +332,11 @@ This is the flagship V2 feature. Build it great.
 - **File:** `backend/app/api/routes/appointment.py`
 - **Effort:** 5 hours (PDF generation is fiddly)
 - **Checklist:**
-  - [ ] Endpoint created
-  - [ ] Provider summary PDF generated (clean clinical styling)
-  - [ ] Cheat sheet PDF generated (printable, mobile-friendly)
-  - [ ] PDFs stored (S3 or Supabase storage)
-  - [ ] Tests pass
+  - [x] Endpoint created
+  - [x] Provider summary PDF generated (clean clinical styling)
+  - [x] Cheat sheet PDF generated (printable, mobile-friendly)
+  - [x] PDFs stored (S3 or Supabase storage)
+  - [x] Tests pass
 
 ### 2.3: Frontend for Appointment Prep
 
@@ -348,10 +348,10 @@ This is the flagship V2 feature. Build it great.
 - **What it shows:** Step indicator, progress, current step
 - **Effort:** 2 hours
 - **Checklist:**
-  - [ ] Route created
-  - [ ] Step indicator (1/5, 2/5, etc.)
-  - [ ] Progress visualization
-  - [ ] Responsive on mobile
+  - [x] Route created
+  - [x] Step indicator (1/5, 2/5, etc.)
+  - [x] Progress visualization
+  - [x] Responsive on mobile
 
 #### Task 2.3.2: Build Step 1 Component (Context Questions)
 
@@ -363,11 +363,11 @@ This is the flagship V2 feature. Build it great.
   - Next button
 - **Effort:** 2 hours
 - **Checklist:**
-  - [ ] Component created
-  - [ ] Form validation
-  - [ ] Calls API
-  - [ ] Shows loading/error states
-  - [ ] Navigates to step 2
+  - [x] Component created
+  - [x] Form validation
+  - [x] Calls API
+  - [x] Shows loading/error states
+  - [x] Navigates to step 2
 
 #### Task 2.3.3: Build Step 2 Component (Review Narrative)
 
@@ -379,11 +379,11 @@ This is the flagship V2 feature. Build it great.
   - Next button
 - **Effort:** 2 hours
 - **Checklist:**
-  - [ ] Component created
-  - [ ] Shows generated narrative
-  - [ ] User can edit text
-  - [ ] Save button persists changes
-  - [ ] Next button moves to step 3
+  - [x] Component created
+  - [x] Shows generated narrative
+  - [x] User can edit text
+  - [x] Save button persists changes
+  - [x] Next button moves to step 3
 
 #### Task 2.3.4: Build Step 3 Component (Prioritize Concerns)
 
@@ -394,12 +394,12 @@ This is the flagship V2 feature. Build it great.
   - Next button
 - **Effort:** 3 hours (drag-drop is fiddly)
 - **Checklist:**
-  - [ ] Component created
-  - [ ] Symptoms listed
-  - [ ] Drag-to-reorder works
-  - [ ] Add custom concern works
-  - [ ] Calls API to save order
-  - [ ] Next button moves to step 4
+  - [x] Component created
+  - [x] Symptoms listed
+  - [x] Drag-to-reorder works
+  - [x] Add custom concern works
+  - [x] Calls API to save order
+  - [x] Next button moves to step 4
 
 #### Task 2.3.5: Build Step 4 Component (Review Scenarios)
 
@@ -411,11 +411,11 @@ This is the flagship V2 feature. Build it great.
   - Next button
 - **Effort:** 2 hours
 - **Checklist:**
-  - [ ] Component created
-  - [ ] Scenarios displayed as cards
-  - [ ] User can edit responses
-  - [ ] Responsive layout
-  - [ ] Next button moves to step 5
+  - [x] Component created
+  - [x] Scenarios displayed as cards
+  - [x] User can edit responses
+  - [x] Responsive layout
+  - [x] Next button moves to step 5
 
 #### Task 2.3.6: Build Step 5 Component (Generate & Download)
 
@@ -427,12 +427,12 @@ This is the flagship V2 feature. Build it great.
   - Option to start new prep or go back
 - **Effort:** 2 hours
 - **Checklist:**
-  - [ ] Component created
-  - [ ] Generate button triggers API call
-  - [ ] Loading state while generating
-  - [ ] Download links appear
-  - [ ] Error handling
-  - [ ] Can generate multiple times
+  - [x] Component created
+  - [x] Generate button triggers API call
+  - [x] Loading state while generating
+  - [x] Download links appear
+  - [x] Error handling
+  - [x] Can generate multiple times
 
 #### Task 2.3.7: Test Appointment Prep Flow End-to-End
 
@@ -443,10 +443,10 @@ This is the flagship V2 feature. Build it great.
   - Responsive on mobile
 - **Effort:** 3 hours
 - **Checklist:**
-  - [ ] Manual testing of full flow
-  - [ ] Mobile responsiveness verified
-  - [ ] Error cases tested (no logs, API failure, etc.)
-  - [ ] PDFs look good
+  - [x] Manual testing of full flow
+  - [x] Mobile responsiveness verified
+  - [x] Error cases tested (no logs, API failure, etc.)
+  - [x] PDFs look okay
 
 ### 2.4: Appointment Prep Tests
 
@@ -473,8 +473,8 @@ This is the flagship V2 feature. Build it great.
   - Save/load outputs
 - **Effort:** 1 hour
 - **Checklist:**
-  - [ ] Repository tests pass
-  - [ ] Coverage good
+  - [x] Repository tests pass
+  - [x] Coverage good
 
 ---
 
