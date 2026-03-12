@@ -15,12 +15,15 @@ import { chatMessageSchema } from '$lib/schemas/chat';
 /**
  * Load function runs before page renders
  * Initialize empty form for progressive enhancement
+ * Handle resume parameter from history page
  */
-export async function load() {
+export async function load({ url }) {
   const form = await superValidate(zod4(chatMessageSchema));
+  const resumeId = url.searchParams.get('resume');
 
   return {
     form,
+    resumeId,
   };
 }
 

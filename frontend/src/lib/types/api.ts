@@ -14,7 +14,7 @@
  * // response is typed as ChatResponse
  */
 
-import type { Citation, Message, SymptomLog, SymptomSummary, Provider } from './index';
+import type { Citation, Message, SymptomLog, SymptomSummary, Provider, Conversation } from './index';
 
 /**
  * Maps API endpoints to request/response types.
@@ -34,6 +34,29 @@ export interface ApiEndpoints {
       message: string;
       citations: Citation[];
       conversation_id: string;
+    };
+  };
+
+  '/api/chat/conversations': {
+    request: {
+      limit?: number;
+      offset?: number;
+    };
+    response: {
+      conversations: Conversation[];
+      total: number;
+      has_more: boolean;
+      limit: number;
+      offset: number;
+    };
+  };
+
+  // Dynamic path: /api/chat/conversations/{id}
+  '/api/chat/conversations/{id}': {
+    request: never;
+    response: {
+      conversation_id: string;
+      messages: Message[];
     };
   };
 

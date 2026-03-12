@@ -11,7 +11,7 @@ from urllib.parse import urlparse
 from uuid import UUID
 
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from supabase import AsyncClient
 
 from app.api.dependencies import (
@@ -29,8 +29,17 @@ from app.repositories.conversation_repository import ConversationRepository
 from app.services.citations import CitationService
 from app.services.prompts import PromptService
 from app.services.openai_provider import OpenAIProvider
-from app.models.chat import ChatMessage, ChatRequest, ChatResponse
+from app.models.chat import (
+    ChatMessage,
+    ChatRequest,
+    ChatResponse,
+    ConversationListResponse,
+    ConversationSummary,
+    ConversationMessagesResponse,
+)
 from app.rag.retrieval import retrieve_relevant_chunks
+from app.exceptions import DatabaseError
+from app.utils.conversations import build_conversation_title
 
 logger = logging.getLogger(__name__)
 
@@ -211,3 +220,100 @@ async def ask_meno(
         citations=citations,
         conversation_id=conversation_id,
     )
+
+
+# -------------------------------------------------------------------------------
+# Conversation History Endpoints
+# -------------------------------------------------------------------------------
+
+
+@router.get(
+    "/conversations",
+    response_model=ConversationListResponse,
+    summary="List user's conversations",
+    description="Retrieve a paginated list of all conversations for the current user, sorted by most recent first.",
+)
+async def list_conversations(
+    user_id: CurrentUser,
+    conversation_repo: ConversationRepository = Depends(get_conversation_repo),
+    limit: int = Query(default=20, ge=1, le=100, description="Number of conversations per page"),
+    offset: int = Query(default=0, ge=0, description="Number of conversations to skip"),
+) -> ConversationListResponse:
+    """List all conversations for the current user.
+
+    Raises:
+        HTTPException: 401 if not authenticated.
+        HTTPException: 500 if database query fails.
+    """
+    try:
+        rows, total = await conversation_repo.list(user_id, limit, offset)
+    except DatabaseError as exc:
+        logger.error("Failed to list conversations for user %s: %s", user_id, exc, exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to load conversations",
+        )
+
+    conversations = [
+        ConversationSummary(
+            id=UUID(row["id"]),
+            title=build_conversation_title(row.get("messages") or []),
+            created_at=row["created_at"],
+            message_count=len(row.get("messages") or []),
+        )
+        for row in rows
+    ]
+
+    return ConversationListResponse(
+        conversations=conversations,
+        total=total,
+        has_more=offset + limit < total,
+        limit=limit,
+        offset=offset,
+    )
+
+
+@router.get(
+    "/conversations/{conversation_id}",
+    response_model=ConversationMessagesResponse,
+    summary="Load conversation messages",
+    description="Retrieve the full message history of a specific conversation for resuming.",
+)
+async def get_conversation(
+    conversation_id: UUID,
+    user_id: CurrentUser,
+    conversation_repo: ConversationRepository = Depends(get_conversation_repo),
+) -> ConversationMessagesResponse:
+    """Load a specific conversation's messages (for resuming).
+
+    Raises:
+        HTTPException: 401 if not authenticated.
+        HTTPException: 404 if conversation not found or doesn't belong to user.
+        HTTPException: 500 if database query fails.
+    """
+    messages = await conversation_repo.load(conversation_id, user_id)
+    return ConversationMessagesResponse(
+        conversation_id=conversation_id,
+        messages=[ChatMessage(**m) for m in messages],
+    )
+
+
+@router.delete(
+    "/conversations/{conversation_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Delete a conversation",
+    description="Permanently delete a conversation and its message history.",
+)
+async def delete_conversation(
+    conversation_id: UUID,
+    user_id: CurrentUser,
+    conversation_repo: ConversationRepository = Depends(get_conversation_repo),
+) -> None:
+    """Delete a conversation (with ownership verification).
+
+    Raises:
+        HTTPException: 401 if not authenticated.
+        HTTPException: 404 if conversation not found or doesn't belong to user.
+        HTTPException: 500 if database delete fails.
+    """
+    await conversation_repo.delete(conversation_id, user_id)

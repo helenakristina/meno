@@ -15,6 +15,7 @@ def setup_supabase_response(
     table_name: str = "test_table",
     data: Optional[list[dict]] = None,
     error: Optional[str] = None,
+    count: Optional[int] = None,
 ) -> AsyncMock:
     """Configure Supabase mock to return data regardless of query chain length.
 
@@ -26,6 +27,7 @@ def setup_supabase_response(
         table_name: Table name (optional, for clarity).
         data: Data to return from execute(). Defaults to [].
         error: Error message if query should fail. Defaults to None.
+        count: Total count for pagination. Defaults to len(data) if data provided.
 
     Returns:
         Configured mock_client.
@@ -41,6 +43,10 @@ def setup_supabase_response(
     result = AsyncMock()
     result.data = data if data is not None else []
     result.error = error
+    # If count not provided, use length of data
+    if count is None:
+        count = len(result.data) if result.data else 0
+    result.count = count
 
     # Set up the table() call
     table_mock = MagicMock()
@@ -77,6 +83,7 @@ def setup_supabase_response(
         "order",
         "limit",
         "offset",
+        "range",
         "single",
         "maybe_single",
     ]

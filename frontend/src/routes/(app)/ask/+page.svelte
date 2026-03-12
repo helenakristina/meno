@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { tick } from 'svelte';
+	import { tick, onMount } from 'svelte';
 	import { superForm } from 'sveltekit-superforms/client';
 	import { zod4 } from 'sveltekit-superforms/adapters';
 	import { chatMessageSchema } from '$lib/schemas/chat';
@@ -51,6 +51,28 @@
 	let canSend = $derived($formData.message.trim().length > 0 && !isLoading);
 	let hasMessages = $derived(messages.length > 0);
 	let apiError = $state<string | null>(null);
+
+	// =========================================================================
+	// Load past messages when resuming from history
+	// =========================================================================
+
+	onMount(async () => {
+		if (data.resumeId) {
+			try {
+				const response = await apiClient.get(
+					`/api/chat/conversations/${data.resumeId}` as any
+				);
+				messages = response.messages;
+				conversationId = data.resumeId;
+			} catch (error) {
+				const errorMsg = error instanceof Error && 'detail' in error
+					? (error as ApiError).detail
+					: 'Failed to load conversation history';
+				apiError = errorMsg;
+				console.error('Failed to load conversation:', error);
+			}
+		}
+	});
 
 	// =========================================================================
 	// Auto-scroll when messages change
@@ -171,10 +193,20 @@
 <div class="flex flex-col" style="height: calc(100vh - 7rem);">
 	<!-- Page header -->
 	<div class="flex-shrink-0 border-b border-slate-200 bg-white px-4 py-4 sm:px-6 lg:px-8">
-		<h1 class="text-2xl font-bold text-slate-900">Ask Meno</h1>
-		<p class="mt-0.5 text-sm text-slate-500">
-			Evidence-based information about perimenopause and menopause
-		</p>
+		<div class="flex items-center justify-between">
+			<div>
+				<h1 class="text-2xl font-bold text-slate-900">Ask Meno</h1>
+				<p class="mt-0.5 text-sm text-slate-500">
+					Evidence-based information about perimenopause and menopause
+				</p>
+			</div>
+			<a
+				href="/ask/history"
+				class="text-sm font-medium text-teal-600 hover:text-teal-700 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:ring-offset-2 rounded px-2 py-1"
+			>
+				History
+			</a>
+		</div>
 		<div class="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700">
 			Educational information only — not medical advice. Always discuss health decisions with your
 			healthcare provider.

@@ -4,11 +4,16 @@ Handles all Supabase queries for conversation messages.
 Keeps data access logic out of routes and services.
 """
 
+from __future__ import annotations
+
 import logging
 from uuid import UUID
 
 from fastapi import HTTPException, status
 from supabase import AsyncClient
+
+from app.exceptions import DatabaseError
+from app.utils.logging import hash_user_id
 
 logger = logging.getLogger(__name__)
 
@@ -27,6 +32,42 @@ class ConversationRepository:
             client: Supabase AsyncClient for database access.
         """
         self.client = client
+
+    async def list(
+        self, user_id: str, limit: int = 20, offset: int = 0
+    ) -> tuple[list[dict], int]:
+        """List conversations for a user with pagination.
+
+        Args:
+            user_id: ID of the user (for ownership verification).
+            limit: Number of conversations to return (1-100).
+            offset: Number of conversations to skip for pagination.
+
+        Returns:
+            Tuple of (rows, total_count) where rows are conversation dicts.
+
+        Raises:
+            DatabaseError: If the database query fails.
+        """
+        try:
+            response = await (
+                self.client.table("conversations")
+                .select("id, created_at, messages", count="exact")
+                .eq("user_id", user_id)
+                .order("created_at", desc=True)
+                .range(offset, offset + limit - 1)
+                .execute()
+            )
+        except Exception as exc:
+            logger.error(
+                "DB query failed listing conversations for user %s: %s",
+                hash_user_id(user_id),
+                type(exc).__name__,
+                exc_info=True,
+            )
+            raise DatabaseError(f"Failed to list conversations: {exc}") from exc
+
+        return response.data or [], response.count or 0
 
     async def load(self, conversation_id: UUID, user_id: str) -> list[dict]:
         """Fetch the messages array from an existing conversation.
