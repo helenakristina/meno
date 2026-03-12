@@ -3000,6 +3000,264 @@ When building a wizard, verify:
 
 ---
 
+## Part 14: Svelte Transitions & Animations
+
+### 14.1 Transition Basics
+
+Svelte transitions animate elements entering (`in:`) and leaving (`out:`) the DOM. Use them for:
+
+- Cards/items being added or removed
+- Modals and overlays appearing/disappearing
+- Success messages and alerts
+- Loading skeletons being replaced with content
+- Form state changes
+
+**Do NOT use transitions for:**
+- Hover effects (use CSS instead)
+- Loading spinners (use CSS rotation)
+- Animated values (use `$derived` + CSS transitions)
+
+**Basic Syntax:**
+
+```svelte
+<script>
+	import { fly, fade, scale } from 'svelte/transition';
+	import { flip } from 'svelte/animate';
+
+	let visible = $state(true);
+</script>
+
+<!-- Fade in/out -->
+{#if visible}
+	<div in:fade out:fade>
+		Content
+	</div>
+{/if}
+
+<!-- Fly in from the left, out upward -->
+{#if visible}
+	<div in:fly={{ x: -20, duration: 200 }} out:fly={{ y: -20, duration: 150 }}>
+		Animated item
+	</div>
+{/if}
+
+<!-- Combined with animate:flip for reordering -->
+{#each items as item (item.id)}
+	<div in:fly={{ x: -20 }} out:fly={{ x: 20 }} animate:flip={{ duration: 200 }}>
+		{item.name}
+	</div>
+{/each}
+```
+
+### 14.2 Common Transitions
+
+**Fade:** Subtle opacity change, good for replacing content or showing/hiding UI
+
+```svelte
+<div in:fade={{ duration: 150 }} out:fade={{ duration: 100 }}>
+	Content fades in/out
+</div>
+```
+
+**Fly:** Elements enter/exit from a direction, creates directional movement
+
+```svelte
+<!-- Enter from left, exit upward -->
+<div in:fly={{ x: -20, duration: 200 }} out:fly={{ y: -20, duration: 150 }}>
+	Flies in/out
+</div>
+```
+
+**Scale:** Elements grow/shrink, good for modals or emphasis
+
+```svelte
+<div in:scale={{ duration: 200 }} out:scale={{ duration: 150 }}>
+	Appears with scale animation
+</div>
+```
+
+**Flip Animation (on reorder):** Smoothly reorders list items when array changes
+
+```svelte
+{#each items as item (item.id)}
+	<div animate:flip={{ duration: 200 }}>
+		{item.name}
+	</div>
+{/each}
+```
+
+### 14.3 Duration Guidelines
+
+- **Quick feedback (dismiss, success):** 150ms
+- **Entry animations (cards, modals):** 200ms
+- **Exit animations:** 100-150ms (faster feels more responsive)
+- **Reordering (animate:flip):** 200-300ms (longer looks smoother)
+- **Stagger multiple items:** Add delay on each (e.g., `delay: i * 50`)
+
+**Why these times:**
+- < 100ms: Too fast, feels jarring
+- 100-200ms: Snappy, responsive, most common
+- 200-300ms: Smooth, deliberate, for complex animations
+- > 300ms: Slow, feels sluggish (except reordering)
+
+### 14.4 Accessibility with Transitions
+
+**Always ensure transitions don't break accessibility:**
+
+```svelte
+<!-- ✅ GOOD: Alert animates in but aria-live announces immediately -->
+{#if showSuccess}
+	<div
+		in:fly={{ y: -20, duration: 200 }}
+		role="alert"
+		aria-live="polite"
+		aria-label="Success message"
+	>
+		Your data was saved!
+	</div>
+{/if}
+
+<!-- ✅ GOOD: Dismiss button always present, aria-label clear -->
+<button
+	aria-label="Dismiss card"
+	onclick={() => dismissCard(card.id)}
+	class="h-10 w-10"
+>
+	<X size={20} />
+</button>
+
+<!-- ❌ BAD: Content hidden via transition, screen readers announce nothing -->
+{#if visible}
+	<!-- No aria-live, no role -->
+	<div in:fade>Content</div>
+{/if}
+```
+
+**Key Rules:**
+- Dynamic messages: Use `role="alert"` + `aria-live="polite"`
+- Dismiss buttons: Use `aria-label` (always 44×44px minimum)
+- Modals: Auto-focus on open, return focus on close
+- Spinners: Use `aria-busy="true"` on container
+
+### 14.5 Animation Config Constants
+
+For consistency across your app, define animation constants:
+
+```typescript
+// frontend/src/lib/config/animations.ts
+
+export const ANIMATION_DURATION = {
+	quick: 150,    // Dismiss, quick feedback
+	standard: 200, // Cards entering, standard animations
+	slow: 300,     // Reordering, complex movements
+} as const;
+
+export const ANIMATION_EASING = {
+	in: 'cubic-bezier(0.4, 0, 1, 1)',     // Ease in
+	out: 'cubic-bezier(0, 0, 0.2, 1)',    // Ease out
+	inOut: 'cubic-bezier(0.4, 0, 0.2, 1)', // Ease in/out
+} as const;
+```
+
+Then use throughout:
+
+```svelte
+<script>
+	import { ANIMATION_DURATION, ANIMATION_EASING } from '$lib/config/animations';
+</script>
+
+<div
+	in:fly={{ x: -20, duration: ANIMATION_DURATION.standard }}
+	out:fly={{ y: -20, duration: ANIMATION_DURATION.quick }}
+>
+	Consistently timed animation
+</div>
+```
+
+### 14.6 Symptom Logging: Actual Implementation
+
+**File:** `frontend/src/routes/(app)/log/+page.svelte`
+
+The symptom logging component uses Svelte transitions effectively and serves as a real-world example of the patterns in this section.
+
+**What it does right:**
+- Uses `fly` and `fade` transitions appropriately for entering/exiting UI
+- Short durations (150-200ms) create snappy, responsive feel
+- Cards exit upward when dismissed, chips slide in from left
+- Empty state uses `fade` for subtle appearance
+- Success message uses `fly` for attention-drawing
+- Error messages animate in with `fly`
+- Full accessibility support (aria-labels, role="alert", aria-live)
+
+**What could be improved (deferred to post-launch polish):**
+- Timing is inconsistent (mix of 150ms, 200ms, 300ms) — should use centralized constants
+- Missing `animate:flip` on card grid — when a card is dismissed, others should smoothly reorder
+- No easing curves — all transitions use linear by default, should use cubic-bezier for smoother feel
+- Dismiss button is 24px × 24px (below 44px accessibility minimum)
+
+**Post-launch polish:** See `docs/planning/V2_V3_ROADMAP.md` under "Symptom Logging Animation Polish"
+
+**Reference for your own implementations:** Study this component to see how transitions work in practice with real data flow and state management.
+
+### 14.7 Common Patterns & Gotchas
+
+**Pattern: Staggered List Items**
+
+```svelte
+{#each items as item, i (item.id)}
+	<div
+		in:fly={{ x: -20, duration: 200, delay: i * 50 }}
+		out:fly={{ x: 20, duration: 100 }}
+	>
+		{item.name}
+	</div>
+{/each}
+```
+
+**Gotcha: Transitions + Conditional Content**
+
+```svelte
+<!-- ❌ BAD: Transition never fires (element never leaves DOM) -->
+{#if show}
+	<div in:fly out:fly>Content</div>
+{/if}
+
+<!-- ✅ GOOD: Block transitions when content changes -->
+{#key contentId}
+	<div in:fade out:fade>Content updated</div>
+{/key}
+```
+
+**Gotcha: Transitions + Data Binding**
+
+```svelte
+<!-- ❌ BAD: Transition conflicts with bound value changes -->
+<input
+	value={name}
+	in:fly={{ y: -20, duration: 200 }}
+/>
+
+<!-- ✅ GOOD: Transition only on entry/exit, not on data changes -->
+{#if showInput}
+	<input bind:value={name} in:fly={{ y: -20 }} out:fly={{ y: -20 }} />
+{/if}
+```
+
+### 14.8 Transitions Checklist
+
+When adding transitions:
+
+- [ ] **Purpose clear:** Animation explains what's happening (enter/exit, emphasis)
+- [ ] **Duration appropriate:** 150-200ms for most, not > 300ms (except reordering)
+- [ ] **Not overused:** Only on significant state changes, not micro-interactions
+- [ ] **Accessibility verified:** aria-live on alerts, aria-label on buttons, 44px targets
+- [ ] **Mobile tested:** Animations smooth on slower devices (test on real phone or DevTools throttle)
+- [ ] **Easing added:** Use cubic-bezier, not linear (if using config constants, consistent across app)
+- [ ] **No conflicts:** CSS transitions don't overlap with Svelte transitions
+- [ ] **Tested with reduced motion:** `prefers-reduced-motion` should skip or speed up animations
+
+---
+
 ## Summary Checklist
 
 Every time you add frontend code, verify:

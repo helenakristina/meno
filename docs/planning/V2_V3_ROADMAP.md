@@ -272,6 +272,63 @@ test.beforeEach(async ({ page }) => {
 
 ---
 
+**Symptom Logging Animation Polish (Post-Launch)**
+
+**Goal:** Make symptom logging animations consistent with established timing and easing standards.
+
+**File:** `frontend/src/routes/(app)/log/+page.svelte`
+
+**Issues to address:**
+
+1. **Inconsistent animation timing**
+   - Currently: Mix of 150ms, 200ms, 300ms durations
+   - Target: Use centralized `ANIMATION_DURATION` constants
+   - Impact: Makes animations feel less cohesive across the app
+   - Effort: 30 minutes
+
+2. **Missing animate:flip on card reordering**
+   - Cards are dismissed but remaining cards don't animate to new positions
+   - Should add `animate:flip` to card grid
+   - Impact: Improves visual feedback when dismissing cards
+   - Effort: 15 minutes
+
+3. **No easing curves**
+   - All transitions use linear (default) easing
+   - Should add cubic-bezier curves: `in:fly={{ ..., easing: ANIMATION_EASING.in }}`
+   - Impact: Smoother, more polished feel
+   - Effort: 30 minutes
+
+4. **Touch target accessibility violation**
+   - Dismiss button is `h-6 w-6` (24px), below 44px minimum
+   - Should be `h-10 w-10` or `min-h-11 min-w-11`
+   - Impact: Easier to tap on mobile
+   - Effort: 5 minutes
+
+5. **CSS transition conflict**
+   - Card hover state uses `transition-all duration-150` (CSS)
+   - May conflict or cause jank with Svelte `fly` transitions
+   - Consider removing or ensuring they don't overlap
+   - Effort: 15 minutes
+
+**Total effort:** ~1.5 hours
+
+**Priority:** Low (not blocking V2 launch, nice-to-have polish)
+
+**Timeline:** V2.1 or later
+
+**Checklist:**
+- [ ] Create `frontend/src/lib/config/animations.ts` with ANIMATION_DURATION and ANIMATION_EASING
+- [ ] Update all timings in log/+page.svelte to use constants
+- [ ] Add `animate:flip` to card grid and selected symptoms list
+- [ ] Add easing curves to all transitions
+- [ ] Fix dismiss button touch target (24px → 44px)
+- [ ] Test: Dismiss a card and verify others smoothly reorder
+- [ ] Test: Verify transitions still work smoothly on slower devices
+
+**Related:** Part 14 of `docs/dev/frontend/V2CODE_EXAMPLES.md` documents these patterns
+
+---
+
 **Accessibility & UX (V2.1)**
 
 - Full WCAG 2.1 Level AA compliance audit
