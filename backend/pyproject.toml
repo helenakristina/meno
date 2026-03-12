@@ -39,6 +39,6 @@ dev = [
 testpaths = ["tests"]
 pythonpath = ["."]
 markers = [
-    "integration: marks tests as integration tests (calls real APIs)",
+    "integration: marks tests as integration tests (calls real APIs) (deselect with '-m \"not integration\"')",
     "asyncio: marks tests as async",
 ]

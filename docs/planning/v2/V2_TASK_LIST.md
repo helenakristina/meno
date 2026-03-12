@@ -494,11 +494,11 @@ Build on top of refactored foundation.
   - Conversation title = first 50 chars of first message
 - **Effort:** 3 hours
 - **Checklist:**
-  - [ ] List endpoint created
-  - [ ] Delete endpoint created
-  - [ ] Tests pass
-  - [ ] Frontend shows list
-  - [ ] User can resume conversation
+  - [x] List endpoint created
+  - [x] Delete endpoint created
+  - [x] Tests pass
+  - [x] Frontend shows list
+  - [x] User can resume conversation
 
 #### Task 3.1.2: Implement Hybrid RAG Search
 
