@@ -2000,6 +2000,388 @@ Never commit test credentials. Use environment variables (`.env.test` in `.gitig
 
 ---
 
+## Part 13: Multi-Step Flows (Wizards)
+
+**Reference Implementation:** Appointment Prep (`frontend/src/routes/(app)/appointment-prep/`)
+
+This section documents the pattern for complex, multi-step flows with accumulated state, partial saves, error recovery, and back-navigation. Appointment Prep (5 steps, LLM integration, drag-and-drop) is the canonical example.
+
+### 13.1 Architecture: Orchestrator + Steps Pattern
+
+The multi-step flow uses a single orchestrator component that owns state and routes to step components via conditional rendering.
+
+```typescript
+// Step orchestrator owns ALL state for the flow
+let state = $state({
+  currentStep: 1 | 2 | 3 | 4 | 5,
+
+  // Data accumulated across steps
+  context: null,
+  narrative: null,
+  concerns: [],
+  scenarios: [],
+
+  // Shared error/loading for the entire flow
+  error: null,
+  isLoading: false,
+});
+
+// Render only the current step
+{#if state.currentStep === 1}
+  <Step1Component data={data.form} onNext={handleStep1} />
+{:else if state.currentStep === 2}
+  <Step2Component appointmentId={state.appointmentId} onNext={handleStep2} />
+{/if}
+
+// Navigation always in orchestrator
+<button onclick={() => { if (state.currentStep > 1) state.currentStep--; }}>
+  Back
+</button>
+```
+
+**Why this pattern?**
+
+- Single source of truth for all accumulated data
+- Easy to persist, reset, or resume the entire state
+- Steps are reusable (they don't own the state)
+- Back-navigation is automatic (data persists)
+- Entire flow state can be saved to sessionStorage
+
+**Anti-pattern: Distributed state**
+
+```typescript
+// ❌ DON'T: State scattered across stores or component state
+const step1Store = writable(null);
+const step2Store = writable(null);
+// This makes it hard to persist, serialize, or reset the entire flow
+```
+
+### 13.2 Type Safety for Multi-Step State
+
+Define a single typed interface for the entire flow state:
+
+```typescript
+// lib/types/appointment.ts
+
+export type AppointmentType = 'new_provider' | 'existing_provider' | 'telehealth';
+export type AppointmentGoal = 'assess_status' | 'explore_hrt' | 'optimize_current_treatment';
+
+export interface AppointmentContext {
+  appointment_type: AppointmentType;
+  goal: AppointmentGoal;
+  dismissed_before: string;
+  urgent_symptom: string | null;
+}
+
+export interface ScenarioCard {
+  id: string;
+  title: string;
+  situation: string;
+  suggestion: string;
+  category: string;
+}
+
+export interface AppointmentPrepState {
+  currentStep: 1 | 2 | 3 | 4 | 5;
+
+  // Data accumulation
+  appointmentId: string | null;
+  context: AppointmentContext | null;
+  narrative: string | null;
+  concerns: string[];
+  scenarios: ScenarioCard[];
+
+  // Error/loading
+  isLoading: boolean;
+  error: string | null;
+}
+```
+
+**Key pattern:** Use `1 | 2 | 3 | 4 | 5` for step numbers (literal union) to prevent invalid steps.
+
+### 13.3 Initialize State and Handle Back-Navigation
+
+```typescript
+// In orchestrator (+page.svelte)
+
+let state = $state<AppointmentPrepState>({
+  appointmentId: null,
+  context: null,
+  narrative: null,
+  concerns: [],
+  scenarios: [],
+  isLoading: false,
+  error: null,
+  currentStep: 1,
+});
+
+function goBack() {
+  if (state.currentStep > 1) {
+    state.error = null;
+    state.currentStep = (state.currentStep - 1) as 1 | 2 | 3 | 4 | 5;
+  }
+}
+
+function startOver() {
+  state = {
+    appointmentId: null,
+    context: null,
+    narrative: null,
+    concerns: [],
+    scenarios: [],
+    isLoading: false,
+    error: null,
+    currentStep: 1,
+  };
+  sessionStorage.removeItem('appointmentPrepState');
+}
+```
+
+**Key principle:** Back-navigation never validates or clears data. Users can freely explore earlier steps, and all data persists.
+
+### 13.4 Individual Steps: Handle Their Own Loading/Error UI
+
+Each step component manages its own UI state for long-running operations. Avoid propagating all errors to the parent.
+
+```svelte
+<!-- Step2Narrative.svelte: Generate LLM narrative -->
+
+<script lang="ts">
+  import { apiClient } from '$lib/api/client';
+  import type { ApiError } from '$lib/types';
+
+  let {
+    appointmentId,
+    onNext,
+  }: {
+    appointmentId: string;
+    onNext: (narrative: string) => void;
+  } = $props();
+
+  let narrative = $state('');
+  let isLoading = $state(true);
+  let loadError = $state('');
+
+  // Load narrative on mount
+  $effect(() => {
+    loadNarrative();
+  });
+
+  async function loadNarrative() {
+    isLoading = true;
+    loadError = '';
+    try {
+      const res = await apiClient.post(
+        `/api/appointment-prep/${appointmentId}/narrative` as '/api/appointment-prep/{id}/narrative',
+        { days_back: 60 }
+      );
+      narrative = res.narrative;
+    } catch (e) {
+      const msg =
+        e instanceof Error && 'detail' in e
+          ? (e as ApiError).detail
+          : 'Failed to generate narrative. Please try again.';
+      loadError = msg;
+    } finally {
+      isLoading = false;
+    }
+  }
+
+  function handleNext() {
+    onNext(narrative);
+  }
+</script>
+
+<div class="mx-auto max-w-2xl space-y-6">
+  {#if isLoading}
+    <div class="flex flex-col items-center gap-4 p-8" role="status" aria-busy="true">
+      <div class="h-8 w-8 animate-spin rounded-full border-4 border-teal-200 border-t-teal-600"></div>
+      <p class="text-sm text-slate-500" aria-live="polite">
+        Generating your symptom summary…
+      </p>
+    </div>
+  {:else if loadError}
+    <div class="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700" role="alert">
+      {loadError}
+      <button
+        type="button"
+        onclick={loadNarrative}
+        class="ml-2 font-medium underline hover:no-underline"
+      >
+        Try again
+      </button>
+    </div>
+  {:else}
+    <textarea bind:value={narrative} rows="12" class="w-full rounded-xl border border-slate-200 px-4 py-3" />
+    <button
+      type="button"
+      onclick={handleNext}
+      disabled={!narrative.trim()}
+      class="w-full rounded-xl bg-teal-600 py-3 text-sm font-semibold text-white hover:bg-teal-700 disabled:opacity-40"
+    >
+      Next: Prioritize your concerns
+    </button>
+  {/if}
+</div>
+```
+
+**Pattern:**
+
+- Step owns its local loading/error state
+- Step calls parent `onNext()` when done (parent advances)
+- Step never calls parent error handler for step-specific errors
+- Step shows retry button locally for transient failures
+
+### 13.5 Persist State Across Page Refreshes
+
+For flows with expensive operations (LLM calls, drag-and-drop), save state to sessionStorage:
+
+```typescript
+// In orchestrator (+page.svelte)
+
+let savedStateExists = $state(false);
+
+// Load saved state on mount
+$effect(() => {
+  const saved = sessionStorage.getItem('appointmentPrepState');
+  if (saved) {
+    try {
+      const parsed = JSON.parse(saved);
+      state = parsed;
+      savedStateExists = true;
+    } catch (e) {
+      console.error('Failed to restore appointment prep state:', e);
+      savedStateExists = false;
+    }
+  }
+});
+
+// Save state whenever it changes
+$effect(() => {
+  sessionStorage.setItem('appointmentPrepState', JSON.stringify(state));
+});
+```
+
+**Resume dialog (optional):**
+
+Show users the option to resume if they return mid-flow:
+
+```svelte
+{#if savedStateExists && state.currentStep > 1}
+  <div role="dialog" class="mb-6 rounded-lg border border-blue-200 bg-blue-50 p-4">
+    <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+      <div>
+        <h3 class="font-semibold text-blue-900">Resume Previous Session?</h3>
+        <p class="mt-1 text-sm text-blue-700">
+          We found your previous appointment prep session at Step {state.currentStep}.
+          You can continue where you left off or start fresh.
+        </p>
+      </div>
+      <div class="flex flex-shrink-0 gap-2">
+        <button
+          type="button"
+          onclick={() => (savedStateExists = false)}
+          class="rounded-lg bg-blue-600 px-3 py-2 text-sm font-semibold text-white hover:bg-blue-700"
+        >
+          Resume
+        </button>
+        <button
+          type="button"
+          onclick={() => {
+            sessionStorage.removeItem('appointmentPrepState');
+            startOver();
+            savedStateExists = false;
+          }}
+          class="rounded-lg border border-blue-600 px-3 py-2 text-sm font-semibold text-blue-600 hover:bg-blue-50"
+        >
+          Start Fresh
+        </button>
+      </div>
+    </div>
+  </div>
+{/if}
+```
+
+### 13.6 Error Recovery (Retry Without Data Loss)
+
+If a step's API call fails (timeout, network error), keep the user in the failing step with a retry button. Don't force them backward.
+
+```typescript
+// Step 2 fails with "Timeout generating narrative"
+// User sees:
+// ✅ Error message with specific problem
+// ✅ "Try Again" button in the step
+// ✅ Data from Step 1 still intact
+// ✅ User clicks "Try Again" → retries narrative generation
+// ✅ No need to go back to Step 1
+```
+
+The key: **Retry at the step level, never force backward navigation on failure.**
+
+### 13.7 Progress Indicator
+
+Show the user their position in the flow with a progress bar and step counter:
+
+```svelte
+<div class="border-b border-slate-200 bg-white px-4 py-4 sm:px-6 lg:px-8">
+  <div class="flex items-center justify-between">
+    <div>
+      <h1 class="text-2xl font-bold text-slate-900">Appointment Prep</h1>
+      <p class="mt-0.5 text-sm text-slate-500">
+        Step {state.currentStep} of 5: {STEP_TITLES[state.currentStep]}
+      </p>
+    </div>
+    {#if state.currentStep > 1}
+      <button
+        type="button"
+        onclick={goBack}
+        class="rounded-lg px-3 py-2 text-sm text-slate-500 hover:bg-slate-100"
+        aria-label="Go back to previous step"
+      >
+        ← Back
+      </button>
+    {/if}
+  </div>
+
+  <!-- Progress bar -->
+  <div
+    class="mt-3 h-1.5 w-full overflow-hidden rounded-full bg-slate-100"
+    role="progressbar"
+    aria-valuenow={state.currentStep}
+    aria-valuemin={1}
+    aria-valuemax={5}
+    aria-label="Step {state.currentStep} of 5"
+  >
+    <div
+      class="h-full rounded-full bg-teal-500 transition-all duration-500"
+      style="width: {(state.currentStep / 5) * 100}%"
+    ></div>
+  </div>
+</div>
+```
+
+### 13.8 Multi-Step Checklist
+
+When building a wizard, verify:
+
+- [ ] Define typed `State` interface with literal union for step numbers (`1 | 2 | 3 | 4 | 5`)
+- [ ] Use single orchestrator component that owns all state
+- [ ] Render only current step via `{#if state.currentStep === N}`
+- [ ] Back-navigation always allowed (data always preserved)
+- [ ] Each step handles its own loading/error UI with retry buttons
+- [ ] Show progress indicator (bar + step counter)
+- [ ] Persist state to `sessionStorage` for long flows (especially LLM calls)
+- [ ] Handle timeouts/network errors with retry (don't force backward)
+- [ ] Clear state on completion (or offer to resume)
+- [ ] Test: Refresh browser mid-flow → state restores
+- [ ] Test: Go back from Step 4 to Step 2 → edit → go forward again
+- [ ] Test: All steps render correctly and data accumulates
+- [ ] Accessibility: All buttons have `aria-label`, progress bar has ARIA attributes
+
+**Reference:** `frontend/src/routes/(app)/appointment-prep/` — Full working example with 5 steps, LLM integration, drag-and-drop reordering, and sessionStorage persistence.
+
+---
+
 ## Summary Checklist
 
 Every time you add frontend code, verify:
@@ -2015,6 +2397,7 @@ Every time you add frontend code, verify:
 - [ ] **Security:** No XSS, no hardcoded secrets, auth checks in actions
 - [ ] **Performance:** No unnecessary re-renders (proper $derived usage)
 - [ ] **Documentation:** JSDoc on public components/functions
+- [ ] **Multi-Step Flows:** State owned by orchestrator, validation before advancing, error recovery with retry, sessionStorage persistence (see Part 13)
 
 ---
 
