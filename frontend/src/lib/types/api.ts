@@ -346,11 +346,20 @@ export type ApiResponse<T extends ApiMethod> = ApiEndpoints[T]['response'] exten
   : ApiEndpoints[T]['response'];
 
 /**
- * API Error type returned by the client
+ * API Error class returned by the client
  */
-export interface ApiError extends Error {
+export class ApiError extends Error {
   status: number;
   code: string;
   detail: string;
   timestamp: string;
+
+  constructor(status: number, code: string, detail: string) {
+    super(detail);
+    this.name = 'ApiError';
+    this.status = status;
+    this.code = code;
+    this.detail = detail;
+    this.timestamp = new Date().toISOString();
+  }
 }

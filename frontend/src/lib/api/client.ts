@@ -1,6 +1,6 @@
 import { supabase } from '$lib/supabase/client';
 import type { ApiEndpoints, ApiMethod, ApiRequest, ApiResponse } from '$lib/types/api';
-import type { ApiError } from '$lib/types';
+import { ApiError } from '$lib/types/api';
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8000';
 
@@ -14,26 +14,20 @@ interface RequestOptions {
  * Parse API error response into structured ApiError
  */
 function parseApiError(status: number, body: unknown): ApiError {
-	const error: ApiError = {
-		name: 'ApiError',
-		message: `HTTP ${status}`,
-		status,
-		code: `HTTP_${status}`,
-		detail: `Request failed with status ${status}`,
-		timestamp: new Date().toISOString(),
-	};
+	let detail = `Request failed with status ${status}`;
+	let code = `HTTP_${status}`;
 
 	if (body && typeof body === 'object') {
 		const err = body as Record<string, unknown>;
 		if (typeof err.detail === 'string') {
-			error.detail = err.detail;
+			detail = err.detail;
 		}
 		if (typeof err.code === 'string') {
-			error.code = err.code;
+			code = err.code;
 		}
 	}
 
-	return error;
+	return new ApiError(status, code, detail);
 }
 
 async function getToken(): Promise<string> {
@@ -102,15 +96,7 @@ async function request(
 			body: body !== undefined ? JSON.stringify(body) : undefined
 		});
 	} catch (e) {
-		const error: ApiError = {
-			name: 'ApiError',
-			message: 'Network error',
-			status: 0,
-			code: 'NETWORK_ERROR',
-			detail: 'Network error. Please check your connection and try again.',
-			timestamp: new Date().toISOString()
-		};
-		throw error;
+		throw new ApiError(0, 'NETWORK_ERROR', 'Network error. Please check your connection and try again.');
 	}
 
 	return handleResponse(response, responseType);

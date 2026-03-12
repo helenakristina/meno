@@ -827,68 +827,77 @@ Svelte and SvelteKit provide different error handling mechanisms depending on co
 ### 4.1 Predictable Error Types
 
 ```typescript
-// frontend/src/lib/api/client.ts
+// frontend/src/lib/types/api.ts
 
-export interface ApiError extends Error {
+export class ApiError extends Error {
   status: number;
   code: string;
   detail: string;
   timestamp: string;
+
+  constructor(status: number, code: string, detail: string) {
+    super(detail);
+    this.name = 'ApiError';
+    this.status = status;
+    this.code = code;
+    this.detail = detail;
+    this.timestamp = new Date().toISOString();
+  }
 }
 
-class ApiClient {
-  async request<T>(
-    method: string,
-    path: string,
-    body?: unknown,
-  ): Promise<T> {
-    try {
-      const response = await fetch(path, {
-        method,
-        headers: { 'Authorization': `Bearer ${token}` },
-        body: body ? JSON.stringify(body) : undefined,
-      });
+// Usage: throw new ApiError(404, 'NOT_FOUND', 'User not found');
+```
 
-      if (!response.ok) {
-        const error: ApiError = {
-          status: response.status,
-          code: `HTTP_${response.status}`,
-          detail: 'Unknown error',
-          timestamp: new Date().toISOString(),
-          message: '',
-          name: 'ApiError',
-        };
+**Why ApiError is a class:** `ApiError` extends `Error` and is constructed with `new ApiError(...)`. This makes `error instanceof ApiError` checks work correctly at runtime. If it were just an interface with object literals, the instanceof checks would always fail.
 
-        try {
-          const data = await response.json();
-          error.detail = data.detail || error.detail;
-          error.code = data.code || error.code;
-        } catch {
-          // Response wasn't JSON, use status text
-          error.detail = response.statusText;
-        }
+Example client usage:
 
-        throw error;
-      }
+```typescript
+// frontend/src/lib/api/client.ts
 
-      return response.json();
-    } catch (error) {
-      if (error instanceof ApiError) {
-        throw error; // Already an API error
-      }
+function parseApiError(status: number, body: unknown): ApiError {
+  let detail = `Request failed with status ${status}`;
+  let code = `HTTP_${status}`;
 
-      // Network error or JSON parse error
-      const networkError: ApiError = {
-        status: 0,
-        code: 'NETWORK_ERROR',
-        detail: 'Network error. Check your connection.',
-        timestamp: new Date().toISOString(),
-        message: error instanceof Error ? error.message : 'Unknown',
-        name: 'ApiError',
-      };
-
-      throw networkError;
+  if (body && typeof body === 'object') {
+    const err = body as Record<string, unknown>;
+    if (typeof err.detail === 'string') {
+      detail = err.detail;
     }
+    if (typeof err.code === 'string') {
+      code = err.code;
+    }
+  }
+
+  return new ApiError(status, code, detail);
+}
+
+async function request<T>(method: string, path: string, body?: unknown): Promise<T> {
+  try {
+    const response = await fetch(path, {
+      method,
+      headers: { 'Authorization': `Bearer ${token}` },
+      body: body ? JSON.stringify(body) : undefined,
+    });
+
+    if (!response.ok) {
+      let bodyData: unknown;
+      try {
+        bodyData = await response.json();
+      } catch {
+        // Not JSON
+      }
+      throw parseApiError(response.status, bodyData);
+    }
+
+    return response.json();
+  } catch (error) {
+    if (error instanceof ApiError) {
+      throw error; // Already an API error
+    }
+
+    // Network error or JSON parse error
+    throw new ApiError(0, 'NETWORK_ERROR', 'Network error. Check your connection.');
   }
 }
 ```
@@ -897,6 +906,8 @@ class ApiClient {
 
 ```typescript
 // In a component:
+
+import type { ApiError } from '$lib/types';
 
 let error = $state<ApiError | null>(null);
 
@@ -907,29 +918,27 @@ async function sendMessage() {
     const response = await apiClient.post('/api/chat', { message });
     // Success
   } catch (err) {
+    // ✅ NOW WORKS CORRECTLY: instanceof checks pass because ApiError is a real class
     if (err instanceof ApiError) {
       // Handle specific error codes
       if (err.status === 401) {
-        error = { ...err, detail: 'Your session expired. Please log in again.' };
+        error = err;
         // Redirect to login
       } else if (err.status === 429) {
-        error = { ...err, detail: 'Too many requests. Please wait a moment.' };
+        error = err;
       } else {
         error = err;
       }
     } else {
-      error = {
-        status: 500,
-        code: 'UNKNOWN_ERROR',
-        detail: 'An unexpected error occurred',
-        timestamp: new Date().toISOString(),
-        message: err instanceof Error ? err.message : 'Unknown',
-        name: 'ApiError',
-      };
+      // Unexpected error type
+      console.error('Unexpected error:', err);
+      error = new ApiError(500, 'UNKNOWN_ERROR', 'An unexpected error occurred');
     }
   }
 }
 ```
+
+**Why instanceof works now:** `ApiError` is a proper class (extends `Error`, constructed with `new`), so `error instanceof ApiError` checks work at runtime. Object literals with interfaces don't support instanceof checks.
 
 ### 4.3 Error Handling in Components
 
@@ -1799,13 +1808,7 @@ const count = writable(0); // Only for shared state
 
 import { supabase } from '$lib/supabase/client';
 import type { ApiMethod, ApiRequest, ApiResponse } from '$lib/types/api';
-
-export interface ApiError extends Error {
-  status: number;
-  code: string;
-  detail: string;
-  timestamp: string;
-}
+import { ApiError } from '$lib/types/api';
 
 export interface RequestOptions {
   responseType?: 'json' | 'blob' | 'text';
@@ -1991,24 +1994,18 @@ class ApiClient {
   }
 
   private async parseError(response: Response): Promise<ApiError> {
-    const error: ApiError = {
-      status: response.status,
-      code: `HTTP_${response.status}`,
-      detail: response.statusText,
-      timestamp: new Date().toISOString(),
-      message: '',
-      name: 'ApiError',
-    };
+    let detail = response.statusText;
+    let code = `HTTP_${response.status}`;
 
     try {
       const data = await response.json();
-      error.detail = data.detail || error.detail;
-      error.code = data.code || error.code;
+      detail = data.detail || detail;
+      code = data.code || code;
     } catch {
-      // Response wasn't JSON
+      // Response wasn't JSON, use defaults
     }
 
-    return error;
+    return new ApiError(response.status, code, detail);
   }
 
   private buildUrl(
@@ -2268,6 +2265,61 @@ export const actions = {
 **Why?** The browser `apiClient` uses `supabase.auth.getSession()`, which only works in the browser. Server-side code needs a different approach: use the token from `locals` (set in `+layout.server.ts`) and call the API directly with `fetch`.
 
 **Solution:** Either use raw `fetch` (as above) or create a `serverFetch` helper (see Part 2.2.1 for full implementation).
+
+### 12.7 Don't: Use Interface + Object Literal for Errors
+
+```typescript
+// ❌ WRONG: Interface + object literal doesn't support instanceof checks
+
+export interface ApiError extends Error {
+  status: number;
+  code: string;
+}
+
+// Object literal — not an instance of Error
+const error: ApiError = {
+  status: 404,
+  code: 'NOT_FOUND',
+  message: '',
+  name: 'ApiError',
+};
+
+if (error instanceof ApiError) {
+  // ❌ NEVER true with object literals
+}
+
+// ✅ CORRECT: Use a class
+
+export class ApiError extends Error {
+  status: number;
+  code: string;
+  detail: string;
+  timestamp: string;
+
+  constructor(status: number, code: string, detail: string) {
+    super(detail);
+    this.name = 'ApiError';
+    this.status = status;
+    this.code = code;
+    this.detail = detail;
+    this.timestamp = new Date().toISOString();
+  }
+}
+
+// Now instanceof works
+const error = new ApiError(404, 'NOT_FOUND', 'Not found');
+if (error instanceof ApiError) {
+  // ✅ TRUE — error is a real instance of ApiError
+}
+```
+
+**Why:** Interfaces are TypeScript-only (erased at runtime). Object literals don't create class instances. Classes create actual runtime instances that `instanceof` can check.
+
+Without a proper class:
+- `instanceof` checks always fail
+- Error handling bypasses specific status code handling (401, 429, etc.)
+- Falls through to generic catch blocks
+- Users see generic error messages instead of specific ones
 
 ---
 
