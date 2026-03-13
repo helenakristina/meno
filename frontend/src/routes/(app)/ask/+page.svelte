@@ -17,13 +17,10 @@
 	// Constants
 	// =========================================================================
 
-	const STARTER_PROMPTS = [
-		'What causes brain fog during perimenopause?',
-		'How do I talk to my doctor about hormone therapy?',
-		"What's the difference between perimenopause and menopause?",
-		'Why do I keep waking up at 3am?',
-		'What does current research say about HRT safety?',
-		'What symptoms are commonly dismissed but actually related to hormones?'
+	const FALLBACK_PROMPTS = [
+		'What should I expect during menopause?',
+		'What are my options for managing menopause symptoms?',
+		'How can I prepare for conversations with my doctor?'
 	];
 
 	// =========================================================================
@@ -52,11 +49,32 @@
 	let hasMessages = $derived(messages.length > 0);
 	let apiError = $state<string | null>(null);
 
+	let suggestedPrompts = $state<string[]>([]);
+	let loadingPrompts = $state(true);
+
 	// =========================================================================
-	// Load past messages when resuming from history
+	// Load past messages when resuming from history, and load suggested prompts
 	// =========================================================================
 
+	async function loadSuggestedPrompts() {
+		try {
+			const response = await apiClient.get<{ prompts: string[] }>(
+				'/api/chat/suggested-prompts'
+			);
+			suggestedPrompts = response.prompts;
+		} catch (error) {
+			console.error('Failed to load suggested prompts:', error);
+			// Graceful fallback: show fallback prompts
+			suggestedPrompts = FALLBACK_PROMPTS;
+		} finally {
+			loadingPrompts = false;
+		}
+	}
+
 	onMount(async () => {
+		// Load suggested prompts in parallel with resuming conversation
+		await loadSuggestedPrompts();
+
 		if (data.resumeId) {
 			try {
 				const response = await apiClient.get(
@@ -221,17 +239,38 @@
 				<p class="mb-4 text-center text-sm text-slate-500">
 					Start with a question, or choose one below:
 				</p>
-				<div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
-					{#each STARTER_PROMPTS as prompt}
-						<button
-							type="button"
-							onclick={() => selectPrompt(prompt)}
-							class="rounded-xl border border-slate-200 bg-white px-4 py-3 text-left text-sm text-slate-700 shadow-sm transition-colors hover:border-teal-300 hover:bg-teal-50 hover:text-teal-800 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:ring-offset-2 active:bg-teal-100"
-						>
-							{prompt}
-						</button>
-					{/each}
-				</div>
+				{#if loadingPrompts}
+					<div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+						{#each Array(6) as _}
+							<div class="rounded-xl border border-slate-200 bg-white px-4 py-3 h-[60px] animate-pulse bg-slate-100" />
+						{/each}
+					</div>
+				{:else if suggestedPrompts.length > 0}
+					<div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+						{#each suggestedPrompts as prompt (prompt)}
+							<button
+								type="button"
+								onclick={() => selectPrompt(prompt)}
+								class="rounded-xl border border-slate-200 bg-white px-4 py-3 text-left text-sm text-slate-700 shadow-sm transition-colors hover:border-teal-300 hover:bg-teal-50 hover:text-teal-800 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:ring-offset-2 active:bg-teal-100"
+							>
+								{prompt}
+							</button>
+						{/each}
+					</div>
+				{:else}
+					<!-- Fallback if suggestions failed to load -->
+					<div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+						{#each FALLBACK_PROMPTS as prompt}
+							<button
+								type="button"
+								onclick={() => selectPrompt(prompt)}
+								class="rounded-xl border border-slate-200 bg-white px-4 py-3 text-left text-sm text-slate-700 shadow-sm transition-colors hover:border-teal-300 hover:bg-teal-50 hover:text-teal-800 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:ring-offset-2 active:bg-teal-100"
+							>
+								{prompt}
+							</button>
+						{/each}
+					</div>
+				{/if}
 			</div>
 		{:else}
 			<!-- Message thread -->

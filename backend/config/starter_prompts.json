@@ -1,0 +1,129 @@
+{
+  "starter_prompts": {
+    "Hot flashes": [
+      "What strategies help manage hot flashes?",
+      "What does research say about treating hot flashes?"
+    ],
+    "Night sweats": [
+      "What can help with night sweats?",
+      "Are night sweats a normal part of menopause?"
+    ],
+    "Chills": [
+      "What causes chills during menopause?",
+      "How can I manage chills alongside hot flashes?"
+    ],
+    "Insomnia": [
+      "What strategies help with menopause-related insomnia?",
+      "How does menopause affect sleep quality?"
+    ],
+    "Fatigue": [
+      "What can help with menopause-related fatigue?",
+      "Why do I feel more tired during menopause?"
+    ],
+    "Waking frequently": [
+      "Why do I keep waking up during the night?",
+      "What strategies help with nighttime sleep disruptions?"
+    ],
+    "Anxiety": [
+      "What does research say about anxiety during menopause?",
+      "How can I manage anxiety during this transition?"
+    ],
+    "Irritability": [
+      "Is irritability related to menopause hormones?",
+      "What strategies help manage irritability?"
+    ],
+    "Mood swings": [
+      "What causes mood swings during menopause?",
+      "What can help stabilize mood during this time?"
+    ],
+    "Depression": [
+      "Is depression more common during menopause?",
+      "What are treatment approaches for menopause-related mood changes?"
+    ],
+    "Brain fog": [
+      "What causes brain fog during menopause?",
+      "What strategies help with menopause-related brain fog?"
+    ],
+    "Memory issues": [
+      "Is memory loss a symptom of menopause?",
+      "What can help with memory during menopause?"
+    ],
+    "Difficulty concentrating": [
+      "Why is it hard to concentrate during menopause?",
+      "What strategies improve focus during menopause?"
+    ],
+    "Joint pain": [
+      "Is joint pain related to menopause?",
+      "What can help with menopause-related joint pain?"
+    ],
+    "Headaches": [
+      "Why do I get more headaches during menopause?",
+      "What can help with menopause-related headaches?"
+    ],
+    "Heart palpitations": [
+      "Are heart palpitations common during menopause?",
+      "What should I know about heart palpitations and menopause?"
+    ],
+    "Dizziness": [
+      "What causes dizziness during menopause?",
+      "What strategies help manage dizziness?"
+    ],
+    "Weight changes": [
+      "Why is weight management harder during menopause?",
+      "What can help with weight changes during menopause?"
+    ],
+    "Bloating": [
+      "What causes bloating during menopause?",
+      "What can help reduce bloating?"
+    ],
+    "Breast tenderness": [
+      "Is breast tenderness a menopause symptom?",
+      "What can help with breast tenderness?"
+    ],
+    "Rage": [
+      "Is rage a symptom of menopause?",
+      "What strategies help manage rage and intense emotions?"
+    ],
+    "Changes in libido": [
+      "How does menopause affect sexual desire?",
+      "What can help with changes in libido?"
+    ],
+    "Vaginal dryness": [
+      "What causes vaginal dryness during menopause?",
+      "What treatments are available for vaginal dryness?"
+    ],
+    "Frequent UTIs": [
+      "Why do UTIs become more common during menopause?",
+      "What can help prevent frequent UTIs?"
+    ],
+    "Bladder urgency": [
+      "What causes bladder urgency during menopause?",
+      "What strategies help manage bladder symptoms?"
+    ],
+    "Dry skin": [
+      "Why does skin get drier during menopause?",
+      "What can help with dry skin during menopause?"
+    ],
+    "Hair thinning": [
+      "Is hair thinning related to menopause hormones?",
+      "What can help with hair thinning during menopause?"
+    ],
+    "Nail changes": [
+      "What causes nail changes during menopause?",
+      "What can help with brittle or weak nails?"
+    ],
+    "Itchy skin": [
+      "What causes itchy skin during menopause?",
+      "What strategies help manage itchy skin?"
+    ],
+    "Acne": [
+      "Why do I break out during menopause?",
+      "What can help with menopause-related acne?"
+    ],
+    "general": [
+      "What should I expect during menopause?",
+      "What are my options for managing menopause symptoms?",
+      "How can I prepare for conversations with my doctor?"
+    ]
+  }
+}

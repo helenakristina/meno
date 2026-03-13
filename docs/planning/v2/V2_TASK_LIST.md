@@ -510,11 +510,11 @@ Build on top of refactored foundation.
   - Return top 5 chunks
 - **Effort:** 3 hours
 - **Checklist:**
-  - [ ] Keyword search implemented
-  - [ ] Results combined
-  - [ ] Top 5 returned
-  - [ ] Tests pass
-  - [ ] Improves retrieval quality
+  - [x] Keyword search implemented
+  - [x] Results combined
+  - [x] Top 5 returned
+  - [x] Tests pass
+  - [x] Improves retrieval quality
 
 #### Task 3.1.3: Add Dynamic Starter Prompts
 

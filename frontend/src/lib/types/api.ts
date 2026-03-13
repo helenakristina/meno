@@ -60,6 +60,13 @@ export interface ApiEndpoints {
     };
   };
 
+  '/api/chat/suggested-prompts': {
+    request: never;
+    response: {
+      prompts: string[];
+    };
+  };
+
   // ========================================================================
   // Symptom Endpoints
   // ========================================================================

@@ -20,6 +20,7 @@ from app.api.dependencies import (
     get_symptoms_repo,
     get_conversation_repo,
     get_citation_service,
+    get_chat_service,
 )
 from app.core.config import settings
 from app.core.supabase import get_client
@@ -29,6 +30,7 @@ from app.repositories.conversation_repository import ConversationRepository
 from app.services.citations import CitationService
 from app.services.prompts import PromptService
 from app.services.openai_provider import OpenAIProvider
+from app.services.chat import ChatService
 from app.models.chat import (
     ChatMessage,
     ChatRequest,
@@ -220,6 +222,44 @@ async def ask_meno(
         citations=citations,
         conversation_id=conversation_id,
     )
+
+
+@router.get(
+    "/suggested-prompts",
+    summary="Get personalized starter prompts",
+    description=(
+        "Get personalized starter prompts based on user's recent symptom logs. "
+        "Returns up to 6 prompts: symptom-specific ones from the last 30 days, "
+        "filled with general prompts if fewer than 6 symptoms found."
+    ),
+)
+async def get_suggested_prompts(
+    user_id: CurrentUser,
+    chat_service: ChatService = Depends(get_chat_service),
+) -> dict:
+    """Get personalized starter prompts for Ask Meno.
+
+    Returns a list of suggested prompts based on the user's recent symptom logs.
+    This enables the UI to show personalized suggestions in the empty state.
+
+    Raises:
+        HTTPException: 401 if not authenticated.
+        HTTPException: 500 if database or config load fails.
+    """
+    try:
+        result = await chat_service.get_suggested_prompts(user_id=user_id)
+        return result
+    except Exception as exc:
+        logger.error(
+            "Failed to get suggested prompts for user %s: %s",
+            user_id,
+            exc,
+            exc_info=True,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to fetch personalized prompts",
+        )
 
 
 # -------------------------------------------------------------------------------

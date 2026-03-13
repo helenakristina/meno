@@ -16,6 +16,7 @@ from app.services.llm_base import LLMProvider
 from app.services.openai_provider import OpenAIProvider
 from app.services.citations import CitationService
 from app.services.storage import StorageService
+from app.services.chat import ChatService
 
 logger = logging.getLogger(__name__)
 
@@ -184,3 +185,15 @@ def get_storage_service(client: AsyncClient = Depends(get_client)) -> StorageSer
         StorageService instance for file uploads.
     """
     return StorageService(client=client)
+
+
+def get_chat_service(symptoms_repo: SymptomsRepository = Depends(get_symptoms_repo)) -> ChatService:
+    """Dependency for ChatService.
+
+    Args:
+        symptoms_repo: SymptomsRepository for accessing symptom logs.
+
+    Returns:
+        ChatService instance for chat features (prompts, etc.).
+    """
+    return ChatService(symptoms_repo=symptoms_repo)
