@@ -48,6 +48,7 @@ from app.models.appointment import (
     AppointmentPrepHistoryListResponse,
     AppointmentPrepHistoryResponse,
 )
+from app.utils.logging import hash_user_id, safe_len
 from supabase import AsyncClient
 
 logger = logging.getLogger(__name__)
@@ -109,11 +110,11 @@ async def create_appointment_context(
 
     # Log context creation (user_id hashed for privacy)
     logger.info(
-        "Appointment prep started: appointment_id=%s appointment_type=%s goal=%s urgent_symptom=%s",
+        "Appointment prep started: appointment_id=%s appointment_type=%s goal=%s has_urgent=%s",
         appointment_id,
         context.appointment_type.value,
         context.goal.value,
-        context.urgent_symptom,
+        bool(context.urgent_symptom),
     )
 
     return CreateAppointmentContextResponse(
@@ -215,7 +216,7 @@ async def generate_appointment_narrative(
     except Exception as exc:
         logger.error(
             "Failed to fetch symptom logs for narrative: user=%s start=%s end=%s error=%s",
-            user_id,
+            hash_user_id(user_id),
             start_date,
             end_date,
             exc,
@@ -629,8 +630,8 @@ async def generate_appointment_scenarios(
             suggestions_list = [suggestions_list]
     except json.JSONDecodeError:
         logger.error(
-            "Failed to parse LLM response as JSON: response=%s",
-            raw_suggestions[:200],
+            "Failed to parse LLM response as JSON: response_len=%d",
+            safe_len(raw_suggestions),
         )
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -1000,7 +1001,7 @@ async def get_appointment_prep_history(
 
     logger.info(
         "Fetching appointment prep history: user=%s limit=%d offset=%d",
-        user_id,
+        hash_user_id(user_id),
         limit,
         offset,
     )
@@ -1248,9 +1249,9 @@ def _select_scenarios(context: AppointmentContext, journey_stage: str) -> list[s
     scenarios = list(dict.fromkeys(scenarios))[:7]
 
     logger.info(
-        "Selected %d scenarios for urgent symptom: %s",
+        "Selected %d scenarios, has_urgent=%s",
         len(scenarios),
-        urgent_symptom,
+        bool(urgent_symptom),
     )
 
     return scenarios

@@ -32,6 +32,7 @@ from app.models.export import ExportRequest
 from app.models.symptoms import SymptomFrequency, SymptomPair
 from app.repositories.symptoms_repository import SymptomsRepository
 from app.services.llm import LLMService
+from app.utils.logging import hash_user_id
 from app.utils.stats import calculate_cooccurrence_stats, calculate_frequency_stats
 from supabase import AsyncClient
 
@@ -331,7 +332,7 @@ async def export_pdf(
 
     logger.info(
         "PDF export stats: user=%s range=%s–%s logs=%d freq=%d pairs=%d",
-        user_id,
+        hash_user_id(user_id),
         payload.date_range_start,
         payload.date_range_end,
         len(rows),
@@ -348,7 +349,7 @@ async def export_pdf(
         )
         questions = await llm_service.generate_provider_questions(freq_stats, coocc_pairs)
     except Exception as exc:
-        logger.error("LLM call failed for PDF export (user %s): %s", user_id, exc, exc_info=True)
+        logger.error("LLM call failed for PDF export (user %s): %s", hash_user_id(user_id), exc, exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to generate AI content for the report",
@@ -365,7 +366,7 @@ async def export_pdf(
             provider_questions=questions,
         )
     except Exception as exc:
-        logger.error("PDF generation failed for user %s: %s", user_id, exc, exc_info=True)
+        logger.error("PDF generation failed for user %s: %s", hash_user_id(user_id), exc, exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to generate PDF",
@@ -380,12 +381,12 @@ async def export_pdf(
             "date_range_end": payload.date_range_end.isoformat(),
         }).execute()
     except Exception as exc:
-        logger.warning("Failed to record PDF export for user %s: %s", user_id, exc)
+        logger.warning("Failed to record PDF export for user %s: %s", hash_user_id(user_id), exc)
 
     filename = (
         f"meno-summary-{payload.date_range_start}-{payload.date_range_end}.pdf"
     )
-    logger.info("PDF export complete: user=%s size=%d bytes", user_id, len(pdf_bytes))
+    logger.info("PDF export complete: user=%s size=%d bytes", hash_user_id(user_id), len(pdf_bytes))
     return Response(
         content=pdf_bytes,
         media_type="application/pdf",
@@ -473,14 +474,14 @@ async def export_csv(
             "date_range_end": payload.date_range_end.isoformat(),
         }).execute()
     except Exception as exc:
-        logger.warning("Failed to record CSV export for user %s: %s", user_id, exc)
+        logger.warning("Failed to record CSV export for user %s: %s", hash_user_id(user_id), exc)
 
     filename = (
         f"meno-logs-{payload.date_range_start}-{payload.date_range_end}.csv"
     )
     logger.info(
         "CSV export complete: user=%s logs=%d size=%d bytes",
-        user_id,
+        hash_user_id(user_id),
         len(rows),
         len(csv_content),
     )

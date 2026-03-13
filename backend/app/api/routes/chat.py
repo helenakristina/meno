@@ -42,6 +42,7 @@ from app.models.chat import (
 from app.rag.retrieval import retrieve_relevant_chunks
 from app.exceptions import DatabaseError
 from app.utils.conversations import build_conversation_title
+from app.utils.logging import hash_user_id, safe_len
 
 logger = logging.getLogger(__name__)
 
@@ -103,25 +104,25 @@ async def ask_meno(
 
     # RAG retrieval
     logger.info(
-        "RAG: Starting retrieval for user=%s query='%s'", user_id, message[:100]
+        "RAG: Starting retrieval for user=%s query_len=%d", hash_user_id(user_id), safe_len(message)
     )
     try:
         chunks = await retrieve_relevant_chunks(message, top_k=5)
         if chunks:
             logger.info(
-                "RAG: Success — %d chunks retrieved for user=%s", len(chunks), user_id
+                "RAG: Success — %d chunks retrieved for user=%s", len(chunks), hash_user_id(user_id)
             )
         else:
             logger.warning(
-                "RAG: Empty result for user=%s query='%s' — response will have no source grounding",
-                user_id,
-                message[:100],
+                "RAG: Empty result for user=%s query_len=%d — response will have no source grounding",
+                hash_user_id(user_id),
+                safe_len(message),
             )
     except Exception as exc:
         logger.error(
-            "RAG: Retrieval raised an exception for user=%s query='%s': %s",
-            user_id,
-            message[:100],
+            "RAG: Retrieval raised an exception for user=%s query_len=%d: %s",
+            hash_user_id(user_id),
+            safe_len(message),
             exc,
             exc_info=True,
         )
@@ -165,7 +166,7 @@ async def ask_meno(
             await provider.chat_completion_with_usage(system_prompt, message)
         )
     except Exception as exc:
-        logger.error("OpenAI call failed for user %s: %s", user_id, exc, exc_info=True)
+        logger.error("OpenAI call failed for user %s: %s", hash_user_id(user_id), exc, exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=(
@@ -176,17 +177,17 @@ async def ask_meno(
 
     logger.info(
         "OpenAI chat completed: user=%s prompt_tokens=%d completion_tokens=%d chunks=%d",
-        user_id,
+        hash_user_id(user_id),
         prompt_tokens,
         completion_tokens,
         len(chunks),
     )
 
     # Sanitize phantom citations and renumber valid ones
-    logger.debug("Before sanitization, response contains: %s", response_text[:200])
+    logger.debug("Before sanitization, response length: %d chars", safe_len(response_text))
     sanitize_result = citation_service.sanitize_and_renumber(response_text, len(chunks))
     response_text = sanitize_result.text
-    logger.debug("After sanitization, response contains: %s", response_text[:200])
+    logger.debug("After sanitization, response length: %d chars", safe_len(response_text))
 
     # Extract citations with section context
     citations = citation_service.extract(response_text, chunks)
@@ -252,7 +253,7 @@ async def get_suggested_prompts(
     except Exception as exc:
         logger.error(
             "Failed to get suggested prompts for user %s: %s",
-            user_id,
+            hash_user_id(user_id),
             exc,
             exc_info=True,
         )
@@ -288,7 +289,7 @@ async def list_conversations(
     try:
         rows, total = await conversation_repo.list(user_id, limit, offset)
     except DatabaseError as exc:
-        logger.error("Failed to list conversations for user %s: %s", user_id, exc, exc_info=True)
+        logger.error("Failed to list conversations for user %s: %s", hash_user_id(user_id), exc, exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to load conversations",

@@ -24,6 +24,7 @@ from app.models.providers import (
 from app.repositories.providers_repository import ProvidersRepository
 from app.services.llm import LLMService
 from app.services.providers import assemble_calling_script_prompts
+from app.utils.logging import hash_user_id
 
 logger = logging.getLogger(__name__)
 
@@ -198,7 +199,7 @@ async def generate_provider_calling_script(
 
     logger.info(
         "Generating calling script: user=%s provider=%s insurance=%s telehealth=%s",
-        user_id,
+        hash_user_id(user_id),
         request.provider_name,
         request.insurance_type,
         request.interested_in_telehealth,
@@ -209,7 +210,7 @@ async def generate_provider_calling_script(
     except Exception as exc:
         logger.error(
             "LLM call failed for calling script (user=%s provider=%s): %s",
-            user_id,
+            hash_user_id(user_id),
             request.provider_name,
             exc,
             exc_info=True,

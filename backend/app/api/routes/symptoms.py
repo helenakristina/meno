@@ -13,6 +13,7 @@ from app.models.symptoms import (
     SymptomLogResponse,
 )
 from app.repositories.symptoms_repository import SymptomsRepository
+from app.utils.logging import hash_user_id
 from app.utils.stats import calculate_cooccurrence_stats, calculate_frequency_stats
 
 logger = logging.getLogger(__name__)
@@ -170,7 +171,7 @@ async def get_frequency_stats(
     if not rows or not ref_lookup:
         logger.info(
             "No symptoms found for user %s in range %s–%s",
-            user_id,
+            hash_user_id(user_id),
             effective_start,
             effective_end,
         )
@@ -186,7 +187,7 @@ async def get_frequency_stats(
 
     logger.info(
         "Frequency stats: user=%s range=%s–%s distinct_symptoms=%d total_logs=%d",
-        user_id,
+        hash_user_id(user_id),
         effective_start,
         effective_end,
         len(stats),
@@ -267,7 +268,7 @@ async def get_cooccurrence_stats(
     logger.debug(
         "Co-occurrence: fetched %d logs for user %s range %s–%s",
         total_logs,
-        user_id,
+        hash_user_id(user_id),
         effective_start,
         effective_end,
     )
@@ -277,7 +278,7 @@ async def get_cooccurrence_stats(
         logger.info(
             "Co-occurrence: no pairs above threshold=%d for user %s",
             min_threshold,
-            user_id,
+            hash_user_id(user_id),
         )
         return CooccurrenceStatsResponse(
             pairs=[],
@@ -292,7 +293,7 @@ async def get_cooccurrence_stats(
 
     logger.info(
         "Co-occurrence stats: user=%s range=%s–%s threshold=%d returned=%d",
-        user_id,
+        hash_user_id(user_id),
         effective_start,
         effective_end,
         min_threshold,

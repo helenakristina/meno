@@ -9,6 +9,7 @@ from app.api.dependencies import CurrentUser, get_user_repo
 from app.core.supabase import get_client
 from app.models.users import InsurancePreference, InsurancePreferenceUpdate, OnboardingRequest, UserResponse
 from app.repositories.user_repository import UserRepository
+from app.utils.logging import hash_user_id
 
 logger = logging.getLogger(__name__)
 
@@ -81,7 +82,7 @@ async def onboarding(
         email = auth_response.user.email
     except Exception as exc:
         logger.error(
-            "Auth lookup failed for user %s: %s", user_id, exc, exc_info=True
+            "Auth lookup failed for user %s: %s", hash_user_id(user_id), exc, exc_info=True
         )
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -99,7 +100,7 @@ async def onboarding(
         },
     )
 
-    logger.info("User profile created: id=%s email=%s", user_id, email)
+    logger.info("User profile created: user=%s", hash_user_id(user_id))
     return UserResponse(**created)
 
 
@@ -173,7 +174,7 @@ async def update_insurance_preference(
     )
 
     logger.info(
-        "Insurance preference updated: user=%s type=%s", user_id, payload.insurance_type
+        "Insurance preference updated: user=%s type=%s", hash_user_id(user_id), payload.insurance_type
     )
     return InsurancePreference(
         insurance_type=updated.get("insurance_type"),
