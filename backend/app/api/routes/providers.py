@@ -10,6 +10,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 from fastapi.responses import JSONResponse
 
 from app.api.dependencies import CurrentUser, get_providers_repo, get_llm_service
+from app.exceptions import DuplicateEntityError
 from app.models.providers import (
     AddToShortlistRequest,
     CallingScriptRequest,
@@ -290,20 +291,9 @@ async def add_to_shortlist(
 ) -> ShortlistEntry:
     """Add a provider to the user's shortlist.
 
-    Returns 409 with the existing ShortlistEntry if the provider is already saved,
-    so the caller can treat it as a no-op rather than an error.
-
-    Raises:
-        HTTPException: 500 for unexpected database failures.
+    Returns 201 with new entry, or lets DuplicateEntityError propagate to 409 handler.
     """
-    entry, status_code = await repo.add_to_shortlist(user_id, request.provider_id)
-
-    if status_code == status.HTTP_409_CONFLICT:
-        return JSONResponse(
-            status_code=status.HTTP_409_CONFLICT,
-            content=entry.model_dump(),
-        )
-
+    entry = await repo.add_to_shortlist(user_id, request.provider_id)
     return entry
 
 

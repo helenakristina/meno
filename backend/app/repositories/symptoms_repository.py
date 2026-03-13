@@ -8,9 +8,9 @@ import logging
 from datetime import date, datetime, timezone
 from typing import Optional
 
-from fastapi import HTTPException, status
 from supabase import AsyncClient
 
+from app.exceptions import DatabaseError, ValidationError
 from app.models.symptoms import SymptomDetail, SymptomLogResponse
 
 logger = logging.getLogger(__name__)
@@ -41,8 +41,8 @@ class SymptomsRepository:
             symptom_ids: List of symptom IDs to validate.
 
         Raises:
-            HTTPException: 400 if any IDs are absent from symptoms_reference.
-            HTTPException: 500 if the reference table query fails.
+            ValidationError: If any IDs are absent from symptoms_reference.
+            DatabaseError: If the reference table query fails.
         """
         if not symptom_ids:
             return
@@ -58,18 +58,12 @@ class SymptomsRepository:
             )
         except Exception as exc:
             logger.error("Failed to query symptoms_reference: %s", exc, exc_info=True)
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Failed to validate symptom IDs",
-            )
+            raise DatabaseError(f"Failed to validate symptom IDs: {exc}") from exc
 
         if len(result.data) != len(unique_ids):
             valid_ids = {row["id"] for row in result.data}
             invalid_ids = sorted(set(unique_ids) - valid_ids)
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Invalid symptom IDs: {invalid_ids}",
-            )
+            raise ValidationError(f"Invalid symptom IDs: {invalid_ids}")
 
     async def get_summary(self, user_id: str) -> str:
         """Return the latest cached symptom summary text.
@@ -119,8 +113,8 @@ class SymptomsRepository:
             Created SymptomLogResponse with enriched symptom details.
 
         Raises:
-            HTTPException: 400 if validation fails.
-            HTTPException: 500 if the database insert fails.
+            ValidationError: If symptom ID validation fails.
+            DatabaseError: If the database insert fails.
         """
         # Validate symptom IDs exist
         await self.validate_ids(symptoms)
@@ -143,17 +137,11 @@ class SymptomsRepository:
                 exc,
                 exc_info=True,
             )
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Failed to create symptom log",
-            )
+            raise DatabaseError(f"Failed to create symptom log: {exc}") from exc
 
         if not response.data:
             logger.error("Supabase returned no data after insert for user %s", user_id)
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Failed to create symptom log",
-            )
+            raise DatabaseError("Failed to create symptom log: no data returned")
 
         created = response.data[0]
         try:
@@ -165,10 +153,7 @@ class SymptomsRepository:
                 exc,
                 exc_info=True,
             )
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Failed to create symptom log",
-            )
+            raise DatabaseError(f"Failed to create symptom log: {exc}") from exc
 
         logger.info("Symptom log created: id=%s user=%s", created["id"], user_id)
         return self._enrich_log(created, lookup)
@@ -193,7 +178,7 @@ class SymptomsRepository:
             Tuple of (list of raw log rows, dict[symptom_id → {id, name, category}]).
 
         Raises:
-            HTTPException: 500 if the database queries fail.
+            DatabaseError: If the database queries fail.
         """
         try:
             query = self.client.table("symptom_logs").select("symptoms").eq("user_id", user_id)
@@ -228,10 +213,7 @@ class SymptomsRepository:
                 exc,
                 exc_info=True,
             )
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Failed to retrieve symptom statistics",
-            )
+            raise DatabaseError(f"Failed to retrieve symptom statistics: {exc}") from exc
 
         # Extract all unique symptom IDs from logs
         all_ids = list({sid for row in rows for sid in (row.get("symptoms") or [])})
@@ -256,10 +238,7 @@ class SymptomsRepository:
                 exc,
                 exc_info=True,
             )
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Failed to retrieve symptom statistics",
-            )
+            raise DatabaseError(f"Failed to retrieve symptom statistics: {exc}") from exc
 
         # Build lookup dict: symptom_id → {id, name, category}
         ref_lookup = {row["id"]: row for row in ref_rows}
@@ -287,7 +266,7 @@ class SymptomsRepository:
             Rows are ordered by logged_at ascending.
 
         Raises:
-            HTTPException: 500 if the database queries fail.
+            DatabaseError: If the database queries fail.
         """
         try:
             start_dt = datetime(
@@ -322,10 +301,7 @@ class SymptomsRepository:
                 exc,
                 exc_info=True,
             )
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Failed to retrieve symptom logs",
-            )
+            raise DatabaseError(f"Failed to retrieve symptom logs: {exc}") from exc
 
         # Extract all unique symptom IDs from logs
         all_ids = list({sid for row in rows for sid in (row.get("symptoms") or [])})
@@ -350,10 +326,7 @@ class SymptomsRepository:
                 exc,
                 exc_info=True,
             )
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Failed to retrieve symptom data",
-            )
+            raise DatabaseError(f"Failed to retrieve symptom data: {exc}") from exc
 
         # Build lookup dict: symptom_id → {id, name, category}
         ref_lookup = {row["id"]: row for row in ref_rows}
@@ -381,7 +354,7 @@ class SymptomsRepository:
             Tuple of (enriched log list, total count).
 
         Raises:
-            HTTPException: 500 if the database query fails.
+            DatabaseError: If the database query fails.
         """
         rows: list[dict] = []
         lookup: dict[str, SymptomDetail] = {}
@@ -426,10 +399,7 @@ class SymptomsRepository:
                 exc,
                 exc_info=True,
             )
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Failed to retrieve symptom logs",
-            )
+            raise DatabaseError(f"Failed to retrieve symptom logs: {exc}") from exc
 
         logs = [self._enrich_log(row, lookup) for row in rows]
         logger.info("Retrieved %d symptom logs for user %s", len(logs), user_id)

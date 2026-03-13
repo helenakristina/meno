@@ -276,7 +276,7 @@ class TestCreateAppointmentContext:
                 )
 
             assert response.status_code == 500
-            assert "Failed to create appointment context" in response.json()["detail"]
+            assert "Database error occurred" in response.json()["detail"]
         finally:
             cleanup()
 

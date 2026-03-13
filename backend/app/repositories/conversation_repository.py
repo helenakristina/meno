@@ -9,10 +9,9 @@ from __future__ import annotations
 import logging
 from uuid import UUID
 
-from fastapi import HTTPException, status
 from supabase import AsyncClient
 
-from app.exceptions import DatabaseError
+from app.exceptions import DatabaseError, EntityNotFoundError
 from app.utils.logging import hash_user_id
 
 logger = logging.getLogger(__name__)
@@ -80,8 +79,8 @@ class ConversationRepository:
             List of message dicts, or empty list if conversation is empty.
 
         Raises:
-            HTTPException: 404 if the conversation doesn't exist or doesn't belong to user.
-            HTTPException: 500 if the database query fails.
+            EntityNotFoundError: If the conversation doesn't exist or doesn't belong to user.
+            DatabaseError: If the database query fails.
         """
         try:
             response = (
@@ -95,20 +94,14 @@ class ConversationRepository:
             logger.error(
                 "DB query failed loading conversation %s for user %s: %s",
                 conversation_id,
-                user_id,
-                exc,
+                hash_user_id(user_id),
+                type(exc).__name__,
                 exc_info=True,
             )
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Failed to load conversation",
-            )
+            raise DatabaseError(f"Failed to load conversation: {exc}") from exc
 
         if not response.data:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Conversation not found",
-            )
+            raise EntityNotFoundError("Conversation not found")
 
         return response.data[0].get("messages") or []
 
@@ -132,7 +125,7 @@ class ConversationRepository:
             Conversation UUID (either provided or newly created).
 
         Raises:
-            HTTPException: 500 if the database operation fails.
+            DatabaseError: If the database operation fails.
         """
         if conversation_id is not None:
             try:
@@ -147,14 +140,11 @@ class ConversationRepository:
                 logger.error(
                     "DB update failed for conversation %s: %s",
                     conversation_id,
-                    exc,
+                    type(exc).__name__,
                     exc_info=True,
                 )
-                raise HTTPException(
-                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                    detail="Failed to save conversation",
-                )
-            logger.info("Conversation %s updated for user %s", conversation_id, user_id)
+                raise DatabaseError(f"Failed to save conversation: {exc}") from exc
+            logger.info("Conversation %s updated for user %s", conversation_id, hash_user_id(user_id))
             return conversation_id
 
         # Create new conversation
@@ -167,23 +157,18 @@ class ConversationRepository:
         except Exception as exc:
             logger.error(
                 "DB insert failed creating conversation for user %s: %s",
-                user_id,
-                exc,
+                hash_user_id(user_id),
+                type(exc).__name__,
                 exc_info=True,
             )
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Failed to save conversation",
-            )
+            raise DatabaseError(f"Failed to save conversation: {exc}") from exc
 
         if not response.data:
             logger.error(
-                "Supabase returned no data after conversation insert for user %s", user_id
+                "Supabase returned no data after conversation insert for user %s",
+                hash_user_id(user_id),
             )
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Failed to save conversation",
-            )
+            raise DatabaseError("Failed to save conversation: no data returned")
 
         new_id = UUID(response.data[0]["id"])
         logger.info("Conversation created: id=%s user=%s", new_id, user_id)
@@ -197,8 +182,8 @@ class ConversationRepository:
             user_id: ID of the user (for ownership verification).
 
         Raises:
-            HTTPException: 404 if conversation not found or doesn't belong to user.
-            HTTPException: 500 if the database delete fails.
+            EntityNotFoundError: If conversation not found or doesn't belong to user.
+            DatabaseError: If the database delete fails.
         """
         try:
             response = (
@@ -212,18 +197,12 @@ class ConversationRepository:
             logger.error(
                 "DB delete failed for conversation %s: %s",
                 conversation_id,
-                exc,
+                type(exc).__name__,
                 exc_info=True,
             )
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Failed to delete conversation",
-            )
+            raise DatabaseError(f"Failed to delete conversation: {exc}") from exc
 
         if not response.data:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Conversation not found",
-            )
+            raise EntityNotFoundError("Conversation not found")
 
-        logger.info("Conversation deleted: id=%s user=%s", conversation_id, user_id)
+        logger.info("Conversation deleted: id=%s user=%s", conversation_id, hash_user_id(user_id))

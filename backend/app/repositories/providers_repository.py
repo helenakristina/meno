@@ -8,9 +8,9 @@ import logging
 from datetime import datetime, timezone
 from typing import Optional
 
-from fastapi import HTTPException
-from fastapi import status as http_status
 from supabase import AsyncClient
+
+from app.exceptions import DatabaseError, DuplicateEntityError, EntityNotFoundError, ValidationError
 
 from app.models.providers import (
     ProviderCard,
@@ -84,15 +84,12 @@ class ProvidersRepository:
             ProviderSearchResponse with paginated results and total counts.
 
         Raises:
-            HTTPException: 400 if neither state nor zip_code is provided.
-            HTTPException: 400 if zip_code is supplied but not found in the table.
-            HTTPException: 500 for unexpected database failures.
+            ValidationError: If neither state nor zip_code is provided.
+            EntityNotFoundError: If zip_code is supplied but not found in the table.
+            DatabaseError: For unexpected database failures.
         """
         if not state and not zip_code:
-            raise HTTPException(
-                status_code=http_status.HTTP_400_BAD_REQUEST,
-                detail="Either 'state' or 'zip_code' is required",
-            )
+            raise ValidationError("Either 'state' or 'zip_code' is required")
 
         effective_state = state.upper().strip() if state else None
 
@@ -110,16 +107,10 @@ class ProvidersRepository:
                 logger.error(
                     "DB error looking up zip_code %s: %s", zip_code, exc, exc_info=True
                 )
-                raise HTTPException(
-                    status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
-                    detail="Failed to look up zip code",
-                )
+                raise DatabaseError(f"Failed to look up zip code: {exc}") from exc
 
             if not zip_response.data:
-                raise HTTPException(
-                    status_code=http_status.HTTP_400_BAD_REQUEST,
-                    detail=f"No providers found for zip_code '{zip_code}'",
-                )
+                raise EntityNotFoundError(f"No providers found for zip_code '{zip_code}'")
             effective_state = zip_response.data[0]["state"]
 
         logger.info(
@@ -154,10 +145,7 @@ class ProvidersRepository:
                 exc,
                 exc_info=True,
             )
-            raise HTTPException(
-                status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Failed to search providers",
-            )
+            raise DatabaseError(f"Failed to search providers: {exc}") from exc
 
         result = filter_and_paginate(
             rows, city=city, insurance=insurance, page=page, page_size=page_size
@@ -178,7 +166,7 @@ class ProvidersRepository:
             List of StateCount objects with state code and provider count.
 
         Raises:
-            HTTPException: 500 for unexpected database failures.
+            DatabaseError: For unexpected database failures.
         """
         try:
             rows = await self._fetch_all("providers", "state")
@@ -186,10 +174,7 @@ class ProvidersRepository:
             logger.error(
                 "DB query failed fetching provider states: %s", exc, exc_info=True
             )
-            raise HTTPException(
-                status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Failed to retrieve state list",
-            )
+            raise DatabaseError(f"Failed to retrieve state list: {exc}") from exc
 
         aggregated = aggregate_states(rows)
         logger.info("States endpoint: returned %d states", len(aggregated))
@@ -202,7 +187,7 @@ class ProvidersRepository:
             List of normalized insurance option strings sorted alphabetically.
 
         Raises:
-            HTTPException: 500 for unexpected database failures.
+            DatabaseError: For unexpected database failures.
         """
         try:
             rows = await self._fetch_all("providers", "insurance_accepted")
@@ -210,10 +195,7 @@ class ProvidersRepository:
             logger.error(
                 "DB query failed fetching insurance options: %s", exc, exc_info=True
             )
-            raise HTTPException(
-                status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Failed to retrieve insurance options",
-            )
+            raise DatabaseError(f"Failed to retrieve insurance options: {exc}") from exc
 
         options = collect_insurance_options(rows)
         logger.info(
@@ -236,7 +218,7 @@ class ProvidersRepository:
             List of ShortlistEntryWithProvider (shortlist entry + full provider card).
 
         Raises:
-            HTTPException: 500 for unexpected database failures.
+            DatabaseError: For unexpected database failures.
         """
         try:
             entries_resp = (
@@ -254,10 +236,7 @@ class ProvidersRepository:
                 exc,
                 exc_info=True,
             )
-            raise HTTPException(
-                status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Failed to retrieve shortlist",
-            )
+            raise DatabaseError(f"Failed to retrieve shortlist: {exc}") from exc
 
         if not entries:
             return []
@@ -279,10 +258,7 @@ class ProvidersRepository:
                 exc,
                 exc_info=True,
             )
-            raise HTTPException(
-                status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Failed to retrieve shortlist",
-            )
+            raise DatabaseError(f"Failed to retrieve shortlist: {exc}") from exc
 
         result = []
         for entry in entries:
@@ -305,7 +281,7 @@ class ProvidersRepository:
             List of provider IDs (used to show bookmark state on search cards).
 
         Raises:
-            HTTPException: 500 for unexpected database failures.
+            DatabaseError: For unexpected database failures.
         """
         try:
             resp = (
@@ -321,31 +297,25 @@ class ProvidersRepository:
                 exc,
                 exc_info=True,
             )
-            raise HTTPException(
-                status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Failed to retrieve shortlist",
-            )
+            raise DatabaseError(f"Failed to retrieve shortlist: {exc}") from exc
 
         return [row["provider_id"] for row in (resp.data or [])]
 
     async def add_to_shortlist(
         self, user_id: str, provider_id: str
-    ) -> tuple[ShortlistEntry, int]:
+    ) -> ShortlistEntry:
         """Add a provider to the user's shortlist.
-
-        Returns 409 with the existing ShortlistEntry if the provider is already saved,
-        so the caller can treat it as a no-op rather than an error.
 
         Args:
             user_id: ID of the user.
             provider_id: ID of the provider to add.
 
         Returns:
-            Tuple of (ShortlistEntry, status_code) where status_code is 201 for new
-            entry or 409 for existing entry.
+            Created ShortlistEntry.
 
         Raises:
-            HTTPException: 500 for unexpected database failures.
+            DuplicateEntityError: If provider is already in shortlist.
+            DatabaseError: For unexpected database failures.
         """
         try:
             existing_resp = (
@@ -363,19 +333,15 @@ class ProvidersRepository:
                 exc,
                 exc_info=True,
             )
-            raise HTTPException(
-                status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Failed to add provider to shortlist",
-            )
+            raise DatabaseError(f"Failed to add provider to shortlist: {exc}") from exc
 
         if existing_resp.data:
-            # Already in shortlist — return existing entry with 409 so caller can distinguish
             logger.info(
                 "Shortlist add: already exists (user=%s provider=%s)",
                 user_id,
                 provider_id,
             )
-            return ShortlistEntry(**existing_resp.data[0]), http_status.HTTP_409_CONFLICT
+            raise DuplicateEntityError("Provider already in shortlist")
 
         try:
             insert_resp = (
@@ -391,13 +357,10 @@ class ProvidersRepository:
                 exc,
                 exc_info=True,
             )
-            raise HTTPException(
-                status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Failed to add provider to shortlist",
-            )
+            raise DatabaseError(f"Failed to add provider to shortlist: {exc}") from exc
 
         logger.info("Shortlist add: success (user=%s provider=%s)", user_id, provider_id)
-        return ShortlistEntry(**insert_resp.data[0]), http_status.HTTP_201_CREATED
+        return ShortlistEntry(**insert_resp.data[0])
 
     async def remove_from_shortlist(self, user_id: str, provider_id: str) -> None:
         """Remove a provider from the user's shortlist.
@@ -407,8 +370,8 @@ class ProvidersRepository:
             provider_id: ID of the provider to remove.
 
         Raises:
-            HTTPException: 404 if provider is not in the user's shortlist.
-            HTTPException: 500 for unexpected database failures.
+            EntityNotFoundError: If provider is not in the user's shortlist.
+            DatabaseError: For unexpected database failures.
         """
         try:
             existing_resp = (
@@ -426,16 +389,10 @@ class ProvidersRepository:
                 exc,
                 exc_info=True,
             )
-            raise HTTPException(
-                status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Failed to remove provider from shortlist",
-            )
+            raise DatabaseError(f"Failed to remove provider from shortlist: {exc}") from exc
 
         if not existing_resp.data:
-            raise HTTPException(
-                status_code=http_status.HTTP_404_NOT_FOUND,
-                detail="Provider not in shortlist",
-            )
+            raise EntityNotFoundError("Provider not in shortlist")
 
         try:
             await (
@@ -453,10 +410,7 @@ class ProvidersRepository:
                 exc,
                 exc_info=True,
             )
-            raise HTTPException(
-                status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Failed to remove provider from shortlist",
-            )
+            raise DatabaseError(f"Failed to remove provider from shortlist: {exc}") from exc
 
         logger.info("Shortlist remove: success (user=%s provider=%s)", user_id, provider_id)
 
@@ -482,8 +436,8 @@ class ProvidersRepository:
             Updated ShortlistEntry.
 
         Raises:
-            HTTPException: 404 if provider is not in the user's shortlist.
-            HTTPException: 500 for unexpected database failures.
+            EntityNotFoundError: If provider is not in the user's shortlist.
+            DatabaseError: For unexpected database failures.
         """
         try:
             existing_resp = (
@@ -501,16 +455,10 @@ class ProvidersRepository:
                 exc,
                 exc_info=True,
             )
-            raise HTTPException(
-                status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Failed to update shortlist entry",
-            )
+            raise DatabaseError(f"Failed to update shortlist entry: {exc}") from exc
 
         if not existing_resp.data:
-            raise HTTPException(
-                status_code=http_status.HTTP_404_NOT_FOUND,
-                detail="Provider not in shortlist",
-            )
+            raise EntityNotFoundError("Provider not in shortlist")
 
         updates: dict = {
             "updated_at": datetime.now(tz=timezone.utc).isoformat(),
@@ -537,10 +485,7 @@ class ProvidersRepository:
                 exc,
                 exc_info=True,
             )
-            raise HTTPException(
-                status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Failed to update shortlist entry",
-            )
+            raise DatabaseError(f"Failed to update shortlist entry: {exc}") from exc
 
         logger.info(
             "Shortlist update: success (user=%s provider=%s)",

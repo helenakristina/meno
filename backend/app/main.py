@@ -12,6 +12,7 @@ from app.exceptions import (
     ValidationError,
     UnauthorizedError,
     PermissionError,
+    DuplicateEntityError,
 )
 
 logging.basicConfig(
@@ -74,6 +75,16 @@ async def permission_error_handler(request: Request, exc: PermissionError):
     return JSONResponse(
         status_code=403,
         content={"detail": "Forbidden"},
+    )
+
+
+@app.exception_handler(DuplicateEntityError)
+async def duplicate_entity_handler(request: Request, exc: DuplicateEntityError):
+    """Convert DuplicateEntityError to 409 response."""
+    logger.info("DuplicateEntityError: %s", exc)
+    return JSONResponse(
+        status_code=409,
+        content={"detail": str(exc)},
     )
 
 

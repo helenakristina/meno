@@ -8,8 +8,9 @@ import logging
 from datetime import datetime, timezone
 from typing import Any, Optional
 
-from fastapi import HTTPException, status
 from supabase import AsyncClient
+
+from app.exceptions import DatabaseError, EntityNotFoundError
 
 from app.models.appointment import (
     AppointmentContext,
@@ -49,7 +50,7 @@ class AppointmentRepository:
             UUID string of the created appointment context.
 
         Raises:
-            HTTPException: 500 if the database insert fails.
+            DatabaseError: If the database insert fails.
         """
         try:
             data = {
@@ -71,20 +72,14 @@ class AppointmentRepository:
                 exc,
                 exc_info=True,
             )
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Failed to create appointment context",
-            )
+            raise DatabaseError(f"Failed to create appointment context: {exc}") from exc
 
         if not response.data or not isinstance(response.data, list):
             logger.error(
                 "Supabase returned no data after appointment context insert for user %s",
                 user_id,
             )
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Failed to create appointment context",
-            )
+            raise DatabaseError("Failed to create appointment context: no data returned")
 
         row = response.data[0]
         context_id: str = row["id"]
@@ -109,8 +104,8 @@ class AppointmentRepository:
             AppointmentContext with the retrieved values.
 
         Raises:
-            HTTPException: 404 if the context doesn't exist or doesn't belong to user.
-            HTTPException: 500 if the database query fails.
+            EntityNotFoundError: If the context doesn't exist or doesn't belong to user.
+            DatabaseError: If the database query fails.
         """
         try:
             response = (
@@ -128,16 +123,10 @@ class AppointmentRepository:
                 exc,
                 exc_info=True,
             )
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Failed to fetch appointment context",
-            )
+            raise DatabaseError(f"Failed to fetch appointment context: {exc}") from exc
 
         if not response.data or not isinstance(response.data, list) or len(response.data) == 0:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Appointment context not found",
-            )
+            raise EntityNotFoundError("Appointment context not found")
 
         row: dict[str, Any] = response.data[0]
         return AppointmentContext(
@@ -166,8 +155,8 @@ class AppointmentRepository:
             UUID string of the output record.
 
         Raises:
-            HTTPException: 404 if appointment context doesn't exist or doesn't belong to user.
-            HTTPException: 500 if the database operation fails.
+            EntityNotFoundError: If appointment context doesn't exist or doesn't belong to user.
+            DatabaseError: If the database operation fails.
         """
         # Verify context exists and belongs to user
         try:
@@ -185,16 +174,10 @@ class AppointmentRepository:
                 exc,
                 exc_info=True,
             )
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Failed to save appointment outputs",
-            )
+            raise DatabaseError(f"Failed to save appointment outputs: {exc}") from exc
 
         if not context_response.data:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Appointment context not found",
-            )
+            raise EntityNotFoundError("Appointment context not found")
 
         # Check if outputs already exist
         try:
@@ -211,10 +194,7 @@ class AppointmentRepository:
                 exc,
                 exc_info=True,
             )
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Failed to save appointment outputs",
-            )
+            raise DatabaseError(f"Failed to save appointment outputs: {exc}") from exc
 
         data: dict[str, Any] = {}
         if provider_summary:
@@ -258,20 +238,14 @@ class AppointmentRepository:
                 exc,
                 exc_info=True,
             )
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Failed to save appointment outputs",
-            )
+            raise DatabaseError(f"Failed to save appointment outputs: {exc}") from exc
 
         if not response.data:
             logger.error(
                 "Supabase returned no data after outputs insert for appointment %s",
                 appointment_id,
             )
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Failed to save appointment outputs",
-            )
+            raise DatabaseError("Failed to save appointment outputs: no data returned")
 
         output_id = response.data[0]["id"]
         logger.info(
@@ -293,7 +267,7 @@ class AppointmentRepository:
             Dict with full appointment prep data (context + outputs), or None if no prep exists.
 
         Raises:
-            HTTPException: 500 if the database query fails.
+            DatabaseError: If the database query fails.
         """
         try:
             response = (
@@ -313,10 +287,7 @@ class AppointmentRepository:
                 exc,
                 exc_info=True,
             )
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Failed to fetch appointment prep",
-            )
+            raise DatabaseError(f"Failed to fetch appointment prep: {exc}") from exc
 
         if not response.data or not isinstance(response.data, list) or len(response.data) == 0:
             return None
@@ -336,8 +307,8 @@ class AppointmentRepository:
             narrative_text: The generated narrative text (markdown).
 
         Raises:
-            HTTPException: 404 if the appointment context doesn't exist or doesn't belong to user.
-            HTTPException: 500 if the database update fails.
+            EntityNotFoundError: If the appointment context doesn't exist or doesn't belong to user.
+            DatabaseError: If the database update fails.
         """
         try:
             response = (
@@ -354,16 +325,10 @@ class AppointmentRepository:
                 exc,
                 exc_info=True,
             )
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Failed to save narrative",
-            )
+            raise DatabaseError(f"Failed to save narrative: {exc}") from exc
 
         if not response.data or not isinstance(response.data, list) or len(response.data) == 0:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Appointment context not found",
-            )
+            raise EntityNotFoundError("Appointment context not found")
 
         logger.info(
             "Narrative saved: appointment_id=%s narrative_length=%d",
@@ -384,8 +349,8 @@ class AppointmentRepository:
             concerns: Ordered list of prioritized concerns.
 
         Raises:
-            HTTPException: 404 if the appointment context doesn't exist or doesn't belong to user.
-            HTTPException: 500 if the database update fails.
+            EntityNotFoundError: If the appointment context doesn't exist or doesn't belong to user.
+            DatabaseError: If the database update fails.
         """
         try:
             response = (
@@ -402,16 +367,10 @@ class AppointmentRepository:
                 exc,
                 exc_info=True,
             )
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Failed to save concerns",
-            )
+            raise DatabaseError(f"Failed to save concerns: {exc}") from exc
 
         if not response.data or not isinstance(response.data, list) or len(response.data) == 0:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Appointment context not found",
-            )
+            raise EntityNotFoundError("Appointment context not found")
 
         logger.info(
             "Concerns saved: appointment_id=%s concerns_count=%d",
@@ -432,8 +391,8 @@ class AppointmentRepository:
             scenarios: List of scenario card dicts with id, title, situation, suggestion, category.
 
         Raises:
-            HTTPException: 404 if the appointment context doesn't exist or doesn't belong to user.
-            HTTPException: 500 if the database update fails.
+            EntityNotFoundError: If the appointment context doesn't exist or doesn't belong to user.
+            DatabaseError: If the database update fails.
         """
         try:
             response = (
@@ -450,16 +409,10 @@ class AppointmentRepository:
                 exc,
                 exc_info=True,
             )
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Failed to save scenarios",
-            )
+            raise DatabaseError(f"Failed to save scenarios: {exc}") from exc
 
         if not response.data or not isinstance(response.data, list) or len(response.data) == 0:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Appointment context not found",
-            )
+            raise EntityNotFoundError("Appointment context not found")
 
         logger.info(
             "Scenarios saved: appointment_id=%s scenarios_count=%d",
@@ -486,7 +439,7 @@ class AppointmentRepository:
             Metadata ID.
 
         Raises:
-            HTTPException: 500 if database operation fails.
+            DatabaseError: If database operation fails.
         """
         try:
             response = (
@@ -502,10 +455,7 @@ class AppointmentRepository:
             )
 
             if not response.data:
-                raise HTTPException(
-                    status_code=500,
-                    detail="Failed to save PDF metadata",
-                )
+                raise DatabaseError("Failed to save PDF metadata: no data returned")
 
             metadata_id = response.data[0].get("id")
             logger.info(
@@ -515,7 +465,7 @@ class AppointmentRepository:
             )
             return metadata_id
 
-        except HTTPException:
+        except DatabaseError:
             raise
         except Exception as exc:
             logger.error(
@@ -523,10 +473,7 @@ class AppointmentRepository:
                 exc,
                 exc_info=True,
             )
-            raise HTTPException(
-                status_code=500,
-                detail="Failed to save PDF metadata",
-            )
+            raise DatabaseError(f"Failed to save PDF metadata: {exc}") from exc
 
     async def get_user_prep_history(
         self,
@@ -545,7 +492,7 @@ class AppointmentRepository:
             Tuple of (list of preps, total count).
 
         Raises:
-            HTTPException: 500 if database operation fails.
+            DatabaseError: If database operation fails.
         """
         try:
             # Get total count
@@ -584,7 +531,4 @@ class AppointmentRepository:
                 exc,
                 exc_info=True,
             )
-            raise HTTPException(
-                status_code=500,
-                detail="Failed to fetch appointment prep history",
-            )
+            raise DatabaseError(f"Failed to fetch appointment prep history: {exc}") from exc

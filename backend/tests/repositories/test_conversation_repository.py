@@ -3,7 +3,7 @@
 import pytest
 from uuid import UUID, uuid4
 from unittest.mock import AsyncMock, MagicMock
-from fastapi import HTTPException
+from app.exceptions import DatabaseError, EntityNotFoundError
 
 from app.repositories.conversation_repository import ConversationRepository
 
@@ -103,11 +103,10 @@ async def test_load_conversation_not_found():
     )
     repo = ConversationRepository(client=mock_client)
 
-    with pytest.raises(HTTPException) as exc_info:
+    with pytest.raises(EntityNotFoundError) as exc_info:
         await repo.load(conversation_id, "user-1")
 
-    assert exc_info.value.status_code == 404
-    assert "Conversation not found" in exc_info.value.detail
+    assert "Conversation not found" in str(exc_info.value)
 
 
 @pytest.mark.asyncio
@@ -124,10 +123,8 @@ async def test_load_conversation_db_error():
 
     repo = ConversationRepository(client=mock_client)
 
-    with pytest.raises(HTTPException) as exc_info:
+    with pytest.raises(DatabaseError):
         await repo.load(conversation_id, "user-1")
-
-    assert exc_info.value.status_code == 500
 
 
 # ---------------------------------------------------------------------------
@@ -201,10 +198,8 @@ async def test_save_conversation_update_fails():
 
     repo = ConversationRepository(client=mock_client)
 
-    with pytest.raises(HTTPException) as exc_info:
+    with pytest.raises(DatabaseError):
         await repo.save(conversation_id, "user-1", [{"role": "user", "content": "test"}])
-
-    assert exc_info.value.status_code == 500
 
 
 @pytest.mark.asyncio
@@ -218,10 +213,8 @@ async def test_save_conversation_create_fails():
 
     repo = ConversationRepository(client=mock_client)
 
-    with pytest.raises(HTTPException) as exc_info:
+    with pytest.raises(DatabaseError):
         await repo.save(None, "user-1", [])
-
-    assert exc_info.value.status_code == 500
 
 
 @pytest.mark.asyncio
@@ -232,10 +225,8 @@ async def test_save_conversation_create_returns_empty():
     )
     repo = ConversationRepository(client=mock_client)
 
-    with pytest.raises(HTTPException) as exc_info:
+    with pytest.raises(DatabaseError):
         await repo.save(None, "user-1", [])
-
-    assert exc_info.value.status_code == 500
 
 
 # ---------------------------------------------------------------------------
@@ -267,10 +258,8 @@ async def test_delete_conversation_not_found():
     )
     repo = ConversationRepository(client=mock_client)
 
-    with pytest.raises(HTTPException) as exc_info:
+    with pytest.raises(EntityNotFoundError):
         await repo.delete(conversation_id, "user-1")
-
-    assert exc_info.value.status_code == 404
 
 
 @pytest.mark.asyncio
@@ -287,10 +276,8 @@ async def test_delete_conversation_db_error():
 
     repo = ConversationRepository(client=mock_client)
 
-    with pytest.raises(HTTPException) as exc_info:
+    with pytest.raises(DatabaseError):
         await repo.delete(conversation_id, "user-1")
-
-    assert exc_info.value.status_code == 500
 
 
 # ---------------------------------------------------------------------------

@@ -355,7 +355,7 @@ class TestSearchProviders:
         finally:
             cleanup()
 
-        assert response.status_code == 400
+        assert response.status_code == 404
         assert "zip_code" in response.json()["detail"]
 
     def test_empty_results_returns_valid_response_shape(self):
@@ -888,8 +888,7 @@ class TestAddToShortlist:
 
         assert response.status_code == 409
         body = response.json()
-        # The existing entry is returned in the body
-        assert body["provider_id"] == "uuid-1"
+        assert "already in shortlist" in body["detail"]
 
     def test_requires_auth(self):
         mock = make_mock_client(data=[])

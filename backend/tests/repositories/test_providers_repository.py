@@ -3,8 +3,8 @@
 import pytest
 from datetime import date
 from unittest.mock import AsyncMock, MagicMock
-from fastapi import HTTPException, status
 
+from app.exceptions import DatabaseError, DuplicateEntityError, EntityNotFoundError, ValidationError
 from app.repositories.providers_repository import ProvidersRepository
 from app.models.providers import (
     ProviderCard,
@@ -59,15 +59,14 @@ def make_sequential_client(*responses):
 
 @pytest.mark.asyncio
 async def test_search_providers_requires_state_or_zip():
-    """Should raise 400 if neither state nor zip_code provided."""
+    """Should raise ValidationError if neither state nor zip_code provided."""
     client = make_sequential_client()
     repo = ProvidersRepository(client)
 
-    with pytest.raises(HTTPException) as exc_info:
+    with pytest.raises(ValidationError) as exc_info:
         await repo.search_providers(state=None, zip_code=None, city=None)
 
-    assert exc_info.value.status_code == status.HTTP_400_BAD_REQUEST
-    assert "Either 'state' or 'zip_code' is required" in exc_info.value.detail
+    assert "Either 'state' or 'zip_code' is required" in str(exc_info.value)
 
 
 @pytest.mark.asyncio
@@ -159,23 +158,22 @@ async def test_search_providers_infer_state_from_zip():
 
 @pytest.mark.asyncio
 async def test_search_providers_zip_not_found():
-    """Should raise 400 if zip_code not found in database."""
+    """Should raise EntityNotFoundError if zip_code not found in database."""
     zip_response = MagicMock()
     zip_response.data = []
 
     client = make_sequential_client(zip_response)
     repo = ProvidersRepository(client)
 
-    with pytest.raises(HTTPException) as exc_info:
+    with pytest.raises(EntityNotFoundError) as exc_info:
         await repo.search_providers(state=None, zip_code="99999")
 
-    assert exc_info.value.status_code == status.HTTP_400_BAD_REQUEST
-    assert "No providers found for zip_code" in exc_info.value.detail
+    assert "No providers found for zip_code" in str(exc_info.value)
 
 
 @pytest.mark.asyncio
 async def test_search_providers_db_error():
-    """Should raise 500 on database errors."""
+    """Should raise DatabaseError on database errors."""
     response = MagicMock()
     response.execute = AsyncMock(side_effect=Exception("DB connection error"))
 
@@ -184,10 +182,8 @@ async def test_search_providers_db_error():
 
     repo = ProvidersRepository(client)
 
-    with pytest.raises(HTTPException) as exc_info:
+    with pytest.raises(DatabaseError):
         await repo.search_providers(state="IL")
-
-    assert exc_info.value.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
 
 
 # ---------------------------------------------------------------------------
@@ -333,7 +329,7 @@ async def test_get_shortlist_empty():
 
 @pytest.mark.asyncio
 async def test_get_shortlist_db_error():
-    """Should raise 500 on database errors."""
+    """Should raise DatabaseError on database errors."""
     response = MagicMock()
     response.execute = AsyncMock(side_effect=Exception("DB error"))
 
@@ -342,10 +338,8 @@ async def test_get_shortlist_db_error():
 
     repo = ProvidersRepository(client)
 
-    with pytest.raises(HTTPException) as exc_info:
+    with pytest.raises(DatabaseError):
         await repo.get_shortlist("user-123")
-
-    assert exc_info.value.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
 
 
 # ---------------------------------------------------------------------------
@@ -392,7 +386,7 @@ async def test_get_shortlist_ids_empty():
 
 @pytest.mark.asyncio
 async def test_add_to_shortlist_creates_new_entry():
-    """Should create new shortlist entry and return 201."""
+    """Should create new shortlist entry and return it directly."""
     existing_response = MagicMock()
     existing_response.data = []
 
@@ -412,16 +406,15 @@ async def test_add_to_shortlist_creates_new_entry():
     client = make_sequential_client(existing_response, insert_response)
     repo = ProvidersRepository(client)
 
-    entry, status_code = await repo.add_to_shortlist("user-123", "p-1")
+    entry = await repo.add_to_shortlist("user-123", "p-1")
 
     assert isinstance(entry, ShortlistEntry)
     assert entry.provider_id == "p-1"
-    assert status_code == 201
 
 
 @pytest.mark.asyncio
-async def test_add_to_shortlist_existing_returns_409():
-    """Should return existing entry with 409 if already in shortlist."""
+async def test_add_to_shortlist_existing_raises_duplicate_error():
+    """Should raise DuplicateEntityError if provider already in shortlist."""
     existing_response = MagicMock()
     existing_response.data = [
         {
@@ -438,11 +431,8 @@ async def test_add_to_shortlist_existing_returns_409():
     client = make_sequential_client(existing_response)
     repo = ProvidersRepository(client)
 
-    entry, status_code = await repo.add_to_shortlist("user-123", "p-1")
-
-    assert isinstance(entry, ShortlistEntry)
-    assert entry.provider_id == "p-1"
-    assert status_code == 409
+    with pytest.raises(DuplicateEntityError):
+        await repo.add_to_shortlist("user-123", "p-1")
 
 
 # ---------------------------------------------------------------------------
@@ -468,18 +458,17 @@ async def test_remove_from_shortlist_success():
 
 @pytest.mark.asyncio
 async def test_remove_from_shortlist_not_found():
-    """Should raise 404 if entry not in shortlist."""
+    """Should raise EntityNotFoundError if entry not in shortlist."""
     check_response = MagicMock()
     check_response.data = []
 
     client = make_sequential_client(check_response)
     repo = ProvidersRepository(client)
 
-    with pytest.raises(HTTPException) as exc_info:
+    with pytest.raises(EntityNotFoundError) as exc_info:
         await repo.remove_from_shortlist("user-123", "p-1")
 
-    assert exc_info.value.status_code == status.HTTP_404_NOT_FOUND
-    assert "not in shortlist" in exc_info.value.detail
+    assert "not in shortlist" in str(exc_info.value)
 
 
 # ---------------------------------------------------------------------------
@@ -566,14 +555,12 @@ async def test_update_shortlist_entry_clears_notes():
 
 @pytest.mark.asyncio
 async def test_update_shortlist_entry_not_found():
-    """Should raise 404 if entry not in shortlist."""
+    """Should raise EntityNotFoundError if entry not in shortlist."""
     check_response = MagicMock()
     check_response.data = []
 
     client = make_sequential_client(check_response)
     repo = ProvidersRepository(client)
 
-    with pytest.raises(HTTPException) as exc_info:
+    with pytest.raises(EntityNotFoundError):
         await repo.update_shortlist_entry("user-123", "p-1", status="called")
-
-    assert exc_info.value.status_code == status.HTTP_404_NOT_FOUND

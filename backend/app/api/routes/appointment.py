@@ -11,6 +11,7 @@ from datetime import datetime, timedelta
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, status
+from app.exceptions import DatabaseError, EntityNotFoundError
 from reportlab.lib.pagesizes import letter
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, PageBreak
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
@@ -177,7 +178,7 @@ async def generate_appointment_narrative(
     # Verify appointment ownership and fetch context
     try:
         context = await appointment_repo.get_context(appointment_id, user_id)
-    except HTTPException:
+    except (EntityNotFoundError, DatabaseError):
         raise
 
     logger.info(
@@ -389,7 +390,7 @@ async def generate_appointment_narrative(
     # Save narrative to database
     try:
         await appointment_repo.save_narrative(appointment_id, user_id, narrative)
-    except HTTPException:
+    except (EntityNotFoundError, DatabaseError):
         raise
     except Exception as exc:
         logger.error(
@@ -454,7 +455,7 @@ async def prioritize_concerns(
     # Verify appointment ownership
     try:
         await appointment_repo.get_context(appointment_id, user_id)
-    except HTTPException:
+    except (EntityNotFoundError, DatabaseError):
         raise
 
     logger.info(
@@ -466,7 +467,7 @@ async def prioritize_concerns(
     # Save concerns
     try:
         await appointment_repo.save_concerns(appointment_id, user_id, payload.concerns)
-    except HTTPException:
+    except (EntityNotFoundError, DatabaseError):
         raise
     except Exception as exc:
         logger.error(
@@ -533,7 +534,7 @@ async def generate_appointment_scenarios(
     # Verify appointment ownership and fetch context
     try:
         context = await appointment_repo.get_context(appointment_id, user_id)
-    except HTTPException:
+    except (EntityNotFoundError, DatabaseError):
         raise
 
     logger.info(
@@ -679,7 +680,7 @@ async def generate_appointment_scenarios(
         await appointment_repo.save_scenarios(
             appointment_id, user_id, scenarios_to_save
         )
-    except HTTPException:
+    except (EntityNotFoundError, DatabaseError):
         raise
     except Exception as exc:
         logger.error(
@@ -749,7 +750,7 @@ async def generate_appointment_outputs(
     # Verify appointment ownership and fetch context
     try:
         context = await appointment_repo.get_context(appointment_id, user_id)
-    except HTTPException:
+    except (EntityNotFoundError, DatabaseError):
         raise
 
     logger.info(
@@ -776,7 +777,7 @@ async def generate_appointment_outputs(
         narrative = context_row.get("narrative", "No narrative available.")
         concerns = context_row.get("concerns", [])
         scenarios_data = context_row.get("scenarios", [])
-    except HTTPException:
+    except (EntityNotFoundError, DatabaseError):
         raise
     except Exception as exc:
         logger.error(
@@ -928,7 +929,7 @@ async def generate_appointment_outputs(
             provider_summary_path=summary_path,
             personal_cheatsheet_path=cheatsheet_path,
         )
-    except HTTPException:
+    except (EntityNotFoundError, DatabaseError):
         raise
     except Exception as exc:
         logger.error(
@@ -1010,7 +1011,7 @@ async def get_appointment_prep_history(
             limit=limit,
             offset=offset,
         )
-    except HTTPException:
+    except (EntityNotFoundError, DatabaseError):
         raise
     except Exception as exc:
         logger.error(

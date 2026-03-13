@@ -3,7 +3,7 @@
 import pytest
 from datetime import date, datetime, timezone
 from unittest.mock import AsyncMock, MagicMock
-from fastapi import HTTPException
+from app.exceptions import DatabaseError, ValidationError
 
 from app.repositories.symptoms_repository import SymptomsRepository
 from app.models.symptoms import SymptomDetail, SymptomLogResponse
@@ -89,11 +89,10 @@ async def test_validate_ids_invalid():
     )
     repo = SymptomsRepository(client=mock_client)
 
-    with pytest.raises(HTTPException) as exc_info:
+    with pytest.raises(ValidationError) as exc_info:
         await repo.validate_ids(["symptom-1", "symptom-999"])
 
-    assert exc_info.value.status_code == 400
-    assert "Invalid symptom IDs" in exc_info.value.detail
+    assert "Invalid symptom IDs" in str(exc_info.value)
 
 
 @pytest.mark.asyncio
@@ -109,10 +108,8 @@ async def test_validate_ids_db_error():
 
     repo = SymptomsRepository(client=mock_client)
 
-    with pytest.raises(HTTPException) as exc_info:
+    with pytest.raises(DatabaseError):
         await repo.validate_ids(["symptom-1"])
-
-    assert exc_info.value.status_code == 500
 
 
 # ---------------------------------------------------------------------------
@@ -268,10 +265,8 @@ async def test_create_log_validation_fails():
     )
     repo = SymptomsRepository(client=mock_client)
 
-    with pytest.raises(HTTPException) as exc_info:
+    with pytest.raises(ValidationError):
         await repo.create_log(user_id="user-1", symptoms=["invalid-id"])
-
-    assert exc_info.value.status_code == 400
 
 
 @pytest.mark.asyncio
@@ -295,10 +290,8 @@ async def test_create_log_insert_fails():
 
     repo = SymptomsRepository(client=mock_client)
 
-    with pytest.raises(HTTPException) as exc_info:
+    with pytest.raises(DatabaseError):
         await repo.create_log(user_id="user-1", symptoms=["symptom-1"])
-
-    assert exc_info.value.status_code == 500
 
 
 @pytest.mark.asyncio
@@ -312,10 +305,8 @@ async def test_create_log_insert_returns_empty():
     )
     repo = SymptomsRepository(client=mock_client)
 
-    with pytest.raises(HTTPException) as exc_info:
+    with pytest.raises(DatabaseError):
         await repo.create_log(user_id="user-1", symptoms=["symptom-1"])
-
-    assert exc_info.value.status_code == 500
 
 
 # ---------------------------------------------------------------------------
@@ -413,10 +404,8 @@ async def test_get_logs_db_error():
 
     repo = SymptomsRepository(client=mock_client)
 
-    with pytest.raises(HTTPException) as exc_info:
+    with pytest.raises(DatabaseError):
         await repo.get_logs(user_id="user-1")
-
-    assert exc_info.value.status_code == 500
 
 
 # ---------------------------------------------------------------------------
@@ -628,10 +617,8 @@ async def test_get_logs_with_reference_logs_query_fails():
 
     repo = SymptomsRepository(client=mock_client)
 
-    with pytest.raises(HTTPException) as exc_info:
+    with pytest.raises(DatabaseError):
         await repo.get_logs_with_reference("user-1")
-
-    assert exc_info.value.status_code == 500
 
 
 @pytest.mark.asyncio
@@ -662,10 +649,8 @@ async def test_get_logs_with_reference_reference_query_fails():
 
     repo = SymptomsRepository(client=mock_client)
 
-    with pytest.raises(HTTPException) as exc_info:
+    with pytest.raises(DatabaseError):
         await repo.get_logs_with_reference("user-1")
-
-    assert exc_info.value.status_code == 500
 
 
 # ---------------------------------------------------------------------------
@@ -742,7 +727,5 @@ async def test_get_logs_for_export_logs_query_fails():
 
     repo = SymptomsRepository(client=mock_client)
 
-    with pytest.raises(HTTPException) as exc_info:
+    with pytest.raises(DatabaseError):
         await repo.get_logs_for_export("user-1", date(2026, 2, 1), date(2026, 2, 28))
-
-    assert exc_info.value.status_code == 500

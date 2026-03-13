@@ -88,3 +88,16 @@ class PermissionError(MenoBaseError):
     """
 
     pass
+
+
+class DuplicateEntityError(MenoBaseError):
+    """Entity already exists (e.g., duplicate shortlist entry, duplicate user).
+
+    Raised when:
+    - Attempting to create a resource that already exists
+    - Unique constraint would be violated
+
+    HTTP Mapping: 409 Conflict
+    """
+
+    pass

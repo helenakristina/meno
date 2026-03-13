@@ -1,7 +1,8 @@
 import logging
 
-from fastapi import HTTPException, status
 from supabase import AsyncClient
+
+from app.exceptions import DatabaseError, ValidationError
 
 logger = logging.getLogger(__name__)
 
@@ -13,8 +14,8 @@ async def validate_symptom_ids(symptom_ids: list[str], client: AsyncClient) -> N
     do not cause a false validation failure.
 
     Raises:
-        HTTPException: 400 if any IDs are absent from symptoms_reference.
-        HTTPException: 500 if the reference table query fails.
+        ValidationError: If any IDs are absent from symptoms_reference.
+        DatabaseError: If the reference table query fails.
     """
     if not symptom_ids:
         return
@@ -30,15 +31,9 @@ async def validate_symptom_ids(symptom_ids: list[str], client: AsyncClient) -> N
         )
     except Exception as exc:
         logger.error("Failed to query symptoms_reference: %s", exc, exc_info=True)
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to validate symptom IDs",
-        )
+        raise DatabaseError(f"Failed to validate symptom IDs: {exc}") from exc
 
     if len(result.data) != len(unique_ids):
         valid_ids = {row["id"] for row in result.data}
         invalid_ids = sorted(set(unique_ids) - valid_ids)
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Invalid symptom IDs: {invalid_ids}",
-        )
+        raise ValidationError(f"Invalid symptom IDs: {invalid_ids}")

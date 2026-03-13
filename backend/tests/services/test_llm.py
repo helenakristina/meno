@@ -326,4 +326,203 @@ class TestLLMServiceInitialization:
         """Test that provider is stored correctly."""
         service = LLMService(provider=mock_provider)
         assert hasattr(service, "provider")
+
+
+class TestLLMServiceGenerateScenarioSuggestions:
+    """Tests for LLMService.generate_scenario_suggestions()."""
+
+    @pytest.mark.asyncio
+    async def test_generate_scenario_suggestions_success(self, service, mock_provider):
+        """Test successful scenario suggestions generation."""
+        mock_response = '[{"scenario_title": "Provider dismisses concerns", "suggestion": "Provide evidence"}]'
+        mock_provider.chat_completion.return_value = mock_response
+
+        scenarios = ["Provider dismisses concerns", "Limited options offered"]
+        concerns = ["Hot flashes", "Sleep disruption"]
+
+        result = await service.generate_scenario_suggestions(
+            scenarios_to_generate=scenarios,
+            concerns=concerns,
+            appointment_type="new_provider",
+            goal="explore_hrt",
+            dismissed_before="once_or_twice",
+            user_age=50,
+        )
+
+        assert result == mock_response
+        mock_provider.chat_completion.assert_called_once()
+        call_args = mock_provider.chat_completion.call_args
+        assert call_args.kwargs["temperature"] == 0.6
+        assert call_args.kwargs["max_tokens"] == 1200
+
+    @pytest.mark.asyncio
+    async def test_generate_scenario_suggestions_without_age(self, service, mock_provider):
+        """Test scenario suggestions without user age."""
+        mock_response = '[{"scenario_title": "Test", "suggestion": "Response"}]'
+        mock_provider.chat_completion.return_value = mock_response
+
+        result = await service.generate_scenario_suggestions(
+            scenarios_to_generate=["Scenario 1"],
+            concerns=["Concern 1"],
+            appointment_type="new_provider",
+            goal="explore_hrt",
+            dismissed_before="no",
+            user_age=None,
+        )
+
+        assert result == mock_response
+        # Should complete successfully with None age (user_prompt doesn't include age)
+        mock_provider.chat_completion.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_generate_scenario_suggestions_multiple_scenarios(self, service, mock_provider):
+        """Test with multiple scenarios."""
+        mock_response = '[{"scenario_title": "A", "suggestion": "X"}, {"scenario_title": "B", "suggestion": "Y"}]'
+        mock_provider.chat_completion.return_value = mock_response
+
+        scenarios = ["Scenario A", "Scenario B", "Scenario C"]
+        result = await service.generate_scenario_suggestions(
+            scenarios_to_generate=scenarios,
+            concerns=["Concern 1", "Concern 2"],
+            appointment_type="established",
+            goal="update_provider",
+            dismissed_before="multiple",
+            user_age=45,
+        )
+
+        assert result == mock_response
+
+    @pytest.mark.asyncio
+    async def test_generate_scenario_suggestions_provider_error(self, service, mock_provider):
+        """Test error handling when provider fails."""
+        mock_provider.chat_completion.side_effect = RuntimeError("LLM API error")
+
+        with pytest.raises(RuntimeError):
+            await service.generate_scenario_suggestions(
+                scenarios_to_generate=["Scenario"],
+                concerns=["Concern"],
+                appointment_type="new_provider",
+                goal="explore_hrt",
+                dismissed_before="no",
+                user_age=50,
+            )
+
+
+class TestLLMServiceGeneratePdfContent:
+    """Tests for LLMService.generate_pdf_content()."""
+
+    @pytest.mark.asyncio
+    async def test_generate_pdf_content_provider_summary(self, service, mock_provider):
+        """Test PDF content generation for provider summary."""
+        mock_response = "# Provider Summary\n\nPatient presents with..."
+        mock_provider.chat_completion.return_value = mock_response
+
+        result = await service.generate_pdf_content(
+            content_type="provider_summary",
+            narrative="Patient has hot flashes occurring daily",
+            concerns=["Hot flashes", "Sleep disruption"],
+            appointment_type="new_provider",
+            goal="explore_hrt",
+            user_age=52,
+        )
+
+        assert result == mock_response
+        call_args = mock_provider.chat_completion.call_args
+        assert "provider_summary" not in call_args.kwargs.get("system_prompt", "").lower()
+        assert "clinical summary" in call_args.kwargs["user_prompt"].lower()
+
+    @pytest.mark.asyncio
+    async def test_generate_pdf_content_personal_cheatsheet(self, service, mock_provider):
+        """Test PDF content generation for personal cheat sheet."""
+        mock_response = "# Your Appointment Cheat Sheet\n\nKey points to discuss..."
+        mock_provider.chat_completion.return_value = mock_response
+
+        scenarios = [
+            {"title": "Provider dismisses", "suggestion": "Use evidence", "sources": []},
+            {"title": "Limited options", "suggestion": "Ask specific questions", "sources": []},
+        ]
+
+        result = await service.generate_pdf_content(
+            content_type="personal_cheatsheet",
+            narrative="You've experienced symptoms for 6 months",
+            concerns=["Brain fog", "Mood changes"],
+            appointment_type="established",
+            goal="assess_status",
+            user_age=48,
+            scenarios=scenarios,
+        )
+
+        assert result == mock_response
+
+    @pytest.mark.asyncio
+    async def test_generate_pdf_content_with_urgent_symptom(self, service, mock_provider):
+        """Test PDF content with urgent symptom specified."""
+        mock_response = "# Provider Summary\n\nUrgent: Heart palpitations"
+        mock_provider.chat_completion.return_value = mock_response
+
+        result = await service.generate_pdf_content(
+            content_type="provider_summary",
+            narrative="Patient reports heart palpitations",
+            concerns=["Heart palpitations"],
+            appointment_type="new_provider",
+            goal="urgent_symptom",
+            user_age=55,
+            urgent_symptom="Heart palpitations",
+        )
+
+        assert result == mock_response
+        call_args = mock_provider.chat_completion.call_args
+        assert "Heart palpitations" in call_args.kwargs["user_prompt"]
+
+    @pytest.mark.asyncio
+    async def test_generate_pdf_content_without_age(self, service, mock_provider):
+        """Test PDF content generation without user age."""
+        mock_response = "# Content"
+        mock_provider.chat_completion.return_value = mock_response
+
+        await service.generate_pdf_content(
+            content_type="provider_summary",
+            narrative="Narrative",
+            concerns=["Concern"],
+            appointment_type="new_provider",
+            goal="explore_hrt",
+            user_age=None,
+        )
+
+        call_args = mock_provider.chat_completion.call_args
+        assert "not specified" in call_args.kwargs["user_prompt"]
+
+    @pytest.mark.asyncio
+    async def test_generate_pdf_content_empty_concerns(self, service, mock_provider):
+        """Test PDF content generation with empty concerns list."""
+        mock_response = "# Content"
+        mock_provider.chat_completion.return_value = mock_response
+
+        await service.generate_pdf_content(
+            content_type="provider_summary",
+            narrative="Narrative",
+            concerns=[],
+            appointment_type="new_provider",
+            goal="explore_hrt",
+            user_age=50,
+        )
+
+        call_args = mock_provider.chat_completion.call_args
+        # Should handle empty concerns gracefully
+        assert "concerns" in call_args.kwargs["user_prompt"].lower()
+
+    @pytest.mark.asyncio
+    async def test_generate_pdf_content_provider_error(self, service, mock_provider):
+        """Test error handling when LLM provider fails."""
+        mock_provider.chat_completion.side_effect = TimeoutError("API timeout")
+
+        with pytest.raises(TimeoutError):
+            await service.generate_pdf_content(
+                content_type="provider_summary",
+                narrative="Narrative",
+                concerns=["Concern"],
+                appointment_type="new_provider",
+                goal="explore_hrt",
+                user_age=50,
+            )
         assert service.provider == mock_provider

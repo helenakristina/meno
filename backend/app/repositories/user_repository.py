@@ -7,9 +7,9 @@ Keeps data access logic out of routes and services.
 import logging
 from typing import Optional
 
-from fastapi import HTTPException, status
 from supabase import AsyncClient
 
+from app.exceptions import DatabaseError, DuplicateEntityError, EntityNotFoundError
 from app.utils.dates import calculate_age
 
 logger = logging.getLogger(__name__)
@@ -41,7 +41,7 @@ class UserRepository:
             if user data is missing or incomplete.
 
         Raises:
-            HTTPException: 500 if database query fails.
+            DatabaseError: If database query fails.
         """
         try:
             response = (
@@ -57,10 +57,7 @@ class UserRepository:
                 exc,
                 exc_info=True,
             )
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Failed to fetch user context",
-            )
+            raise DatabaseError(f"Failed to fetch user context: {exc}") from exc
 
         if not response.data:
             logger.warning("User context not found for user %s", user_id)
@@ -91,8 +88,8 @@ class UserRepository:
             insurance_type, insurance_plan_name, onboarding_completed, created_at).
 
         Raises:
-            HTTPException: 404 if user not found.
-            HTTPException: 500 if database query fails.
+            EntityNotFoundError: If user not found.
+            DatabaseError: If database query fails.
         """
         try:
             response = (
@@ -108,16 +105,10 @@ class UserRepository:
                 exc,
                 exc_info=True,
             )
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Failed to fetch user profile",
-            )
+            raise DatabaseError(f"Failed to fetch user profile: {exc}") from exc
 
         if not response.data:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="User not found",
-            )
+            raise EntityNotFoundError("User not found")
 
         logger.debug("User profile fetched for user %s", user_id)
         return response.data[0]
@@ -133,8 +124,8 @@ class UserRepository:
             Updated user profile dict.
 
         Raises:
-            HTTPException: 404 if user not found.
-            HTTPException: 500 if database update fails.
+            EntityNotFoundError: If user not found.
+            DatabaseError: If database update fails.
         """
         try:
             response = (
@@ -150,16 +141,10 @@ class UserRepository:
                 exc,
                 exc_info=True,
             )
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Failed to update user profile",
-            )
+            raise DatabaseError(f"Failed to update user profile: {exc}") from exc
 
         if not response.data:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="User not found",
-            )
+            raise EntityNotFoundError("User not found")
 
         logger.info("User profile updated for user %s", user_id)
         return response.data[0]
@@ -176,8 +161,8 @@ class UserRepository:
             Created user profile dict.
 
         Raises:
-            HTTPException: 409 if user already exists.
-            HTTPException: 500 if database insert fails.
+            DuplicateEntityError: If user already exists.
+            DatabaseError: If database insert fails.
         """
         try:
             response = (
@@ -200,21 +185,12 @@ class UserRepository:
             )
             # Check if it's a conflict (duplicate) error
             if "duplicate key" in str(exc).lower() or "unique violation" in str(exc).lower():
-                raise HTTPException(
-                    status_code=status.HTTP_409_CONFLICT,
-                    detail="User profile already exists",
-                )
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Failed to create user profile",
-            )
+                raise DuplicateEntityError("User profile already exists") from exc
+            raise DatabaseError(f"Failed to create user profile: {exc}") from exc
 
         if not response.data:
             logger.error("Supabase returned no data after user insert")
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Failed to create user profile",
-            )
+            raise DatabaseError("Failed to create user profile: no data returned")
 
         created = response.data[0]
         logger.info("User profile created: id=%s email=%s", user_id, email)
@@ -230,7 +206,7 @@ class UserRepository:
             User dict or None if not found.
 
         Raises:
-            HTTPException: 500 if database query fails.
+            DatabaseError: If database query fails.
         """
         try:
             response = (
@@ -246,10 +222,7 @@ class UserRepository:
                 exc,
                 exc_info=True,
             )
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Failed to fetch user",
-            )
+            raise DatabaseError(f"Failed to fetch user: {exc}") from exc
 
         if not response.data:
             return None
@@ -263,8 +236,8 @@ class UserRepository:
             user_id: ID of user to delete.
 
         Raises:
-            HTTPException: 404 if user not found.
-            HTTPException: 500 if database delete fails.
+            EntityNotFoundError: If user not found.
+            DatabaseError: If database delete fails.
         """
         try:
             response = (
@@ -280,15 +253,9 @@ class UserRepository:
                 exc,
                 exc_info=True,
             )
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Failed to delete user",
-            )
+            raise DatabaseError(f"Failed to delete user: {exc}") from exc
 
         if not response.data:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="User not found",
-            )
+            raise EntityNotFoundError("User not found")
 
         logger.info("User deleted: id=%s", user_id)

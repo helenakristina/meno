@@ -3,7 +3,7 @@
 import pytest
 from datetime import date
 from unittest.mock import AsyncMock, MagicMock
-from fastapi import HTTPException
+from app.exceptions import DatabaseError, DuplicateEntityError, EntityNotFoundError
 
 from app.repositories.user_repository import UserRepository
 
@@ -146,11 +146,10 @@ async def test_get_context_db_error():
 
     repo = UserRepository(client=mock_client)
 
-    with pytest.raises(HTTPException) as exc_info:
+    with pytest.raises(DatabaseError) as exc_info:
         await repo.get_context("user-123")
 
-    assert exc_info.value.status_code == 500
-    assert "Failed to fetch user context" in exc_info.value.detail
+    assert "Failed to fetch user context" in str(exc_info.value)
 
 
 # ============================================================================
@@ -186,11 +185,10 @@ async def test_get_profile_not_found():
     mock_client = make_sequential_client(MagicMock(data=[]))
     repo = UserRepository(client=mock_client)
 
-    with pytest.raises(HTTPException) as exc_info:
+    with pytest.raises(EntityNotFoundError) as exc_info:
         await repo.get_profile("nonexistent-user")
 
-    assert exc_info.value.status_code == 404
-    assert "User not found" in exc_info.value.detail
+    assert "User not found" in str(exc_info.value)
 
 
 @pytest.mark.asyncio
@@ -205,11 +203,10 @@ async def test_get_profile_db_error():
 
     repo = UserRepository(client=mock_client)
 
-    with pytest.raises(HTTPException) as exc_info:
+    with pytest.raises(DatabaseError) as exc_info:
         await repo.get_profile("user-123")
 
-    assert exc_info.value.status_code == 500
-    assert "Failed to fetch user profile" in exc_info.value.detail
+    assert "Failed to fetch user profile" in str(exc_info.value)
 
 
 # ============================================================================
@@ -244,14 +241,13 @@ async def test_update_profile_not_found():
     mock_client = make_sequential_client(MagicMock(data=[]))
     repo = UserRepository(client=mock_client)
 
-    with pytest.raises(HTTPException) as exc_info:
+    with pytest.raises(EntityNotFoundError) as exc_info:
         await repo.update_profile(
             "nonexistent-user",
             {"insurance_type": "private"},
         )
 
-    assert exc_info.value.status_code == 404
-    assert "User not found" in exc_info.value.detail
+    assert "User not found" in str(exc_info.value)
 
 
 @pytest.mark.asyncio
@@ -266,14 +262,13 @@ async def test_update_profile_db_error():
 
     repo = UserRepository(client=mock_client)
 
-    with pytest.raises(HTTPException) as exc_info:
+    with pytest.raises(DatabaseError) as exc_info:
         await repo.update_profile(
             "user-123",
             {"insurance_type": "private"},
         )
 
-    assert exc_info.value.status_code == 500
-    assert "Failed to update user profile" in exc_info.value.detail
+    assert "Failed to update user profile" in str(exc_info.value)
 
 
 # ============================================================================
@@ -323,15 +318,14 @@ async def test_create_duplicate_conflict():
 
     repo = UserRepository(client=mock_client)
 
-    with pytest.raises(HTTPException) as exc_info:
+    with pytest.raises(DuplicateEntityError) as exc_info:
         await repo.create(
             user_id="user-123",
             email="jane@example.com",
             data={"date_of_birth": "1975-03-15"},
         )
 
-    assert exc_info.value.status_code == 409
-    assert "already exists" in exc_info.value.detail
+    assert "already exists" in str(exc_info.value)
 
 
 @pytest.mark.asyncio
@@ -345,15 +339,14 @@ async def test_create_db_error():
 
     repo = UserRepository(client=mock_client)
 
-    with pytest.raises(HTTPException) as exc_info:
+    with pytest.raises(DatabaseError) as exc_info:
         await repo.create(
             user_id="user-123",
             email="jane@example.com",
             data={"date_of_birth": "1975-03-15"},
         )
 
-    assert exc_info.value.status_code == 500
-    assert "Failed to create user profile" in exc_info.value.detail
+    assert "Failed to create user profile" in str(exc_info.value)
 
 
 @pytest.mark.asyncio
@@ -362,14 +355,12 @@ async def test_create_no_data_returned():
     mock_client = make_sequential_client(MagicMock(data=[]))
     repo = UserRepository(client=mock_client)
 
-    with pytest.raises(HTTPException) as exc_info:
+    with pytest.raises(DatabaseError):
         await repo.create(
             user_id="user-123",
             email="jane@example.com",
             data={"date_of_birth": "1975-03-15"},
         )
-
-    assert exc_info.value.status_code == 500
 
 
 # ============================================================================
@@ -416,10 +407,8 @@ async def test_get_db_error():
 
     repo = UserRepository(client=mock_client)
 
-    with pytest.raises(HTTPException) as exc_info:
+    with pytest.raises(DatabaseError):
         await repo.get("user-123")
-
-    assert exc_info.value.status_code == 500
 
 
 # ============================================================================
@@ -444,11 +433,10 @@ async def test_delete_not_found():
     mock_client = make_sequential_client(MagicMock(data=[]))
     repo = UserRepository(client=mock_client)
 
-    with pytest.raises(HTTPException) as exc_info:
+    with pytest.raises(EntityNotFoundError) as exc_info:
         await repo.delete("nonexistent-user")
 
-    assert exc_info.value.status_code == 404
-    assert "User not found" in exc_info.value.detail
+    assert "User not found" in str(exc_info.value)
 
 
 @pytest.mark.asyncio
@@ -463,11 +451,10 @@ async def test_delete_db_error():
 
     repo = UserRepository(client=mock_client)
 
-    with pytest.raises(HTTPException) as exc_info:
+    with pytest.raises(DatabaseError) as exc_info:
         await repo.delete("user-123")
 
-    assert exc_info.value.status_code == 500
-    assert "Failed to delete user" in exc_info.value.detail
+    assert "Failed to delete user" in str(exc_info.value)
 
 
 # ============================================================================
