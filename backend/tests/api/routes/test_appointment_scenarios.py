@@ -12,7 +12,12 @@ from pathlib import Path
 app_path = Path(__file__).parent.parent.parent.parent / "app"
 sys.path.insert(0, str(app_path.parent))
 
-from app.api.routes.appointment import _select_scenarios, _get_scenario_category
+from app.services.appointment import AppointmentService
+
+# Create a minimal service instance to access private helpers under test
+_svc = AppointmentService.__new__(AppointmentService)
+_select_scenarios = _svc._select_scenarios
+_get_scenario_category = _svc._get_scenario_category
 from app.models.appointment import (
     AppointmentContext,
     AppointmentType,

@@ -11,12 +11,14 @@ from app.repositories.symptoms_repository import SymptomsRepository
 from app.repositories.conversation_repository import ConversationRepository
 from app.repositories.providers_repository import ProvidersRepository
 from app.repositories.appointment_repository import AppointmentRepository
+from app.rag.retrieval import retrieve_relevant_chunks
 from app.services.llm import LLMService
 from app.services.llm_base import LLMProvider
 from app.services.openai_provider import OpenAIProvider
 from app.services.citations import CitationService
 from app.services.storage import StorageService
-from app.services.chat import ChatService
+from app.services.appointment import AppointmentService
+from app.services.ask_meno import AskMenoService
 
 logger = logging.getLogger(__name__)
 
@@ -187,13 +189,44 @@ def get_storage_service(client: AsyncClient = Depends(get_client)) -> StorageSer
     return StorageService(client=client)
 
 
-def get_chat_service(symptoms_repo: SymptomsRepository = Depends(get_symptoms_repo)) -> ChatService:
-    """Dependency for ChatService.
-
-    Args:
-        symptoms_repo: SymptomsRepository for accessing symptom logs.
+def get_appointment_service(
+    appointment_repo: AppointmentRepository = Depends(get_appointment_repo),
+    symptoms_repo: SymptomsRepository = Depends(get_symptoms_repo),
+    user_repo: UserRepository = Depends(get_user_repo),
+    llm_service: LLMService = Depends(get_llm_service),
+    storage_service: StorageService = Depends(get_storage_service),
+) -> AppointmentService:
+    """Dependency for AppointmentService.
 
     Returns:
-        ChatService instance for chat features (prompts, etc.).
+        AppointmentService with all dependencies injected.
     """
-    return ChatService(symptoms_repo=symptoms_repo)
+    return AppointmentService(
+        appointment_repo=appointment_repo,
+        symptoms_repo=symptoms_repo,
+        user_repo=user_repo,
+        llm_service=llm_service,
+        storage_service=storage_service,
+    )
+
+
+def get_ask_meno_service(
+    user_repo: UserRepository = Depends(get_user_repo),
+    symptoms_repo: SymptomsRepository = Depends(get_symptoms_repo),
+    conversation_repo: ConversationRepository = Depends(get_conversation_repo),
+    llm_service: LLMService = Depends(get_llm_service),
+    citation_service: CitationService = Depends(get_citation_service),
+) -> AskMenoService:
+    """Dependency for AskMenoService.
+
+    Returns:
+        AskMenoService with all dependencies injected.
+    """
+    return AskMenoService(
+        user_repo=user_repo,
+        symptoms_repo=symptoms_repo,
+        conversation_repo=conversation_repo,
+        llm_service=llm_service,
+        citation_service=citation_service,
+        rag_retriever=retrieve_relevant_chunks,
+    )

@@ -475,6 +475,119 @@ class AppointmentRepository:
             )
             raise DatabaseError(f"Failed to save PDF metadata: {exc}") from exc
 
+    async def get_symptom_reference(self, symptom_ids: list[str]) -> dict[str, dict]:
+        """Fetch symptom reference data for a set of IDs.
+
+        Used by narrative generation to look up symptom names and categories
+        for stat calculations.
+
+        Args:
+            symptom_ids: List of symptom UUIDs to look up.
+
+        Returns:
+            Dict mapping symptom_id → {"name": str, "category": str}.
+            Empty dict if symptom_ids is empty.
+
+        Raises:
+            DatabaseError: If the database query fails.
+        """
+        if not symptom_ids:
+            return {}
+        try:
+            response = (
+                await self.client.table("symptoms_reference")
+                .select("id, name, category")
+                .in_("id", symptom_ids)
+                .execute()
+            )
+            return {
+                row["id"]: {"name": row["name"], "category": row["category"]}
+                for row in (response.data or [])
+            }
+        except Exception as exc:
+            logger.error("Failed to fetch symptom reference: %s", exc, exc_info=True)
+            raise DatabaseError(f"Failed to fetch symptom reference: {exc}") from exc
+
+    async def get_concerns(self, appointment_id: str, user_id: str) -> list[str]:
+        """Fetch prioritized concerns from appointment context.
+
+        Returns the concerns list saved in Step 3. Returns empty list if
+        concerns haven't been saved yet (Step 3 not completed).
+
+        Args:
+            appointment_id: ID of the appointment context.
+            user_id: ID of the user (for ownership verification).
+
+        Returns:
+            List of concern strings, or empty list if not set.
+
+        Raises:
+            DatabaseError: If the database query fails.
+        """
+        try:
+            response = (
+                await self.client.table("appointment_prep_contexts")
+                .select("concerns")
+                .eq("id", appointment_id)
+                .eq("user_id", user_id)
+                .execute()
+            )
+            if response.data and len(response.data) > 0:
+                data = response.data[0]
+                if isinstance(data, dict):
+                    concerns = data.get("concerns")
+                    if isinstance(concerns, list):
+                        return concerns
+            return []
+        except Exception as exc:
+            logger.error(
+                "Failed to fetch concerns for appointment %s: %s",
+                appointment_id,
+                exc,
+                exc_info=True,
+            )
+            raise DatabaseError(f"Failed to fetch concerns: {exc}") from exc
+
+    async def get_appointment_data(
+        self, appointment_id: str, user_id: str
+    ) -> dict[str, Any]:
+        """Fetch narrative, concerns, and scenarios from appointment context.
+
+        Used by PDF generation (Step 5) to retrieve all data from earlier steps.
+
+        Args:
+            appointment_id: ID of the appointment context.
+            user_id: ID of the user (for ownership verification).
+
+        Returns:
+            Dict with keys: narrative, concerns, scenarios.
+
+        Raises:
+            EntityNotFoundError: If the appointment context doesn't exist or doesn't belong to user.
+            DatabaseError: If the database query fails.
+        """
+        try:
+            response = (
+                await self.client.table("appointment_prep_contexts")
+                .select("narrative, concerns, scenarios")
+                .eq("id", appointment_id)
+                .eq("user_id", user_id)
+                .execute()
+            )
+        except Exception as exc:
+            logger.error(
+                "Failed to fetch appointment data for %s: %s",
+                appointment_id,
+                exc,
+                exc_info=True,
+            )
+            raise DatabaseError(f"Failed to fetch appointment data: {exc}") from exc
+
+        if not response.data or not isinstance(response.data, list) or len(response.data) == 0:
+            raise EntityNotFoundError("Appointment context not found")
+
+        return response.data[0]
+
     async def get_user_prep_history(
         self,
         user_id: str,
