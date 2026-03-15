@@ -56,6 +56,22 @@ logger = logging.getLogger(__name__)
 
 _EMBEDDING_MODEL = "text-embedding-3-small"
 
+# ---------------------------------------------------------------------------
+# Relevance threshold: chunks with semantic similarity below this value are
+# excluded from results, even if they rank in the top-k. This prevents
+# marginally related documents from being sent to the LLM, which reduces
+# the risk of the LLM mis-citing a source that covers a related but
+# different topic.
+#
+# Tuning guidance:
+#   - Log similarity scores for a week and review misattributed citations.
+#   - Good matches typically score 0.35+; marginal matches fall 0.20-0.35.
+#   - Start conservative (0.25) and raise toward 0.30-0.35 as you collect data.
+#   - Setting this too high will result in many queries returning no sources,
+#     which triggers the "I don't have enough information" fallback.
+# ---------------------------------------------------------------------------
+_MIN_SIMILARITY = 0.25
+
 
 def _openai_client() -> AsyncOpenAI:
     return AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
@@ -91,14 +107,62 @@ def _parse_embedding(raw: object) -> list[float] | None:
     return None
 
 
-_STOPWORDS = frozenset({
-    "a", "an", "the", "and", "or", "but", "in", "on", "at", "to", "for",
-    "of", "with", "is", "are", "was", "were", "be", "been", "being",
-    "have", "has", "had", "do", "does", "did", "will", "would", "can",
-    "could", "should", "may", "might", "that", "this", "it", "its",
-    "i", "my", "me", "we", "our", "you", "your", "they", "their",
-    "what", "how", "when", "where", "which", "who",
-})
+_STOPWORDS = frozenset(
+    {
+        "a",
+        "an",
+        "the",
+        "and",
+        "or",
+        "but",
+        "in",
+        "on",
+        "at",
+        "to",
+        "for",
+        "of",
+        "with",
+        "is",
+        "are",
+        "was",
+        "were",
+        "be",
+        "been",
+        "being",
+        "have",
+        "has",
+        "had",
+        "do",
+        "does",
+        "did",
+        "will",
+        "would",
+        "can",
+        "could",
+        "should",
+        "may",
+        "might",
+        "that",
+        "this",
+        "it",
+        "its",
+        "i",
+        "my",
+        "me",
+        "we",
+        "our",
+        "you",
+        "your",
+        "they",
+        "their",
+        "what",
+        "how",
+        "when",
+        "where",
+        "which",
+        "who",
+    }
+)
 
 
 def _keyword_score(query: str, content: str) -> float:
@@ -113,7 +177,11 @@ def _keyword_score(query: str, content: str) -> float:
         Higher values indicate more keyword matches.
     """
     # Extract query tokens: at least 3 chars, not stopwords
-    tokens = [t for t in re.split(r'\W+', query.lower()) if len(t) >= 3 and t not in _STOPWORDS]
+    tokens = [
+        t
+        for t in re.split(r"\W+", query.lower())
+        if len(t) >= 3 and t not in _STOPWORDS
+    ]
     if not tokens:
         return 0.0
 
@@ -162,9 +230,8 @@ def _reciprocal_rank_fusion(
 
     def rrf_score(doc_id: str) -> float:
         """Calculate RRF score for a document."""
-        return (
-            1.0 / (k + sem_rank.get(doc_id, sem_worst))
-            + 1.0 / (k + kw_rank.get(doc_id, kw_worst))
+        return 1.0 / (k + sem_rank.get(doc_id, sem_worst)) + 1.0 / (
+            k + kw_rank.get(doc_id, kw_worst)
         )
 
     # Score and sort all documents by RRF score (descending)
@@ -180,6 +247,7 @@ def _reciprocal_rank_fusion(
 async def retrieve_relevant_chunks(
     query: str,
     top_k: int = 5,
+    min_similarity: float = _MIN_SIMILARITY,
 ) -> list[dict]:
     """Find the most relevant knowledge base chunks for a user query.
 
@@ -187,14 +255,18 @@ async def retrieve_relevant_chunks(
     Embeds query with OpenAI, fetches all documents, computes semantic similarity
     and keyword scores in Python, combines via RRF, and returns top-k results.
 
+    Chunks with a semantic similarity below min_similarity are excluded to
+    prevent marginally related documents from being cited by the LLM.
+
     Args:
         query: User's natural language question.
-        top_k: Number of chunks to return (default 5).
+        top_k: Maximum number of chunks to return (default 5).
+        min_similarity: Minimum cosine similarity to include a chunk (default 0.25).
 
     Returns:
         List of dicts with keys: id, content, title, source_url, source_type,
         section_name, similarity (semantic), hybrid_score (combined). Empty list
-        if no documents are stored.
+        if no documents meet the relevance threshold.
     """
     openai = _openai_client()
 
@@ -202,7 +274,9 @@ async def retrieve_relevant_chunks(
     try:
         response = await openai.embeddings.create(model=_EMBEDDING_MODEL, input=query)
     except Exception:
-        logger.exception("RAG: OpenAI embedding call failed for query: '%s'", query[:100])
+        logger.exception(
+            "RAG: OpenAI embedding call failed for query: '%s'", query[:100]
+        )
         raise
     query_embedding: list[float] = response.data[0].embedding
     logger.debug("RAG: Embedding generated, dimensions=%d", len(query_embedding))
@@ -211,9 +285,13 @@ async def retrieve_relevant_chunks(
     logger.info("RAG: Fetching documents from rag_documents table")
     supabase = await get_client()
     try:
-        result = await supabase.table("rag_documents").select(
-            "id, content, title, source_url, source_type, section_name, embedding"
-        ).execute()
+        result = (
+            await supabase.table("rag_documents")
+            .select(
+                "id, content, title, source_url, source_type, section_name, embedding"
+            )
+            .execute()
+        )
     except Exception:
         logger.exception("RAG: Supabase table fetch failed (rag_documents)")
         raise
@@ -251,7 +329,9 @@ async def retrieve_relevant_chunks(
         )
 
     if skipped:
-        logger.warning("RAG: Skipped %d documents with missing/unparseable embeddings", skipped)
+        logger.warning(
+            "RAG: Skipped %d documents with missing/unparseable embeddings", skipped
+        )
 
     # Rank by semantic similarity
     semantic_ranked = sorted(scored, key=lambda x: x["similarity"], reverse=True)
@@ -261,11 +341,48 @@ async def retrieve_relevant_chunks(
 
     # Combine via Reciprocal Rank Fusion (hybrid search)
     combined = _reciprocal_rank_fusion(semantic_ranked, keyword_ranked)
-    chunks = combined[:top_k]
+
+    # --- Diagnostic logging for all top-k candidates (before filtering) ---
+    # This helps tune the similarity threshold: compare scores for chunks
+    # that were correctly vs. incorrectly cited in LLM responses.
+    for i, c in enumerate(combined[:top_k]):
+        logger.info(
+            "RAG candidate #%d: title='%s' similarity=%.4f keyword=%.4f hybrid=%.4f",
+            i + 1,
+            c.get("title", "untitled")[:80],
+            c.get("similarity", 0.0),
+            c.get("keyword_score", 0.0),
+            c.get("hybrid_score", 0.0),
+        )
+
+    # --- Filter by minimum semantic similarity ---
+    # Only keep chunks that meet the relevance threshold. This is the key
+    # defense against sending marginally related documents to the LLM,
+    # which causes misattributed citations.
+    before_filter = combined[:top_k]
+    chunks = [c for c in before_filter if c["similarity"] >= min_similarity]
+
+    filtered_out = len(before_filter) - len(chunks)
+    if filtered_out > 0:
+        logger.info(
+            "RAG: Filtered out %d chunks below similarity threshold %.3f",
+            filtered_out,
+            min_similarity,
+        )
+        for c in before_filter:
+            if c["similarity"] < min_similarity:
+                logger.info(
+                    "RAG: Filtered out: title='%s' similarity=%.4f (below %.3f)",
+                    c.get("title", "untitled")[:80],
+                    c.get("similarity", 0.0),
+                    min_similarity,
+                )
 
     if not chunks:
         logger.warning(
-            "RAG: Hybrid search yielded 0 chunks for query '%s'", query[:100]
+            "RAG: No chunks met similarity threshold %.3f for query '%s'",
+            min_similarity,
+            query[:100],
         )
     else:
         logger.info(

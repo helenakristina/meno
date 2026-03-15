@@ -32,7 +32,7 @@ class OpenAIProvider(LLMProvider):
                 Load from environment variables (OPENAI_API_KEY).
         """
         self.client = AsyncOpenAI(api_key=api_key)
-        self.model = "gpt-4o-mini"  # Cost-effective for development
+        self.model = "gpt-4o"  # Cost-effective for development
 
     @retry_transient(max_attempts=3, initial_wait=1, max_wait=10)
     async def chat_completion(
@@ -184,7 +184,9 @@ class OpenAIProvider(LLMProvider):
 
             # Extract token usage
             prompt_tokens = response.usage.prompt_tokens if response.usage else 0
-            completion_tokens = response.usage.completion_tokens if response.usage else 0
+            completion_tokens = (
+                response.usage.completion_tokens if response.usage else 0
+            )
 
             logger.info(
                 "OpenAI response: model=%s prompt_tokens=%d completion_tokens=%d",

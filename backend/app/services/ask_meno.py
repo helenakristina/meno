@@ -124,7 +124,9 @@ class AskMenoService:
         # Load existing conversation messages (for storage continuity — not sent to LLM)
         existing_messages: list[dict] = []
         if conversation_id is not None:
-            existing_messages = await self.conversation_repo.load(conversation_id, user_id)
+            existing_messages = await self.conversation_repo.load(
+                conversation_id, user_id
+            )
 
         # RAG retrieval
         logger.info(
@@ -204,10 +206,28 @@ class AskMenoService:
         )
 
         # Sanitize phantom citations and renumber valid ones
-        logger.debug("Before sanitization, response length: %d chars", safe_len(response_text))
-        sanitize_result = self.citation_service.sanitize_and_renumber(response_text, len(chunks))
+        logger.debug(
+            "Before sanitization, response length: %d chars", safe_len(response_text)
+        )
+        sanitize_result = self.citation_service.sanitize_and_renumber(
+            response_text, len(chunks)
+        )
         response_text = sanitize_result.text
-        logger.debug("After sanitization, response length: %d chars", safe_len(response_text))
+        logger.debug(
+            "After sanitization, response length: %d chars", safe_len(response_text)
+        )
+
+        # Verify citation relevance: strip citations where the claim doesn't
+        # match the cited source's content (catches LLM misattribution)
+        response_text, stripped = self.citation_service.verify_citations(
+            response_text, chunks
+        )
+        if stripped:
+            logger.warning(
+                "Citation relevance check stripped %d citations for user=%s",
+                len(stripped),
+                hash_user_id(user_id),
+            )
 
         # Extract citations with section context
         citations: list[Citation] = self.citation_service.extract(response_text, chunks)
@@ -224,7 +244,9 @@ class AskMenoService:
 
         # Build updated messages list for storage
         user_msg = ChatMessage(role="user", content=message)
-        assistant_msg = ChatMessage(role="assistant", content=response_text, citations=citations)
+        assistant_msg = ChatMessage(
+            role="assistant", content=response_text, citations=citations
+        )
         updated_messages = existing_messages + [
             user_msg.model_dump(),
             assistant_msg.model_dump(),
@@ -333,7 +355,11 @@ class AskMenoService:
                 if len(final_prompts) >= max_prompts:
                     break
 
-            logger.info(safe_summary("get suggested prompts", "success", count=len(final_prompts)))
+            logger.info(
+                safe_summary(
+                    "get suggested prompts", "success", count=len(final_prompts)
+                )
+            )
 
             return {"prompts": final_prompts}
 
