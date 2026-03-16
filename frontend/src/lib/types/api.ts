@@ -339,18 +339,37 @@ export interface ApiEndpoints {
 
   '/api/export/csv': {
     request: {
-      start_date?: string;
-      end_date?: string;
+      date_range_start: string;
+      date_range_end: string;
     };
-    response: Blob; // CSV file
+    response: {
+      signed_url: string;
+      filename: string;
+      export_type: string;
+    };
   };
 
   '/api/export/pdf': {
     request: {
-      start_date?: string;
-      end_date?: string;
+      date_range_start: string;
+      date_range_end: string;
     };
-    response: Blob; // PDF file
+    response: {
+      signed_url: string;
+      filename: string;
+      export_type: string;
+    };
+  };
+
+  '/api/export/history': {
+    request: never;
+    response: {
+      exports: Array<Record<string, unknown>>;
+      total: number;
+      has_more: boolean;
+      limit: number;
+      offset: number;
+    };
   };
 }
 

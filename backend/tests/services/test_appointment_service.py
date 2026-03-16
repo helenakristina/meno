@@ -100,12 +100,20 @@ def mock_storage_service():
 
 
 @pytest.fixture
+def mock_pdf_service():
+    mock = MagicMock()
+    mock.markdown_to_pdf.return_value = b"%PDF-mock"
+    return mock
+
+
+@pytest.fixture
 def service(
     mock_appointment_repo,
     mock_symptoms_repo,
     mock_user_repo,
     mock_llm_service,
     mock_storage_service,
+    mock_pdf_service,
 ):
     return AppointmentService(
         appointment_repo=mock_appointment_repo,
@@ -113,6 +121,7 @@ def service(
         user_repo=mock_user_repo,
         llm_service=mock_llm_service,
         storage_service=mock_storage_service,
+        pdf_service=mock_pdf_service,
     )
 
 

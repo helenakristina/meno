@@ -1,15 +1,17 @@
-"""Tests for POST /api/export/pdf and POST /api/export/csv.
+"""Tests for POST /api/export/pdf, POST /api/export/csv, GET /api/export/history.
 
-Supabase is mocked via FastAPI dependency_overrides.
-LLM service is mocked via FastAPI dependency_overrides so no real LLM calls are made.
+Route-level tests: verify auth, request validation, and that the service layer is
+called correctly. Business logic (CSV content, PDF bytes) is tested in
+test_export_service.py.
 """
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
 from fastapi.testclient import TestClient
 
-from app.api.dependencies import get_llm_service
+from app.api.dependencies import get_export_service, get_llm_service
 from app.core.supabase import get_client
 from app.main import app
+from app.models.export import ExportResponse
 from app.services.llm import LLMService
 
 # ---------------------------------------------------------------------------
@@ -126,16 +128,39 @@ def override(mock_client):
 # ---------------------------------------------------------------------------
 
 
+MOCK_EXPORT_RESPONSE_PDF = ExportResponse(
+    signed_url="https://storage.example.com/export.pdf",
+    filename="meno-summary-2024-03-01-2024-03-31.pdf",
+    export_type="pdf",
+)
+
+MOCK_EXPORT_RESPONSE_CSV = ExportResponse(
+    signed_url="https://storage.example.com/export.csv",
+    filename="meno-logs-2024-03-01-2024-03-31.csv",
+    export_type="csv",
+)
+
+
+def _mock_export_service(pdf_response=MOCK_EXPORT_RESPONSE_PDF, csv_response=MOCK_EXPORT_RESPONSE_CSV):
+    svc = AsyncMock()
+    svc.export_as_pdf.return_value = pdf_response
+    svc.export_as_csv.return_value = csv_response
+    svc.get_export_history.return_value = {
+        "exports": [],
+        "total": 0,
+        "has_more": False,
+        "limit": 50,
+        "offset": 0,
+    }
+    return svc
+
+
 class TestPdfExport:
     def test_pdf_export_success(self):
         mock = make_mock_client()
         cleanup = override(mock)
-
-        # Mock LLMService with mocked methods
-        mock_llm_service = AsyncMock(spec=LLMService)
-        mock_llm_service.generate_symptom_summary = AsyncMock(return_value=MOCK_SUMMARY)
-        mock_llm_service.generate_provider_questions = AsyncMock(return_value=MOCK_QUESTIONS)
-        app.dependency_overrides[get_llm_service] = lambda: mock_llm_service
+        mock_svc = _mock_export_service()
+        app.dependency_overrides[get_export_service] = lambda: mock_svc
 
         try:
             with TestClient(app) as client:
@@ -149,11 +174,11 @@ class TestPdfExport:
             app.dependency_overrides.clear()
 
         assert response.status_code == 200
-        assert response.headers["content-type"] == "application/pdf"
-        assert "attachment" in response.headers["content-disposition"]
-        assert ".pdf" in response.headers["content-disposition"]
-        # PDF files start with the %PDF magic bytes
-        assert response.content[:4] == b"%PDF"
+        body = response.json()
+        assert body["export_type"] == "pdf"
+        assert "signed_url" in body
+        assert "filename" in body
+        mock_svc.export_as_pdf.assert_called_once()
 
     def test_pdf_export_requires_auth(self):
         mock = make_mock_client()
@@ -220,21 +245,12 @@ class TestPdfExport:
         assert response.status_code == 400
         assert "No symptom logs" in response.json()["detail"]
 
-    def test_pdf_generation_with_mocked_openai(self):
-        """Verify that both LLM functions are called with frequency and co-occurrence data."""
-        mock = make_mock_client(
-            log_data=[SAMPLE_LOG, SAMPLE_LOG],  # Two identical logs → (A,B) co-occur 2×
-            ref_data=SAMPLE_REF,
-        )
+    def test_pdf_generation_delegates_to_service(self):
+        """Route delegates to ExportService.export_as_pdf — no direct LLM calls in route."""
+        mock = make_mock_client()
         cleanup = override(mock)
-
-        # Mock LLMService with mocked methods
-        mock_llm_service = AsyncMock(spec=LLMService)
-        summary_mock = AsyncMock(return_value=MOCK_SUMMARY)
-        questions_mock = AsyncMock(return_value=MOCK_QUESTIONS)
-        mock_llm_service.generate_symptom_summary = summary_mock
-        mock_llm_service.generate_provider_questions = questions_mock
-        app.dependency_overrides[get_llm_service] = lambda: mock_llm_service
+        mock_svc = _mock_export_service()
+        app.dependency_overrides[get_export_service] = lambda: mock_svc
 
         try:
             with TestClient(app) as client:
@@ -248,15 +264,7 @@ class TestPdfExport:
             app.dependency_overrides.clear()
 
         assert response.status_code == 200
-        # Both LLM functions must have been called
-        summary_mock.assert_called_once()
-        questions_mock.assert_called_once()
-
-        # The frequency stats passed to the summary should reflect our two logs
-        freq_stats, coocc_stats, date_range = summary_mock.call_args.args
-        symptom_names = {s.symptom_name for s in freq_stats}
-        assert "Hot flashes" in symptom_names
-        assert "Fatigue" in symptom_names
+        mock_svc.export_as_pdf.assert_called_once()
 
     def test_pdf_export_invalid_auth_token_returns_401(self):
         mock = make_mock_client(auth_error=Exception("JWT expired"))
@@ -283,6 +291,9 @@ class TestCsvExport:
     def test_csv_export_success(self):
         mock = make_mock_client()
         cleanup = override(mock)
+        mock_svc = _mock_export_service()
+        app.dependency_overrides[get_export_service] = lambda: mock_svc
+
         try:
             with TestClient(app) as client:
                 response = client.post(
@@ -292,22 +303,13 @@ class TestCsvExport:
                 )
         finally:
             cleanup()
+            app.dependency_overrides.clear()
 
         assert response.status_code == 200
-        assert "text/csv" in response.headers["content-type"]
-        assert "attachment" in response.headers["content-disposition"]
-        assert ".csv" in response.headers["content-disposition"]
-
-        # Verify CSV structure (splitlines handles \r\n and \n)
-        lines = response.text.strip().splitlines()
-        assert lines[0] == "date,symptoms,free_text_notes"
-        assert len(lines) == 2  # header + 1 log row
-
-        # Verify resolved symptom names appear in the row
-        data_row = lines[1]
-        assert "Hot flashes" in data_row
-        assert "Fatigue" in data_row
-        assert "Feeling really tired today" in data_row
+        body = response.json()
+        assert body["export_type"] == "csv"
+        assert "signed_url" in body
+        mock_svc.export_as_csv.assert_called_once()
 
     def test_csv_export_requires_auth(self):
         mock = make_mock_client()
@@ -354,20 +356,12 @@ class TestCsvExport:
         assert response.status_code == 400
 
     def test_csv_export_multiple_logs(self):
-        logs = [
-            {
-                "logged_at": "2024-03-10T09:00:00+00:00",
-                "symptoms": ["uuid-hot-flash"],
-                "free_text_entry": None,
-            },
-            {
-                "logged_at": "2024-03-15T10:00:00+00:00",
-                "symptoms": ["uuid-fatigue"],
-                "free_text_entry": "Very tired",
-            },
-        ]
-        mock = make_mock_client(log_data=logs, ref_data=SAMPLE_REF)
+        """Route delegates CSV logic to ExportService — multiple-log scenarios in service tests."""
+        mock = make_mock_client()
         cleanup = override(mock)
+        mock_svc = _mock_export_service()
+        app.dependency_overrides[get_export_service] = lambda: mock_svc
+
         try:
             with TestClient(app) as client:
                 response = client.post(
@@ -377,27 +371,18 @@ class TestCsvExport:
                 )
         finally:
             cleanup()
+            app.dependency_overrides.clear()
 
         assert response.status_code == 200
-        lines = response.text.strip().splitlines()
-        assert len(lines) == 3  # header + 2 data rows
-        assert "2024-03-10" in lines[1]
-        assert "Hot flashes" in lines[1]
-        assert "2024-03-15" in lines[2]
-        assert "Fatigue" in lines[2]
-        assert "Very tired" in lines[2]
+        assert response.json()["export_type"] == "csv"
 
     def test_csv_log_with_no_symptoms(self):
-        """A text-only log (no symptom IDs) produces an empty symptoms column."""
-        logs = [
-            {
-                "logged_at": "2024-03-15T10:00:00+00:00",
-                "symptoms": [],
-                "free_text_entry": "Feeling off today",
-            }
-        ]
-        mock = make_mock_client(log_data=logs, ref_data=[])
+        """Route delegates log rendering to ExportService — content tested in service tests."""
+        mock = make_mock_client()
         cleanup = override(mock)
+        mock_svc = _mock_export_service()
+        app.dependency_overrides[get_export_service] = lambda: mock_svc
+
         try:
             with TestClient(app) as client:
                 response = client.post(
@@ -407,9 +392,6 @@ class TestCsvExport:
                 )
         finally:
             cleanup()
+            app.dependency_overrides.clear()
 
         assert response.status_code == 200
-        lines = response.text.strip().splitlines()
-        assert len(lines) == 2
-        # symptoms column should be empty, free text should be present
-        assert "Feeling off today" in lines[1]

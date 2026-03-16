@@ -6,19 +6,22 @@ from supabase import AsyncClient
 
 from app.core.config import settings
 from app.core.supabase import get_client
-from app.repositories.user_repository import UserRepository
-from app.repositories.symptoms_repository import SymptomsRepository
-from app.repositories.conversation_repository import ConversationRepository
-from app.repositories.providers_repository import ProvidersRepository
 from app.repositories.appointment_repository import AppointmentRepository
+from app.repositories.conversation_repository import ConversationRepository
+from app.repositories.export_repository import ExportRepository
+from app.repositories.providers_repository import ProvidersRepository
+from app.repositories.symptoms_repository import SymptomsRepository
+from app.repositories.user_repository import UserRepository
 from app.rag.retrieval import retrieve_relevant_chunks
+from app.services.appointment import AppointmentService
+from app.services.ask_meno import AskMenoService
+from app.services.citations import CitationService
+from app.services.export import ExportService
 from app.services.llm import LLMService
 from app.services.llm_base import LLMProvider
 from app.services.openai_provider import OpenAIProvider
-from app.services.citations import CitationService
+from app.services.pdf import PdfService
 from app.services.storage import StorageService
-from app.services.appointment import AppointmentService
-from app.services.ask_meno import AskMenoService
 
 logger = logging.getLogger(__name__)
 
@@ -189,12 +192,23 @@ def get_storage_service(client: AsyncClient = Depends(get_client)) -> StorageSer
     return StorageService(client=client)
 
 
+def get_export_repo(client: AsyncClient = Depends(get_client)) -> ExportRepository:
+    """Dependency for ExportRepository."""
+    return ExportRepository(client=client)
+
+
+def get_pdf_service() -> PdfService:
+    """Dependency for PdfService."""
+    return PdfService()
+
+
 def get_appointment_service(
     appointment_repo: AppointmentRepository = Depends(get_appointment_repo),
     symptoms_repo: SymptomsRepository = Depends(get_symptoms_repo),
     user_repo: UserRepository = Depends(get_user_repo),
     llm_service: LLMService = Depends(get_llm_service),
     storage_service: StorageService = Depends(get_storage_service),
+    pdf_service: PdfService = Depends(get_pdf_service),
 ) -> AppointmentService:
     """Dependency for AppointmentService.
 
@@ -207,6 +221,28 @@ def get_appointment_service(
         user_repo=user_repo,
         llm_service=llm_service,
         storage_service=storage_service,
+        pdf_service=pdf_service,
+    )
+
+
+def get_export_service(
+    symptoms_repo: SymptomsRepository = Depends(get_symptoms_repo),
+    export_repo: ExportRepository = Depends(get_export_repo),
+    pdf_service: PdfService = Depends(get_pdf_service),
+    storage_service: StorageService = Depends(get_storage_service),
+    llm_service: LLMService = Depends(get_llm_service),
+) -> ExportService:
+    """Dependency for ExportService.
+
+    Returns:
+        ExportService with all dependencies injected.
+    """
+    return ExportService(
+        symptoms_repo=symptoms_repo,
+        export_repo=export_repo,
+        pdf_service=pdf_service,
+        storage_service=storage_service,
+        llm_service=llm_service,
     )
 
 

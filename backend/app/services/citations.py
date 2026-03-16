@@ -533,7 +533,9 @@ class CitationService:
                     heading_line = section_parts[0]
                     bullet_lines = "\n".join(f"- {c}" for c in section_parts[1:])
                     rendered_parts.append(
-                        f"{heading_line}\n{bullet_lines}" if bullet_lines else heading_line
+                        f"{heading_line}\n{bullet_lines}"
+                        if bullet_lines
+                        else heading_line
                     )
                 else:
                     # No heading — each claim as its own bullet

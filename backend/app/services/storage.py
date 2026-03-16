@@ -73,6 +73,62 @@ class StorageService:
             )
             raise RuntimeError(f"Failed to upload PDF: {exc}") from exc
 
+    async def upload_file(
+        self,
+        bucket: str,
+        path: str,
+        content: bytes,
+        content_type: str,
+        signed_url_expires: int = 3600,
+    ) -> str:
+        """Upload any file to Supabase Storage and return a signed URL.
+
+        Generic version of upload_pdf() that accepts any content type.
+
+        Args:
+            bucket: Storage bucket name.
+            path: File path within the bucket.
+            content: File content as bytes.
+            content_type: MIME type (e.g. "text/csv", "application/pdf").
+            signed_url_expires: Seconds until the signed URL expires (default 3600).
+
+        Returns:
+            Signed URL to the uploaded file (time-limited).
+
+        Raises:
+            RuntimeError: If the upload or URL generation fails.
+        """
+        try:
+            await self.client.storage.from_(bucket).upload(
+                path=path,
+                file=content,
+                file_options={"content-type": content_type, "upsert": "true"},
+            )
+            logger.info(
+                "File uploaded: bucket=%s path=%s size=%d bytes content_type=%s",
+                bucket,
+                path,
+                len(content),
+                content_type,
+            )
+
+            signed = await self.client.storage.from_(bucket).create_signed_url(
+                path, signed_url_expires
+            )
+            signed_url: str = signed["signedURL"]
+            logger.info("Signed URL created (expires %ds): %s", signed_url_expires, signed_url)
+            return signed_url
+
+        except Exception as exc:
+            logger.error(
+                "Failed to upload file: bucket=%s path=%s error=%s",
+                bucket,
+                path,
+                exc,
+                exc_info=True,
+            )
+            raise RuntimeError(f"Failed to upload file: {exc}") from exc
+
     async def create_signed_url(
         self,
         bucket: str,

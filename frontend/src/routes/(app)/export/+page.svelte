@@ -69,6 +69,13 @@
 		URL.revokeObjectURL(url);
 	}
 
+	async function downloadFromSignedUrl(signedUrl: string, filename: string) {
+		const res = await fetch(signedUrl);
+		if (!res.ok) throw new Error('Failed to fetch file from storage');
+		const blob = await res.blob();
+		triggerDownload(blob, filename);
+	}
+
 	async function downloadPdf() {
 		if (!isValid || pdfLoading) return;
 		pdfLoading = true;
@@ -76,16 +83,13 @@
 		successMessage = '';
 
 		try {
-			const blob = await apiClient.post<Blob>(
+			const result = await apiClient.post(
 				'/api/export/pdf',
-				{ date_range_start: startDate, date_range_end: endDate },
-				{ responseType: 'blob' }
+				{ date_range_start: startDate, date_range_end: endDate }
 			);
-			triggerDownload(blob, `meno-report-${startDate}-to-${endDate}.pdf`);
+			await downloadFromSignedUrl(result.signed_url, `meno-report-${startDate}-to-${endDate}.pdf`);
 			successMessage = `PDF downloaded for ${dateRangeDisplay}`;
-			setTimeout(() => {
-				successMessage = '';
-			}, 3000);
+			setTimeout(() => { successMessage = ''; }, 3000);
 		} catch (e) {
 			pdfError = e instanceof Error ? e.message : 'Failed to generate PDF. Please try again.';
 		} finally {
@@ -100,16 +104,13 @@
 		successMessage = '';
 
 		try {
-			const blob = await apiClient.post<Blob>(
+			const result = await apiClient.post(
 				'/api/export/csv',
-				{ date_range_start: startDate, date_range_end: endDate },
-				{ responseType: 'blob' }
+				{ date_range_start: startDate, date_range_end: endDate }
 			);
-			triggerDownload(blob, `meno-report-${startDate}-to-${endDate}.csv`);
+			await downloadFromSignedUrl(result.signed_url, `meno-report-${startDate}-to-${endDate}.csv`);
 			successMessage = `CSV downloaded for ${dateRangeDisplay}`;
-			setTimeout(() => {
-				successMessage = '';
-			}, 3000);
+			setTimeout(() => { successMessage = ''; }, 3000);
 		} catch (e) {
 			csvError = e instanceof Error ? e.message : 'Failed to export CSV. Please try again.';
 		} finally {

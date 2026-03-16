@@ -321,8 +321,8 @@ class LLMService:
             f"- Be specific to the dismissal\n"
             f"- Don't apologize or minimize her concerns\n"
             f"- Don't invent sources\n\n"
-            f"Return ONLY valid JSON with one object per scenario, no markdown or explanation:\n"
-            f"[{{\"scenario_title\": \"...\", \"suggestion\": \"...\", \"sources\": []}}]"
+            f"Return ONLY valid JSON with this exact structure, no markdown or explanation:\n"
+            f"{{\"scenarios\": [{{\"scenario_title\": \"...\", \"suggestion\": \"...\", \"sources\": []}}]}}"
         )
 
         logger.info(
@@ -335,6 +335,7 @@ class LLMService:
             user_prompt=user_prompt,
             max_tokens=1200,
             temperature=0.6,
+            response_format="json",
         )
 
         logger.info("Scenario suggestions generated: %d characters", len(raw))

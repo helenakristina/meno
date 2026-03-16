@@ -10,16 +10,8 @@ Routes become thin wrappers that call one method and return the result.
 
 import json
 import logging
-import re
 from datetime import datetime, timedelta
-from io import BytesIO
 from typing import Any
-
-from reportlab.lib.colors import HexColor
-from reportlab.lib.pagesizes import letter
-from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
-from reportlab.lib.units import inch
-from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer
 
 from app.exceptions import DatabaseError, EntityNotFoundError
 from app.models.appointment import (
@@ -33,6 +25,7 @@ from app.repositories.appointment_repository import AppointmentRepository
 from app.repositories.symptoms_repository import SymptomsRepository
 from app.repositories.user_repository import UserRepository
 from app.services.llm import LLMService
+from app.services.pdf import PdfService
 from app.services.storage import StorageService
 from app.utils.logging import hash_user_id, safe_len
 from app.utils.stats import calculate_cooccurrence_stats, calculate_frequency_stats
@@ -55,12 +48,14 @@ class AppointmentService:
         user_repo: UserRepository,
         llm_service: LLMService,
         storage_service: StorageService,
+        pdf_service: PdfService,
     ):
         self.appointment_repo = appointment_repo
         self.symptoms_repo = symptoms_repo
         self.user_repo = user_repo
         self.llm_service = llm_service
         self.storage_service = storage_service
+        self.pdf_service = pdf_service
 
     # -------------------------------------------------------------------------
     # Step 2: Generate narrative
@@ -309,9 +304,14 @@ class AppointmentService:
 
         # Parse JSON response
         try:
-            suggestions_list = json.loads(raw_suggestions)
-            if not isinstance(suggestions_list, list):
-                suggestions_list = [suggestions_list]
+            parsed = json.loads(raw_suggestions)
+            # Unwrap {"scenarios": [...]} wrapper (JSON mode returns objects, not arrays)
+            if isinstance(parsed, dict) and "scenarios" in parsed:
+                suggestions_list = parsed["scenarios"]
+            elif isinstance(parsed, list):
+                suggestions_list = parsed
+            else:
+                suggestions_list = [parsed]
         except json.JSONDecodeError:
             logger.error(
                 "Failed to parse LLM response as JSON: response_len=%d",
@@ -488,8 +488,12 @@ class AppointmentService:
 
         # Convert markdown to PDFs
         try:
-            provider_summary_pdf = _markdown_to_pdf(provider_summary_md, title="Provider Summary")
-            cheatsheet_pdf = _markdown_to_pdf(cheatsheet_md, title="Personal Cheat Sheet")
+            provider_summary_pdf = self.pdf_service.markdown_to_pdf(
+                provider_summary_md, title="Provider Summary"
+            )
+            cheatsheet_pdf = self.pdf_service.markdown_to_pdf(
+                cheatsheet_md, title="Personal Cheat Sheet"
+            )
         except Exception as exc:
             logger.error("Failed to convert markdown to PDF: %s", exc, exc_info=True)
             raise DatabaseError(f"Failed to generate PDF: {exc}") from exc
@@ -766,133 +770,3 @@ class AppointmentService:
             return "general"
 
 
-# -------------------------------------------------------------------------
-# PDF rendering helpers (module-level — no state needed)
-# -------------------------------------------------------------------------
-
-
-def _inline_md(text: str) -> str:
-    """Convert inline markdown to reportlab XML tags.
-
-    Handles bold-italic, bold, italic, and inline code.
-    """
-    text = re.sub(r"\*{3}(.+?)\*{3}", r"<b><i>\1</i></b>", text)
-    text = re.sub(r"_{3}(.+?)_{3}", r"<b><i>\1</i></b>", text)
-    text = re.sub(r"\*{2}(.+?)\*{2}", r"<b>\1</b>", text)
-    text = re.sub(r"_{2}(.+?)_{2}", r"<b>\1</b>", text)
-    text = re.sub(r"\*(.+?)\*", r"<i>\1</i>", text)
-    text = re.sub(r"_(.+?)_", r"<i>\1</i>", text)
-    text = re.sub(r"`(.+?)`", r'<font face="Courier">\1</font>', text)
-    return text
-
-
-def _markdown_to_pdf(markdown_text: str, title: str = "") -> bytes:
-    """Convert markdown text to PDF bytes using reportlab.
-
-    Handles headings (h1–h4), bullet lists, numbered lists, paragraphs,
-    and inline formatting (bold, italic, bold-italic, inline code).
-    """
-    buffer = BytesIO()
-    doc = SimpleDocTemplate(
-        buffer,
-        pagesize=letter,
-        rightMargin=0.75 * inch,
-        leftMargin=0.75 * inch,
-        topMargin=0.75 * inch,
-        bottomMargin=0.75 * inch,
-    )
-
-    styles = getSampleStyleSheet()
-
-    title_style = ParagraphStyle(
-        "DocTitle",
-        parent=styles["Heading1"],
-        fontSize=18,
-        textColor=HexColor("#1f2937"),
-        spaceAfter=12,
-        alignment=1,
-    )
-    h1_style = ParagraphStyle(
-        "H1",
-        parent=styles["Heading1"],
-        fontSize=16,
-        textColor=HexColor("#1f2937"),
-        spaceBefore=10,
-        spaceAfter=6,
-    )
-    h2_style = ParagraphStyle(
-        "H2",
-        parent=styles["Heading2"],
-        fontSize=13,
-        textColor=HexColor("#374151"),
-        spaceBefore=8,
-        spaceAfter=4,
-    )
-    h3_style = ParagraphStyle(
-        "H3",
-        parent=styles["Heading3"],
-        fontSize=11,
-        textColor=HexColor("#374151"),
-        spaceBefore=6,
-        spaceAfter=3,
-    )
-    body_style = ParagraphStyle(
-        "Body",
-        parent=styles["Normal"],
-        fontSize=10,
-        leading=15,
-        spaceAfter=4,
-    )
-    bullet_style = ParagraphStyle(
-        "Bullet",
-        parent=styles["Normal"],
-        fontSize=10,
-        leading=15,
-        leftIndent=20,
-        spaceAfter=2,
-    )
-    numbered_style = ParagraphStyle(
-        "Numbered",
-        parent=styles["Normal"],
-        fontSize=10,
-        leading=15,
-        leftIndent=20,
-        spaceAfter=2,
-    )
-
-    story = []
-
-    if title:
-        story.append(Paragraph(title, title_style))
-        story.append(Spacer(1, 0.2 * inch))
-
-    for line in markdown_text.split("\n"):
-        stripped = line.strip()
-
-        if not stripped:
-            story.append(Spacer(1, 0.06 * inch))
-        elif stripped.startswith("#### "):
-            story.append(Paragraph(_inline_md(stripped[5:]), h3_style))
-        elif stripped.startswith("### "):
-            story.append(Paragraph(_inline_md(stripped[4:]), h3_style))
-        elif stripped.startswith("## "):
-            story.append(Paragraph(_inline_md(stripped[3:]), h2_style))
-        elif stripped.startswith("# "):
-            story.append(Paragraph(_inline_md(stripped[2:]), h1_style))
-        elif stripped.startswith("- ") or stripped.startswith("* "):
-            story.append(Paragraph(f"• {_inline_md(stripped[2:])}", bullet_style))
-        elif re.match(r"^\d+\. ", stripped):
-            m = re.match(r"^(\d+)\. (.+)", stripped)
-            if m:
-                story.append(
-                    Paragraph(f"{m.group(1)}. {_inline_md(m.group(2))}", numbered_style)
-                )
-        elif stripped in ("---", "***", "___"):
-            story.append(Spacer(1, 0.08 * inch))
-        else:
-            story.append(Paragraph(_inline_md(stripped), body_style))
-
-    doc.build(story)
-    pdf_bytes = buffer.getvalue()
-    buffer.close()
-    return pdf_bytes
