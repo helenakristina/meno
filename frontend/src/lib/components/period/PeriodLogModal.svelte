@@ -53,7 +53,7 @@
 	$effect(() => {
 		if (open) {
 			startDate = date ? dateValueToString(date) : '';
-			endDate = existingLog?.period_end ?? '';
+			endDate = existingLog?.period_end ?? startDate; // default to start month so picker opens there
 			flowLevel = (existingLog?.flow_level as FlowLevel) ?? '';
 			notes = existingLog?.notes ?? '';
 			error = null;
