@@ -20,13 +20,14 @@
 	let { lines = 3, variant = 'text', height } = $props<Props>();
 
 	// Determine height based on variant
-	const heightClass =
+	const heightClass = $derived(
 		height ||
 		{
 			text: 'h-4',
 			title: 'h-6',
 			card: 'h-32',
-		}[variant];
+		}[variant]
+	);
 </script>
 
 <div class="space-y-2">
@@ -34,17 +35,17 @@
 		{#if variant === 'card'}
 			<!-- Card skeleton -->
 			<div class="space-y-3 rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
-				<div class="h-6 w-2/3 animate-pulse rounded bg-slate-200" />
+				<div class="h-6 w-2/3 animate-pulse rounded bg-slate-200"></div>
 				<div class="space-y-2">
-					<div class="h-4 animate-pulse rounded bg-slate-100" />
-					<div class="h-4 w-5/6 animate-pulse rounded bg-slate-100" />
+					<div class="h-4 animate-pulse rounded bg-slate-100"></div>
+					<div class="h-4 w-5/6 animate-pulse rounded bg-slate-100"></div>
 				</div>
 			</div>
 		{:else}
 			<!-- Text/title skeleton -->
 			<div
 				class="animate-pulse rounded {heightClass} {variant === 'title' ? 'bg-slate-200' : 'bg-slate-100'}"
-			/>
+			></div>
 		{/if}
 	{/each}
 </div>
