@@ -334,6 +334,81 @@ export interface ApiEndpoints {
   };
 
   // ========================================================================
+  // User Settings Endpoints
+  // ========================================================================
+
+  '/api/users/settings': {
+    request: {
+      period_tracking_enabled?: boolean;
+      has_uterus?: boolean | null;
+      journey_stage?: 'perimenopause' | 'menopause' | 'post-menopause' | 'unsure';
+    };
+    response: {
+      period_tracking_enabled: boolean;
+      has_uterus: boolean | null;
+      journey_stage: string | null;
+    };
+  };
+
+  // ========================================================================
+  // Period Tracking Endpoints
+  // ========================================================================
+
+  '/api/period/logs': {
+    request: {
+      period_start: string;
+      period_end?: string;
+      flow_level?: 'spotting' | 'light' | 'medium' | 'heavy';
+      notes?: string;
+    };
+    response: {
+      log: {
+        id: string;
+        user_id: string;
+        period_start: string;
+        period_end: string | null;
+        flow_level: 'spotting' | 'light' | 'medium' | 'heavy' | null;
+        notes: string | null;
+        cycle_length: number | null;
+        created_at: string;
+      };
+      bleeding_alert: boolean;
+    };
+  };
+
+  '/api/period/logs/list': {
+    request: {
+      start_date?: string;
+      end_date?: string;
+    };
+    response: {
+      logs: Array<{
+        id: string;
+        user_id: string;
+        period_start: string;
+        period_end: string | null;
+        flow_level: 'spotting' | 'light' | 'medium' | 'heavy' | null;
+        notes: string | null;
+        cycle_length: number | null;
+        created_at: string;
+      }>;
+      total: number;
+    };
+  };
+
+  '/api/period/analysis': {
+    request: never;
+    response: {
+      average_cycle_length: number | null;
+      cycle_variability: number | null;
+      months_since_last_period: number | null;
+      inferred_stage: string | null;
+      has_sufficient_data: boolean;
+      calculated_at: string | null;
+    };
+  };
+
+  // ========================================================================
   // Export Endpoints
   // ========================================================================
 
