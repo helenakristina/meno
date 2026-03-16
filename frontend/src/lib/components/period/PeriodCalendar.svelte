@@ -97,7 +97,7 @@
 			<Calendar.Grid class="w-full border-collapse">
 				<Calendar.GridHead>
 					<Calendar.GridRow class="flex">
-						{#each weekdays as day (day)}
+						{#each weekdays as day, i (i)}
 							<Calendar.HeadCell
 								class="flex-1 py-1 text-center text-xs font-medium text-slate-400"
 							>

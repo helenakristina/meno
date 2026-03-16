@@ -376,26 +376,6 @@ export interface ApiEndpoints {
     };
   };
 
-  '/api/period/logs/list': {
-    request: {
-      start_date?: string;
-      end_date?: string;
-    };
-    response: {
-      logs: Array<{
-        id: string;
-        user_id: string;
-        period_start: string;
-        period_end: string | null;
-        flow_level: 'spotting' | 'light' | 'medium' | 'heavy' | null;
-        notes: string | null;
-        cycle_length: number | null;
-        created_at: string;
-      }>;
-      total: number;
-    };
-  };
-
   '/api/period/analysis': {
     request: never;
     response: {

@@ -56,7 +56,7 @@
 		try {
 			const [settingsRes, logsRes, analysisRes] = await Promise.all([
 				apiClient.get('/api/users/settings'),
-				apiClient.get('/api/period/logs/list'),
+				apiClient.get<{ logs: PeriodLog[]; total: number }>('/api/period/logs'),
 				apiClient.get('/api/period/analysis')
 			]);
 
