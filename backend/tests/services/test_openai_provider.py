@@ -119,7 +119,7 @@ class TestOpenAIProviderChatCompletion:
         )
 
         call_args = mock_openai_client.chat.completions.create.call_args
-        assert call_args.kwargs["model"] == "gpt-4o-mini"
+        assert call_args.kwargs["model"] == "gpt-4o"
 
     @pytest.mark.asyncio
     async def test_chat_completion_with_custom_tokens_and_temperature(
@@ -328,7 +328,7 @@ class TestOpenAIProviderChatCompletion:
     @pytest.mark.asyncio
     async def test_chat_completion_model_field_is_set(self, provider):
         """Test that provider.model field is set correctly."""
-        assert provider.model == "gpt-4o-mini"
+        assert provider.model == "gpt-4o"
 
     @pytest.mark.asyncio
     async def test_chat_completion_client_field_is_set(self, provider):

@@ -4,6 +4,7 @@ Tests ask(), get_suggested_prompts(), list_conversations(), get_conversation(),
 and delete_conversation() in isolation — all dependencies are mocked.
 """
 
+import json
 from datetime import datetime, timezone
 from unittest.mock import AsyncMock, MagicMock
 from uuid import UUID
@@ -31,7 +32,20 @@ SAMPLE_CHUNKS = [
     }
 ]
 
-LLM_RESPONSE = "Hot flashes are common during perimenopause [Source 1]."
+# The final rendered response text (after citation rendering)
+LLM_RESPONSE = "Hot flashes are common during perimenopause. [Source 1]"
+
+# The raw JSON string returned by the LLM (structured output mode)
+LLM_RAW_JSON = json.dumps({
+    "sections": [
+        {
+            "heading": None,
+            "claims": [{"text": "Hot flashes are common during perimenopause.", "source_indices": [1]}],
+        }
+    ],
+    "disclaimer": None,
+    "insufficient_sources": False,
+})
 
 
 # ---------------------------------------------------------------------------
@@ -64,7 +78,7 @@ def mock_conversation_repo():
 @pytest.fixture
 def mock_llm_service():
     provider = AsyncMock()
-    provider.chat_completion.return_value = LLM_RESPONSE
+    provider.chat_completion.return_value = LLM_RAW_JSON
     service = MagicMock()
     service.provider = provider
     return service
@@ -73,17 +87,20 @@ def mock_llm_service():
 @pytest.fixture
 def mock_citation_service():
     svc = MagicMock()
+    # Structured path (primary)
+    _citation = Citation(
+        url="https://menopausewiki.ca/hot-flashes",
+        title="Perimenopause Overview",
+        section="Vasomotor Symptoms",
+        source_index=1,
+    )
+    svc.render_structured_response.return_value = (LLM_RESPONSE, [_citation])
+    # Fallback free-text path
     sanitize_result = MagicMock()
     sanitize_result.text = LLM_RESPONSE
     svc.sanitize_and_renumber.return_value = sanitize_result
-    svc.extract.return_value = [
-        Citation(
-            url="https://menopausewiki.ca/hot-flashes",
-            title="Perimenopause Overview",
-            section="Vasomotor Symptoms",
-            source_index=1,
-        )
-    ]
+    svc.verify_citations.return_value = (LLM_RESPONSE, [])
+    svc.extract.return_value = [_citation]
     return svc
 
 
@@ -183,8 +200,8 @@ async def test_ask_deduplicates_chunks(service, mock_rag_retriever, mock_citatio
 
     await service.ask(USER_ID, "Tell me about symptoms")
 
-    # citation_service.extract should receive 2 unique chunks, not 3
-    call_args = mock_citation_service.extract.call_args[0]
+    # render_structured_response should receive 2 unique chunks (deduped from 3)
+    call_args = mock_citation_service.render_structured_response.call_args[0]
     assert len(call_args[1]) == 2
 
 

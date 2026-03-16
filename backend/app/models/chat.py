@@ -5,6 +5,28 @@ from datetime import datetime
 from pydantic import BaseModel, Field
 
 
+class StructuredClaim(BaseModel):
+    """A single claim or statement in the LLM response."""
+
+    text: str
+    source_indices: list[int] = Field(default_factory=list)
+
+
+class StructuredSection(BaseModel):
+    """A logical section of the response (e.g., a paragraph or list item)."""
+
+    heading: str | None = None
+    claims: list[StructuredClaim] = Field(default_factory=list)
+
+
+class StructuredLLMResponse(BaseModel):
+    """The complete structured response from the LLM."""
+
+    sections: list[StructuredSection] = Field(default_factory=list)
+    disclaimer: str | None = None
+    insufficient_sources: bool = False
+
+
 class Citation(BaseModel):
     url: str
     title: str

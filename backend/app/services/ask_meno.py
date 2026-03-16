@@ -19,6 +19,8 @@ from typing import Callable, Optional
 from urllib.parse import urlparse
 from uuid import UUID
 
+from pydantic import ValidationError
+
 from app.exceptions import DatabaseError
 from app.models.chat import (
     ChatMessage,
@@ -27,6 +29,9 @@ from app.models.chat import (
     ConversationListResponse,
     ConversationMessagesResponse,
     ConversationSummary,
+    StructuredClaim,
+    StructuredLLMResponse,
+    StructuredSection,
 )
 from app.repositories.conversation_repository import ConversationRepository
 from app.repositories.symptoms_repository import SymptomsRepository
@@ -183,11 +188,14 @@ class AskMenoService:
             journey_stage, age, symptom_summary, chunks
         )
 
-        # Call LLM
+        # Call LLM (JSON mode, lower temperature for source faithfulness)
         try:
             response_text = await self.llm_service.provider.chat_completion(
                 system_prompt=system_prompt,
                 user_prompt=message,
+                response_format="json",
+                temperature=0.3,
+                max_tokens=1500,
             )
         except Exception as exc:
             logger.error(
@@ -205,42 +213,61 @@ class AskMenoService:
             safe_len(response_text),
         )
 
-        # Sanitize phantom citations and renumber valid ones
-        logger.debug(
-            "Before sanitization, response length: %d chars", safe_len(response_text)
-        )
-        sanitize_result = self.citation_service.sanitize_and_renumber(
-            response_text, len(chunks)
-        )
-        response_text = sanitize_result.text
-        logger.debug(
-            "After sanitization, response length: %d chars", safe_len(response_text)
-        )
+        # Parse structured JSON response and render with verified citations
+        try:
+            raw_response = json.loads(response_text)
 
-        # Verify citation relevance: strip citations where the claim doesn't
-        # match the cited source's content (catches LLM misattribution)
-        response_text, stripped = self.citation_service.verify_citations(
-            response_text, chunks
-        )
-        if stripped:
-            logger.warning(
-                "Citation relevance check stripped %d citations for user=%s",
-                len(stripped),
+            # Log the raw structured response for debugging citation issues
+            logger.info(
+                "Raw structured LLM response for user=%s: %s",
                 hash_user_id(user_id),
+                json.dumps(raw_response, indent=None)[:2000],
             )
 
-        # Extract citations with section context
-        citations: list[Citation] = self.citation_service.extract(response_text, chunks)
-        logger.info("Extracted %d valid citations from response", len(citations))
+            structured = StructuredLLMResponse(**raw_response)
+            response_text, citations = self.citation_service.render_structured_response(
+                structured, chunks
+            )
 
-        # Debug: log citation pattern counts
-        all_citation_refs = re.findall(r"\[Source (\d+)\]|\[(\d+)\]", response_text)
-        citation_nums = [int(m[0] or m[1]) for m in all_citation_refs]
-        logger.info(
-            "Citation patterns in text: %d patterns, numbers: %s",
-            len(citation_nums),
-            sorted(set(citation_nums)) if citation_nums else "none",
-        )
+            # Log the final rendered text so we can verify no stray markers
+            logger.info(
+                "Rendered text for user=%s: %s",
+                hash_user_id(user_id),
+                response_text[:500],
+            )
+            logger.info(
+                "Structured response rendered: %d citation(s) for user=%s",
+                len(citations),
+                hash_user_id(user_id),
+            )
+        except (json.JSONDecodeError, ValidationError, Exception) as exc:
+            logger.warning(
+                "Failed to parse structured LLM response for user=%s (%s: %s) — "
+                "falling back to free-text pipeline",
+                hash_user_id(user_id),
+                type(exc).__name__,
+                exc,
+            )
+            # Fallback: run old sanitize → verify → extract pipeline on raw text
+            sanitize_result = self.citation_service.sanitize_and_renumber(
+                response_text, len(chunks)
+            )
+            response_text = sanitize_result.text
+            response_text, stripped = self.citation_service.verify_citations(
+                response_text, chunks
+            )
+            if stripped:
+                logger.warning(
+                    "Fallback pipeline stripped %d citations for user=%s",
+                    len(stripped),
+                    hash_user_id(user_id),
+                )
+            citations = self.citation_service.extract(response_text, chunks)
+            logger.info(
+                "Fallback pipeline extracted %d citation(s) for user=%s",
+                len(citations),
+                hash_user_id(user_id),
+            )
 
         # Build updated messages list for storage
         user_msg = ChatMessage(role="user", content=message)

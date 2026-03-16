@@ -9,7 +9,7 @@ import logging
 import re
 from typing import NamedTuple
 
-from app.models.chat import Citation
+from app.models.chat import Citation, StructuredLLMResponse
 
 logger = logging.getLogger(__name__)
 
@@ -376,6 +376,234 @@ class CitationService:
             )
 
         return CitationExtractResult(text=cleaned_text, removed_indices=removed_indices)
+
+    # Phrases that are safe to include without a source citation (generic advice)
+    _SAFE_UNSOURCED_PATTERNS: tuple[str, ...] = (
+        "consult your healthcare provider",
+        "consult a healthcare provider",
+        "talk to your doctor",
+        "talk to your healthcare provider",
+        "talk with your",
+        "speak with your",
+        "speak to your",
+        "discuss with your",
+        "seek medical",
+        "ask your provider",
+        "ask your doctor",
+        "track your symptoms",
+    )
+
+    def render_structured_response(
+        self,
+        structured: StructuredLLMResponse,
+        chunks: list[dict],
+    ) -> tuple[str, list[Citation]]:
+        """Convert a structured LLM response into rendered text with inline citations.
+
+        Processing:
+        1. If insufficient_sources is True, return only the disclaimer message.
+        2. For each claim: strip if unsourced (source_indices empty) unless the claim
+           matches a safe generic-advice pattern.
+        3. For sourced claims: verify each citation via keyword overlap; strip indices
+           that fail the relevance check.
+        4. Render sections into human-readable text with [Source N] markers.
+        5. If every claim was stripped, return the insufficient-sources message.
+
+        Args:
+            structured: Parsed structured response from the LLM.
+            chunks: RAG chunks passed to the LLM (0-indexed internally; sources are 1-indexed).
+
+        Returns:
+            Tuple of (rendered_text, citations_list).
+        """
+        if structured.insufficient_sources:
+            message = structured.disclaimer or (
+                "I don't have enough information in my sources to answer that question. "
+                "Please consult your healthcare provider for personalized guidance."
+            )
+            return message, []
+
+        used_source_indices: set[int] = set()
+        rendered_parts: list[str] = []
+
+        for section in structured.sections:
+            section_parts: list[str] = []
+
+            if section.heading:
+                section_parts.append(f"**{section.heading}**")
+
+            for claim in section.claims:
+                # ---------------------------------------------------------
+                # Fix 1: Strip inline citation markers the LLM may have
+                # embedded in the text field itself (e.g. "CBD may help [3]").
+                # We manage citation markers from source_indices only.
+                # ---------------------------------------------------------
+                clean_text = re.sub(r"\s*\[Source\s+\d+\]", "", claim.text)
+                clean_text = re.sub(r"\s*\[(\d+)\]", "", clean_text)
+                clean_text = clean_text.strip()
+
+                if not clean_text:
+                    logger.debug("Claim empty after stripping inline markers, skipping")
+                    continue
+
+                # Log what the LLM returned vs what we cleaned
+                if clean_text != claim.text.strip():
+                    logger.info(
+                        "Stripped inline citation markers from claim text: "
+                        "original='%s' cleaned='%s'",
+                        claim.text[:120],
+                        clean_text[:120],
+                    )
+
+                # Filter to valid 1-based indices within the chunks range
+                valid_indices = [
+                    idx for idx in claim.source_indices if 1 <= idx <= len(chunks)
+                ]
+
+                # Log invalid indices so we can track phantom citations
+                invalid_indices = [
+                    idx for idx in claim.source_indices if idx < 1 or idx > len(chunks)
+                ]
+                if invalid_indices:
+                    logger.warning(
+                        "Claim has out-of-range source_indices %s (max=%d): '%s'",
+                        invalid_indices,
+                        len(chunks),
+                        clean_text[:80],
+                    )
+
+                if not valid_indices:
+                    # Unsourced claim: keep only if it's safe generic advice
+                    claim_lower = clean_text.lower()
+                    if any(pat in claim_lower for pat in self._SAFE_UNSOURCED_PATTERNS):
+                        section_parts.append(clean_text)
+                        logger.debug(
+                            "Keeping unsourced safe claim: %s", clean_text[:80]
+                        )
+                    else:
+                        logger.info(
+                            "Stripping unsourced claim: '%s' (original source_indices=%s)",
+                            clean_text[:80],
+                            claim.source_indices,
+                        )
+                    continue
+
+                # Verify each citation via keyword overlap
+                verified_indices: list[int] = []
+                for idx in valid_indices:
+                    chunk_content = chunks[idx - 1].get("content", "")
+                    overlap = self._claim_source_overlap(clean_text, chunk_content)
+                    if overlap >= self._RELEVANCE_MIN_OVERLAP:
+                        verified_indices.append(idx)
+                        used_source_indices.add(idx)
+                        logger.debug(
+                            "Citation relevance PASSED: source=%d overlap=%.2f claim='%s'",
+                            idx,
+                            overlap,
+                            clean_text[:80],
+                        )
+                    else:
+                        logger.warning(
+                            "Citation relevance check FAILED: source=%d overlap=%.2f "
+                            "(threshold=%.2f) claim='%s' source_title='%s'",
+                            idx,
+                            overlap,
+                            self._RELEVANCE_MIN_OVERLAP,
+                            clean_text[:120],
+                            chunks[idx - 1].get("title", "untitled")[:60],
+                        )
+
+                if verified_indices:
+                    markers = "".join(f" [Source {i}]" for i in verified_indices)
+                    section_parts.append(f"{clean_text}{markers}")
+                else:
+                    # All citations failed — keep only if safe generic advice
+                    claim_lower = clean_text.lower()
+                    if any(pat in claim_lower for pat in self._SAFE_UNSOURCED_PATTERNS):
+                        section_parts.append(clean_text)
+                    else:
+                        logger.info(
+                            "Stripping claim — all citations failed relevance: '%s'",
+                            clean_text[:80],
+                        )
+
+            if section_parts:
+                if section.heading:
+                    # Heading on first line, each claim as its own bullet below
+                    heading_line = section_parts[0]
+                    bullet_lines = "\n".join(f"- {c}" for c in section_parts[1:])
+                    rendered_parts.append(
+                        f"{heading_line}\n{bullet_lines}" if bullet_lines else heading_line
+                    )
+                else:
+                    # No heading — each claim as its own bullet
+                    rendered_parts.append("\n".join(f"- {c}" for c in section_parts))
+
+        if structured.disclaimer:
+            rendered_parts.append(structured.disclaimer)
+
+        if not rendered_parts:
+            logger.warning(
+                "render_structured_response: all claims stripped — returning insufficient sources message"
+            )
+            return (
+                "I don't have enough information in my sources to answer that question. "
+                "Please consult your healthcare provider for personalized guidance.",
+                [],
+            )
+
+        rendered_text = "\n\n".join(rendered_parts)
+
+        # Build sequential citation list and renumber markers in the text.
+        # The LLM may use non-contiguous source indices (e.g. 1 and 3 when
+        # source 2 was unused). The frontend displays citations as a numbered
+        # list, so marker [3] in the text must become [2] if it's the second
+        # citation in the list.
+        sorted_indices = sorted(used_source_indices)
+        # Map: original source index → sequential display index (1-based)
+        renumber_map: dict[int, int] = {
+            old_idx: new_idx for new_idx, old_idx in enumerate(sorted_indices, start=1)
+        }
+
+        # Apply renumbering to rendered text (process in reverse to avoid
+        # replacing [Source 1] inside [Source 11], etc.)
+        for old_idx in sorted(renumber_map.keys(), reverse=True):
+            new_idx = renumber_map[old_idx]
+            if old_idx != new_idx:
+                rendered_text = rendered_text.replace(
+                    f"[Source {old_idx}]", f"[Source {new_idx}]"
+                )
+
+        if any(v != k for k, v in renumber_map.items()):
+            logger.info(
+                "Renumbered citation markers in rendered text: %s",
+                {k: v for k, v in renumber_map.items() if k != v},
+            )
+
+        citations: list[Citation] = []
+        for display_idx, source_idx in enumerate(sorted_indices, start=1):
+            chunk = chunks[source_idx - 1]
+            url = chunk.get("source_url", "")
+            title = chunk.get("title", "")
+            section_name = chunk.get("section_name")
+            if url:
+                citations.append(
+                    Citation(
+                        url=url,
+                        title=title,
+                        section=section_name,
+                        source_index=display_idx,
+                    )
+                )
+
+        logger.info(
+            "render_structured_response: %d section(s) → %d text part(s), %d citation(s)",
+            len(structured.sections),
+            len(rendered_parts),
+            len(citations),
+        )
+
+        return rendered_text, citations
 
     def extract(self, response_text: str, chunks: list[dict]) -> list[Citation]:
         """Map [Source N] or [N] references in the response to Citation objects with section context.
