@@ -32,6 +32,7 @@ from app.models.chat import (
     StructuredClaim,
     StructuredLLMResponse,
     StructuredSection,
+    SuggestedPromptsResponse,
 )
 from app.repositories.conversation_repository import ConversationRepository
 from app.repositories.symptoms_repository import SymptomsRepository
@@ -308,7 +309,7 @@ class AskMenoService:
         user_id: str,
         days_back: int = 30,
         max_prompts: int = 6,
-    ) -> dict:
+    ) -> SuggestedPromptsResponse:
         """Get personalized starter prompts based on recent symptoms.
 
         Fetches user's recent symptom logs, looks up prompts for those symptoms,
@@ -320,7 +321,7 @@ class AskMenoService:
             max_prompts: Maximum prompts to return (default 6).
 
         Returns:
-            {"prompts": [list of prompt strings, up to max_prompts]}.
+            SuggestedPromptsResponse with up to max_prompts prompt strings.
 
         Raises:
             DatabaseError: If symptom fetch fails.
@@ -388,7 +389,7 @@ class AskMenoService:
                 )
             )
 
-            return {"prompts": final_prompts}
+            return SuggestedPromptsResponse(prompts=final_prompts)
 
         except DatabaseError:
             logger.error("Failed to fetch symptoms for prompts")

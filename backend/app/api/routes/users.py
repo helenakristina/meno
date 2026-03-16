@@ -1,5 +1,4 @@
 import logging
-from datetime import date
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -7,8 +6,16 @@ from supabase import AsyncClient
 
 from app.api.dependencies import CurrentUser, get_user_repo
 from app.core.supabase import get_client
-from app.models.users import InsurancePreference, InsurancePreferenceUpdate, OnboardingRequest, UserResponse
+from app.models.users import (
+    InsurancePreference,
+    InsurancePreferenceUpdate,
+    OnboardingRequest,
+    UserResponse,
+    UserSettingsResponse,
+    UserSettingsUpdate,
+)
 from app.repositories.user_repository import UserRepository
+from app.utils.dates import validate_date_of_birth
 from app.utils.logging import hash_user_id
 
 logger = logging.getLogger(__name__)
@@ -17,28 +24,6 @@ router = APIRouter(prefix="/api/users", tags=["users"])
 
 
 SupabaseClient = Annotated[AsyncClient, Depends(get_client)]
-
-
-# ---------------------------------------------------------------------------
-# Helpers
-# ---------------------------------------------------------------------------
-
-
-def _validate_date_of_birth(dob: date) -> None:
-    """Raise 400 if date_of_birth is in the future or user is under 18."""
-    today = date.today()
-    if dob >= today:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="date_of_birth must be in the past",
-        )
-    # Accurately accounts for whether the birthday has occurred yet this year
-    age = today.year - dob.year - ((today.month, today.day) < (dob.month, dob.day))
-    if age < 18:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="User must be at least 18 years old",
-        )
 
 
 # ---------------------------------------------------------------------------
@@ -74,7 +59,10 @@ async def onboarding(
         HTTPException: 409 if a profile already exists for this user.
         HTTPException: 500 if the database insert or auth lookup fails.
     """
-    _validate_date_of_birth(payload.date_of_birth)
+    try:
+        validate_date_of_birth(payload.date_of_birth)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc))
 
     # Get email from auth.users — trust the JWT, not the request body
     try:
@@ -101,7 +89,7 @@ async def onboarding(
     )
 
     logger.info("User profile created: user=%s", hash_user_id(user_id))
-    return UserResponse(**created)
+    return UserResponse.model_validate(created)
 
 
 # ---------------------------------------------------------------------------
@@ -135,8 +123,8 @@ async def get_insurance_preference(
         return InsurancePreference(insurance_type=None, insurance_plan_name=None)
 
     return InsurancePreference(
-        insurance_type=profile.get("insurance_type"),
-        insurance_plan_name=profile.get("insurance_plan_name"),
+        insurance_type=profile.insurance_type,
+        insurance_plan_name=profile.insurance_plan_name,
     )
 
 
@@ -177,6 +165,65 @@ async def update_insurance_preference(
         "Insurance preference updated: user=%s type=%s", hash_user_id(user_id), payload.insurance_type
     )
     return InsurancePreference(
-        insurance_type=updated.get("insurance_type"),
-        insurance_plan_name=updated.get("insurance_plan_name"),
+        insurance_type=updated.insurance_type,
+        insurance_plan_name=updated.insurance_plan_name,
     )
+
+
+# ---------------------------------------------------------------------------
+# GET /api/users/settings
+# ---------------------------------------------------------------------------
+
+
+@router.get(
+    "/settings",
+    response_model=UserSettingsResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Get user settings",
+    description="Return period_tracking_enabled, has_uterus, and journey_stage for the authenticated user.",
+)
+async def get_settings(
+    user_id: CurrentUser,
+    user_repo: UserRepository = Depends(get_user_repo),
+) -> UserSettingsResponse:
+    """Fetch period tracking preferences and journey stage.
+
+    Raises:
+        HTTPException: 401 if unauthenticated.
+        HTTPException: 404 if user profile not found.
+        HTTPException: 500 for unexpected failures.
+    """
+    return await user_repo.get_settings(user_id)
+
+
+# ---------------------------------------------------------------------------
+# PATCH /api/users/settings
+# ---------------------------------------------------------------------------
+
+
+@router.patch(
+    "/settings",
+    response_model=UserSettingsResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Update user settings",
+    description=(
+        "Update period_tracking_enabled, has_uterus, and/or journey_stage. "
+        "Setting has_uterus=false automatically disables period tracking."
+    ),
+)
+async def update_settings(
+    payload: UserSettingsUpdate,
+    user_id: CurrentUser,
+    user_repo: UserRepository = Depends(get_user_repo),
+) -> UserSettingsResponse:
+    """Update user settings. All fields are optional; only provided fields are updated.
+
+    Raises:
+        HTTPException: 401 if unauthenticated.
+        HTTPException: 404 if user profile not found.
+        HTTPException: 422 if journey_stage is invalid.
+        HTTPException: 500 for unexpected failures.
+    """
+    updated = await user_repo.update_settings(user_id, payload)
+    logger.info("User settings updated: user=%s", hash_user_id(user_id))
+    return updated

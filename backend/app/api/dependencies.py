@@ -9,12 +9,14 @@ from app.core.supabase import get_client
 from app.repositories.appointment_repository import AppointmentRepository
 from app.repositories.conversation_repository import ConversationRepository
 from app.repositories.export_repository import ExportRepository
+from app.repositories.period_repository import PeriodRepository
 from app.repositories.providers_repository import ProvidersRepository
 from app.repositories.symptoms_repository import SymptomsRepository
 from app.repositories.user_repository import UserRepository
 from app.rag.retrieval import retrieve_relevant_chunks
 from app.services.appointment import AppointmentService
 from app.services.ask_meno import AskMenoService
+from app.services.period import PeriodService
 from app.services.citations import CitationService
 from app.services.export import ExportService
 from app.services.llm import LLMService
@@ -244,6 +246,18 @@ def get_export_service(
         storage_service=storage_service,
         llm_service=llm_service,
     )
+
+
+def get_period_repo(client: AsyncClient = Depends(get_client)) -> PeriodRepository:
+    """Dependency for PeriodRepository."""
+    return PeriodRepository(client=client)
+
+
+def get_period_service(
+    period_repo: PeriodRepository = Depends(get_period_repo),
+) -> PeriodService:
+    """Dependency for PeriodService."""
+    return PeriodService(period_repo=period_repo)
 
 
 def get_ask_meno_service(

@@ -10,6 +10,7 @@ from typing import Optional
 from supabase import AsyncClient
 
 from app.exceptions import DatabaseError, DuplicateEntityError, EntityNotFoundError
+from app.models.users import UserProfile, UserSettingsResponse, UserSettingsUpdate
 from app.utils.dates import calculate_age
 
 logger = logging.getLogger(__name__)
@@ -77,15 +78,14 @@ class UserRepository:
 
         return journey_stage, age
 
-    async def get_profile(self, user_id: str) -> dict:
+    async def get_profile(self, user_id: str) -> UserProfile:
         """Fetch complete user profile.
 
         Args:
             user_id: ID of the user.
 
         Returns:
-            User profile dict with all fields (id, email, date_of_birth, journey_stage,
-            insurance_type, insurance_plan_name, onboarding_completed, created_at).
+            UserProfile with all fields.
 
         Raises:
             EntityNotFoundError: If user not found.
@@ -111,9 +111,9 @@ class UserRepository:
             raise EntityNotFoundError("User not found")
 
         logger.debug("User profile fetched for user %s", user_id)
-        return response.data[0]
+        return UserProfile(**response.data[0])
 
-    async def update_profile(self, user_id: str, data: dict) -> dict:
+    async def update_profile(self, user_id: str, data: dict) -> UserProfile:
         """Update user profile fields.
 
         Args:
@@ -121,7 +121,7 @@ class UserRepository:
             data: Fields to update (id and user_id should not be included).
 
         Returns:
-            Updated user profile dict.
+            Updated UserProfile.
 
         Raises:
             EntityNotFoundError: If user not found.
@@ -147,9 +147,9 @@ class UserRepository:
             raise EntityNotFoundError("User not found")
 
         logger.info("User profile updated for user %s", user_id)
-        return response.data[0]
+        return UserProfile(**response.data[0])
 
-    async def create(self, user_id: str, email: str, data: dict) -> dict:
+    async def create(self, user_id: str, email: str, data: dict) -> UserProfile:
         """Create a new user profile.
 
         Args:
@@ -158,7 +158,7 @@ class UserRepository:
             data: Additional profile data (date_of_birth, journey_stage, etc.).
 
         Returns:
-            Created user profile dict.
+            Created UserProfile.
 
         Raises:
             DuplicateEntityError: If user already exists.
@@ -192,18 +192,17 @@ class UserRepository:
             logger.error("Supabase returned no data after user insert")
             raise DatabaseError("Failed to create user profile: no data returned")
 
-        created = response.data[0]
         logger.info("User profile created: id=%s email=%s", user_id, email)
-        return created
+        return UserProfile(**response.data[0])
 
-    async def get(self, user_id: str) -> Optional[dict]:
+    async def get(self, user_id: str) -> Optional[UserProfile]:
         """Fetch a single user by ID.
 
         Args:
             user_id: ID of user to fetch.
 
         Returns:
-            User dict or None if not found.
+            UserProfile or None if not found.
 
         Raises:
             DatabaseError: If database query fails.
@@ -227,7 +226,90 @@ class UserRepository:
         if not response.data:
             return None
 
-        return response.data[0]
+        return UserProfile(**response.data[0])
+
+    async def get_settings(self, user_id: str) -> UserSettingsResponse:
+        """Fetch user settings: period_tracking_enabled, has_uterus, journey_stage.
+
+        Args:
+            user_id: ID of the user.
+
+        Returns:
+            UserSettingsResponse with current settings.
+
+        Raises:
+            EntityNotFoundError: If user not found.
+            DatabaseError: If database query fails.
+        """
+        try:
+            response = (
+                await self.client.table("users")
+                .select("period_tracking_enabled, has_uterus, journey_stage")
+                .eq("id", user_id)
+                .execute()
+            )
+        except Exception as exc:
+            logger.error("DB query failed fetching settings user=%s: %s", user_id, exc, exc_info=True)
+            raise DatabaseError(f"Failed to fetch user settings: {exc}") from exc
+
+        if not response.data:
+            raise EntityNotFoundError("User not found")
+
+        row = response.data[0]
+        return UserSettingsResponse(
+            period_tracking_enabled=row.get("period_tracking_enabled", True),
+            has_uterus=row.get("has_uterus"),
+            journey_stage=row.get("journey_stage"),
+        )
+
+    async def update_settings(self, user_id: str, data: UserSettingsUpdate) -> UserSettingsResponse:
+        """Update user settings fields.
+
+        If has_uterus is set to False, period_tracking_enabled is also set to False.
+
+        Args:
+            user_id: ID of the user.
+            data: Settings fields to update.
+
+        Returns:
+            Updated UserSettingsResponse.
+
+        Raises:
+            EntityNotFoundError: If user not found.
+            DatabaseError: If database update fails.
+        """
+        update_data: dict = {}
+        if data.period_tracking_enabled is not None:
+            update_data["period_tracking_enabled"] = data.period_tracking_enabled
+        if data.has_uterus is not None:
+            update_data["has_uterus"] = data.has_uterus
+            # If user indicates no uterus, disable period tracking automatically
+            if data.has_uterus is False:
+                update_data["period_tracking_enabled"] = False
+        if data.journey_stage is not None:
+            update_data["journey_stage"] = data.journey_stage
+
+        try:
+            response = (
+                await self.client.table("users")
+                .update(update_data)
+                .eq("id", user_id)
+                .execute()
+            )
+        except Exception as exc:
+            logger.error("DB update failed for settings user=%s: %s", user_id, exc, exc_info=True)
+            raise DatabaseError(f"Failed to update user settings: {exc}") from exc
+
+        if not response.data:
+            raise EntityNotFoundError("User not found")
+
+        row = response.data[0]
+        logger.info("User settings updated: user=%s", user_id)
+        return UserSettingsResponse(
+            period_tracking_enabled=row.get("period_tracking_enabled", True),
+            has_uterus=row.get("has_uterus"),
+            journey_stage=row.get("journey_stage"),
+        )
 
     async def delete(self, user_id: str) -> None:
         """Delete a user profile (soft or hard depending on RLS policy).

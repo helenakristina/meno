@@ -5,6 +5,7 @@ from datetime import date
 from unittest.mock import AsyncMock, MagicMock
 from app.exceptions import DatabaseError, DuplicateEntityError, EntityNotFoundError
 
+from app.models.users import UserProfile
 from app.repositories.user_repository import UserRepository
 
 
@@ -175,8 +176,8 @@ async def test_get_profile_success():
 
     result = await repo.get_profile("user-123")
 
-    assert result == user_data
-    assert result["email"] == "jane@example.com"
+    assert isinstance(result, UserProfile)
+    assert result.email == "jane@example.com"
 
 
 @pytest.mark.asyncio
@@ -231,8 +232,8 @@ async def test_update_profile_success():
         {"insurance_plan_name": "Blue Cross Updated"},
     )
 
-    assert result == updated_data
-    assert result["insurance_plan_name"] == "Blue Cross Updated"
+    assert isinstance(result, UserProfile)
+    assert result.insurance_plan_name == "Blue Cross Updated"
 
 
 @pytest.mark.asyncio
@@ -300,9 +301,9 @@ async def test_create_success():
         },
     )
 
-    assert result == created_user
-    assert result["id"] == "user-123"
-    assert result["email"] == "jane@example.com"
+    assert isinstance(result, UserProfile)
+    assert result.id == "user-123"
+    assert result.email == "jane@example.com"
 
 
 @pytest.mark.asyncio
@@ -381,7 +382,8 @@ async def test_get_success():
 
     result = await repo.get("user-123")
 
-    assert result == user_data
+    assert isinstance(result, UserProfile)
+    assert result.id == "user-123"
 
 
 @pytest.mark.asyncio
