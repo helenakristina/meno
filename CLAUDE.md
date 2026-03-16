@@ -1,81 +1,44 @@
 # CLAUDE.md - Development Context for Meno
 
-**⚠️ IMPORTANT: DEV-ONLY POC**
+**⚠️ DEV-ONLY POC** — Not deployed to production. See PRODUCTION_CHECKLIST.md for launch path.
 
-Meno is currently a proof-of-concept running locally only. It is NOT deployed to production.
-Before any real users access Meno, the following must be completed:
+- ✅ Medical advice boundary tested (GUARDRAILS_AUDIT.md)
+- ⏳ Legal review (LEGAL_PREP.md — awaiting attorney)
+- ⏳ Job + API cost plan (6 months)
+- ⏳ Production deployment checklist
 
-1. ✅ Medical advice boundary tested (GUARDRAILS_AUDIT.md)
-2. ⏳ Legal review (LEGAL_PREP.md — awaiting attorney)
-3. ⏳ Job + API cost plan (6 months)
-4. ⏳ Production deployment checklist (PRODUCTION_CHECKLIST.md)
-
-This document describes the architecture and patterns. See PRODUCTION_CHECKLIST.md for the path to launch.
-
-**Last Updated:** February 2026  
-**Project Status:** Active Development - V1 Phase
+**Last Updated:** February 2026 | **Status:** Active Development - V1 Phase
 
 ---
 
 ## Project Overview
 
-**Meno** is a web application that helps women navigate perimenopause and menopause with clarity, evidence-based information, and compassionate support.
+**Meno** helps women navigate perimenopause and menopause with evidence-based information and compassionate support.
 
 **Core Mission:** Your symptoms are real. You don't have to just live with it. Help is available.
 
-**What Meno Is:**
+**What Meno Is:** Symptom tracking, educational resource, LLM-powered pattern recognition, provider discovery, bridge to informed healthcare conversations.
 
-- A personal symptom tracking tool
-- An educational resource grounded in current research
-- A pattern recognition assistant using LLM technology
-- A provider discovery tool
-- A bridge between patients and informed healthcare conversations
+**What Meno Is NOT:** Not a diagnostic tool. Not a treatment recommendation engine. Not a replacement for medical advice. Not a medication management system (V1).
 
-**What Meno Is NOT:**
-
-- A diagnostic tool
-- A treatment recommendation engine
-- A replacement for medical advice
-- A medication management system (V1)
-
-**Key Constraint:** We never cross the line into medical advice. We provide information and pattern recognition, not diagnosis or treatment recommendations.
+**Key Constraint:** We NEVER cross the line into medical advice. We provide information and pattern recognition, not diagnosis or treatment recommendations.
 
 ---
 
 ## Tech Stack
 
-### Frontend
+**Frontend:** SvelteKit 2.x, Svelte 5 (runes), TypeScript, Tailwind CSS 4.x, shadcn-svelte, Supabase client (`@supabase/supabase-js`, `@supabase/ssr`), Node 25+
 
-- **SvelteKit 2.x** with TypeScript
-- **Svelte 5** (using runes: `$state`, `$derived`, `$effect`, `$props`)
-- **Tailwind CSS 4.x** for styling
-- **shadcn-svelte** for UI components
-- **Supabase client** (`@supabase/supabase-js`, `@supabase/ssr`) for auth and data
-- **Node 25+**
-
-**Important Svelte 5 Conventions:**
+**Svelte 5 Conventions (breaking changes from Svelte 4):**
 
 - Use `let { children } = $props()` and `{@render children()}` instead of `<slot />`
 - Use `onclick={}` instead of `on:click={}`
 - Use `$state()` for reactive variables
 - Import from `$app/state` not `$app/stores` (page rune)
 
-### Backend
+**Backend:** FastAPI (Python 3.11+) async/await throughout, uv for deps, Supabase (PostgreSQL 15+ with pgvector), Anthropic API (Claude Sonnet 4), OpenAI API (text-embedding-3-small) for production embeddings, sentence-transformers for local dev embeddings
 
-- **FastAPI** (Python 3.11+) with async/await throughout
-- **uv** for Python dependency management
-- **Supabase** (PostgreSQL 15+) for database
-- **pgvector** extension for RAG embeddings
-- **Anthropic API** (Claude Sonnet 4) for LLM features
-- **OpenAI API** (text-embedding-3-small) for embeddings in production
-- **sentence-transformers** for embeddings in local development
-
-### Infrastructure
-
-- **Vercel** - Frontend hosting (auto-deploy from main branch)
-- **Railway** - Backend hosting (auto-deploy from main branch)
-- **Supabase** - Database, auth, and storage
-- **GitHub** - Version control
+**Infrastructure:** Vercel (frontend), Railway (backend), Supabase (DB/auth/storage), GitHub
 
 ---
 
@@ -83,1941 +46,239 @@ This document describes the architecture and patterns. See PRODUCTION_CHECKLIST.
 
 ```
 meno/
-├── README.md
 ├── CLAUDE.md              ← You are here
-├── .gitignore
-├── docs/
-│   └── dev/
-│       └── DESIGN.md      ← Comprehensive design document
-├── frontend/              ← SvelteKit application
+├── docs/dev/
+│   ├── DESIGN.md          ← Comprehensive design spec (DB schema in Section 9)
+│   └── backend/
+│       ├── V2CODE_EXAMPLES.md  ← Full backend patterns & examples
+│       ├── LOGGING.md           ← PII-safe logging guide
+│       └── VERTICAL_SLICE_EXAMPLE.md  ← Complete feature walkthrough
+├── frontend/
 │   ├── src/
 │   │   ├── lib/
 │   │   │   ├── components/ui/  ← shadcn-svelte components
-│   │   │   ├── supabase/
-│   │   │   │   └── client.ts
-│   │   │   └── stores/
-│   │   │       └── auth.ts
+│   │   │   ├── api/client.ts   ← Backend API client (ALWAYS use this, never raw fetch)
+│   │   │   ├── supabase/client.ts
+│   │   │   └── stores/auth.ts
 │   │   └── routes/
-│   │       ├── (auth)/         ← No navigation group
-│   │       │   ├── login/
-│   │       │   └── onboarding/
-│   │       ├── (app)/          ← With navigation group
-│   │       │   ├── dashboard/
-│   │       │   ├── log/
-│   │       │   ├── ask/
-│   │       │   ├── providers/
-│   │       │   └── export/
+│   │       ├── (auth)/         ← No navigation (login, onboarding)
+│   │       ├── (app)/          ← With navigation (dashboard, log, ask, providers, export)
 │   │       └── practice/       ← Practice/learning pages
-│   ├── package.json
-│   └── .env                    ← Never commit (gitignored)
-└── backend/               ← FastAPI application
+│   └── .env                    ← Never commit
+└── backend/
     ├── app/
-    │   ├── main.py           ← FastAPI app entry point
-    │   ├── core/
-    │   │   ├── config.py     ← Settings with pydantic-settings
-    │   │   └── supabase.py
+    │   ├── main.py             ← FastAPI entry + global exception handlers
+    │   ├── core/               ← config.py (pydantic-settings), supabase.py
     │   ├── api/
-    │   │   └── routes/       ← API endpoints
-    │   ├── models/           ← Pydantic models
-    │   ├── services/         ← Business logic
-    │   └── rag/              ← RAG pipeline code
+    │   │   ├── routes/         ← HTTP endpoints (thin — just call services)
+    │   │   └── dependencies.py ← FastAPI DI wiring
+    │   ├── models/             ← Pydantic models (request/response/domain)
+    │   ├── repositories/       ← Data access layer (Supabase queries)
+    │   ├── services/           ← Business logic & orchestration
+    │   ├── utils/              ← Shared business logic (dates, stats, logging)
+    │   ├── exceptions.py       ← Domain exception hierarchy
+    │   └── rag/                ← RAG pipeline
+    ├── tests/                  ← Mirrors app/ structure
+    │   └── fixtures/supabase.py ← Mock helpers
     ├── pyproject.toml
-    └── .env                  ← Never commit (gitignored)
+    └── .env                    ← Never commit
 ```
 
 ---
 
 ## Database Schema
 
-**Full schema documented in:** `docs/dev/DESIGN.md` (Section 9: Data Models)
+Full schema in `docs/dev/DESIGN.md` Section 9.
 
-**Key Tables:**
+**Key tables:** `users`, `symptom_logs`, `symptoms_reference` (34 symptoms, public), `symptom_summary_cache`, `conversations` (JSONB), `providers` (public), `exports` (immutable audit trail), `rag_documents` (vector embeddings)
 
-- `users` - User profiles, references auth.users
-- `symptom_logs` - Daily symptom entries
-- `symptoms_reference` - Master list of 34 symptoms (public reference data)
-- `symptom_summary_cache` - Pre-computed summaries for LLM context
-- `conversations` - Ask Meno chat history (JSONB)
-- `providers` - Healthcare provider directory (public data)
-- `exports` - Export history (immutable audit trail)
-- `rag_documents` - Knowledge base with vector embeddings
-
-**Security:** All user-data tables have Row Level Security (RLS) enabled. Users can only access their own data at the database level via `auth.uid()` policies.
-
-**Reference Data:** `symptoms_reference` and `providers` have no RLS - everyone sees the same data.
+**Security:** All user-data tables have RLS enabled via `auth.uid()`. Reference tables (`symptoms_reference`, `providers`) have no RLS.
 
 ---
 
-## Code Standards
+## Backend Architecture Rules
 
-### Python (Backend)
+Read `docs/dev/backend/V2CODE_EXAMPLES.md` for full patterns with code examples.
+Read `docs/dev/backend/VERTICAL_SLICE_EXAMPLE.md` for a complete feature walkthrough.
 
-**Style:**
+### Layer Responsibilities
 
-- Use `ruff` for linting and formatting (already configured)
-- Type hints on all function signatures
-- Async/await throughout - FastAPI is async-first
-- Docstrings for all public functions (Google style)
+- **Routes** → HTTP only: auth, params, response formatting, error codes. Thin — just call services.
+- **Services** → Business logic, orchestration. Pure functions, stateless, no DB access, no side effects.
+- **Repositories** → Data access only. Supabase queries. Return typed Pydantic models, NEVER raw dicts.
+- **Utils** (`app/utils/`) → Shared business logic used across layers (dates, stats, formatting).
 
-**Dependency Injection & Abstract Base Classes (ABC)**
+### Build Order for New Features
 
-**Rule: All repositories and services use Abstract Base Class (ABC) to define interfaces, not Protocols.**
+Models → Repositories → Services → Dependencies → Routes → Tests
+
+### Mandatory Patterns
+
+**Interfaces:** Always use ABC (Abstract Base Class), not Protocol. Define in `[service_name]_base.py`.
 
 ```python
 from abc import ABC, abstractmethod
 
-# ✅ CORRECT: ABC for explicit interface contract
 class LLMProvider(ABC):
     @abstractmethod
-    async def chat_completion(self, prompt: str) -> str:
-        pass
-
-class OpenAIProvider(LLMProvider):
-    async def chat_completion(self, prompt: str) -> str:
-        # Concrete implementation
-        pass
+    async def chat_completion(self, system_prompt: str, user_prompt: str) -> str: ...
 ```
 
-**Why ABC (not Protocol)?**
-
-| Aspect | ABC | Protocol |
-|--------|-----|----------|
-| **Inheritance** | Explicit (`class X(ABC)`) | Implicit (duck typing) |
-| **Type Checking** | Verifies all abstract methods implemented | Only checks method signatures match |
-| **isinstance()** | Works (`isinstance(obj, ABC)`) | Doesn't work |
-| **Intent** | "This is a required interface" | "If it quacks like a duck..." |
-
-**For Meno, always use ABC because:**
-- ✅ Explicit contracts are clearer for team and AI assistance
-- ✅ Type checking catches missing implementations early
-- ✅ `isinstance()` checks useful for debugging and conditional logic
-- ✅ Matches current codebase pattern (consistency matters)
-
-**Pattern: Define interfaces in `[service_name]_base.py`:**
-
-```python
-# backend/app/services/llm_base.py
-from abc import ABC, abstractmethod
-
-class LLMProvider(ABC):
-    """Abstract base class for LLM providers."""
-
-    @abstractmethod
-    async def chat_completion(self, system_prompt: str, user_prompt: str) -> str:
-        """Generate a chat completion."""
-
-# backend/app/services/openai_provider.py
-from app.services.llm_base import LLMProvider
-
-class OpenAIProvider(LLMProvider):
-    """OpenAI implementation."""
-
-    async def chat_completion(self, system_prompt: str, user_prompt: str) -> str:
-        # Real implementation
-        pass
-```
-
-**Use ABC everywhere:** Services, repositories, providers, any dependency that needs to be injected or tested.
-
-**Error Handling: Domain Exceptions Pattern**
-
-**Rule: Never raise HTTPException in repositories or services. Only routes should know about HTTP.**
-
-Use domain exceptions from `app.exceptions`:
+**Exceptions:** Never raise `HTTPException` in repositories or services. Use domain exceptions from `app.exceptions`:
 
 ```
 MenoBaseError (base)
-├── EntityNotFoundError (404) - Resource not found or doesn't belong to user
-├── DatabaseError (500) - Database operation failed
-├── ValidationError (400) - Input/business rule validation failed
-├── UnauthorizedError (401) - User not authenticated
-└── PermissionError (403) - User authenticated but not authorized
+├── EntityNotFoundError  → 404
+├── DatabaseError        → 500
+├── ValidationError      → 400
+├── UnauthorizedError    → 401
+└── PermissionError      → 403
 ```
 
-**Pattern: Repository Layer**
+Global exception handlers in `main.py` convert these to HTTP responses automatically.
 
-```python
-from app.exceptions import EntityNotFoundError, DatabaseError
+**Repository returns:** Always Pydantic models with type hints, never raw dicts.
 
-async def get_context(self, appointment_id: str, user_id: str) -> AppointmentContext:
-    """Fetch appointment context.
+**Retry logic:** All external API calls (OpenAI, Claude, etc.) must use `@retry_transient` decorator from `app/utils/retry.py`. Do NOT retry database queries, auth checks, or validation.
 
-    Raises:
-        EntityNotFoundError: Appointment not found or doesn't belong to user.
-        DatabaseError: Database operation failed.
-    """
-    try:
-        response = await self.client.table("appointment_prep_contexts").select("*").execute()
-        if not response.data:
-            raise EntityNotFoundError(f"Appointment {appointment_id} not found")
-        return AppointmentContext(**response.data[0])
-    except EntityNotFoundError:
-        raise  # Re-raise domain exceptions
-    except Exception as e:
-        raise DatabaseError(f"Failed to fetch context: {e}") from e
-```
+**Dependency injection:** Use FastAPI `Depends()` chain. See `app/api/dependencies.py`.
 
-**Pattern: Route Layer**
+**Logging:** Use Python `logging` module. Style: `ruff`. Docstrings: Google style, only when they add info the code doesn't convey. Type hints on all function signatures.
 
-Global exception handlers in `main.py` automatically convert domain exceptions to HTTP responses. Routes can leverage them:
+### PII-Safe Logging (CRITICAL)
 
-```python
-from app.exceptions import EntityNotFoundError
+**Health app logs must NEVER contain personal or medical data.** This includes symptom descriptions, user-generated text, health info, DOB, or plaintext user IDs.
 
-@router.post("/appointment-prep/context")
-async def create_appointment_context(
-    payload: CreateAppointmentContextRequest,
-    user_id: CurrentUser,
-    appointment_repo: AppointmentRepository = Depends(get_appointment_repo),
-) -> CreateAppointmentContextResponse:
-    """Create appointment context.
+- Log structure and metadata, never content
+- Use `app.utils.logging`: `hash_user_id()`, `safe_len()`, `safe_keys()`, `safe_summary()`
+- Full guide: `docs/dev/backend/LOGGING.md`
 
-    Domain exceptions are caught by global handlers:
-    - EntityNotFoundError → 404
-    - DatabaseError → 500
-    - ValidationError → 400
-    """
-    appointment_id = await appointment_repo.save_context(user_id, context)
-    return CreateAppointmentContextResponse(appointment_id=appointment_id, next_step="narrative")
-```
+---
 
-Or explicit handling in route when custom logic needed:
+## Frontend Rules
 
-```python
-from app.exceptions import EntityNotFoundError
-from fastapi import HTTPException
+Read `docs/dev/frontend/V2CODE_EXAMPLES.md` for full patterns (responsive design, accessibility, component standards).
 
-try:
-    result = await appointment_repo.get_context(appointment_id, user_id)
-except EntityNotFoundError:
-    raise HTTPException(status_code=404, detail="Appointment not found")
-```
+- TypeScript strict mode, Svelte 5 runes for reactivity
+- All backend calls go through `$lib/api/client.ts` — never call `fetch()` directly for backend requests
+- `apiClient` handles auth tokens, headers, and error parsing automatically
+- Base URL from `VITE_API_BASE_URL` env var (falls back to `http://localhost:8000`)
+- Mobile-first responsive design (375px → 768px → 1024px)
+- WCAG 2.1 Level AA accessibility — all interactive elements ≥ 44×44px
+- Tailwind utility classes; avoid custom CSS unless necessary
 
-**Benefits:**
+---
 
-- **Testable:** Services work without HTTP context (routes, background jobs, scripts)
-- **Reusable:** Same code across different contexts
-- **Clean separation:** Each layer has clear concerns
-- **Maintainable:** Exception mapping is centralized in global handlers
+## Testing
 
-**Repository Return Types: Use Pydantic Models**
+**Backend (pytest + pytest-asyncio):**
 
-**Rule: Repositories MUST return typed Pydantic models, never raw dicts.**
-
-**Why Pydantic Models?**
-
-- **Type safety:** IDE knows what fields exist, autocomplete works
-- **Validation:** Pydantic validates data shape and types on construction
-- **Self-documenting:** Model definition shows exact expected structure
-- **Reduces bugs:** Type checker catches missing/wrong field access
-- **Claude Code generation:** Claude learns from examples; showing models produces better code
-
-**Pattern: Model Return Types**
-
-Define a Pydantic model for each entity the repository returns:
-
-```python
-# backend/app/models/user.py
-
-from pydantic import BaseModel
-
-class UserContext(BaseModel):
-    """User journey and demographic context."""
-    journey_stage: str = "exploration"
-    age: int | None = None
-```
-
-Then return it from repository:
-
-```python
-# backend/app/repositories/user_repository.py
-
-from app.models.user import UserContext
-
-class UserRepository:
-    async def get_context(self, user_id: str) -> UserContext:
-        """Fetch user's journey stage and age.
-
-        Returns:
-            UserContext with journey_stage and age (age may be None if DOB not set).
-
-        Raises:
-            EntityNotFoundError: User not found.
-            DatabaseError: Database query failed.
-        """
-        try:
-            response = (
-                await self.client.table("user_profiles")
-                .select("journey_stage, date_of_birth")
-                .eq("id", user_id)
-                .single()
-                .execute()
-            )
-
-            if not response.data:
-                raise EntityNotFoundError(f"User {user_id} not found")
-
-            data = response.data
-            age = None
-            if data.get("date_of_birth"):
-                try:
-                    age = calculate_age(data["date_of_birth"])
-                except ValueError:
-                    logger.warning("Invalid DOB for user %s", user_id)
-
-            # Return typed model, not dict
-            return UserContext(
-                journey_stage=data.get("journey_stage", "exploration"),
-                age=age,
-            )
-
-        except EntityNotFoundError:
-            raise
-        except Exception as exc:
-            logger.error("Failed to fetch user context: %s", exc, exc_info=True)
-            raise DatabaseError(f"Failed to fetch user context: {exc}") from exc
-```
-
-**Benefits in Practice**
-
-```python
-# With models (better)
-context = await user_repo.get_context(user_id)
-print(context.journey_stage)  # IDE autocomplete works
-print(context.age)  # Type checker knows it's int | None
-# Can't get field name wrong
-```
-
-**Pydantic Model Best Practices**
-
-```python
-# ✅ GOOD: Clear, typed, documented
-
-class AppointmentContext(BaseModel):
-    """Appointment prep context from Step 1."""
-    appointment_type: str
-    goal: str
-    dismissed_before: str
-    urgent_symptom: str | None = None
-
-
-# ✅ GOOD: Optional fields with defaults
-
-class UserContext(BaseModel):
-    journey_stage: str = "exploration"  # Default value
-    age: int | None = None  # Explicitly optional
-```
-
-**When to Create Models**
-
-Create a model when:
-- Repository returns multiple fields (not just an ID or single value)
-- Those fields are used together across services/routes
-- The structure is stable (unlikely to change per-request)
-
-Examples:
-- ✅ UserContext (journey_stage + age)
-- ✅ AppointmentContext (type + goal + dismissal + urgent symptom)
-- ✅ SymptomLog (id + date + symptoms + notes)
-- ❌ Single value like user_id or count (just use the primitive type)
-
-**Testing:**
-
-- Use `pytest` with `pytest-asyncio`
-- Test files mirror source structure: `tests/api/routes/test_symptoms.py`
-- Mock external services (Supabase, Anthropic, OpenAI)
+- Test files mirror source: `tests/api/routes/`, `tests/services/`, `tests/repositories/`
+- Mock Supabase using chain-agnostic helpers from `tests/fixtures/supabase.py`:
+  - `setup_supabase_response(mock, data=[], error=None)`
+  - `setup_supabase_error(mock, message)`
+  - `setup_supabase_not_found(mock)`
+  - `@pytest.fixture mock_supabase`
+- Mock external services (Supabase, Anthropic, OpenAI). Don't test their internals.
+- Test naming: `test_X_when_Y_then_Z` (no docstrings needed on tests)
 - Aim for >70% coverage on business logic
 
-**Logging:**
-
-- Use Python's standard `logging` module
-- Log levels: DEBUG (development), INFO (key events), WARNING (recoverable issues), ERROR (failures)
-- Include request IDs in logs for tracing
-- Never log sensitive data (passwords, API keys, health data)
-
-**Retry & Resilience Patterns**
-
-**Rule: All external API calls must have retry logic. Use `@retry_transient` decorator.**
-
-External services (OpenAI, Supabase, etc.) can fail transiently:
-- Rate limits (429 Too Many Requests) — common when processing lots of LLM calls
-- Timeouts — network latency, service load
-- Connection errors — temporary network issues
-
-For critical user flows (appointment prep), a single transient failure causes hard errors. Retry logic makes the app resilient.
-
-**Pattern: Use @retry_transient Decorator**
-
-```python
-from app.utils.retry import retry_transient
-
-class OpenAIProvider(LLMProvider):
-    @retry_transient(max_attempts=3, initial_wait=1, max_wait=10)
-    async def chat_completion(self, system_prompt: str, user_prompt: str, **kwargs) -> str:
-        """Call OpenAI API with automatic retry on transient failures.
-
-        Automatically retries on:
-        - Timeouts (network latency)
-        - Rate limits (429)
-        - Connection errors
-
-        Does NOT retry on:
-        - Auth errors (401) — permanent
-        - Not found (404) — permanent
-        - Bad request (400) — permanent
-        """
-        response = await self.client.chat.completions.create(...)
-        return response.choices[0].message.content
-```
-
-**Behavior:**
-- **Max attempts:** 3 attempts by default (customizable)
-- **Exponential backoff:** Wait 1s, then 2s, then 4s between attempts
-- **Smart retry:** Only retries transient errors (timeouts, rate limits, connection errors)
-- **Doesn't retry:** Auth errors (401), not found (404), bad request (400)
-- **Logging:** Each retry attempt logged as warning
-- **Reraises:** If all retries fail, exception re-raised to caller
-
-**Customizing Retry Behavior:**
-
-```python
-# More aggressive: 5 attempts, up to 30 second waits
-@retry_transient(max_attempts=5, initial_wait=1, max_wait=30)
-async def call_slow_api():
-    pass
-
-# Conservative: 2 attempts, quick waits
-@retry_transient(max_attempts=2, initial_wait=0.5, max_wait=5)
-async def call_fast_api():
-    pass
-```
-
-**When NOT to Retry:**
-
-Do NOT add retry logic to:
-- Database queries (Supabase RLS enforcement happens at connection time)
-- Auth checks (401 is permanent, no point retrying)
-- Pydantic validation (400 is permanent)
-
-**Default:** Only decorate external API calls (OpenAI, Claude, etc.)
-
-See `app/utils/retry.py` for implementation details and `is_retryable_exception()` logic.
-
-### TypeScript (Frontend)
-
-**Style:**
-
-- Use TypeScript strict mode
-- Svelte 5 runes for reactivity (`$state`, `$derived`, `$effect`)
-- Prefer functional components
-- Use Tailwind utility classes, avoid custom CSS unless necessary
-
-**Error Handling:**
-
-- Try/catch on all async operations
-- Show user-friendly error messages in UI
-- Log errors to console in development
-- Consider Sentry or similar for production error tracking (V2)
-
-**Key Patterns:**
-
-```typescript
-let loading = $state(false);
-let error = $state("");
-
-async function handleSubmit() {
-  loading = true;
-  error = "";
-
-  try {
-    const { data, error: apiError } = await supabase.from("table").select();
-
-    if (apiError) throw apiError;
-
-    // Success path
-  } catch (e) {
-    error = e.message;
-    console.error("Operation failed:", e);
-  } finally {
-    loading = false;
-  }
-}
-```
-
-### Responsive Design Standards
-
-**Mobile-First Approach:**
-
-- Design for 375px (mobile) first, then enhance for larger viewports
-- Test at 375px, 667px (landscape), 768px (tablet), 1440px (desktop)
-- No horizontal scroll at any viewport size
-
-**Tailwind Breakpoints:**
-
-```
-sm: 640px   (tablet portrait)
-md: 768px   (tablet landscape)
-lg: 1024px  (desktop)
-```
-
-**Key Rules:**
-
-- Always use `w-full max-w-full` on main containers
-- Use `px-4 sm:px-6 lg:px-8` for responsive padding
-- Wrap flex/grid layouts: `flex flex-col sm:flex-row`
-- All interactive elements minimum 44×44px (`min-h-11`)
-- Navigation must collapse to hamburger on mobile
-- No buttons hidden on hover (breaks mobile UX)
-
-**Pitfalls to Avoid:**
-
-- ❌ Fixed widths on containers
-- ❌ Non-responsive padding
-- ❌ Absolute positioned elements going off-screen
-- ❌ Interactive elements < 44px
-- ❌ Nav bars that don't collapse
-- ❌ Hover-only buttons
-
-**Testing:**
-
-```bash
-# In DevTools: Ctrl+Shift+M for device toolbar
-# Test at: 375px, 667px, 768px, 1440px
-# Verify: no horizontal scroll, all buttons tappable
-```
-
-### Accessibility Standards (WCAG 2.1 Level AA)
-
-**Keyboard Navigation:**
-
-- All interactive elements accessible via Tab/Enter/Escape/Arrow keys
-- Focus indicator always visible (never `outline: none` without replacement)
-- Dropdowns support ↑↓ navigation, Escape to close
-- No keyboard traps
-
-**Touch Targets:**
-
-- Minimum 44×44px for all interactive elements
-- Use `min-h-11` for buttons, `h-11` for inputs
-- Helps both touch users AND keyboard users
-
-**Color Contrast:**
-
-- Normal text: 4.5:1 ratio
-- Large text (18px+): 3:1 ratio
-
-**Semantic HTML:**
-
-- Use `<button>` not `<div>` for clickable actions
-- Use `<nav>`, `<main>`, `<section>` for regions
-- Use `<h1>`, `<h2>`, etc. in proper hierarchy
-- Form inputs must have `<label for="id">`
-
-**ARIA Labels:**
-
-- `aria-label` for icon-only buttons
-- `aria-labelledby` for sections linked to headings
-- `aria-describedby` for inputs with error messages
-- `aria-current="page"` for current navigation
-- `aria-expanded` for expandable sections
-- `aria-controls` to link buttons to elements
-
-**Focus Management:**
-
-- Auto-focus on modals
-- Return focus to trigger element when closing
-- Use `aria-live="polite"` for dynamic content announcements
-- Use `aria-busy` for loading states
-
-**Form Validation:**
-
-- Error messages associated via `aria-describedby`
-- Required fields marked `aria-required="true"`
-- Validation on blur, not keydown
-
-**Images & Icons:**
-
-- Meaningful images: `alt="descriptive text"`
-- Decorative: `alt=""` or `aria-hidden="true"`
-- Icon-only buttons: `aria-label="action"`
-
-### Accessibility + Responsiveness Integration
-
-Build accessibility and responsiveness in from the start, not as separate passes. They are interconnected:
-
-- **Focus visibility:** Must be visible at all viewport sizes (not just hover)
-- **Touch targets:** 44px rule helps both touch AND keyboard users
-- **Hover-only interactions:** Break mobile UX AND accessibility
-- **Screen readers:** Must work at all breakpoints
-- **Text readability:** Minimum 14px on mobile, scale appropriately
-- **Color contrast:** Must meet WCAG AA at all viewport sizes and zoom levels
-
-## **Key Principle:** If something works on mobile (375px) with keyboard navigation, it's accessible. If it's inaccessible, it's usually broken on mobile too.
-
-## Documentation Standards
-
-### When to Write Docstrings
-
-**Write docstrings when they add information the code doesn't already convey.**
-
-**✅ Always document:**
-
-- Public API endpoints (what they do, params, returns, raises)
-- Complex business logic (co-occurrence calculation, pattern analysis)
-- LLM integration points (prompt assembly, RAG retrieval, anonymization)
-- Non-obvious caching or performance optimizations
-- Anything where the "why" matters more than the "what"
-
-**Example - Good docstring:**
-
-```python
-async def calculate_symptom_cooccurrence(logs: list[SymptomLog]) -> dict[tuple[str, str], float]:
-    """
-    Calculate co-occurrence rates between all symptom pairs.
-
-    Returns a dict mapping symptom pairs to their co-occurrence percentage.
-    Example: {('fatigue', 'brain_fog'): 0.78} means they occurred together 78% of the time.
-
-    Used by the dashboard to show "symptoms that travel together" insight card.
-    """
-```
-
-**❌ Skip docstrings for:**
-
-- Self-explanatory functions (name + types say it all)
-- Simple CRUD operations
-- Test functions (use descriptive test names instead: `test_X_when_Y_then_Z`)
-- Pydantic models (fields are self-documenting)
-- Private helper functions only called internally
-
-**Example - No docstring needed:**
-
-```python
-async def get_user(user_id: str) -> User:
-    # Name and types are clear, no docstring needed
-    return await supabase.from_("users").select("*").eq("id", user_id).execute()
-```
-
-### Test Documentation
-
-**Use descriptive test names instead of docstrings:**
-
-```python
-# Good - test name is self-documenting
-async def test_create_symptom_log_returns_401_when_missing_auth():
-    ...
-
-# Bad - unnecessary docstring
-async def test_auth():
-    """Test that endpoint requires authentication."""  # Redundant
-    ...
-```
-
-**Group related tests with comments when helpful:**
-
-```python
-# Authentication tests
-async def test_create_log_requires_valid_token():
-    ...
-
-async def test_create_log_rejects_expired_token():
-    ...
-
-# Validation tests
-async def test_create_log_requires_at_least_one_symptom():
-    ...
-```
-
-### Code Comments
-
-**Use comments sparingly for "why" not "what":**
-
-```python
-# Good - explains why
-# We cache summaries for 24 hours because regenerating them on every
-# Ask Meno query would cost ~$0.02 per query and slow response time
-cache_ttl = 86400
-
-# Bad - restates the code
-# Set cache TTL to 86400 seconds
-cache_ttl = 86400
-```
+**Frontend (Vitest):** Component logic, form validation, API call handling, auth state. E2e with Playwright in V2.
 
 ---
 
-## Architecture Patterns
+## LLM & RAG Strategy
 
-### Backend Service Layer
+**Division of labor:** Python calculates statistics (deterministic). LLM generates narratives from those stats (meaning-making). Never send raw symptom logs to the LLM — send calculated patterns + cached summary only.
 
-Business logic lives in `backend/app/services/`, separate from route handlers.
+**Anonymization:** Strip all PII before LLM calls. Use relative dates ("Day 1, Day 3"). Send only relevant symptom subsets.
 
-**Stats calculations** — `backend/app/services/stats.py`:
+**Prompt architecture (4 layers):** Core identity → Source grounding → Behavioral guardrails → Dynamic context (journey stage, age, cached summary, RAG chunks)
 
-- `calculate_frequency_stats(logs, symptoms_reference)` → `list[SymptomFrequency]`
-- `calculate_cooccurrence_stats(logs, symptoms_reference, min_threshold=2)` → `list[SymptomPair]`
-- `MAX_COOCCURRENCE_PAIRS = 10` — cap exported as a constant so tests can reference it
+**LLM provider:** OpenAI (gpt-4o-mini) for development. Claude for production. Swappable via `LLM_PROVIDER` env var + thin wrapper in `app/services/llm.py`.
 
-**Division of responsibilities:**
+**RAG pipeline:**
 
-- **Routes** handle HTTP concerns: auth, query params, DB fetches, response formatting, error codes
-- **Services** handle business logic: calculations, transformations, data shaping — no DB access
-- **Services are pure functions** — stateless, no side effects, easy to unit-test
-
-**Testing services directly** — `backend/tests/services/`:
-
-```python
-# No mocking needed — pass constructed dicts, assert on returned models
-from app.services.stats import calculate_frequency_stats
-
-def test_counts_sorted_descending():
-    logs = [{"symptoms": ["id-a", "id-b"]}, {"symptoms": ["id-a"]}]
-    ref = {"id-a": {"name": "Hot flashes", "category": "vasomotor"}, ...}
-    stats = calculate_frequency_stats(logs, ref)
-    assert stats[0].symptom_id == "id-a"
-    assert stats[0].count == 2
-```
-
-### Business Logic Utilities
-
-**Rule: Shared business logic should live in `app/utils/`, not scattered across repositories or services.**
-
-#### What Goes in Utils
-
-Business logic that's used by multiple layers:
-- Date calculations (age, date ranges, formatting)
-- Statistical calculations (frequency, co-occurrence analysis)
-- Data transformations
-- Validation helpers
-- Formatting utilities
-
-#### What Stays in Repositories/Services
-
-- Data access queries (repositories only)
-- Service orchestration — calling multiple repos/utils together (services only)
-- API request handling (routes only)
-
-#### Pattern: Utils in Action
-
-**Date utilities example:**
-
-```python
-# app/utils/dates.py - Shared across all layers
-
-from app.utils.dates import calculate_age, get_date_range
-
-# In repository
-age = calculate_age(user_dob)
-start, end = get_date_range(60)
-
-# In service
-age = calculate_age(user_dob)
-start, end = get_date_range(90)
-```
-
-**Stats utilities example:**
-
-```python
-# app/utils/stats.py - Pure calculations, no DB access
-
-from app.utils.stats import calculate_frequency_stats, calculate_cooccurrence_stats
-
-# In appointment prep service (narrative generation)
-freq_stats = calculate_frequency_stats(logs, symptoms_ref)
-coocc_stats = calculate_cooccurrence_stats(logs, symptoms_ref)
-prompt = self._build_prompt(freq_stats, coocc_stats)
-narrative = await self.provider.chat_completion(...)
-
-# In future cycle analysis feature
-freq_stats = calculate_frequency_stats(logs, symptoms_ref)
-patterns = analyze_cycles(freq_stats)
-```
-
-**Available utilities:**
-
-*Dates:*
-- `calculate_age(date_of_birth: str) -> int` — Age from ISO date string
-- `get_date_range(days_back: int) -> tuple[date, date]` — Date range for past N days (1-365)
-- `is_valid_iso_date(date_string: str) -> bool` — Validate ISO date format
-- `iso_date_to_display(iso_date: str) -> str` — Convert ISO date to human-readable
-- `days_since(iso_date: str) -> int` — Days elapsed since a date
-
-*Statistics:*
-- `calculate_frequency_stats(logs: list[dict], symptoms_reference: dict) -> list[SymptomFrequency]` — Per-symptom counts
-- `calculate_cooccurrence_stats(logs: list[dict], symptoms_reference: dict) -> list[SymptomPair]` — Symptom pair co-occurrence rates
-
-#### Benefits
-
-- **DRY:** Single source of truth for calculations
-- **Testable:** Business logic tested independently (no DB mocks needed)
-- **Reusable:** Works across repositories, services, background jobs, CLI scripts
-- **Maintainable:** Changes to logic in one place
-- **Clear separation:** Each layer has clear responsibilities
-
-#### When You Add New Business Logic
-
-1. Does it need to be used by multiple repositories/services?
-   - YES → Create in `app/utils/`
-   - NO → Keep it where it's used
-
-2. Is it a calculation, transformation, or formatting?
-   - YES → Belongs in utils
-   - NO → Might belong in service layer
-
-3. Can it be tested independently?
-   - YES (easier to test as util)
-   - NO (might be too tightly coupled, reconsider design)
-
----
-
-### Frontend API Client
-
-All backend API calls go through `frontend/src/lib/api/client.ts`. Never call `fetch()` directly for backend requests.
-
-**Import and use:**
-
-```typescript
-import { apiClient } from "$lib/api/client";
-
-// GET with query params
-const data = await apiClient.get<{ logs: Log[] }>("/api/symptoms/logs", {
-  start_date: "2026-01-01",
-  limit: 50,
-});
-
-// POST with body
-await apiClient.post("/api/symptoms/logs", {
-  symptoms: ["id-a"],
-  source: "cards",
-});
-
-// File download
-const blob = await apiClient.get(
-  "/api/export/pdf",
-  {},
-  { responseType: "blob" },
-);
-```
-
-**What the client handles automatically:**
-
-- Auth token from `supabase.auth.getSession()` — throws `"Not authenticated"` if missing
-- `Authorization: Bearer <token>` header on every request
-- `Content-Type: application/json` for POST/PUT
-- Error body parsing — surfaces `detail` field from FastAPI error responses
-- Network errors — throws `"Network error. Please check your connection..."`
-
-**What callers handle:**
-
-- Catching errors and setting `error` state for display
-- Typing the response with generics (`apiClient.get<MyType>(...)`)
-
-**Base URL:** Reads `VITE_API_BASE_URL` env var, falls back to `http://localhost:8000`. Set this in `.env` for staging/production.
-
-**Do not:** manually fetch the auth token, set Authorization headers, or call `fetch()` for backend API endpoints. Use the client.
-
----
-
-## Development Workflow
-
-### Running Locally
-
-**Backend:**
-
-```bash
-cd backend
-uv run uvicorn app.main:app --reload
-# Runs on http://localhost:8000
-# API docs at http://localhost:8000/docs
-```
-
-**Frontend:**
-
-```bash
-cd frontend
-npm run dev
-# Runs on http://localhost:5173
-```
-
-### Environment Variables
-
-**Never commit `.env` files.** Use `.env.example` as templates.
-
-**Backend `.env`:**
-
-```bash
-APP_ENV=development
-SUPABASE_URL=https://xxx.supabase.co
-SUPABASE_SERVICE_KEY=eyJ...  # Secret key, never expose to frontend
-ANTHROPIC_API_KEY=sk-ant-...
-OPENAI_API_KEY=sk-...
-ALLOWED_ORIGINS=["http://localhost:5173"]
-```
-
-**Frontend `.env`:**
-
-```bash
-PUBLIC_SUPABASE_URL=https://xxx.supabase.co
-PUBLIC_SUPABASE_ANON_KEY=eyJ...  # Publishable key, safe for browser
-```
-
-The `PUBLIC_` prefix in SvelteKit means the var is exposed to the browser.
-
-### Git Workflow
-
-- Main branch is protected and auto-deploys to production
-- Feature branches for new work
-- Descriptive commit messages: `feat:`, `fix:`, `docs:`, `chore:`
-- Push early and often
-
----
-
-## Complete Vertical Slice Example: Appointment Prep Step 2
-
-**This section shows how all patterns fit together for a real feature.**
-
-When implementing a new feature, you'll touch multiple layers: models, repositories, services, routes, and tests. This example walks through building **Appointment Prep Step 2: Generate Narrative Summary**.
-
-### The Feature
-
-User submits their appointment context (type, goal, dismissed history) + 60 days of symptom logs. The system generates a narrative summary showing symptom frequency, co-occurrence patterns, and notable changes. User reviews and edits before Step 3.
-
-### Architecture Overview
-
-```
-User Input (appointment_id)
-    ↓
-Route Handler (@router.post("/appointment-prep/{id}/narrative"))
-    ↓
-Service Layer (AppointmentService.generate_narrative)
-    ├─ Repository 1: Get appointment context
-    ├─ Repository 2: Get symptom logs (60 days)
-    ├─ Utility: Calculate frequency stats
-    ├─ Utility: Calculate co-occurrence stats
-    ├─ LLM Service: Generate narrative from stats
-    ├─ Repository 3: Save narrative
-    └─ Service returns typed response
-    ↓
-Response Model (AppointmentNarrativeResponse)
-    ↓
-User receives JSON with narrative_id, narrative_text, next_step
-```
-
-### Build Order: Step by Step
-
-#### 1. Data Models (Define the Shape)
-
-**File:** `backend/app/models/appointment.py`
-
-```python
-from pydantic import BaseModel
-from datetime import datetime
-
-class AppointmentContext(BaseModel):
-    """Appointment prep context (Step 1 output)."""
-    appointment_type: str
-    goal: str
-    dismissed_before: str
-    urgent_symptom: str | None = None
-
-class AppointmentNarrativeResponse(BaseModel):
-    """Response with generated narrative (Step 2 output)."""
-    narrative_id: str
-    narrative_text: str
-    next_step: str = "prioritize"  # Step 3
-    created_at: datetime
-```
-
-Models are first because everything else depends on them.
-
-#### 2. Repository Layer (Data Access)
-
-**File:** `backend/app/repositories/appointment_repository.py`
-
-```python
-from app.exceptions import EntityNotFoundError, DatabaseError
-from app.models.appointment import AppointmentContext
-from app.utils.logging import hash_user_id
-
-class AppointmentRepository:
-    """Repository for appointment prep data access."""
-
-    def __init__(self, client: AsyncClient):
-        self.client = client
-
-    async def get_context(
-        self,
-        appointment_id: str,
-        user_id: str
-    ) -> AppointmentContext:
-        """Fetch appointment context from Step 1.
-
-        Returns:
-            AppointmentContext typed model
-
-        Raises:
-            EntityNotFoundError: Not found or doesn't belong to user
-            DatabaseError: Query failed
-        """
-        try:
-            response = (
-                await self.client.table("appointment_prep_contexts")
-                .select("*")
-                .eq("id", appointment_id)
-                .eq("user_id", user_id)
-                .single()
-                .execute()
-            )
-
-            if not response.data:
-                raise EntityNotFoundError(f"Appointment {appointment_id} not found")
-
-            return AppointmentContext(**response.data)
-
-        except EntityNotFoundError:
-            raise
-        except Exception as exc:
-            logger.error(
-                "Failed to fetch appointment context for user %s: %s",
-                hash_user_id(user_id),
-                type(exc).__name__,
-                exc_info=True
-            )
-            raise DatabaseError(f"Failed to fetch appointment context: {exc}") from exc
-
-    async def save_narrative(
-        self,
-        appointment_id: str,
-        user_id: str,
-        narrative_text: str,
-    ) -> str:
-        """Save generated narrative to database.
-
-        Returns:
-            narrative_id
-
-        Raises:
-            DatabaseError: Insert failed
-        """
-        try:
-            response = (
-                await self.client.table("appointment_prep_narratives")
-                .insert({
-                    "appointment_id": appointment_id,
-                    "user_id": user_id,
-                    "narrative_text": narrative_text,
-                    "created_at": datetime.now().isoformat(),
-                })
-                .execute()
-            )
-
-            if not response.data:
-                raise DatabaseError("Failed to save narrative")
-
-            return response.data[0]["id"]
-
-        except Exception as exc:
-            logger.error(
-                "Failed to save narrative for user %s: %s",
-                hash_user_id(user_id),
-                type(exc).__name__,
-                exc_info=True
-            )
-            raise DatabaseError(f"Failed to save narrative: {exc}") from exc
-```
-
-**Key patterns:**
-- Domain exceptions (EntityNotFoundError, DatabaseError) not HTTPException
-- Safe logging with hashed user IDs
-- Typed return values (AppointmentContext model)
-- Separate success/error paths
-
-#### 3. Service Layer (Orchestration & Business Logic)
-
-**File:** `backend/app/services/appointment.py`
-
-```python
-from app.repositories.appointment_repository import AppointmentRepository
-from app.repositories.symptoms_repository import SymptomsRepository
-from app.services.llm import LLMService
-from app.utils.stats import calculate_frequency_stats, calculate_cooccurrence_stats
-from app.utils.dates import get_date_range
-from app.utils.logging import hash_user_id, safe_summary
-from app.exceptions import EntityNotFoundError, DatabaseError
-
-class AppointmentService:
-    """Service for appointment prep features."""
-
-    def __init__(
-        self,
-        appointment_repo: AppointmentRepository,
-        symptoms_repo: SymptomsRepository,
-        llm_service: LLMService,
-    ):
-        """Inject dependencies (repositories and services)."""
-        self.appointment_repo = appointment_repo
-        self.symptoms_repo = symptoms_repo
-        self.llm_service = llm_service
-
-    async def generate_narrative(
-        self,
-        appointment_id: str,
-        user_id: str,
-    ) -> str:
-        """Generate narrative summary for appointment (Step 2).
-
-        Orchestrates:
-        1. Fetch appointment context
-        2. Fetch symptom logs (60 days)
-        3. Calculate statistics
-        4. Call LLM to generate narrative
-        5. Save narrative to database
-
-        Args:
-            appointment_id: Appointment to generate for
-            user_id: User (for ownership verification)
-
-        Returns:
-            narrative_text generated by LLM
-
-        Raises:
-            EntityNotFoundError: Appointment not found
-            DatabaseError: Database operation failed
-        """
-        logger.info(
-            "Generating narrative for user: %s",
-            hash_user_id(user_id),
-        )
-
-        # Step 1: Fetch appointment context
-        try:
-            context = await self.appointment_repo.get_context(appointment_id, user_id)
-        except EntityNotFoundError:
-            logger.warning("Appointment not found: %s", appointment_id)
-            raise
-
-        # Step 2: Fetch symptom logs (last 60 days)
-        start_date, end_date = get_date_range(60)
-        try:
-            logs = await self.symptoms_repo.get_logs(
-                user_id=user_id,
-                start_date=start_date,
-                end_date=end_date,
-            )
-        except DatabaseError:
-            logger.error("Failed to fetch symptom logs")
-            raise
-
-        # Step 3: Calculate statistics from logs
-        symptoms_ref = await self._get_symptoms_reference()
-        freq_stats = calculate_frequency_stats(logs, symptoms_ref)
-        coocc_stats = calculate_cooccurrence_stats(logs, symptoms_ref)
-
-        logger.debug(safe_summary("calculate statistics", "success", count=len(freq_stats)))
-
-        # Step 4: Call LLM to generate narrative
-        try:
-            narrative = await self.llm_service.generate_narrative(
-                context=context,
-                freq_stats=freq_stats,
-                coocc_stats=coocc_stats,
-            )
-        except Exception as exc:
-            logger.error("LLM generation failed: %s", type(exc).__name__)
-            raise
-
-        # Step 5: Save narrative
-        try:
-            narrative_id = await self.appointment_repo.save_narrative(
-                appointment_id=appointment_id,
-                user_id=user_id,
-                narrative_text=narrative,
-            )
-        except DatabaseError:
-            logger.error("Failed to save narrative")
-            raise
-
-        logger.info("Generated narrative: %s", narrative_id)
-        return narrative
-
-    async def _get_symptoms_reference(self) -> dict:
-        """Fetch symptoms reference data (cached)."""
-        # Implementation would fetch from database or cache
-        pass
-```
-
-**Key patterns:**
-- Dependency injection in `__init__`
-- Clear orchestration: repository → utils → service → repository
-- Domain exceptions raised (not HTTP)
-- Safe logging with utility functions
-- Each step has try/except with appropriate error handling
-
-#### 4. Dependency Injection (Wire It Up)
-
-**File:** `backend/app/api/dependencies.py`
-
-```python
-from fastapi import Depends
-from supabase import AsyncClient
-from app.repositories.appointment_repository import AppointmentRepository
-from app.repositories.symptoms_repository import SymptomsRepository
-from app.services.appointment import AppointmentService
-from app.services.llm import LLMService
-from app.services.openai_provider import OpenAIProvider
-
-def get_openai_provider() -> OpenAIProvider:
-    """Provide OpenAI LLM provider."""
-    return OpenAIProvider(api_key=settings.OPENAI_API_KEY)
-
-def get_llm_service(
-    provider: OpenAIProvider = Depends(get_openai_provider),
-) -> LLMService:
-    """Provide LLM service with injected provider."""
-    return LLMService(provider=provider)
-
-def get_supabase_client() -> AsyncClient:
-    """Provide Supabase client."""
-    return supabase.create_client(...)
-
-def get_appointment_repository(
-    client: AsyncClient = Depends(get_supabase_client),
-) -> AppointmentRepository:
-    """Provide appointment repository."""
-    return AppointmentRepository(client=client)
-
-def get_symptoms_repository(
-    client: AsyncClient = Depends(get_supabase_client),
-) -> SymptomsRepository:
-    """Provide symptoms repository."""
-    return SymptomsRepository(client=client)
-
-def get_appointment_service(
-    appointment_repo: AppointmentRepository = Depends(get_appointment_repository),
-    symptoms_repo: SymptomsRepository = Depends(get_symptoms_repository),
-    llm_service: LLMService = Depends(get_llm_service),
-) -> AppointmentService:
-    """Provide appointment service with all dependencies."""
-    return AppointmentService(
-        appointment_repo=appointment_repo,
-        symptoms_repo=symptoms_repo,
-        llm_service=llm_service,
-    )
-```
-
-**Key pattern:**
-- Each dependency function declares what it needs
-- FastAPI auto-resolves the dependency graph
-- Testable: can inject mocks instead of real implementations
-
-#### 5. Route Handler (HTTP Endpoint)
-
-**File:** `backend/app/api/routes/appointment.py`
-
-```python
-from fastapi import APIRouter, Depends
-from app.api.dependencies import get_appointment_service
-from app.models.appointment import AppointmentNarrativeResponse
-from app.services.appointment import AppointmentService
-from app.dependencies import CurrentUser
-from app.exceptions import EntityNotFoundError, DatabaseError
-
-router = APIRouter(prefix="/api/appointment-prep", tags=["appointment"])
-
-@router.post("/{appointment_id}/narrative")
-async def generate_narrative(
-    appointment_id: str,
-    user_id: CurrentUser,
-    service: AppointmentService = Depends(get_appointment_service),
-) -> AppointmentNarrativeResponse:
-    """Generate narrative summary for appointment (Step 2).
-
-    Takes appointment context from Step 1 + symptom logs,
-    generates narrative summary, returns for user review.
-
-    Returns:
-        AppointmentNarrativeResponse with narrative_text and next_step
-
-    Raises:
-        HTTPException (404): Appointment not found
-        HTTPException (500): Database or LLM error
-    """
-    try:
-        narrative = await service.generate_narrative(
-            appointment_id=appointment_id,
-            user_id=user_id,
-        )
-
-        return AppointmentNarrativeResponse(
-            narrative_id=appointment_id,
-            narrative_text=narrative,
-            next_step="prioritize",
-        )
-
-    except EntityNotFoundError as exc:
-        raise HTTPException(status_code=404, detail=str(exc))
-    except DatabaseError as exc:
-        raise HTTPException(status_code=500, detail="Database error")
-```
-
-**Key pattern:**
-- Thin route: just calls service
-- Catches domain exceptions and converts to HTTP
-- Returns typed response model
-- `CurrentUser` dependency handles auth
-
-#### 6. Tests (Verify It Works)
-
-**File:** `backend/tests/services/test_appointment.py`
-
-```python
-import pytest
-from unittest.mock import AsyncMock
-from app.services.appointment import AppointmentService
-from app.models.appointment import AppointmentContext
-from app.exceptions import EntityNotFoundError, DatabaseError
-
-@pytest.fixture
-def mock_appointment_repo():
-    """Mock appointment repository."""
-    mock = AsyncMock()
-    return mock
-
-@pytest.fixture
-def mock_symptoms_repo():
-    """Mock symptoms repository."""
-    mock = AsyncMock()
-    return mock
-
-@pytest.fixture
-def mock_llm_service():
-    """Mock LLM service."""
-    mock = AsyncMock()
-    return mock
-
-@pytest.fixture
-def service(mock_appointment_repo, mock_symptoms_repo, mock_llm_service):
-    """Create service with mocked dependencies."""
-    return AppointmentService(
-        appointment_repo=mock_appointment_repo,
-        symptoms_repo=mock_symptoms_repo,
-        llm_service=mock_llm_service,
-    )
-
-@pytest.mark.asyncio
-async def test_generate_narrative_success(service, mock_appointment_repo, mock_symptoms_repo, mock_llm_service):
-    """Test happy path: narrative generated successfully."""
-    # Setup mocks
-    mock_appointment_repo.get_context.return_value = AppointmentContext(
-        appointment_type="new_provider",
-        goal="explore_hrt",
-        dismissed_before="multiple",
-    )
-    mock_symptoms_repo.get_logs.return_value = [
-        {"symptoms": ["hot-flash", "night-sweat"]},
-        {"symptoms": ["hot-flash"]},
-    ]
-    mock_llm_service.generate_narrative.return_value = "Generated narrative..."
-    mock_appointment_repo.save_narrative.return_value = "narrative-123"
-
-    # Execute
-    narrative = await service.generate_narrative(
-        appointment_id="appt-456",
-        user_id="user-789",
-    )
-
-    # Verify
-    assert narrative == "Generated narrative..."
-    mock_appointment_repo.get_context.assert_called_once()
-    mock_symptoms_repo.get_logs.assert_called_once()
-    mock_llm_service.generate_narrative.assert_called_once()
-    mock_appointment_repo.save_narrative.assert_called_once()
-
-@pytest.mark.asyncio
-async def test_generate_narrative_appointment_not_found(service, mock_appointment_repo):
-    """Test error case: appointment doesn't exist."""
-    mock_appointment_repo.get_context.side_effect = EntityNotFoundError("Not found")
-
-    with pytest.raises(EntityNotFoundError):
-        await service.generate_narrative("nonexistent", "user-789")
-
-@pytest.mark.asyncio
-async def test_generate_narrative_database_error(service, mock_appointment_repo, mock_symptoms_repo):
-    """Test error case: database fails during symptom fetch."""
-    mock_appointment_repo.get_context.return_value = AppointmentContext(
-        appointment_type="new_provider",
-        goal="explore_hrt",
-        dismissed_before="multiple",
-    )
-    mock_symptoms_repo.get_logs.side_effect = DatabaseError("Query failed")
-
-    with pytest.raises(DatabaseError):
-        await service.generate_narrative("appt-456", "user-789")
-```
-
-**Key patterns:**
-- Mock each dependency independently
-- Test happy path + error cases
-- Use fixtures for setup
-- No real database or API calls (all mocked)
-
-### Build Order Summary
-
-**When implementing a complete feature, build in this order:**
-
-1. **Data Models** (`app/models/`) — Define input/output shapes first
-2. **Repositories** (`app/repositories/`) — Implement data access layer
-3. **Services** (`app/services/`) — Implement business logic and orchestration
-4. **Dependency Injection** (`app/api/dependencies.py`) — Wire everything together
-5. **Routes** (`app/api/routes/`) — Create HTTP endpoints (thin, just calls service)
-6. **Tests** (`backend/tests/`) — Test each layer independently
-
-**Key principle:** Each layer depends on the one below it. Testing is isolated (no cascading failures).
-
-### Patterns in Action
-
-**Dependency Graph:**
-
-```
-models/
-  └─ Repository depends on models
-
-repositories/
-  └─ Service depends on repositories + models
-
-services/
-  ├─ Depends on repositories + utilities
-  └─ Returns models
-
-dependencies.py
-  └─ Wires services + repositories together
-
-routes/
-  └─ Depends on services (via DI)
-
-tests/
-  └─ Test each layer independently (with mocks)
-```
-
-**Error Handling Flow:**
-
-```
-Repository raises EntityNotFoundError/DatabaseError
-  ↓
-Service catches and re-raises (or logs + wraps)
-  ↓
-Route catches and converts to HTTPException (404/500)
-  ↓
-Client receives appropriate HTTP status code
-```
-
-**Testing Flow:**
-
-```
-Service test: Mock repos → Call service → Assert behavior
-Repository test: Mock Supabase → Call repo → Assert query correct
-Route test: Mock service → Call endpoint → Assert response model
-```
-
----
-
-## Key Architectural Decisions
-
-### Monorepo
-
-- Frontend and backend in one repo for easier coordination
-- Shared documentation (`DESIGN.md`, `CLAUDE.md`)
-- Single source of truth
-
-### Authentication Flow
-
-- Supabase Auth handles all auth (email/password for V1, magic links in V2)
-- Frontend uses `@supabase/supabase-js` client
-- Backend uses service role key for admin operations
-- Row Level Security enforces data isolation at DB level
-
-### Data Flow: Frontend → Backend → Database
-
-```
-User Action (Frontend)
-    ↓
-Supabase Client (validates auth)
-    ↓
-FastAPI Endpoint (business logic)
-    ↓
-Supabase Service (via service role key)
-    ↓
-PostgreSQL (RLS enforces user isolation)
-```
-
-### LLM Integration Strategy
-
-**Division of Labor:**
-
-- **Python calculates statistics** (counts, frequencies, co-occurrences) - deterministic, exact
-- **OpenAI generates narratives (Claude in production)** from those statistics - meaning-making, educational context
-- **Never send raw symptom logs to the LLM** - send calculated patterns + cached summary only
-
-**Anonymization:**
-
-- Strip all PII before sending to the LLM (no names, emails, exact DOB)
-- Use relative dates ("Day 1, Day 3, Day 7") not absolute dates
-- Send only relevant symptom subsets, not full history
-- Cached summary format: "Most frequent symptoms last 30 days: fatigue 18x, brain fog 12x"
-
-**Prompt Architecture (4 layers):**
-
-1. Core identity (who Meno is, what it does/doesn't do)
-2. Source grounding (cite everything, use provided docs only)
-3. Behavioral guardrails (soft redirects, no medical advice, current HRT evidence)
-4. Dynamic context (user journey stage, age, cached summary, RAG chunks)
-
-### LLM Provider Strategy (Development vs Production)
-
-#### Current Approach: OpenAI for Development
-
-**Why OpenAI for V1:**
-
-- Free API tier during development (no training data usage)
-- Cost-effective while building and iterating
-- Functionally equivalent to Claude for our use cases
-- Same embedding model (text-embedding-3-small) for RAG
-
-**Models Used:**
-
-- **Chat completions:** gpt-4o-mini (development) or gpt-4o (if needed)
-- **Embeddings:** text-embedding-3-small (development and production)
-
-#### Future Migration to Claude (Production)
-
-**When to migrate:**
-
-- App is ready for production/monetization
-- Need Claude's superior reasoning for complex medical context
-- Budget allows for Claude API costs
-
-**Migration is straightforward** — the APIs are very similar:
-
-```python
-# OpenAI (current)
-from openai import OpenAI
-client = OpenAI(api_key=settings.OPENAI_API_KEY)
-response = client.chat.completions.create(
-    model="gpt-4o-mini",
-    messages=[{"role": "user", "content": prompt}]
-)
-text = response.choices[0].message.content
-
-# Claude (future)
-from anthropic import Anthropic
-client = Anthropic(api_key=settings.ANTHROPIC_API_KEY)
-response = client.messages.create(
-    model="claude-sonnet-4-20250514",
-    max_tokens=1024,
-    messages=[{"role": "user", "content": prompt}]
-)
-text = response.content[0].text
-```
-
-**Key differences:**
-
-- Response structure: `.choices[0].message.content` vs `.content[0].text`
-- Claude requires `max_tokens` parameter (OpenAI has a default)
-- Otherwise identical message format and behavior
-
-**Abstraction strategy:**
-Create a thin wrapper in `backend/app/services/llm.py` that provides a unified interface:
-
-```python
-def chat_completion(messages: list[dict], max_tokens: int = 1024) -> str:
-    if settings.LLM_PROVIDER == "openai":
-        # OpenAI logic
-    elif settings.LLM_PROVIDER == "claude":
-        # Claude logic
-```
-
-This way the migration is a single environment variable change + updating one wrapper file.
-
-**Files that will need updates during migration:**
-
-- `backend/app/services/llm.py` (wrapper implementation)
-- `backend/app/core/config.py` (add `LLM_PROVIDER` setting)
-- `.env` files (keep both API keys during transition)
-- Tests (mock the wrapper, not the provider directly)
-
-#### Why Claude for Production?
-
-- **Better reasoning:** Claude excels at nuanced medical context and multi-step reasoning
-- **Stronger guardrails:** Better at following complex system prompts (medical advice boundary)
-- **Citation handling:** More reliable at maintaining inline citations throughout responses
-- **Safety alignment:** Anthropic's focus on AI safety aligns with health data sensitivity
-
-The design of Meno (Python calculates, LLM narrates) means the LLM provider is a swappable component, not a fundamental architecture decision.
-
-### RAG Pipeline
-
-**Knowledge Sources:**
-
-- Menopause Wiki (menopausewiki.ca) - scraped with permission
-- 75-150 curated PubMed papers (post-2015 emphasis, high-quality filters)
-- The Menopause Society guidelines
-- British Menopause Society guidelines
-
-**Embedding Strategy:**
-
-- Development: sentence-transformers (free, runs locally)
-- Production: OpenAI text-embedding-3-small (1536 dimensions)
-- Storage: pgvector in Supabase (vector similarity search)
-
-**Chunking:**
-
-- Wiki: 500 tokens per chunk, 50 token overlap, by section
-- PubMed: abstract, methods, results, conclusion as separate chunks
-- Metadata: source URL, title, publication date, section name, study type
-
-**Retrieval:**
-
-- Cosine similarity search via pgvector
-- Top 5 chunks per query
+- Sources: Menopause Wiki (with permission), 75-150 curated PubMed papers (post-2015), Menopause Society + British Menopause Society guidelines
+- Embeddings: sentence-transformers (dev) / text-embedding-3-small (prod, 1536 dims)
+- Storage: pgvector in Supabase, cosine similarity, top 5 chunks per query
+- Chunking: Wiki 500 tokens/50 overlap by section; PubMed by abstract/methods/results/conclusion
 - Hybrid search (semantic + keyword) in V2
 
 ---
 
-## Privacy & Ethics Principles
+## Privacy & Ethics
 
-### Data Ownership
+**Data ownership:** Users own their data. Full export anytime. Account deletion = 30-day soft delete then hard delete. Data never sold or shared.
 
-- Users own their data
-- Full export available anytime
-- Account deactivation deletes all personal data (30-day soft delete, then hard delete)
-- Data never sold or shared
+**Medical advice boundary:**
 
-### Medical Advice Boundary
+- ✅ "Research suggests sleep disruption is common during perimenopause"
+- ✅ "Your logs show sleep and brain fog co-occurring frequently"
+- ✅ "Here are questions to ask your provider about hormone therapy"
+- ❌ "You have perimenopause" (diagnosis)
+- ❌ "You should take X supplement" (treatment recommendation)
+- ❌ "You don't need to see a doctor" (replacing medical advice)
 
-**Acceptable:**
+Enforced via system prompts, soft redirects, hard stops for prompt injection, UI disclaimers.
 
-- "Research suggests sleep disruption is common during perimenopause"
-- "Your logs show sleep and brain fog co-occurring frequently"
-- "Here are questions to ask your provider about hormone therapy"
-
-**Not Acceptable:**
-
-- "You have perimenopause" (diagnosis)
-- "You should take X supplement" (treatment recommendation)
-- "You don't need to see a doctor" (replacing medical advice)
-
-**Implementation:**
-
-- System prompts enforce this boundary
-- Soft redirects for out-of-scope questions
-- Hard stop for prompt injection attempts
-- Disclaimers throughout UI
-
-### Security
-
-- All secrets in `.env` files, never committed
-- Row Level Security on all user data tables
-- HTTPS only in production
-- Supabase handles auth token security
-- Backend validates all requests even though RLS provides defense-in-depth
-
-### PII-Safe Logging for Health Data
-
-**CRITICAL: Health app logs must NEVER contain personal or medical data.**
-
-This includes:
-- Symptom descriptions or medical information
-- User-generated free-text entries or notes
-- Personal health information (age, DOB, medical history)
-- Even brief snippets or previews of sensitive data
-- User IDs in plaintext (hash them instead)
-
-#### What NOT to Log
-
-```python
-# ❌ DANGEROUS: Logs sensitive health data
-logger.debug("Processing symptom log: %s", data[:100])
-logger.debug("User context: %s", user_data)
-logger.debug("LLM input: %s", prompt[:200])  # Could contain medical info
-logger.info("Generated narrative: %s", narrative[:500])
-```
-
-#### What TO Log (Safe Patterns)
-
-Log structure and status, not content:
-
-```python
-# ✅ SAFE: Only logs metadata and length
-
-from app.utils.logging import safe_len, safe_keys, safe_summary, hash_user_id
-
-# Log operation status
-logger.debug(safe_summary("fetch logs", "success", count=47))
-
-# Log data structure without revealing content
-logger.debug("Response keys: %s, length: %d", safe_keys(response), safe_len(response))
-
-# Log user with hashed ID
-logger.info("Processing for user: %s", hash_user_id(user_id))
-
-# Log LLM operation without prompt content
-logger.debug("LLM call: %d input chars, %d output tokens",
-             safe_len(prompt), len(response_text))
-```
-
-#### Using the Logging Utilities
-
-Import from `app.utils.logging`:
-
-```python
-from app.utils.logging import (
-    hash_user_id,
-    hash_appointment_id,
-    safe_len,
-    safe_type,
-    safe_keys,
-    safe_summary,
-)
-
-# Hash user identifiers
-logger.info("Processing user: %s", hash_user_id(user_id))
-logger.info("Appointment: %s", hash_appointment_id(appointment_id))
-
-# Log data structure without revealing content
-logger.debug("Received response: type=%s, keys=%s",
-             safe_type(response), safe_keys(response))
-
-# Log operation with summary
-logger.info(safe_summary("generate narrative", "success", duration_ms=234.5))
-
-# Log counts and sizes, never content
-logger.debug("Processing %d symptom logs (%d bytes)",
-             log_count, safe_len(all_logs_json))
-```
-
-#### In Providers and Services
-
-```python
-# ❌ BAD: Logs prompt content (may contain medical data)
-async def chat_completion(self, system_prompt: str, user_prompt: str, **kwargs) -> str:
-    logger.debug("Calling LLM with prompt: %s", user_prompt[:200])
-    response = await self.client.chat.completions.create(...)
-    return response.choices[0].message.content
-
-# ✅ GOOD: Only logs metadata
-async def chat_completion(self, system_prompt: str, user_prompt: str, **kwargs) -> str:
-    logger.debug("Calling LLM: %d input chars", safe_len(user_prompt))
-    response = await self.client.chat.completions.create(...)
-    logger.debug("LLM response: %d chars", safe_len(response.choices[0].message.content))
-    return response.choices[0].message.content
-```
-
-#### Legal and Ethical Responsibility
-
-Logging PII in a health app can:
-- **Violate HIPAA** (if US-based or handling US health data)
-- **Violate GDPR** (if EU users)
-- **Violate state health privacy laws** (California, etc.)
-- **Breach user trust** (users expect health data to be private)
-
-Even debug logs should be treated as potentially accessible to others (log aggregation, monitoring systems, backups). **Always assume logs are readable.**
-
-#### Testing Logging
-
-```python
-# Test that logs don't contain sensitive data
-def test_no_pii_in_logs(caplog):
-    """Verify logs don't contain user health data."""
-    # ... run some operation ...
-
-    # Check log output for sensitive terms
-    log_text = caplog.text
-    assert "symptom" not in log_text.lower()  # Don't log symptom descriptions
-    assert user_id not in log_text  # User ID should be hashed
-    assert prompt not in log_text  # Prompt may contain medical info
-```
-
-**Full documentation:** See `docs/dev/backend/LOGGING.md` for comprehensive PII-safe logging guide.
+**Security:** Secrets in `.env` only (never committed). RLS on all user tables. HTTPS in production. Backend validates all requests (defense-in-depth with RLS).
 
 ---
 
-## Current Development Phase
+## Authentication Flow
 
-**V1 Status:** Database schema complete, auth working, UI shell built
+Supabase Auth: email/password for V1, magic links in V2. Frontend uses `@supabase/supabase-js`. Backend uses service role key. RLS enforces data isolation at DB level.
 
-**Next Priority: Backend API Development**
-
-- Create FastAPI endpoints for symptom logging
-- Connect frontend to backend
-- Implement proper error handling and logging
-- Add comprehensive tests
-
-**Deferred to V2:**
-
-- Period tracking
-- Medication tracking
-- MCP servers for RAG and provider search
-- Magic link auth (using password auth in V1)
-- Mobile app
-- Map view for providers
+**Data flow:** User Action → Supabase Client (auth) → FastAPI Endpoint (logic) → Supabase Service (service key) → PostgreSQL (RLS)
 
 ---
 
-## Working with Claude Code
+## Current Phase
 
-### When to Use Context7 MCP
+**V2 Status:** Appointment prep flow complete.
 
-Always use Context7 for live documentation on:
+**Next priorities:** Period tracking, medication tracking, ensure code meets standards.
 
-- SvelteKit (fast-moving, lots of Svelte 5 changes)
-- FastAPI patterns
-- Supabase SDK
-- Anthropic SDK (Claude API)
-- Tailwind CSS
-- shadcn-svelte components
-
-### Request Patterns
-
-**For new features:**
-
-1. Reference this file (`CLAUDE.md`) and `DESIGN.md`
-2. Specify which section you're implementing
-3. Request tests alongside implementation
-4. Ask for error handling and logging
-
-**Example prompt:**
-
-> "Using the context in CLAUDE.md and the database schema in DESIGN.md section 9, implement a FastAPI endpoint for creating symptom logs. Include:
->
-> - Pydantic models for request/response
-> - Proper error handling with HTTPException
-> - Logging of key events
-> - pytest tests with mocked Supabase calls
-> - Validation that user can only create logs for themselves
->
-> Use Context7 to reference FastAPI and Supabase documentation."
-
-**For debugging:**
-
-> "This endpoint is failing with [error]. Check against the patterns in CLAUDE.md and help me debug. Use Context7 for FastAPI error handling best practices."
-
-### File Creation Guidelines
-
-- Backend code goes in `backend/app/` following the structure in this doc
-- Tests mirror source structure in `backend/tests/`
-- Frontend components in `frontend/src/lib/components/`
-- Routes in `frontend/src/routes/` (respect the `(auth)` and `(app)` groups)
+**Deferred to V3:** MCP servers (RAG + provider search), magic link auth, mobile app, map view for providers.
 
 ---
 
-## Testing Strategy
-
-### Backend Testing (pytest)
-
-**What to test:**
-
-- API endpoints (happy path + error cases)
-- Business logic in services
-- Data validation in models
-- RAG retrieval accuracy (V2)
-
-**What NOT to test:**
-
-- Supabase internals (mock it)
-- PostgreSQL functions (trust the DB)
-- Third-party APIs (mock them)
-
-**Mock Strategy: Supabase Fluent API Mocking**
-
-The Supabase client uses a fluent query API (`table().select().eq().execute()`) that's easy to mock incorrectly.
-Naive mocking breaks when code adds/removes chain calls.
-
-**Use `setup_supabase_response()` helper for chain-agnostic mocks:**
-
-```python
-from tests.fixtures.supabase import setup_supabase_response
-
-@pytest.mark.asyncio
-async def test_create_symptom_log(mock_supabase):
-    """Test symptom log creation."""
-    # Set up response data
-    setup_supabase_response(
-        mock_supabase,
-        data=[{"id": "123", "symptoms": ["fatigue"]}]
-    )
-
-    # Query chain doesn't matter — mock handles any length/order
-    repo = SymptomRepository(mock_supabase)
-    result = await repo.create("user-123", {"symptoms": ["fatigue"]})
-
-    assert result["id"] == "123"
-```
-
-**Why this works:**
-
-The helper sets up all Supabase chainable methods to return the same mock chain object.
-This allows unlimited chaining without breaking when code changes.
-
-**Available helpers (in `tests/fixtures/supabase.py`):**
-
-- `setup_supabase_response(mock, data=[], error=None)` — Success response
-- `setup_supabase_error(mock, message)` — Error response
-- `setup_supabase_not_found(mock)` — Empty result
-- `@pytest.fixture mock_supabase` — Pre-configured fixture
-
-See "Part 4: Testing Patterns" in `docs/dev/backend/V2CODE_EXAMPLES.md` for full examples.
-
-### Frontend Testing (Vitest)
-
-**Focus on:**
-
-- Component logic (not visual regression)
-- Form validation
-- API call handling
-- Auth state management
-
-**V1:** Basic unit tests
-**V2:** Consider Playwright for e2e tests
-
----
-
-## Useful Commands Reference
+## Commands Reference
 
 ```bash
 # Backend
 cd backend
-uv add <package>              # Install dependency
-uv add --dev <package>        # Install dev dependency
-uv run pytest                 # Run tests
-uv run pytest -v              # Verbose test output
-uv run pytest --cov           # With coverage
-uv run ruff check .           # Lint
-uv run ruff format .          # Format
-uv run uvicorn app.main:app --reload  # Run dev server
+uv run uvicorn app.main:app --reload     # Dev server (localhost:8000, docs at /docs)
+uv run pytest -v -m "not integration"     # Unit Tests Only
+uv run pytest --cov -m "not integration"  # Unit Tests with coverage
+uv run ruff check . && uv run ruff format . # Lint + format
+uv add <package>                          # Add dependency
+uv add --dev <package>                    # Add dev dependency
 
 # Frontend
 cd frontend
-npm install <package>         # Install dependency
-npm run dev                   # Run dev server
-npm run build                 # Build for production
-npm run preview               # Preview production build
-npm test                      # Run tests
-
-# Database (Supabase dashboard)
-# SQL Editor for running migrations
-# Authentication for managing users
-# Table Editor for viewing data
+npm run dev          # Dev server (localhost:5173)
+npm run build        # Production build
+npm test             # Tests
 ```
 
 ---
 
-## Resources
+## Reference Documents
 
-- **Design Document:** `docs/dev/DESIGN.md` - comprehensive spec
+- **Design spec (DB schema, full architecture):** `docs/dev/DESIGN.md`
+- **Backend coding standards (full patterns + examples):** `docs/dev/backend/V2CODE_EXAMPLES.md`
+- **Frontend coding standards (responsive, a11y, components):** `docs/dev/frontend/V2CODE_EXAMPLES.md`
+- **Vertical slice example (complete feature walkthrough):** `docs/dev/backend/VERTICAL_SLICE_EXAMPLE.md`
+- **PII-safe logging guide:** `docs/dev/backend/LOGGING.md`
+- **Production checklist:** `PRODUCTION_CHECKLIST.md`
+- **Guardrails audit:** `GUARDRAILS_AUDIT.md`
 - **Supabase Dashboard:** https://supabase.com/dashboard
 - **Anthropic Console:** https://console.anthropic.com
-- **Menopause Wiki:** https://menopausewiki.ca
-- **NAMS Directory:** https://www.menopause.org/for-women/find-a-menopause-practitioner
 
 ---
 
-**Remember:** This is a living document. Update it as architectural decisions change or new patterns emerge. Future you (and future Claude Code sessions) will thank you.
+## Compaction Instructions
+
+When compacting, always preserve: the full list of modified files, any test commands that were run, the current feature being implemented, and any errors encountered.
