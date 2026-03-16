@@ -90,10 +90,12 @@
 	<div class="min-h-screen bg-slate-50">
 		<!-- Mobile menu backdrop -->
 		{#if mobileMenuOpen}
-			<div
-				class="fixed inset-0 z-40 bg-black/30"
+			<button
+				class="fixed inset-0 z-40 w-full bg-black/30"
 				onclick={closeMenu}
-			></div>
+				aria-label="Close menu"
+				tabindex="-1"
+			></button>
 
 			<!-- Mobile sidebar menu (only rendered when open) -->
 			<div
