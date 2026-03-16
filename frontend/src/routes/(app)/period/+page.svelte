@@ -133,7 +133,7 @@
 		<h1 class="text-2xl font-bold text-slate-900">Cycles</h1>
 		<button
 			onclick={handleLogToday}
-			class="rounded-lg bg-slate-800 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-500 focus-visible:ring-offset-1"
+			class="rounded-lg bg-teal-600 px-4 py-2 text-sm font-medium text-white hover:bg-teal-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-400 focus-visible:ring-offset-1"
 		>
 			Log today
 		</button>
