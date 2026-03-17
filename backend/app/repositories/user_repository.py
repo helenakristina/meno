@@ -12,6 +12,7 @@ from supabase import AsyncClient
 from app.exceptions import DatabaseError, DuplicateEntityError, EntityNotFoundError
 from app.models.users import UserProfile, UserSettingsResponse, UserSettingsUpdate
 from app.utils.dates import calculate_age
+from app.utils.logging import hash_user_id
 
 logger = logging.getLogger(__name__)
 
@@ -54,14 +55,14 @@ class UserRepository:
         except Exception as exc:
             logger.error(
                 "DB query failed fetching user context for %s: %s",
-                user_id,
+                hash_user_id(user_id),
                 exc,
                 exc_info=True,
             )
             raise DatabaseError(f"Failed to fetch user context: {exc}") from exc
 
         if not response.data:
-            logger.warning("User context not found for user %s", user_id)
+            logger.warning("User context not found for user %s", hash_user_id(user_id))
             return "unsure", None
 
         row = response.data[0]
@@ -73,7 +74,7 @@ class UserRepository:
             try:
                 age = calculate_age(dob_raw)
             except ValueError as e:
-                logger.warning("Invalid DOB for user %s: %s", user_id, e)
+                logger.warning("Invalid DOB for user %s: %s", hash_user_id(user_id), e)
                 age = None
 
         return journey_stage, age
@@ -101,7 +102,7 @@ class UserRepository:
         except Exception as exc:
             logger.error(
                 "DB query failed fetching user profile for %s: %s",
-                user_id,
+                hash_user_id(user_id),
                 exc,
                 exc_info=True,
             )
@@ -110,7 +111,7 @@ class UserRepository:
         if not response.data:
             raise EntityNotFoundError("User not found")
 
-        logger.debug("User profile fetched for user %s", user_id)
+        logger.debug("User profile fetched for user %s", hash_user_id(user_id))
         return UserProfile(**response.data[0])
 
     async def update_profile(self, user_id: str, data: dict) -> UserProfile:
@@ -137,7 +138,7 @@ class UserRepository:
         except Exception as exc:
             logger.error(
                 "DB update failed for user %s: %s",
-                user_id,
+                hash_user_id(user_id),
                 exc,
                 exc_info=True,
             )
@@ -146,7 +147,7 @@ class UserRepository:
         if not response.data:
             raise EntityNotFoundError("User not found")
 
-        logger.info("User profile updated for user %s", user_id)
+        logger.info("User profile updated for user %s", hash_user_id(user_id))
         return UserProfile(**response.data[0])
 
     async def create(self, user_id: str, email: str, data: dict) -> UserProfile:
@@ -179,7 +180,7 @@ class UserRepository:
         except Exception as exc:
             logger.error(
                 "DB insert failed creating user %s: %s",
-                user_id,
+                hash_user_id(user_id),
                 exc,
                 exc_info=True,
             )
@@ -192,7 +193,7 @@ class UserRepository:
             logger.error("Supabase returned no data after user insert")
             raise DatabaseError("Failed to create user profile: no data returned")
 
-        logger.info("User profile created: id=%s email=%s", user_id, email)
+        logger.info("User profile created: user=%s", hash_user_id(user_id))
         return UserProfile(**response.data[0])
 
     async def get(self, user_id: str) -> Optional[UserProfile]:
@@ -217,7 +218,7 @@ class UserRepository:
         except Exception as exc:
             logger.error(
                 "DB query failed fetching user %s: %s",
-                user_id,
+                hash_user_id(user_id),
                 exc,
                 exc_info=True,
             )
@@ -249,7 +250,7 @@ class UserRepository:
                 .execute()
             )
         except Exception as exc:
-            logger.error("DB query failed fetching settings user=%s: %s", user_id, exc, exc_info=True)
+            logger.error("DB query failed fetching settings user=%s: %s", hash_user_id(user_id), exc, exc_info=True)
             raise DatabaseError(f"Failed to fetch user settings: {exc}") from exc
 
         if not response.data:
@@ -265,7 +266,9 @@ class UserRepository:
     async def update_settings(self, user_id: str, data: UserSettingsUpdate) -> UserSettingsResponse:
         """Update user settings fields.
 
-        If has_uterus is set to False, period_tracking_enabled is also set to False.
+        Only fields explicitly present in data.model_fields_set are written.
+        Business rule coercion (e.g. has_uterus=False disabling tracking) is applied
+        at the route layer before this method is called.
 
         Args:
             user_id: ID of the user.
@@ -279,14 +282,11 @@ class UserRepository:
             DatabaseError: If database update fails.
         """
         update_data: dict = {}
-        if data.period_tracking_enabled is not None:
+        if "period_tracking_enabled" in data.model_fields_set:
             update_data["period_tracking_enabled"] = data.period_tracking_enabled
-        if data.has_uterus is not None:
+        if "has_uterus" in data.model_fields_set:
             update_data["has_uterus"] = data.has_uterus
-            # If user indicates no uterus, disable period tracking automatically
-            if data.has_uterus is False:
-                update_data["period_tracking_enabled"] = False
-        if data.journey_stage is not None:
+        if "journey_stage" in data.model_fields_set:
             update_data["journey_stage"] = data.journey_stage
 
         try:
@@ -297,14 +297,14 @@ class UserRepository:
                 .execute()
             )
         except Exception as exc:
-            logger.error("DB update failed for settings user=%s: %s", user_id, exc, exc_info=True)
+            logger.error("DB update failed for settings user=%s: %s", hash_user_id(user_id), exc, exc_info=True)
             raise DatabaseError(f"Failed to update user settings: {exc}") from exc
 
         if not response.data:
             raise EntityNotFoundError("User not found")
 
         row = response.data[0]
-        logger.info("User settings updated: user=%s", user_id)
+        logger.info("User settings updated: user=%s", hash_user_id(user_id))
         return UserSettingsResponse(
             period_tracking_enabled=row.get("period_tracking_enabled", True),
             has_uterus=row.get("has_uterus"),
@@ -331,7 +331,7 @@ class UserRepository:
         except Exception as exc:
             logger.error(
                 "DB delete failed for user %s: %s",
-                user_id,
+                hash_user_id(user_id),
                 exc,
                 exc_info=True,
             )
@@ -340,4 +340,4 @@ class UserRepository:
         if not response.data:
             raise EntityNotFoundError("User not found")
 
-        logger.info("User deleted: id=%s", user_id)
+        logger.info("User deleted: user=%s", hash_user_id(user_id))

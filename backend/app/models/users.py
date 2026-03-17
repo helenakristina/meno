@@ -1,7 +1,7 @@
 from datetime import date, datetime
 from typing import Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 from app.models.providers import InsuranceType
 
@@ -64,3 +64,9 @@ class UserSettingsUpdate(BaseModel):
     period_tracking_enabled: bool | None = None
     has_uterus: bool | None = None
     journey_stage: JourneyStage | None = None
+
+    @model_validator(mode="after")
+    def validate_not_all_none(self) -> "UserSettingsUpdate":
+        if not self.model_fields_set:
+            raise ValueError("At least one field must be provided for settings update")
+        return self

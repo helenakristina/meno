@@ -11,6 +11,7 @@ from app.models.period import (
     PeriodLogResponse,
     PeriodLogUpdate,
 )
+from app.models.users import UserSettingsResponse
 from app.services.period import PeriodService
 
 
@@ -21,14 +22,12 @@ from app.services.period import PeriodService
 def make_log(
     period_start: str,
     log_id: str = "log-1",
-    user_id: str = "user-1",
     period_end: str | None = None,
     flow_level: str | None = None,
     cycle_length: int | None = None,
 ) -> PeriodLogResponse:
     return PeriodLogResponse(
         id=log_id,
-        user_id=user_id,
         period_start=date.fromisoformat(period_start),
         period_end=date.fromisoformat(period_end) if period_end else None,
         flow_level=flow_level,
@@ -55,14 +54,26 @@ def make_repo(
     repo.delete_log = AsyncMock(return_value=None)
     repo.upsert_cycle_analysis = AsyncMock(return_value=None)
     repo.get_cycle_analysis = AsyncMock(return_value=get_analysis_return)
-    # For journey stage lookup
-    users_mock = MagicMock()
-    users_mock.select.return_value = users_mock
-    users_mock.eq.return_value = users_mock
-    users_mock.execute = AsyncMock(return_value=MagicMock(data=[{"journey_stage": "perimenopause"}]))
-    repo.client = MagicMock()
-    repo.client.table.return_value = users_mock
     return repo
+
+
+def make_user_repo(journey_stage: str | None = "perimenopause"):
+    user_repo = MagicMock()
+    user_repo.get_settings = AsyncMock(
+        return_value=UserSettingsResponse(
+            period_tracking_enabled=True,
+            has_uterus=None,
+            journey_stage=journey_stage,
+        )
+    )
+    return user_repo
+
+
+def make_service(repo=None, journey_stage: str | None = "perimenopause"):
+    return PeriodService(
+        period_repo=repo or make_repo(),
+        user_repo=make_user_repo(journey_stage),
+    )
 
 
 USER_ID = "user-1"
@@ -77,7 +88,7 @@ class TestCreateLog:
     @pytest.mark.asyncio
     async def test_create_log_success(self):
         repo = make_repo(create_return=make_log("2026-03-01"))
-        service = PeriodService(repo)
+        service = make_service(repo)
         data = PeriodLogCreate(period_start=date(2026, 3, 1))
 
         result = await service.create_log(USER_ID, data)
@@ -88,8 +99,7 @@ class TestCreateLog:
 
     @pytest.mark.asyncio
     async def test_create_log_future_date_raises_validation_error(self):
-        repo = make_repo()
-        service = PeriodService(repo)
+        service = make_service()
         data = PeriodLogCreate(period_start=date(2099, 1, 1))
 
         with pytest.raises(ValidationError):
@@ -99,7 +109,7 @@ class TestCreateLog:
     async def test_create_log_triggers_cycle_analysis_refresh(self):
         log = make_log("2026-03-01")
         repo = make_repo(create_return=log, get_all_return=[log])
-        service = PeriodService(repo)
+        service = make_service(repo)
         data = PeriodLogCreate(period_start=date(2026, 3, 1))
 
         await service.create_log(USER_ID, data)
@@ -108,15 +118,8 @@ class TestCreateLog:
 
     @pytest.mark.asyncio
     async def test_create_log_returns_bleeding_alert_for_post_menopause(self):
-        users_mock = MagicMock()
-        users_mock.select.return_value = users_mock
-        users_mock.eq.return_value = users_mock
-        users_mock.execute = AsyncMock(
-            return_value=MagicMock(data=[{"journey_stage": "post-menopause"}])
-        )
         repo = make_repo(create_return=make_log("2026-03-01"))
-        repo.client.table.return_value = users_mock
-        service = PeriodService(repo)
+        service = make_service(repo, journey_stage="post-menopause")
         data = PeriodLogCreate(period_start=date(2026, 3, 1))
 
         result = await service.create_log(USER_ID, data)
@@ -126,7 +129,7 @@ class TestCreateLog:
     @pytest.mark.asyncio
     async def test_create_log_no_bleeding_alert_for_perimenopause(self):
         repo = make_repo(create_return=make_log("2026-03-01"))
-        service = PeriodService(repo)
+        service = make_service(repo)
         data = PeriodLogCreate(period_start=date(2026, 3, 1))
 
         result = await service.create_log(USER_ID, data)
@@ -144,17 +147,16 @@ class TestGetLogs:
     async def test_get_logs_returns_list(self):
         logs = [make_log("2026-03-01"), make_log("2026-02-01", log_id="log-2")]
         repo = make_repo(get_logs_return=logs)
-        service = PeriodService(repo)
+        service = make_service(repo)
 
         result = await service.get_logs(USER_ID)
 
-        assert result.total == 2
         assert len(result.logs) == 2
 
     @pytest.mark.asyncio
     async def test_get_logs_passes_date_filters(self):
         repo = make_repo(get_logs_return=[])
-        service = PeriodService(repo)
+        service = make_service(repo)
 
         await service.get_logs(USER_ID, start_date="2026-01-01", end_date="2026-03-31")
 
@@ -165,12 +167,18 @@ class TestGetLogs:
     @pytest.mark.asyncio
     async def test_get_logs_empty_returns_zero_total(self):
         repo = make_repo(get_logs_return=[])
-        service = PeriodService(repo)
+        service = make_service(repo)
 
         result = await service.get_logs(USER_ID)
 
-        assert result.total == 0
         assert result.logs == []
+
+    @pytest.mark.asyncio
+    async def test_get_logs_invalid_date_raises_validation_error(self):
+        service = make_service()
+
+        with pytest.raises(ValidationError):
+            await service.get_logs(USER_ID, start_date="not-a-date")
 
 
 # ---------------------------------------------------------------------------
@@ -182,7 +190,7 @@ class TestDeleteLog:
     @pytest.mark.asyncio
     async def test_delete_log_calls_repo_and_refreshes_analysis(self):
         repo = make_repo()
-        service = PeriodService(repo)
+        service = make_service(repo)
 
         await service.delete_log(USER_ID, "log-1")
 
@@ -211,7 +219,7 @@ class TestGetAnalysis:
             make_log("2026-02-26", cycle_length=28),
         ]
         repo = make_repo(get_analysis_return=stored, get_all_return=logs)
-        service = PeriodService(repo)
+        service = make_service(repo)
 
         result = await service.get_analysis(USER_ID)
 
@@ -222,7 +230,7 @@ class TestGetAnalysis:
     async def test_get_analysis_computes_if_not_stored(self):
         logs = [make_log("2026-01-01"), make_log("2026-01-29", cycle_length=28)]
         repo = make_repo(get_analysis_return=None, get_all_return=logs)
-        service = PeriodService(repo)
+        service = make_service(repo)
 
         result = await service.get_analysis(USER_ID)
 
@@ -239,7 +247,7 @@ class TestGetAnalysis:
             make_log("2026-03-26", cycle_length=28),  # 4th log → 3 cycle_lengths
         ]
         repo = make_repo(get_analysis_return=stored, get_all_return=logs)
-        service = PeriodService(repo)
+        service = make_service(repo)
 
         result = await service.get_analysis(USER_ID)
 
@@ -250,38 +258,11 @@ class TestGetAnalysis:
         stored = CycleAnalysisResponse()
         logs = [make_log("2026-01-01"), make_log("2026-01-29", cycle_length=28)]
         repo = make_repo(get_analysis_return=stored, get_all_return=logs)
-        service = PeriodService(repo)
+        service = make_service(repo)
 
         result = await service.get_analysis(USER_ID)
 
         assert result.has_sufficient_data is False
-
-
-# ---------------------------------------------------------------------------
-# check_postmenopausal_bleeding_alert
-# ---------------------------------------------------------------------------
-
-
-class TestCheckBleedingAlert:
-    def test_returns_true_for_post_menopause(self):
-        service = PeriodService(MagicMock())
-        assert service.check_postmenopausal_bleeding_alert("post-menopause") is True
-
-    def test_returns_false_for_perimenopause(self):
-        service = PeriodService(MagicMock())
-        assert service.check_postmenopausal_bleeding_alert("perimenopause") is False
-
-    def test_returns_false_for_menopause(self):
-        service = PeriodService(MagicMock())
-        assert service.check_postmenopausal_bleeding_alert("menopause") is False
-
-    def test_returns_false_for_none(self):
-        service = PeriodService(MagicMock())
-        assert service.check_postmenopausal_bleeding_alert(None) is False
-
-    def test_returns_false_for_unsure(self):
-        service = PeriodService(MagicMock())
-        assert service.check_postmenopausal_bleeding_alert("unsure") is False
 
 
 # ---------------------------------------------------------------------------
@@ -293,7 +274,7 @@ class TestCycleAnalysisRecalculation:
     @pytest.mark.asyncio
     async def test_refresh_cycle_analysis_empty_logs(self):
         repo = make_repo(get_all_return=[])
-        service = PeriodService(repo)
+        service = make_service(repo)
 
         analysis = await service._refresh_cycle_analysis(USER_ID)
 
@@ -311,7 +292,7 @@ class TestCycleAnalysisRecalculation:
         )
         log = make_log(old_start.isoformat())
         repo = make_repo(get_all_return=[log])
-        service = PeriodService(repo)
+        service = make_service(repo)
 
         analysis = await service._refresh_cycle_analysis(USER_ID)
 
@@ -321,8 +302,42 @@ class TestCycleAnalysisRecalculation:
     async def test_refresh_cycle_analysis_no_inference_under_12_months(self):
         log = make_log(date.today().isoformat())
         repo = make_repo(get_all_return=[log])
-        service = PeriodService(repo)
+        service = make_service(repo)
 
         analysis = await service._refresh_cycle_analysis(USER_ID)
 
         assert analysis.inferred_stage is None
+
+
+# ---------------------------------------------------------------------------
+# _get_journey_stage failure path
+# ---------------------------------------------------------------------------
+
+
+class TestGetJourneyStage:
+    @pytest.mark.asyncio
+    async def test_get_journey_stage_returns_none_when_user_not_found(self):
+        from app.exceptions import EntityNotFoundError
+
+        user_repo = MagicMock()
+        user_repo.get_settings = AsyncMock(side_effect=EntityNotFoundError("not found"))
+        repo = make_repo(create_return=make_log("2026-03-01"))
+        service = PeriodService(period_repo=repo, user_repo=user_repo)
+        data = PeriodLogCreate(period_start=date(2026, 3, 1))
+
+        result = await service.create_log(USER_ID, data)
+
+        # Falls back gracefully — no bleeding alert when stage unknown
+        assert result.bleeding_alert is False
+
+    @pytest.mark.asyncio
+    async def test_get_journey_stage_returns_none_on_unexpected_exception(self):
+        user_repo = MagicMock()
+        user_repo.get_settings = AsyncMock(side_effect=RuntimeError("unexpected"))
+        repo = make_repo(create_return=make_log("2026-03-01"))
+        service = PeriodService(period_repo=repo, user_repo=user_repo)
+        data = PeriodLogCreate(period_start=date(2026, 3, 1))
+
+        result = await service.create_log(USER_ID, data)
+
+        assert result.bleeding_alert is False

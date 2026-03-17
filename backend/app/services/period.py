@@ -4,7 +4,7 @@ import logging
 from datetime import date
 from typing import Optional
 
-from app.exceptions import ValidationError
+from app.exceptions import EntityNotFoundError, ValidationError
 from app.models.period import (
     CycleAnalysisResponse,
     CreatePeriodLogResponse,
@@ -14,6 +14,7 @@ from app.models.period import (
     PeriodLogUpdate,
 )
 from app.repositories.period_repository import PeriodRepository
+from app.repositories.user_repository import UserRepository
 from app.services.period_base import PeriodServiceBase
 from app.utils.dates import (
     calculate_cycle_variability,
@@ -30,8 +31,9 @@ MIN_CYCLES_FOR_ANALYSIS = 3
 class PeriodService(PeriodServiceBase):
     """Handles period log CRUD and cycle analysis calculations."""
 
-    def __init__(self, period_repo: PeriodRepository):
+    def __init__(self, period_repo: PeriodRepository, user_repo: UserRepository):
         self.period_repo = period_repo
+        self.user_repo = user_repo
 
     async def create_log(
         self, user_id: str, data: PeriodLogCreate
@@ -58,9 +60,21 @@ class PeriodService(PeriodServiceBase):
         await self._refresh_cycle_analysis(user_id)
 
         journey_stage = await self._get_journey_stage(user_id)
-        bleeding_alert = self.check_postmenopausal_bleeding_alert(journey_stage)
+        bleeding_alert = journey_stage == "post-menopause"
 
         return CreatePeriodLogResponse(log=log, bleeding_alert=bleeding_alert)
+
+    async def get_log(self, user_id: str, log_id: str) -> PeriodLogResponse:
+        """Fetch a single period log by ID.
+
+        Args:
+            user_id: Authenticated user ID.
+            log_id: ID of the log to fetch.
+
+        Returns:
+            PeriodLogResponse.
+        """
+        return await self.period_repo.get_log(user_id, log_id)
 
     async def get_logs(
         self,
@@ -78,11 +92,14 @@ class PeriodService(PeriodServiceBase):
         Returns:
             PeriodLogListResponse.
         """
-        start = date.fromisoformat(start_date) if start_date else None
-        end = date.fromisoformat(end_date) if end_date else None
+        try:
+            start = date.fromisoformat(start_date) if start_date else None
+            end = date.fromisoformat(end_date) if end_date else None
+        except ValueError as exc:
+            raise ValidationError(f"Invalid date format: {exc}") from exc
 
         logs = await self.period_repo.get_logs(user_id, start, end)
-        return PeriodLogListResponse(logs=logs, total=len(logs))
+        return PeriodLogListResponse(logs=logs)
 
     async def update_log(
         self, user_id: str, log_id: str, data: PeriodLogUpdate
@@ -123,25 +140,15 @@ class PeriodService(PeriodServiceBase):
         """
         analysis = await self.period_repo.get_cycle_analysis(user_id)
         if analysis is None:
-            # No analysis stored yet — compute it now
-            analysis = await self._refresh_cycle_analysis(user_id)
+            # No analysis stored yet — compute it now (has_sufficient_data set inside)
+            return await self._refresh_cycle_analysis(user_id)
 
+        # Recompute has_sufficient_data for cached analysis (not persisted)
         all_logs = await self.period_repo.get_all_logs(user_id)
         cycle_lengths = [log.cycle_length for log in all_logs if log.cycle_length is not None]
         analysis.has_sufficient_data = len(cycle_lengths) >= MIN_CYCLES_FOR_ANALYSIS
 
         return analysis
-
-    def check_postmenopausal_bleeding_alert(self, journey_stage: Optional[str]) -> bool:
-        """Return True if the user is post-menopause (any bleeding warrants a doctor visit).
-
-        Args:
-            journey_stage: User's current journey stage.
-
-        Returns:
-            True if journey_stage is 'post-menopause'.
-        """
-        return journey_stage == "post-menopause"
 
     async def _refresh_cycle_analysis(self, user_id: str) -> CycleAnalysisResponse:
         """Recompute cycle analysis from all period logs and persist it.
@@ -171,7 +178,7 @@ class PeriodService(PeriodServiceBase):
         variability = calculate_cycle_variability(cycle_lengths) if cycle_lengths else None
 
         latest = all_logs[-1]  # most recent (ascending order)
-        months_since = months_since_date(latest.period_start)
+        months_since = max(0, months_since_date(latest.period_start))
 
         # Infer stage: 12+ months since last period → menopause milestone
         inferred_stage = None
@@ -190,19 +197,15 @@ class PeriodService(PeriodServiceBase):
         return analysis
 
     async def _get_journey_stage(self, user_id: str) -> Optional[str]:
-        """Fetch user's journey stage from the users table.
+        """Fetch user's journey stage via UserRepository.
 
-        Falls back to None gracefully if the lookup fails.
+        Falls back to None gracefully if the user is not found.
         """
         try:
-            response = (
-                await self.period_repo.client.table("users")
-                .select("journey_stage")
-                .eq("id", user_id)
-                .execute()
-            )
-            if response.data:
-                return response.data[0].get("journey_stage")
+            settings = await self.user_repo.get_settings(user_id)
+            return settings.journey_stage
+        except EntityNotFoundError:
+            return None
         except Exception as exc:
             logger.warning("Failed to fetch journey stage for user=%s: %s", hash_user_id(user_id), exc)
-        return None
+            return None

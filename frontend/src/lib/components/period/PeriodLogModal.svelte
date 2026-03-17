@@ -1,31 +1,22 @@
 <script lang="ts">
 	import { apiClient } from '$lib/api/client';
 	import type { DateValue } from '@internationalized/date';
-
-	type FlowLevel = 'spotting' | 'light' | 'medium' | 'heavy';
-
-	type PeriodLog = {
-		id: string;
-		period_start: string;
-		period_end: string | null;
-		flow_level: FlowLevel | null;
-		notes: string | null;
-		cycle_length: number | null;
-		created_at: string;
-	};
+	import type { FlowLevel, PeriodLog } from '$lib/types/period';
 
 	let {
 		open = $bindable(false),
 		date,
 		existingLog = null,
 		journeyStage = null,
-		onSave
+		onSave,
+		onDelete
 	}: {
 		open: boolean;
 		date: DateValue | null;
 		existingLog?: PeriodLog | null;
 		journeyStage?: string | null;
 		onSave?: (log: PeriodLog, bleedingAlert: boolean) => void;
+		onDelete?: (logId: string) => void;
 	} = $props();
 
 	// Form state
@@ -35,6 +26,8 @@
 	let notes = $state('');
 
 	let saving = $state(false);
+	let deleting = $state(false);
+	let confirmingDelete = $state(false);
 	let error = $state<string | null>(null);
 	let bleedingAlert = $state(false);
 
@@ -58,6 +51,7 @@
 			notes = existingLog?.notes ?? '';
 			error = null;
 			bleedingAlert = false;
+			confirmingDelete = false;
 
 			// Pre-check bleeding alert for post-menopause users
 			if (journeyStage === 'post-menopause') {
@@ -70,8 +64,20 @@
 		open = false;
 	}
 
-	function handleBackdropKeydown(e: KeyboardEvent) {
-		if (e.key === 'Escape') close();
+	async function handleDelete() {
+		if (!existingLog || deleting) return;
+		deleting = true;
+		error = null;
+		try {
+			await apiClient.delete(`/api/period/logs/${existingLog.id}`);
+			onDelete?.(existingLog.id);
+			close();
+		} catch (e) {
+			error = e instanceof Error ? e.message : 'Failed to delete. Please try again.';
+		} finally {
+			deleting = false;
+			confirmingDelete = false;
+		}
 	}
 
 	async function handleSubmit() {
@@ -114,27 +120,64 @@
 
 	const isEditing = $derived(existingLog !== null);
 	const title = $derived(isEditing ? 'Edit Period Log' : 'Log Period');
+
+	function trapFocus(node: HTMLElement) {
+		const focusable = () =>
+			Array.from(
+				node.querySelectorAll<HTMLElement>(
+					'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+				)
+			).filter((el) => !el.hasAttribute('disabled'));
+
+		function onKeydown(e: KeyboardEvent) {
+			if (e.key === 'Escape') {
+				close();
+				return;
+			}
+			if (e.key !== 'Tab') return;
+			const els = focusable();
+			if (!els.length) return;
+			const first = els[0];
+			const last = els[els.length - 1];
+			if (e.shiftKey) {
+				if (document.activeElement === first) {
+					e.preventDefault();
+					last.focus();
+				}
+			} else {
+				if (document.activeElement === last) {
+					e.preventDefault();
+					first.focus();
+				}
+			}
+		}
+
+		// Focus first focusable element on mount
+		const first = focusable()[0];
+		first?.focus();
+
+		node.addEventListener('keydown', onKeydown);
+		return { destroy() { node.removeEventListener('keydown', onKeydown); } };
+	}
 </script>
 
 {#if open}
-	<!-- Backdrop -->
-	<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
+	<!-- Backdrop (visual only — Escape and keyboard handled by panel's trapFocus action) -->
+	<!-- svelte-ignore a11y_no_static_element_interactions -->
+	<!-- svelte-ignore a11y_click_events_have_key_events -->
 	<div
 		class="fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-4 backdrop-blur-sm sm:items-center"
-		role="dialog"
-		aria-modal="true"
-		aria-labelledby="period-log-title"
-		tabindex="-1"
 		onclick={close}
-		onkeydown={handleBackdropKeydown}
 	>
 		<!-- Panel -->
-		<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
 		<div
 			class="w-full max-w-md rounded-2xl bg-white px-6 py-6 shadow-2xl"
+			role="dialog"
+			aria-modal="true"
+			aria-labelledby="period-log-title"
+			tabindex="-1"
 			onclick={(e) => e.stopPropagation()}
-			onkeydown={(e) => e.stopPropagation()}
-			role="document"
+			use:trapFocus
 		>
 			<!-- Header -->
 			<div class="mb-5 flex items-center justify-between">
@@ -268,6 +311,40 @@
 						{saving ? 'Saving…' : isEditing ? 'Save changes' : 'Log period'}
 					</button>
 				</div>
+
+				<!-- Delete (edit mode only, two-step inline confirmation) -->
+				{#if isEditing}
+					<div class="flex justify-center pt-1">
+						{#if confirmingDelete}
+							<div class="flex items-center gap-3 text-sm">
+								<span class="text-slate-600">Delete this log?</span>
+								<button
+									type="button"
+									onclick={handleDelete}
+									disabled={deleting}
+									class="font-medium text-red-600 hover:text-red-700 focus:outline-none focus-visible:underline"
+								>
+									{deleting ? 'Deleting…' : 'Yes, delete'}
+								</button>
+								<button
+									type="button"
+									onclick={() => (confirmingDelete = false)}
+									class="text-slate-500 hover:text-slate-700 focus:outline-none focus-visible:underline"
+								>
+									Keep
+								</button>
+							</div>
+						{:else}
+							<button
+								type="button"
+								onclick={() => (confirmingDelete = true)}
+								class="text-sm text-slate-400 hover:text-red-600 focus:outline-none focus-visible:underline"
+							>
+								Delete log
+							</button>
+						{/if}
+					</div>
+				{/if}
 			</div>
 		</div>
 	</div>

@@ -1,18 +1,18 @@
 from datetime import date, datetime
 from typing import Literal, Optional
-from uuid import UUID
 
-from pydantic import BaseModel, model_validator
+from pydantic import BaseModel, Field, model_validator
 
 
 FlowLevel = Literal["spotting", "light", "medium", "heavy"]
+InferredStage = Literal["perimenopause", "menopause", "post-menopause"]
 
 
 class PeriodLogCreate(BaseModel):
     period_start: date
     period_end: Optional[date] = None
     flow_level: Optional[FlowLevel] = None
-    notes: Optional[str] = None
+    notes: Optional[str] = Field(None, max_length=1000)
 
     @model_validator(mode="after")
     def validate_date_order(self) -> "PeriodLogCreate":
@@ -24,18 +24,17 @@ class PeriodLogCreate(BaseModel):
 class PeriodLogUpdate(BaseModel):
     period_end: Optional[date] = None
     flow_level: Optional[FlowLevel] = None
-    notes: Optional[str] = None
+    notes: Optional[str] = Field(None, max_length=1000)
 
     @model_validator(mode="after")
     def validate_not_all_none(self) -> "PeriodLogUpdate":
-        if self.period_end is None and self.flow_level is None and self.notes is None:
+        if not self.model_fields_set:
             raise ValueError("At least one field must be provided for update")
         return self
 
 
 class PeriodLogResponse(BaseModel):
     id: str
-    user_id: str
     period_start: date
     period_end: Optional[date] = None
     flow_level: Optional[str] = None
@@ -48,7 +47,6 @@ class PeriodLogResponse(BaseModel):
 
 class PeriodLogListResponse(BaseModel):
     logs: list[PeriodLogResponse]
-    total: int
 
 
 class CreatePeriodLogResponse(BaseModel):
@@ -60,8 +58,8 @@ class CycleAnalysisResponse(BaseModel):
     average_cycle_length: Optional[float] = None
     cycle_variability: Optional[float] = None
     months_since_last_period: Optional[int] = None
-    inferred_stage: Optional[str] = None
+    inferred_stage: Optional[InferredStage] = None
     calculated_at: Optional[datetime] = None
     has_sufficient_data: bool = False
 
-    model_config = {"from_attributes": True}
+    model_config = {"from_attributes": True, "extra": "ignore"}

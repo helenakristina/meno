@@ -7,6 +7,7 @@
 	import { Menu, X, User } from '@lucide/svelte';
 	import { onMount } from 'svelte';
 	import { apiClient } from '$lib/api/client';
+	import { userSettings } from '$lib/stores/settings';
 
 	let { children }: { children: Snippet } = $props();
 	let loading = $state(true);
@@ -14,8 +15,8 @@
 	let profileMenuOpen = $state(false);
 	let periodTrackingEnabled = $state(false);
 
-	// Check initial auth state
-	$effect(() => {
+	// Check initial auth state (onMount — runs once, not reactive)
+	onMount(() => {
 		supabase.auth.getSession().then(() => {
 			loading = false;
 		});
@@ -28,10 +29,15 @@
 		}
 	});
 
-	// Load period tracking preference
+	// Load period tracking preference and populate shared settings store
 	onMount(async () => {
 		try {
-			const settings = await apiClient.get('/api/users/settings');
+			const settings = await apiClient.get('/api/users/settings') as {
+				period_tracking_enabled: boolean;
+				has_uterus: boolean | null;
+				journey_stage: string | null;
+			};
+			userSettings.set(settings);
 			periodTrackingEnabled = settings.period_tracking_enabled;
 		} catch {
 			// Default to false if settings can't be loaded — period nav won't show

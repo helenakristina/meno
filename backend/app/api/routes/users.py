@@ -224,6 +224,12 @@ async def update_settings(
         HTTPException: 422 if journey_stage is invalid.
         HTTPException: 500 for unexpected failures.
     """
+    # Business rule: no uterus → period tracking must be off
+    if "has_uterus" in payload.model_fields_set and payload.has_uterus is False:
+        fields = {k: getattr(payload, k) for k in payload.model_fields_set}
+        fields["period_tracking_enabled"] = False
+        payload = UserSettingsUpdate.model_validate(fields)
+
     updated = await user_repo.update_settings(user_id, payload)
     logger.info("User settings updated: user=%s", hash_user_id(user_id))
     return updated

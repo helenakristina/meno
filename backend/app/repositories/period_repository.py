@@ -12,6 +12,8 @@ from supabase import AsyncClient
 
 from app.exceptions import DatabaseError, EntityNotFoundError
 from app.models.period import CycleAnalysisResponse, PeriodLogCreate, PeriodLogResponse, PeriodLogUpdate
+from app.utils.dates import calculate_cycle_length
+from app.utils.logging import hash_user_id
 
 logger = logging.getLogger(__name__)
 
@@ -43,7 +45,6 @@ class PeriodRepository:
         previous = await self.get_latest_log(user_id)
         cycle_length: Optional[int] = None
         if previous is not None:
-            from app.utils.dates import calculate_cycle_length
             try:
                 cycle_length = calculate_cycle_length(data.period_start, previous.period_start)
             except ValueError:
@@ -64,13 +65,13 @@ class PeriodRepository:
         try:
             response = await self.client.table("period_logs").insert(row).execute()
         except Exception as exc:
-            logger.error("DB insert failed for period log user=%s: %s", user_id, exc, exc_info=True)
+            logger.error("DB insert failed for period log user=%s: %s", hash_user_id(user_id), exc, exc_info=True)
             raise DatabaseError(f"Failed to create period log: {exc}") from exc
 
         if not response.data:
             raise DatabaseError("Failed to create period log: no data returned")
 
-        logger.info("Period log created: user=%s", user_id)
+        logger.info("Period log created: user=%s", hash_user_id(user_id))
         return self._to_model(response.data[0])
 
     async def get_logs(
@@ -106,7 +107,7 @@ class PeriodRepository:
             query = query.order("period_start", desc=True)
             response = await query.execute()
         except Exception as exc:
-            logger.error("DB query failed fetching period logs user=%s: %s", user_id, exc, exc_info=True)
+            logger.error("DB query failed fetching period logs user=%s: %s", hash_user_id(user_id), exc, exc_info=True)
             raise DatabaseError(f"Failed to retrieve period logs: {exc}") from exc
 
         return [self._to_model(row) for row in (response.data or [])]
@@ -133,7 +134,7 @@ class PeriodRepository:
                 .execute()
             )
         except Exception as exc:
-            logger.error("DB query failed fetching latest period log user=%s: %s", user_id, exc, exc_info=True)
+            logger.error("DB query failed fetching latest period log user=%s: %s", hash_user_id(user_id), exc, exc_info=True)
             raise DatabaseError(f"Failed to retrieve latest period log: {exc}") from exc
 
         if not response.data:
@@ -163,10 +164,42 @@ class PeriodRepository:
                 .execute()
             )
         except Exception as exc:
-            logger.error("DB query failed fetching all period logs user=%s: %s", user_id, exc, exc_info=True)
+            logger.error("DB query failed fetching all period logs user=%s: %s", hash_user_id(user_id), exc, exc_info=True)
             raise DatabaseError(f"Failed to retrieve period logs: {exc}") from exc
 
         return [self._to_model(row) for row in (response.data or [])]
+
+    async def get_log(self, user_id: str, log_id: str) -> PeriodLogResponse:
+        """Fetch a single period log by ID.
+
+        Args:
+            user_id: Owner of the log (enforces ownership).
+            log_id: ID of the log to fetch.
+
+        Returns:
+            PeriodLogResponse.
+
+        Raises:
+            EntityNotFoundError: If the log does not exist for this user.
+            DatabaseError: If the database query fails.
+        """
+        try:
+            response = (
+                await self.client.table("period_logs")
+                .select("*")
+                .eq("id", log_id)
+                .eq("user_id", user_id)
+                .limit(1)
+                .execute()
+            )
+        except Exception as exc:
+            logger.error("DB query failed fetching period log %s user=%s: %s", log_id, hash_user_id(user_id), exc, exc_info=True)
+            raise DatabaseError(f"Failed to retrieve period log: {exc}") from exc
+
+        if not response.data:
+            raise EntityNotFoundError("Period log not found")
+
+        return self._to_model(response.data[0])
 
     async def update_log(
         self, user_id: str, log_id: str, data: PeriodLogUpdate
@@ -186,11 +219,11 @@ class PeriodRepository:
             DatabaseError: If the database update fails.
         """
         update_data: dict = {}
-        if data.period_end is not None:
-            update_data["period_end"] = data.period_end.isoformat()
-        if data.flow_level is not None:
+        if "period_end" in data.model_fields_set:
+            update_data["period_end"] = data.period_end.isoformat() if data.period_end is not None else None
+        if "flow_level" in data.model_fields_set:
             update_data["flow_level"] = data.flow_level
-        if data.notes is not None:
+        if "notes" in data.model_fields_set:
             update_data["notes"] = data.notes
 
         try:
@@ -202,13 +235,13 @@ class PeriodRepository:
                 .execute()
             )
         except Exception as exc:
-            logger.error("DB update failed for period log %s user=%s: %s", log_id, user_id, exc, exc_info=True)
+            logger.error("DB update failed for period log %s user=%s: %s", log_id, hash_user_id(user_id), exc, exc_info=True)
             raise DatabaseError(f"Failed to update period log: {exc}") from exc
 
         if not response.data:
             raise EntityNotFoundError("Period log not found")
 
-        logger.info("Period log updated: id=%s user=%s", log_id, user_id)
+        logger.info("Period log updated: id=%s user=%s", log_id, hash_user_id(user_id))
         return self._to_model(response.data[0])
 
     async def delete_log(self, user_id: str, log_id: str) -> None:
@@ -231,13 +264,13 @@ class PeriodRepository:
                 .execute()
             )
         except Exception as exc:
-            logger.error("DB delete failed for period log %s user=%s: %s", log_id, user_id, exc, exc_info=True)
+            logger.error("DB delete failed for period log %s user=%s: %s", log_id, hash_user_id(user_id), exc, exc_info=True)
             raise DatabaseError(f"Failed to delete period log: {exc}") from exc
 
         if not response.data:
             raise EntityNotFoundError("Period log not found")
 
-        logger.info("Period log deleted: id=%s user=%s", log_id, user_id)
+        logger.info("Period log deleted: id=%s user=%s", log_id, hash_user_id(user_id))
 
     async def upsert_cycle_analysis(
         self, user_id: str, analysis: CycleAnalysisResponse
@@ -257,6 +290,7 @@ class PeriodRepository:
             "cycle_variability": analysis.cycle_variability,
             "months_since_last_period": analysis.months_since_last_period,
             "inferred_stage": analysis.inferred_stage,
+            "calculated_at": "now()",
         }
 
         try:
@@ -266,7 +300,7 @@ class PeriodRepository:
                 .execute()
             )
         except Exception as exc:
-            logger.error("DB upsert failed for cycle_analysis user=%s: %s", user_id, exc, exc_info=True)
+            logger.error("DB upsert failed for cycle_analysis user=%s: %s", hash_user_id(user_id), exc, exc_info=True)
             raise DatabaseError(f"Failed to upsert cycle analysis: {exc}") from exc
 
     async def get_cycle_analysis(self, user_id: str) -> Optional[CycleAnalysisResponse]:
@@ -284,28 +318,22 @@ class PeriodRepository:
         try:
             response = (
                 await self.client.table("cycle_analysis")
-                .select("*")
+                .select(
+                    "average_cycle_length, cycle_variability, months_since_last_period, "
+                    "inferred_stage, calculated_at"
+                )
                 .eq("user_id", user_id)
                 .limit(1)
                 .execute()
             )
         except Exception as exc:
-            logger.error("DB query failed fetching cycle analysis user=%s: %s", user_id, exc, exc_info=True)
+            logger.error("DB query failed fetching cycle analysis user=%s: %s", hash_user_id(user_id), exc, exc_info=True)
             raise DatabaseError(f"Failed to retrieve cycle analysis: {exc}") from exc
 
         if not response.data:
             return None
-        return CycleAnalysisResponse(**response.data[0])
+        return CycleAnalysisResponse.model_validate(response.data[0])
 
     @staticmethod
     def _to_model(row: dict) -> PeriodLogResponse:
-        return PeriodLogResponse(
-            id=row["id"],
-            user_id=row["user_id"],
-            period_start=row["period_start"],
-            period_end=row.get("period_end"),
-            flow_level=row.get("flow_level"),
-            notes=row.get("notes"),
-            cycle_length=row.get("cycle_length"),
-            created_at=row["created_at"],
-        )
+        return PeriodLogResponse.model_validate(row)

@@ -1,8 +1,11 @@
+"""Abstract base class for PeriodService."""
+
 from abc import ABC, abstractmethod
+from typing import Optional
 
 from app.models.period import (
-    CycleAnalysisResponse,
     CreatePeriodLogResponse,
+    CycleAnalysisResponse,
     PeriodLogCreate,
     PeriodLogListResponse,
     PeriodLogResponse,
@@ -11,17 +14,22 @@ from app.models.period import (
 
 
 class PeriodServiceBase(ABC):
+    """Interface contract for period tracking business logic."""
+
     @abstractmethod
     async def create_log(
         self, user_id: str, data: PeriodLogCreate
     ) -> CreatePeriodLogResponse: ...
 
     @abstractmethod
+    async def get_log(self, user_id: str, log_id: str) -> PeriodLogResponse: ...
+
+    @abstractmethod
     async def get_logs(
         self,
         user_id: str,
-        start_date: str | None = None,
-        end_date: str | None = None,
+        start_date: Optional[str] = None,
+        end_date: Optional[str] = None,
     ) -> PeriodLogListResponse: ...
 
     @abstractmethod
@@ -34,6 +42,3 @@ class PeriodServiceBase(ABC):
 
     @abstractmethod
     async def get_analysis(self, user_id: str) -> CycleAnalysisResponse: ...
-
-    @abstractmethod
-    def check_postmenopausal_bleeding_alert(self, journey_stage: str | None) -> bool: ...

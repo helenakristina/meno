@@ -2,20 +2,11 @@
 	import { onMount } from 'svelte';
 	import { today, getLocalTimeZone, type DateValue, CalendarDate } from '@internationalized/date';
 	import { apiClient } from '$lib/api/client';
+	import { userSettings } from '$lib/stores/settings';
+	import { get } from 'svelte/store';
 	import PeriodCalendar from '$lib/components/period/PeriodCalendar.svelte';
 	import PeriodLogModal from '$lib/components/period/PeriodLogModal.svelte';
-
-	type FlowLevel = 'spotting' | 'light' | 'medium' | 'heavy';
-
-	type PeriodLog = {
-		id: string;
-		period_start: string;
-		period_end: string | null;
-		flow_level: FlowLevel | null;
-		notes: string | null;
-		cycle_length: number | null;
-		created_at: string;
-	};
+	import type { FlowLevel, PeriodLog } from '$lib/types/period';
 
 	type CycleAnalysis = {
 		average_cycle_length: number | null;
@@ -36,6 +27,9 @@
 	let selectedDate = $state<DateValue | null>(null);
 	let selectedLog = $state<PeriodLog | null>(null);
 
+	// Bleeding alert banner (post-menopause)
+	let bleedingAlertActive = $state(false);
+
 	// Inference banner
 	let bannerDismissed = $state(false);
 
@@ -54,16 +48,16 @@
 
 	async function loadData() {
 		try {
-			const [settingsRes, logsRes, analysisRes] = await Promise.all([
-				apiClient.get('/api/users/settings'),
-				apiClient.get<{ logs: PeriodLog[]; total: number }>('/api/period/logs'),
+			const [logsRes, analysisRes] = await Promise.all([
+				apiClient.get<{ logs: PeriodLog[] }>('/api/period/logs'),
 				apiClient.get('/api/period/analysis')
 			]);
 
-			const settings = settingsRes as { period_tracking_enabled: boolean; journey_stage: string | null };
-			journeyStage = settings.journey_stage;
+			// Reuse settings already fetched by the layout (avoid duplicate request)
+			const cachedSettings = get(userSettings);
+			journeyStage = cachedSettings?.journey_stage ?? null;
 
-			const logsData = logsRes as { logs: PeriodLog[]; total: number };
+			const logsData = logsRes as { logs: PeriodLog[] };
 			logs = logsData.logs;
 
 			cycleAnalysis = analysisRes as CycleAnalysis;
@@ -94,6 +88,11 @@
 		} else {
 			logs = [log, ...logs];
 		}
+		if (bleedingAlert) bleedingAlertActive = true;
+	}
+
+	function handleDeleteLog(logId: string) {
+		logs = logs.filter((l) => l.id !== logId);
 	}
 
 	async function handleUpdateJourneyStage() {
@@ -144,6 +143,33 @@
 			{loadError}
 		</div>
 	{:else}
+		<!-- Postmenopausal bleeding alert banner -->
+		{#if bleedingAlertActive}
+			<div
+				class="mb-6 rounded-lg border border-amber-200 bg-amber-50 px-4 py-4"
+				role="alert"
+				aria-live="assertive"
+			>
+				<div class="flex items-start justify-between gap-3">
+					<div>
+						<p class="text-sm font-medium text-amber-800">Please contact your doctor</p>
+						<p class="mt-0.5 text-sm text-amber-700">
+							Postmenopausal bleeding should be evaluated by a healthcare provider promptly.
+						</p>
+					</div>
+					<button
+						onclick={() => (bleedingAlertActive = false)}
+						class="shrink-0 rounded-full p-1 text-amber-600 hover:bg-amber-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-400"
+						aria-label="Dismiss alert"
+					>
+						<svg xmlns="http://www.w3.org/2000/svg" class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+							<path d="M18 6 6 18M6 6l12 12" />
+						</svg>
+					</button>
+				</div>
+			</div>
+		{/if}
+
 		<!-- Inference banner -->
 		{#if showInferenceBanner}
 			<div
@@ -223,4 +249,5 @@
 	existingLog={selectedLog}
 	{journeyStage}
 	onSave={handleSave}
+	onDelete={handleDeleteLog}
 />

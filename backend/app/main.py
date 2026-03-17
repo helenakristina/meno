@@ -34,7 +34,7 @@ async def entity_not_found_handler(request: Request, exc: EntityNotFoundError):
     logger.info("EntityNotFoundError: %s", exc)
     return JSONResponse(
         status_code=404,
-        content={"detail": str(exc)},
+        content={"detail": "Not found"},
     )
 
 

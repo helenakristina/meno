@@ -31,6 +31,10 @@ CREATE POLICY period_logs_user_isolation
 CREATE INDEX IF NOT EXISTS idx_period_logs_user_date
   ON period_logs (user_id, period_start DESC);
 
+-- Prevent duplicate logs for the same period start date per user
+CREATE UNIQUE INDEX IF NOT EXISTS idx_period_logs_user_start
+  ON period_logs (user_id, period_start);
+
 -- cycle_analysis: one row per user, upserted after each log create/delete
 CREATE TABLE IF NOT EXISTS cycle_analysis (
   id                          UUID PRIMARY KEY DEFAULT gen_random_uuid(),

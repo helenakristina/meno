@@ -5,7 +5,7 @@ from datetime import date
 from unittest.mock import AsyncMock, MagicMock
 from app.exceptions import DatabaseError, DuplicateEntityError, EntityNotFoundError
 
-from app.models.users import UserProfile
+from app.models.users import UserProfile, UserSettingsResponse, UserSettingsUpdate
 from app.repositories.user_repository import UserRepository
 
 
@@ -457,6 +457,132 @@ async def test_delete_db_error():
         await repo.delete("user-123")
 
     assert "Failed to delete user" in str(exc_info.value)
+
+
+# ============================================================================
+# get_settings() tests
+# ============================================================================
+
+
+@pytest.mark.asyncio
+async def test_get_settings_success():
+    mock_client = make_sequential_client(
+        MagicMock(
+            data=[
+                {
+                    "period_tracking_enabled": True,
+                    "has_uterus": True,
+                    "journey_stage": "perimenopause",
+                }
+            ]
+        )
+    )
+    repo = UserRepository(client=mock_client)
+
+    result = await repo.get_settings("user-123")
+
+    assert isinstance(result, UserSettingsResponse)
+    assert result.period_tracking_enabled is True
+    assert result.has_uterus is True
+    assert result.journey_stage == "perimenopause"
+
+
+@pytest.mark.asyncio
+async def test_get_settings_not_found():
+    mock_client = make_sequential_client(MagicMock(data=[]))
+    repo = UserRepository(client=mock_client)
+
+    with pytest.raises(EntityNotFoundError):
+        await repo.get_settings("nonexistent-user")
+
+
+@pytest.mark.asyncio
+async def test_get_settings_db_error():
+    mock_client = MagicMock()
+    chain = MagicMock()
+    chain.execute = AsyncMock(side_effect=Exception("DB down"))
+    chain.eq.return_value = chain
+    chain.select.return_value = chain
+    mock_client.table.return_value = chain
+
+    repo = UserRepository(client=mock_client)
+
+    with pytest.raises(DatabaseError):
+        await repo.get_settings("user-123")
+
+
+# ============================================================================
+# update_settings() tests
+# ============================================================================
+
+
+@pytest.mark.asyncio
+async def test_update_settings_journey_stage_only():
+    mock_client = make_sequential_client(
+        MagicMock(
+            data=[
+                {
+                    "period_tracking_enabled": True,
+                    "has_uterus": None,
+                    "journey_stage": "menopause",
+                }
+            ]
+        )
+    )
+    repo = UserRepository(client=mock_client)
+    data = UserSettingsUpdate(journey_stage="menopause")
+
+    result = await repo.update_settings("user-123", data)
+
+    assert result.journey_stage == "menopause"
+
+
+@pytest.mark.asyncio
+async def test_update_settings_has_uterus_null():
+    """has_uterus=None (prefer not to say) is saved when explicitly set."""
+    mock_client = make_sequential_client(
+        MagicMock(
+            data=[
+                {
+                    "period_tracking_enabled": True,
+                    "has_uterus": None,
+                    "journey_stage": None,
+                }
+            ]
+        )
+    )
+    repo = UserRepository(client=mock_client)
+    data = UserSettingsUpdate.model_validate({"has_uterus": None})
+
+    result = await repo.update_settings("user-123", data)
+
+    assert result.has_uterus is None
+
+
+@pytest.mark.asyncio
+async def test_update_settings_not_found():
+    mock_client = make_sequential_client(MagicMock(data=[]))
+    repo = UserRepository(client=mock_client)
+    data = UserSettingsUpdate(journey_stage="menopause")
+
+    with pytest.raises(EntityNotFoundError):
+        await repo.update_settings("user-123", data)
+
+
+@pytest.mark.asyncio
+async def test_update_settings_db_error():
+    mock_client = MagicMock()
+    chain = MagicMock()
+    chain.execute = AsyncMock(side_effect=Exception("DB down"))
+    chain.eq.return_value = chain
+    chain.update.return_value = chain
+    mock_client.table.return_value = chain
+
+    repo = UserRepository(client=mock_client)
+    data = UserSettingsUpdate(journey_stage="menopause")
+
+    with pytest.raises(DatabaseError):
+        await repo.update_settings("user-123", data)
 
 
 # ============================================================================

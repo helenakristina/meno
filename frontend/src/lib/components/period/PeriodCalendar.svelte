@@ -30,7 +30,7 @@
 	let currentMonth = $state(today(getLocalTimeZone()));
 
 	// Build a lookup: "YYYY-MM-DD" → PeriodLog
-	const logByDate = $derived(() => {
+	const logByDate = $derived.by(() => {
 		const map = new Map<string, PeriodLog>();
 		for (const log of logs) {
 			map.set(log.period_start, log);
@@ -40,7 +40,7 @@
 
 	function getLogForDate(date: DateValue): PeriodLog | null {
 		const key = `${date.year}-${String(date.month).padStart(2, '0')}-${String(date.day).padStart(2, '0')}`;
-		return logByDate().get(key) ?? null;
+		return logByDate.get(key) ?? null;
 	}
 
 	function isPeriodRangeDay(date: DateValue): boolean {
@@ -79,14 +79,14 @@
 	{#snippet children({ months, weekdays })}
 		<Calendar.Header class="mb-4 flex items-center justify-between">
 			<Calendar.PrevButton
-				class="flex h-9 w-9 items-center justify-center rounded-md border border-slate-200 text-slate-600 hover:bg-slate-50 disabled:opacity-30"
+				class="flex h-11 w-11 items-center justify-center rounded-md border border-slate-200 text-slate-600 hover:bg-slate-50 disabled:opacity-30"
 				aria-label="Previous month"
 			>
 				‹
 			</Calendar.PrevButton>
 			<Calendar.Heading class="text-sm font-semibold text-slate-900" />
 			<Calendar.NextButton
-				class="flex h-9 w-9 items-center justify-center rounded-md border border-slate-200 text-slate-600 hover:bg-slate-50 disabled:opacity-30"
+				class="flex h-11 w-11 items-center justify-center rounded-md border border-slate-200 text-slate-600 hover:bg-slate-50 disabled:opacity-30"
 				aria-label="Next month"
 			>
 				›

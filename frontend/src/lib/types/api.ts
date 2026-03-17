@@ -15,6 +15,7 @@
  */
 
 import type { Citation, Message, SymptomLog, SymptomSummary, Provider, Conversation } from './index';
+import type { FlowLevel, PeriodLog } from './period';
 
 /**
  * Maps API endpoints to request/response types.
@@ -358,22 +359,29 @@ export interface ApiEndpoints {
     request: {
       period_start: string;
       period_end?: string;
-      flow_level?: 'spotting' | 'light' | 'medium' | 'heavy';
+      flow_level?: FlowLevel;
       notes?: string;
     };
     response: {
-      log: {
-        id: string;
-        user_id: string;
-        period_start: string;
-        period_end: string | null;
-        flow_level: 'spotting' | 'light' | 'medium' | 'heavy' | null;
-        notes: string | null;
-        cycle_length: number | null;
-        created_at: string;
-      };
+      log: PeriodLog;
       bleeding_alert: boolean;
     };
+  };
+
+  // Dynamic path: /api/period/logs/{id}
+  '/api/period/logs/{id}': {
+    request: never;
+    response: PeriodLog;
+  };
+
+  // Dynamic path: /api/period/logs/{id} (PATCH)
+  '/api/period/logs/{id}/patch': {
+    request: {
+      period_end?: string | null;
+      flow_level?: FlowLevel | null;
+      notes?: string | null;
+    };
+    response: PeriodLog;
   };
 
   '/api/period/analysis': {

@@ -28,7 +28,6 @@ LOG_CREATED_AT = "2026-03-16T10:00:00+00:00"
 
 PERIOD_LOG = PeriodLogResponse(
     id=LOG_ID,
-    user_id=USER_ID,
     period_start=date(2026, 3, 1),
     period_end=None,
     flow_level="medium",
@@ -216,7 +215,7 @@ class TestListPeriodLogs:
     def test_list_logs_returns_empty_list(self):
         mock_service = MagicMock()
         mock_service.get_logs = AsyncMock(
-            return_value=PeriodLogListResponse(logs=[], total=0)
+            return_value=PeriodLogListResponse(logs=[])
         )
         auth_client = make_auth_client()
         override_service(mock_service)
@@ -229,13 +228,12 @@ class TestListPeriodLogs:
             clear_overrides()
 
         assert response.status_code == 200
-        assert response.json()["total"] == 0
         assert response.json()["logs"] == []
 
     def test_list_logs_returns_logs(self):
         mock_service = MagicMock()
         mock_service.get_logs = AsyncMock(
-            return_value=PeriodLogListResponse(logs=[PERIOD_LOG], total=1)
+            return_value=PeriodLogListResponse(logs=[PERIOD_LOG])
         )
         auth_client = make_auth_client()
         override_service(mock_service)
@@ -248,12 +246,12 @@ class TestListPeriodLogs:
             clear_overrides()
 
         assert response.status_code == 200
-        assert response.json()["total"] == 1
+        assert len(response.json()["logs"]) == 1
 
     def test_list_logs_passes_date_params_to_service(self):
         mock_service = MagicMock()
         mock_service.get_logs = AsyncMock(
-            return_value=PeriodLogListResponse(logs=[], total=0)
+            return_value=PeriodLogListResponse(logs=[])
         )
         auth_client = make_auth_client()
         override_service(mock_service)

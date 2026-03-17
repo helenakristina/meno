@@ -255,9 +255,10 @@ def get_period_repo(client: AsyncClient = Depends(get_client)) -> PeriodReposito
 
 def get_period_service(
     period_repo: PeriodRepository = Depends(get_period_repo),
+    user_repo: UserRepository = Depends(get_user_repo),
 ) -> PeriodService:
     """Dependency for PeriodService."""
-    return PeriodService(period_repo=period_repo)
+    return PeriodService(period_repo=period_repo, user_repo=user_repo)
 
 
 def get_ask_meno_service(
@@ -266,6 +267,7 @@ def get_ask_meno_service(
     conversation_repo: ConversationRepository = Depends(get_conversation_repo),
     llm_service: LLMService = Depends(get_llm_service),
     citation_service: CitationService = Depends(get_citation_service),
+    period_repo: PeriodRepository = Depends(get_period_repo),
 ) -> AskMenoService:
     """Dependency for AskMenoService.
 
@@ -279,4 +281,5 @@ def get_ask_meno_service(
         llm_service=llm_service,
         citation_service=citation_service,
         rag_retriever=retrieve_relevant_chunks,
+        period_repo=period_repo,
     )

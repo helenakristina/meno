@@ -1,5 +1,3 @@
-import logging
-
 from fastapi import APIRouter, Depends, Query, status
 
 from app.api.dependencies import CurrentUser, get_period_service
@@ -11,10 +9,7 @@ from app.models.period import (
     PeriodLogResponse,
     PeriodLogUpdate,
 )
-from app.services.period import PeriodService
-from app.utils.logging import hash_user_id
-
-logger = logging.getLogger(__name__)
+from app.services.period_base import PeriodServiceBase
 
 router = APIRouter(prefix="/api/period", tags=["period"])
 
@@ -28,7 +23,7 @@ router = APIRouter(prefix="/api/period", tags=["period"])
 async def create_period_log(
     payload: PeriodLogCreate,
     user_id: CurrentUser,
-    service: PeriodService = Depends(get_period_service),
+    service: PeriodServiceBase = Depends(get_period_service),
 ) -> CreatePeriodLogResponse:
     """Create a new period log entry.
 
@@ -39,9 +34,7 @@ async def create_period_log(
         HTTPException: 401 if unauthenticated.
         HTTPException: 500 for unexpected failures.
     """
-    result = await service.create_log(user_id, payload)
-    logger.info("Period log created: user=%s", hash_user_id(user_id))
-    return result
+    return await service.create_log(user_id, payload)
 
 
 @router.get(
@@ -54,7 +47,7 @@ async def list_period_logs(
     user_id: CurrentUser,
     start_date: str | None = Query(default=None, description="ISO date (YYYY-MM-DD)"),
     end_date: str | None = Query(default=None, description="ISO date (YYYY-MM-DD)"),
-    service: PeriodService = Depends(get_period_service),
+    service: PeriodServiceBase = Depends(get_period_service),
 ) -> PeriodLogListResponse:
     """Fetch period logs with optional date range filtering.
 
@@ -63,6 +56,27 @@ async def list_period_logs(
         HTTPException: 500 for unexpected failures.
     """
     return await service.get_logs(user_id, start_date, end_date)
+
+
+@router.get(
+    "/logs/{log_id}",
+    response_model=PeriodLogResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Get a period log",
+)
+async def get_period_log(
+    log_id: str,
+    user_id: CurrentUser,
+    service: PeriodServiceBase = Depends(get_period_service),
+) -> PeriodLogResponse:
+    """Fetch a single period log by ID.
+
+    Raises:
+        HTTPException: 401 if unauthenticated.
+        HTTPException: 404 if the log does not exist.
+        HTTPException: 500 for unexpected failures.
+    """
+    return await service.get_log(user_id, log_id)
 
 
 @router.patch(
@@ -75,7 +89,7 @@ async def update_period_log(
     log_id: str,
     payload: PeriodLogUpdate,
     user_id: CurrentUser,
-    service: PeriodService = Depends(get_period_service),
+    service: PeriodServiceBase = Depends(get_period_service),
 ) -> PeriodLogResponse:
     """Update an existing period log.
 
@@ -95,7 +109,7 @@ async def update_period_log(
 async def delete_period_log(
     log_id: str,
     user_id: CurrentUser,
-    service: PeriodService = Depends(get_period_service),
+    service: PeriodServiceBase = Depends(get_period_service),
 ) -> None:
     """Delete a period log and recalculate cycle analysis.
 
@@ -105,7 +119,6 @@ async def delete_period_log(
         HTTPException: 500 for unexpected failures.
     """
     await service.delete_log(user_id, log_id)
-    logger.info("Period log deleted: user=%s", hash_user_id(user_id))
 
 
 @router.get(
@@ -116,7 +129,7 @@ async def delete_period_log(
 )
 async def get_cycle_analysis(
     user_id: CurrentUser,
-    service: PeriodService = Depends(get_period_service),
+    service: PeriodServiceBase = Depends(get_period_service),
 ) -> CycleAnalysisResponse:
     """Get cycle analysis including inferred stage and sufficiency flag.
 
