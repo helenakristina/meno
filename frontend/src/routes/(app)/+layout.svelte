@@ -13,7 +13,7 @@
 	let loading = $state(true);
 	let mobileMenuOpen = $state(false);
 	let profileMenuOpen = $state(false);
-	let periodTrackingEnabled = $state(false);
+	const periodTrackingEnabled = $derived($userSettings?.period_tracking_enabled ?? false);
 
 	// Check initial auth state (onMount — runs once, not reactive)
 	onMount(() => {
@@ -29,7 +29,7 @@
 		}
 	});
 
-	// Load period tracking preference and populate shared settings store
+	// Load settings into store — nav reactively derives periodTrackingEnabled from it
 	onMount(async () => {
 		try {
 			const settings = await apiClient.get('/api/users/settings') as {
@@ -38,10 +38,8 @@
 				journey_stage: string | null;
 			};
 			userSettings.set(settings);
-			periodTrackingEnabled = settings.period_tracking_enabled;
 		} catch {
-			// Default to false if settings can't be loaded — period nav won't show
-			periodTrackingEnabled = false;
+			// Leave store null — periodTrackingEnabled defaults to false
 		}
 	});
 

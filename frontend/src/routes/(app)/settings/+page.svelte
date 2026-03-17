@@ -2,6 +2,7 @@
 	import { onMount } from 'svelte';
 	import { apiClient } from '$lib/api/client';
 	import { authState } from '$lib/stores/auth';
+	import { userSettings } from '$lib/stores/settings';
 
 	type JourneyStage = 'perimenopause' | 'menopause' | 'post-menopause' | 'unsure';
 
@@ -83,6 +84,7 @@
 				period_tracking_enabled: enabled
 			});
 			settings = { ...settings, ...updated };
+			userSettings.set(settings);
 		} catch {
 			cycleError = 'Failed to save. Please try again.';
 			// Revert optimistic update
@@ -101,6 +103,7 @@
 				has_uterus: value
 			});
 			settings = { ...settings, ...updated };
+			userSettings.set(settings);
 		} catch {
 			anatomyError = 'Failed to save. Please try again.';
 		} finally {
