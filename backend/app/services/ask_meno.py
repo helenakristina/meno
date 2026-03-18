@@ -10,6 +10,7 @@ Handles the full Ask Meno flow:
 The route becomes a thin wrapper that calls service methods and handles HTTP concerns.
 """
 
+import asyncio
 import json
 import logging
 import random
@@ -32,8 +33,10 @@ from app.models.chat import (
     StructuredClaim,
     StructuredLLMResponse,
     StructuredSection,
+    SuggestedPromptsResponse,
 )
 from app.repositories.conversation_repository import ConversationRepository
+from app.repositories.period_repository import PeriodRepository
 from app.repositories.symptoms_repository import SymptomsRepository
 from app.repositories.user_repository import UserRepository
 from app.services.citations import CitationService
@@ -61,6 +64,7 @@ class AskMenoService:
         llm_service: LLMService,
         citation_service: CitationService,
         rag_retriever: Callable,
+        period_repo: Optional[PeriodRepository] = None,
     ):
         self.user_repo = user_repo
         self.symptoms_repo = symptoms_repo
@@ -68,6 +72,7 @@ class AskMenoService:
         self.llm_service = llm_service
         self.citation_service = citation_service
         self.rag_retriever = rag_retriever
+        self.period_repo = period_repo
         self._prompt_config: Optional[dict] = None
 
     # ---------------------------------------------------------------------------
@@ -125,6 +130,27 @@ class AskMenoService:
                 exc_info=True,
             )
             raise DatabaseError(f"Failed to process question: {exc}") from exc
+
+        # Fetch cycle data if available — used to enrich Layer 4 context
+        cycle_context: Optional[dict] = None
+        has_uterus: Optional[bool] = None
+        if self.period_repo is not None:
+            try:
+                analysis_result, settings_result = await asyncio.gather(
+                    self.period_repo.get_cycle_analysis(user_id),
+                    self.user_repo.get_settings(user_id),
+                    return_exceptions=True,
+                )
+                if not isinstance(settings_result, Exception):
+                    has_uterus = settings_result.has_uterus
+                if not isinstance(analysis_result, Exception) and analysis_result is not None:
+                    cycle_context = {
+                        "average_cycle_length": analysis_result.average_cycle_length,
+                        "months_since_last_period": analysis_result.months_since_last_period,
+                        "inferred_stage": analysis_result.inferred_stage,
+                    }
+            except Exception:
+                pass  # Cycle data is supplementary — degrade gracefully
 
         # Load existing conversation messages (for storage continuity — not sent to LLM)
         existing_messages: list[dict] = []
@@ -185,7 +211,8 @@ class AskMenoService:
 
         # Build system prompt
         system_prompt = PromptService.build_system_prompt(
-            journey_stage, age, symptom_summary, chunks
+            journey_stage, age, symptom_summary, chunks,
+            cycle_context=cycle_context, has_uterus=has_uterus,
         )
 
         # Call LLM (JSON mode, lower temperature for source faithfulness)
@@ -308,7 +335,7 @@ class AskMenoService:
         user_id: str,
         days_back: int = 30,
         max_prompts: int = 6,
-    ) -> dict:
+    ) -> SuggestedPromptsResponse:
         """Get personalized starter prompts based on recent symptoms.
 
         Fetches user's recent symptom logs, looks up prompts for those symptoms,
@@ -320,7 +347,7 @@ class AskMenoService:
             max_prompts: Maximum prompts to return (default 6).
 
         Returns:
-            {"prompts": [list of prompt strings, up to max_prompts]}.
+            SuggestedPromptsResponse with up to max_prompts prompt strings.
 
         Raises:
             DatabaseError: If symptom fetch fails.
@@ -388,7 +415,7 @@ class AskMenoService:
                 )
             )
 
-            return {"prompts": final_prompts}
+            return SuggestedPromptsResponse(prompts=final_prompts)
 
         except DatabaseError:
             logger.error("Failed to fetch symptoms for prompts")

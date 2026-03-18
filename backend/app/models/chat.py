@@ -75,3 +75,8 @@ class ConversationMessagesResponse(BaseModel):
     """Response for loading a specific conversation's messages."""
     conversation_id: UUID
     messages: list[ChatMessage]
+
+
+class SuggestedPromptsResponse(BaseModel):
+    """Response for personalized starter prompts."""
+    prompts: list[str]

@@ -24,6 +24,7 @@ export type {
   ScenarioCard,
   AppointmentPrepState,
 } from './appointment';
+export type { FlowLevel, PeriodLog } from './period';
 export {
   AppointmentType,
   AppointmentGoal,

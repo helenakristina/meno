@@ -4,10 +4,13 @@ import pytest
 from datetime import date, timedelta
 from app.utils.dates import (
     calculate_age,
+    calculate_cycle_length,
+    calculate_cycle_variability,
     get_date_range,
     is_valid_iso_date,
     iso_date_to_display,
     days_since,
+    months_since_date,
 )
 
 
@@ -277,3 +280,93 @@ class TestDaysSince:
         """Test that empty string raises ValueError."""
         with pytest.raises(ValueError, match="Invalid date format"):
             days_since("")
+
+
+class TestCalculateCycleLength:
+    """Test cycle length calculation."""
+
+    def test_calculate_cycle_length_28_day_cycle(self):
+        result = calculate_cycle_length(date(2026, 2, 26), date(2026, 1, 29))
+        assert result == 28
+
+    def test_calculate_cycle_length_31_day_cycle(self):
+        result = calculate_cycle_length(date(2026, 3, 1), date(2026, 1, 29))
+        assert result == 31
+
+    def test_calculate_cycle_length_long_cycle(self):
+        result = calculate_cycle_length(date(2026, 3, 15), date(2026, 1, 1))
+        assert result == 73
+
+    def test_calculate_cycle_length_when_same_date_raises_error(self):
+        with pytest.raises(ValueError):
+            calculate_cycle_length(date(2026, 1, 15), date(2026, 1, 15))
+
+    def test_calculate_cycle_length_when_current_before_previous_raises_error(self):
+        with pytest.raises(ValueError):
+            calculate_cycle_length(date(2026, 1, 1), date(2026, 3, 1))
+
+
+class TestCalculateCycleVariability:
+    """Test cycle variability (standard deviation) calculation."""
+
+    def test_calculate_cycle_variability_regular_cycles(self):
+        # [28, 28, 28, 28] → std dev = 0
+        result = calculate_cycle_variability([28, 28, 28, 28])
+        assert result == 0.0
+
+    def test_calculate_cycle_variability_irregular_cycles(self):
+        # [20, 40] → mean=30, variance=100, std=10
+        result = calculate_cycle_variability([20, 40])
+        assert result == pytest.approx(10.0)
+
+    def test_calculate_cycle_variability_returns_float(self):
+        result = calculate_cycle_variability([28, 32, 26, 30])
+        assert isinstance(result, float)
+        assert result > 0
+
+    def test_calculate_cycle_variability_single_value_returns_zero(self):
+        result = calculate_cycle_variability([28])
+        assert result == 0.0
+
+    def test_calculate_cycle_variability_empty_list_returns_zero(self):
+        result = calculate_cycle_variability([])
+        assert result == 0.0
+
+    def test_calculate_cycle_variability_known_value(self):
+        # [26, 28, 30, 32] → mean=29, deviations=[-3,-1,1,3] → variance=5, std≈2.236
+        result = calculate_cycle_variability([26, 28, 30, 32])
+        assert result == pytest.approx(2.2360679, rel=1e-4)
+
+
+class TestMonthsSinceDate:
+    """Test months since date calculation."""
+
+    def test_months_since_date_one_year_ago(self):
+        one_year_ago = date.today().replace(year=date.today().year - 1)
+        result = months_since_date(one_year_ago)
+        assert result == 12
+
+    def test_months_since_date_same_month(self):
+        first_of_month = date.today().replace(day=1)
+        result = months_since_date(first_of_month)
+        assert result == 0
+
+    def test_months_since_date_one_month_ago(self):
+        today = date.today()
+        if today.month == 1:
+            one_month_ago = today.replace(year=today.year - 1, month=12)
+        else:
+            one_month_ago = today.replace(month=today.month - 1)
+        result = months_since_date(one_month_ago)
+        assert result == 1
+
+    def test_months_since_date_13_months(self):
+        today = date.today()
+        thirteen_months_ago = today.replace(
+            year=today.year - 1,
+            month=today.month - 1 if today.month > 1 else 12,
+        )
+        if today.month == 1:
+            thirteen_months_ago = today.replace(year=today.year - 2, month=12)
+        result = months_since_date(thirteen_months_ago)
+        assert result == 13

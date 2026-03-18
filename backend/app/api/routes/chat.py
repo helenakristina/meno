@@ -19,6 +19,7 @@ from app.models.chat import (
     ChatResponse,
     ConversationListResponse,
     ConversationMessagesResponse,
+    SuggestedPromptsResponse,
 )
 from app.exceptions import DatabaseError, EntityNotFoundError
 from app.utils.logging import hash_user_id
@@ -79,6 +80,7 @@ async def ask_meno(
 
 @router.get(
     "/suggested-prompts",
+    response_model=SuggestedPromptsResponse,
     summary="Get personalized starter prompts",
     description=(
         "Get personalized starter prompts based on user's recent symptom logs. "
@@ -89,7 +91,7 @@ async def ask_meno(
 async def get_suggested_prompts(
     user_id: CurrentUser,
     ask_meno_service: AskMenoService = Depends(get_ask_meno_service),
-) -> dict:
+) -> SuggestedPromptsResponse:
     """Get personalized starter prompts for Ask Meno.
 
     Raises:

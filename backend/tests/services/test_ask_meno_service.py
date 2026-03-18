@@ -312,10 +312,9 @@ async def test_get_suggested_prompts_with_recent_symptoms(service, mock_symptoms
 
     result = await service.get_suggested_prompts(user_id=USER_ID)
 
-    assert "prompts" in result
-    assert isinstance(result["prompts"], list)
-    assert 0 < len(result["prompts"]) <= 6
-    prompts_text = " ".join(result["prompts"]).lower()
+    assert isinstance(result.prompts, list)
+    assert 0 < len(result.prompts) <= 6
+    prompts_text = " ".join(result.prompts).lower()
     assert any(term in prompts_text for term in ["hot flash", "brain fog", "night sweat"])
 
 
@@ -327,10 +326,9 @@ async def test_get_suggested_prompts_no_recent_symptoms_uses_general(
 
     result = await service.get_suggested_prompts(user_id=USER_ID)
 
-    assert "prompts" in result
-    assert 0 < len(result["prompts"]) <= 6
+    assert 0 < len(result.prompts) <= 6
     # General prompts are the fallback
-    prompts_text = " ".join(result["prompts"]).lower()
+    prompts_text = " ".join(result.prompts).lower()
     assert any(term in prompts_text for term in ["expect", "options", "conversations", "doctor"])
 
 
@@ -348,10 +346,10 @@ async def test_get_suggested_prompts_returns_at_most_max(service, mock_symptoms_
     mock_symptoms_repo.get_logs.return_value = (logs, 1)
 
     result = await service.get_suggested_prompts(user_id=USER_ID)
-    assert len(result["prompts"]) == 6
+    assert len(result.prompts) == 6
 
     result3 = await service.get_suggested_prompts(user_id=USER_ID, max_prompts=3)
-    assert len(result3["prompts"]) <= 3
+    assert len(result3.prompts) <= 3
 
 
 @pytest.mark.asyncio
@@ -365,7 +363,7 @@ async def test_get_suggested_prompts_no_duplicates(service, mock_symptoms_repo):
     mock_symptoms_repo.get_logs.return_value = (logs, 1)
 
     result = await service.get_suggested_prompts(user_id=USER_ID)
-    prompts = result["prompts"]
+    prompts = result.prompts
     assert len(prompts) == len(set(prompts))
 
 
@@ -407,8 +405,7 @@ async def test_get_suggested_prompts_handles_empty_symptom_lists(
 
     result = await service.get_suggested_prompts(user_id=USER_ID)
 
-    assert "prompts" in result
-    assert len(result["prompts"]) > 0
+    assert len(result.prompts) > 0
 
 
 @pytest.mark.asyncio

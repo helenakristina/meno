@@ -124,6 +124,27 @@ def iso_date_to_display(iso_date: str) -> str:
         raise ValueError(f"Invalid date format: {iso_date}") from e
 
 
+def validate_date_of_birth(dob: date) -> None:
+    """Validate date of birth for onboarding: must be past and user must be 18+.
+
+    Args:
+        dob: Date of birth as a date object.
+
+    Raises:
+        ValueError: If dob is today/future or user is under 18.
+
+    Example:
+        >>> validate_date_of_birth(date(1985, 6, 15))  # no exception
+        >>> validate_date_of_birth(date(2010, 1, 1))  # raises ValueError (under 18)
+    """
+    today = date.today()
+    if dob >= today:
+        raise ValueError("date_of_birth must be in the past")
+    age = today.year - dob.year - ((today.month, today.day) < (dob.month, dob.day))
+    if age < 18:
+        raise ValueError("User must be at least 18 years old")
+
+
 def days_since(iso_date: str) -> int:
     """Calculate days since a given ISO date.
 
@@ -148,3 +169,65 @@ def days_since(iso_date: str) -> int:
     today = date.today()
     delta = today - past_date
     return delta.days
+
+
+def calculate_cycle_length(current_start: date, previous_start: date) -> int:
+    """Calculate cycle length in days between two period start dates.
+
+    Args:
+        current_start: Start date of the current period.
+        previous_start: Start date of the previous period.
+
+    Returns:
+        Number of days between the two period start dates.
+
+    Raises:
+        ValueError: If current_start is not after previous_start.
+
+    Example:
+        >>> calculate_cycle_length(date(2026, 3, 1), date(2026, 1, 29))
+        31
+    """
+    if current_start <= previous_start:
+        raise ValueError("current_start must be after previous_start")
+    return (current_start - previous_start).days
+
+
+def calculate_cycle_variability(cycle_lengths: list[int]) -> float:
+    """Calculate standard deviation of cycle lengths.
+
+    High variability is a key perimenopause indicator. Returns 0.0 if fewer
+    than 2 cycle lengths are provided (not enough data for variability).
+
+    Args:
+        cycle_lengths: List of cycle lengths in days.
+
+    Returns:
+        Standard deviation of cycle lengths, or 0.0 if insufficient data.
+
+    Example:
+        >>> calculate_cycle_variability([28, 32, 26, 30])
+        2.23...
+    """
+    if len(cycle_lengths) < 2:
+        return 0.0
+    mean = sum(cycle_lengths) / len(cycle_lengths)
+    variance = sum((x - mean) ** 2 for x in cycle_lengths) / len(cycle_lengths)
+    return variance ** 0.5
+
+
+def months_since_date(past_date: date) -> int:
+    """Calculate full calendar months elapsed since a given date.
+
+    Args:
+        past_date: The date to count months from.
+
+    Returns:
+        Number of full months since past_date (0 if less than a month ago).
+
+    Example:
+        >>> months_since_date(date(2025, 3, 16))  # Called on 2026-03-16
+        12
+    """
+    today = date.today()
+    return (today.year - past_date.year) * 12 + (today.month - past_date.month)

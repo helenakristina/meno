@@ -348,7 +348,7 @@ class TestOnboarding:
 # GET /api/users/insurance-preference
 # ---------------------------------------------------------------------------
 
-_PREF_ROW = {"insurance_type": "private", "insurance_plan_name": "Aetna PPO"}
+_PREF_ROW = {"id": USER_ID, "email": EMAIL, "insurance_type": "private", "insurance_plan_name": "Aetna PPO"}
 
 
 class TestGetInsurancePreference:
@@ -370,7 +370,7 @@ class TestGetInsurancePreference:
 
     def test_returns_nulls_when_columns_not_set(self):
         mock = make_mock_client(
-            existing_user_data=[{"insurance_type": None, "insurance_plan_name": None}]
+            existing_user_data=[{"id": USER_ID, "email": EMAIL, "insurance_type": None, "insurance_plan_name": None}]
         )
         cleanup = override(mock)
         try:
@@ -438,7 +438,7 @@ class TestGetInsurancePreference:
 
 class TestUpdateInsurancePreference:
     def test_updates_successfully(self):
-        updated_row = {"insurance_type": "medicaid", "insurance_plan_name": "UCare"}
+        updated_row = {"id": USER_ID, "email": EMAIL, "insurance_type": "medicaid", "insurance_plan_name": "UCare"}
         mock = make_mock_client(update_data=[updated_row])
         cleanup = override(mock)
         try:
@@ -457,7 +457,7 @@ class TestUpdateInsurancePreference:
         assert body["insurance_plan_name"] == "UCare"
 
     def test_updates_with_null_plan_name(self):
-        updated_row = {"insurance_type": "self_pay", "insurance_plan_name": None}
+        updated_row = {"id": USER_ID, "email": EMAIL, "insurance_type": "self_pay", "insurance_plan_name": None}
         mock = make_mock_client(update_data=[updated_row])
         cleanup = override(mock)
         try:
@@ -536,3 +536,159 @@ class TestUpdateInsurancePreference:
             cleanup()
 
         assert response.status_code == 500
+
+
+# ---------------------------------------------------------------------------
+# GET /api/users/settings
+# ---------------------------------------------------------------------------
+
+_SETTINGS_ROW = {
+    "id": USER_ID,
+    "email": EMAIL,
+    "period_tracking_enabled": True,
+    "has_uterus": None,
+    "journey_stage": "perimenopause",
+}
+
+
+class TestGetSettings:
+    def test_get_settings_returns_current_values(self):
+        mock = make_mock_client(existing_user_data=[_SETTINGS_ROW])
+        cleanup = override(mock)
+        try:
+            with TestClient(app) as client:
+                response = client.get("/api/users/settings", headers=AUTH_HEADER)
+        finally:
+            cleanup()
+
+        assert response.status_code == 200
+        body = response.json()
+        assert body["period_tracking_enabled"] is True
+        assert body["has_uterus"] is None
+        assert body["journey_stage"] == "perimenopause"
+
+    def test_get_settings_requires_auth(self):
+        mock = make_mock_client()
+        cleanup = override(mock)
+        try:
+            with TestClient(app) as client:
+                response = client.get("/api/users/settings")
+        finally:
+            cleanup()
+
+        assert response.status_code == 401
+
+    def test_get_settings_returns_404_when_no_user(self):
+        mock = make_mock_client(existing_user_data=[])
+        cleanup = override(mock)
+        try:
+            with TestClient(app) as client:
+                response = client.get("/api/users/settings", headers=AUTH_HEADER)
+        finally:
+            cleanup()
+
+        assert response.status_code == 404
+
+
+# ---------------------------------------------------------------------------
+# PATCH /api/users/settings
+# ---------------------------------------------------------------------------
+
+
+class TestUpdateSettings:
+    def test_update_journey_stage(self):
+        updated_row = {**_SETTINGS_ROW, "journey_stage": "menopause"}
+        mock = make_mock_client(update_data=[updated_row])
+        cleanup = override(mock)
+        try:
+            with TestClient(app) as client:
+                response = client.patch(
+                    "/api/users/settings",
+                    json={"journey_stage": "menopause"},
+                    headers=AUTH_HEADER,
+                )
+        finally:
+            cleanup()
+
+        assert response.status_code == 200
+        assert response.json()["journey_stage"] == "menopause"
+
+    def test_update_period_tracking_disabled(self):
+        updated_row = {**_SETTINGS_ROW, "period_tracking_enabled": False}
+        mock = make_mock_client(update_data=[updated_row])
+        cleanup = override(mock)
+        try:
+            with TestClient(app) as client:
+                response = client.patch(
+                    "/api/users/settings",
+                    json={"period_tracking_enabled": False},
+                    headers=AUTH_HEADER,
+                )
+        finally:
+            cleanup()
+
+        assert response.status_code == 200
+        assert response.json()["period_tracking_enabled"] is False
+
+    def test_update_has_uterus_false_disables_period_tracking(self):
+        updated_row = {**_SETTINGS_ROW, "has_uterus": False, "period_tracking_enabled": False}
+        mock = make_mock_client(update_data=[updated_row])
+        cleanup = override(mock)
+        try:
+            with TestClient(app) as client:
+                response = client.patch(
+                    "/api/users/settings",
+                    json={"has_uterus": False},
+                    headers=AUTH_HEADER,
+                )
+        finally:
+            cleanup()
+
+        assert response.status_code == 200
+        body = response.json()
+        assert body["has_uterus"] is False
+        assert body["period_tracking_enabled"] is False
+
+    def test_update_settings_invalid_journey_stage_returns_422(self):
+        mock = make_mock_client()
+        cleanup = override(mock)
+        try:
+            with TestClient(app) as client:
+                response = client.patch(
+                    "/api/users/settings",
+                    json={"journey_stage": "not-a-real-stage"},
+                    headers=AUTH_HEADER,
+                )
+        finally:
+            cleanup()
+
+        assert response.status_code == 422
+
+    def test_update_settings_requires_auth(self):
+        mock = make_mock_client()
+        cleanup = override(mock)
+        try:
+            with TestClient(app) as client:
+                response = client.patch(
+                    "/api/users/settings",
+                    json={"journey_stage": "menopause"},
+                )
+        finally:
+            cleanup()
+
+        assert response.status_code == 401
+
+    def test_update_settings_returns_404_when_no_user(self):
+        mock = make_mock_client(update_data=[])
+        cleanup = override(mock)
+        try:
+            with TestClient(app) as client:
+                response = client.patch(
+                    "/api/users/settings",
+                    json={"journey_stage": "menopause"},
+                    headers=AUTH_HEADER,
+                )
+        finally:
+            cleanup()
+
+        assert response.status_code == 404

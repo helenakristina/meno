@@ -18,18 +18,19 @@ implementations (OpenAIProvider, AnthropicProvider) plug in via dependency injec
 # - Streaming will buffer chunks and return complete response (initially)
 
 import logging
-from typing import Protocol
+from abc import ABC, abstractmethod
 
 logger = logging.getLogger(__name__)
 
 
-class LLMProvider(Protocol):
+class LLMProvider(ABC):
     """Contract for an LLM provider implementation.
 
     Concrete implementations (OpenAIProvider, AnthropicProvider, etc.) must
-    implement this protocol to be injectable into LLMService.
+    subclass this ABC to be injectable into LLMService.
     """
 
+    @abstractmethod
     async def chat_completion(
         self,
         system_prompt: str,
@@ -58,7 +59,7 @@ class LLMProvider(Protocol):
             TimeoutError: If the LLM API times out.
             RuntimeError: If the LLM API returns an error or the response is empty.
         """
-        ...
+        pass
 
 
 class LLMService:

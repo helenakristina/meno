@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 import logging
 
-from app.api.routes import appointment, chat, export, providers, symptoms, users
+from app.api.routes import appointment, chat, export, period, providers, symptoms, users
 from app.core.config import settings
 from app.exceptions import (
     MenoBaseError,
@@ -34,7 +34,7 @@ async def entity_not_found_handler(request: Request, exc: EntityNotFoundError):
     logger.info("EntityNotFoundError: %s", exc)
     return JSONResponse(
         status_code=404,
-        content={"detail": str(exc)},
+        content={"detail": "Not found"},
     )
 
 
@@ -102,6 +102,7 @@ app.include_router(export.router)
 app.include_router(chat.router)
 app.include_router(providers.router)
 app.include_router(appointment.router)
+app.include_router(period.router)
 
 
 @app.get("/health")

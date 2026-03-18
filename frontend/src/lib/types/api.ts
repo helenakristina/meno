@@ -15,6 +15,7 @@
  */
 
 import type { Citation, Message, SymptomLog, SymptomSummary, Provider, Conversation } from './index';
+import type { FlowLevel, PeriodLog } from './period';
 
 /**
  * Maps API endpoints to request/response types.
@@ -330,6 +331,68 @@ export interface ApiEndpoints {
       provider_summary_url: string;
       personal_cheat_sheet_url: string;
       message: string;
+    };
+  };
+
+  // ========================================================================
+  // User Settings Endpoints
+  // ========================================================================
+
+  '/api/users/settings': {
+    request: {
+      period_tracking_enabled?: boolean;
+      has_uterus?: boolean | null;
+      journey_stage?: 'perimenopause' | 'menopause' | 'post-menopause' | 'unsure';
+    };
+    response: {
+      period_tracking_enabled: boolean;
+      has_uterus: boolean | null;
+      journey_stage: string | null;
+    };
+  };
+
+  // ========================================================================
+  // Period Tracking Endpoints
+  // ========================================================================
+
+  '/api/period/logs': {
+    request: {
+      period_start: string;
+      period_end?: string;
+      flow_level?: FlowLevel;
+      notes?: string;
+    };
+    response: {
+      log: PeriodLog;
+      bleeding_alert: boolean;
+    };
+  };
+
+  // Dynamic path: /api/period/logs/{id}
+  '/api/period/logs/{id}': {
+    request: never;
+    response: PeriodLog;
+  };
+
+  // Dynamic path: /api/period/logs/{id} (PATCH)
+  '/api/period/logs/{id}/patch': {
+    request: {
+      period_end?: string | null;
+      flow_level?: FlowLevel | null;
+      notes?: string | null;
+    };
+    response: PeriodLog;
+  };
+
+  '/api/period/analysis': {
+    request: never;
+    response: {
+      average_cycle_length: number | null;
+      cycle_variability: number | null;
+      months_since_last_period: number | null;
+      inferred_stage: string | null;
+      has_sufficient_data: boolean;
+      calculated_at: string | null;
     };
   };
 
