@@ -445,6 +445,58 @@ export interface ApiEndpoints {
     request: never;
     response: Medication[];
   };
+
+  '/api/medications/add': {
+    request: {
+      medication_name: string;
+      dose: string;
+      delivery_method: string;
+      frequency?: string;
+      start_date: string;
+      notes?: string;
+    };
+    response: Medication;
+  };
+
+  // Dynamic path: /api/medications/{id}
+  '/api/medications/{id}': {
+    request: never;
+    response: Medication;
+  };
+
+  // Dynamic path: /api/medications/{id} (PUT)
+  '/api/medications/{id}/update': {
+    request: {
+      dose?: string;
+      delivery_method?: string;
+      frequency?: string | null;
+      notes?: string | null;
+      end_date?: string | null;
+    };
+    response: Medication;
+  };
+
+  // Dynamic path: /api/medications/{id}/change
+  '/api/medications/{id}/change': {
+    request: {
+      new_dose: string;
+      new_delivery_method: string;
+      effective_date: string;
+    };
+    response: Medication;
+  };
+
+  // Dynamic path: /api/medications/{id}/delete
+  '/api/medications/{id}/delete': {
+    request: never;
+    response: never;
+  };
+
+  // Dynamic path: /api/medications/{id}/symptom-comparison
+  '/api/medications/{id}/symptom-comparison': {
+    request: never;
+    response: SymptomComparisonResponse;
+  };
 }
 
 /**
@@ -461,6 +513,32 @@ export interface Medication {
   end_date: string | null;
   previous_entry_id: string | null;
   notes: string | null;
+}
+
+/**
+ * A single row in the symptom comparison table (before vs after starting a medication).
+ */
+export interface ComparisonRow {
+  symptom_name: string;
+  category: string;
+  before_frequency: number;
+  after_frequency: number;
+  change_pct: number;
+  direction: 'improved' | 'worsened' | 'unchanged';
+}
+
+/**
+ * Response from GET /api/medications/{id}/symptom-comparison
+ */
+export interface SymptomComparisonResponse {
+  medication_name: string;
+  medication_id: string;
+  start_date: string;
+  before_window: { start: string; end: string };
+  after_window: { start: string; end: string };
+  comparison_rows: ComparisonRow[];
+  sparse_data: boolean;
+  has_confounding_changes: boolean;
 }
 
 /**
