@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from datetime import date
 
 from app.models.medications import (
     MedicationChangeDose,
@@ -64,3 +65,8 @@ class MedicationServiceBase(ABC):
 
     @abstractmethod
     async def get_context_if_enabled(self, user_id: str) -> MedicationContext | None: ...
+
+    @abstractmethod
+    async def list_active_during(
+        self, user_id: str, range_start: date, range_end: date
+    ) -> list[MedicationResponse]: ...

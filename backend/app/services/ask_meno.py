@@ -14,7 +14,6 @@ import asyncio
 import json
 import logging
 import random
-import re
 from pathlib import Path
 from typing import Callable, Optional
 from urllib.parse import urlparse
@@ -26,13 +25,10 @@ from app.exceptions import DatabaseError
 from app.models.chat import (
     ChatMessage,
     ChatResponse,
-    Citation,
     ConversationListResponse,
     ConversationMessagesResponse,
     ConversationSummary,
-    StructuredClaim,
     StructuredLLMResponse,
-    StructuredSection,
     SuggestedPromptsResponse,
 )
 from app.models.medications import MedicationContext

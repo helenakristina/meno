@@ -309,7 +309,7 @@ class TestChangeDose:
         result = await repo.change_dose("user-1", "med-1", data, "Estradiol", None)
 
         assert result == "new-stint-uuid"
-        client.rpc.assert_called_once_with("change_medication_dose", pytest.approx({
+        client.rpc.assert_called_once_with("change_medication_dose", {
             "p_old_id": "med-1",
             "p_user_id": "user-1",
             "p_effective_date": "2026-02-01",
@@ -319,7 +319,7 @@ class TestChangeDose:
             "p_new_notes": None,
             "p_ref_id": None,
             "p_medication_name": "Estradiol",
-        }, abs=0))
+        })
 
     @pytest.mark.asyncio
     async def test_change_dose_raises_not_found_when_rpc_returns_medication_not_found(self):

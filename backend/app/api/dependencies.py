@@ -162,7 +162,7 @@ def get_llm_service() -> LLMService:
         # Future: import AnthropicProvider when implemented
         # provider = AnthropicProvider(api_key=settings.ANTHROPIC_API_KEY)
         raise ValueError(
-            f"LLM_PROVIDER=anthropic not yet implemented. "
+            "LLM_PROVIDER=anthropic not yet implemented. "
             "Use LLM_PROVIDER=openai or wait for Anthropic provider."
         )
     else:
@@ -211,6 +211,19 @@ def get_medication_repo(client: AsyncClient = Depends(get_client)) -> Medication
     return MedicationRepository(client=client)
 
 
+def get_medication_service(
+    medication_repo: MedicationRepository = Depends(get_medication_repo),
+    symptoms_repo: SymptomsRepository = Depends(get_symptoms_repo),
+    user_repo: UserRepository = Depends(get_user_repo),
+) -> MedicationService:
+    """Dependency for MedicationService."""
+    return MedicationService(
+        medication_repo=medication_repo,
+        symptoms_repo=symptoms_repo,
+        user_repo=user_repo,
+    )
+
+
 def get_appointment_service(
     appointment_repo: AppointmentRepository = Depends(get_appointment_repo),
     symptoms_repo: SymptomsRepository = Depends(get_symptoms_repo),
@@ -218,7 +231,7 @@ def get_appointment_service(
     llm_service: LLMService = Depends(get_llm_service),
     storage_service: StorageService = Depends(get_storage_service),
     pdf_service: PdfService = Depends(get_pdf_service),
-    medication_repo: MedicationRepository = Depends(get_medication_repo),
+    medication_service: MedicationService = Depends(get_medication_service),
 ) -> AppointmentService:
     """Dependency for AppointmentService.
 
@@ -232,7 +245,7 @@ def get_appointment_service(
         llm_service=llm_service,
         storage_service=storage_service,
         pdf_service=pdf_service,
-        medication_repo=medication_repo,
+        medication_service=medication_service,
     )
 
 
@@ -242,7 +255,7 @@ def get_export_service(
     pdf_service: PdfService = Depends(get_pdf_service),
     storage_service: StorageService = Depends(get_storage_service),
     llm_service: LLMService = Depends(get_llm_service),
-    medication_repo: MedicationRepository = Depends(get_medication_repo),
+    medication_service: MedicationService = Depends(get_medication_service),
 ) -> ExportService:
     """Dependency for ExportService.
 
@@ -255,20 +268,7 @@ def get_export_service(
         pdf_service=pdf_service,
         storage_service=storage_service,
         llm_service=llm_service,
-        medication_repo=medication_repo,
-    )
-
-
-def get_medication_service(
-    medication_repo: MedicationRepository = Depends(get_medication_repo),
-    symptoms_repo: SymptomsRepository = Depends(get_symptoms_repo),
-    user_repo: UserRepository = Depends(get_user_repo),
-) -> MedicationService:
-    """Dependency for MedicationService."""
-    return MedicationService(
-        medication_repo=medication_repo,
-        symptoms_repo=symptoms_repo,
-        user_repo=user_repo,
+        medication_service=medication_service,
     )
 
 

@@ -314,7 +314,7 @@ class TestUpdateMedication:
 
 
 class TestChangeDose:
-    def test_change_dose_returns_200(self):
+    def test_change_dose_returns_201(self):
         mock_service = MagicMock()
         mock_service.change_dose = AsyncMock(
             return_value=MedicationChangeDoseResponse(

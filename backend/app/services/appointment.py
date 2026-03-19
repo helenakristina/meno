@@ -22,8 +22,8 @@ from app.models.appointment import (
     ScenarioCard,
 )
 from app.repositories.appointment_repository import AppointmentRepository
-from app.repositories.medication_repository import MedicationRepository
 from app.repositories.symptoms_repository import SymptomsRepository
+from app.services.medication_base import MedicationServiceBase
 from app.repositories.user_repository import UserRepository
 from app.services.llm import LLMService
 from app.services.pdf import PdfService
@@ -50,7 +50,7 @@ class AppointmentService:
         llm_service: LLMService,
         storage_service: StorageService,
         pdf_service: PdfService,
-        medication_repo: Optional[MedicationRepository] = None,
+        medication_service: Optional[MedicationServiceBase] = None,
     ):
         self.appointment_repo = appointment_repo
         self.symptoms_repo = symptoms_repo
@@ -58,7 +58,7 @@ class AppointmentService:
         self.llm_service = llm_service
         self.storage_service = storage_service
         self.pdf_service = pdf_service
-        self.medication_repo = medication_repo
+        self.medication_service = medication_service
 
     # -------------------------------------------------------------------------
     # Step 2: Generate narrative
@@ -175,9 +175,9 @@ class AppointmentService:
 
         # Fetch current medications if available — supplementary, degrade gracefully
         current_medications: list = []
-        if self.medication_repo is not None:
+        if self.medication_service is not None:
             try:
-                current_medications = await self.medication_repo.list_current(user_id)
+                current_medications = await self.medication_service.list_current(user_id)
             except Exception as exc:
                 logger.warning(
                     "Failed to fetch medications for narrative: user=%s error=%s",

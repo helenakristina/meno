@@ -6,7 +6,6 @@ import logging
 from app.api.routes import appointment, chat, export, medications, period, providers, symptoms, users
 from app.core.config import settings
 from app.exceptions import (
-    MenoBaseError,
     EntityNotFoundError,
     DatabaseError,
     ValidationError,
