@@ -51,7 +51,7 @@ VALUES
  'Vaginal/local only; replaced every 90 days', FALSE),
 
 ('Vagifem',      'estradiol', 'estrogen',
- ARRAY['vaginal tablet'],
+ ARRAY['other'],
  ARRAY['10mcg'],
  'Also sold as Yuvafem; vaginal/local only', FALSE),
 

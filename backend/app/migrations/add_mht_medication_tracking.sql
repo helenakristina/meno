@@ -72,9 +72,11 @@ CREATE INDEX IF NOT EXISTS idx_user_medications_user_start
 CREATE INDEX IF NOT EXISTS idx_user_medications_active
     ON user_medications(user_id) WHERE end_date IS NULL;
 
+CREATE EXTENSION IF NOT EXISTS pg_trgm;
+
 CREATE INDEX IF NOT EXISTS idx_medications_reference_search
     ON medications_reference
-    USING gin(to_tsvector('english', coalesce(brand_name, '') || ' ' || generic_name));
+    USING gin((coalesce(brand_name, '') || ' ' || generic_name) gin_trgm_ops);
 
 -- ============================================================
 -- 5. RLS — medications_reference
@@ -146,6 +148,7 @@ CREATE OR REPLACE FUNCTION change_medication_dose(
 ) RETURNS UUID
 LANGUAGE plpgsql
 SECURITY DEFINER
+SET search_path = public, pg_temp
 AS $$
 DECLARE
     v_old_start DATE;
