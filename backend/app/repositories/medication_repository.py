@@ -6,8 +6,10 @@ Enforces user ownership on all write operations via double-filter (id + user_id)
 
 from __future__ import annotations
 
+import asyncio
 import logging
-from datetime import date, timedelta
+import re
+from datetime import date, datetime, timedelta, timezone
 
 from supabase import AsyncClient
 
@@ -25,8 +27,16 @@ from app.utils.logging import hash_user_id
 
 logger = logging.getLogger(__name__)
 
-_SPARSE_THRESHOLD_DAYS = 14
 _RECENT_CHANGE_LOOKBACK_DAYS = 90
+
+# Column lists shared across queries to avoid copy-paste drift
+_MED_COLS = "id, medication_ref_id, medication_name, dose, delivery_method, frequency, start_date, end_date, previous_entry_id, notes"
+_REF_COLS = "id, brand_name, generic_name, hormone_type, common_forms, common_doses, notes, is_user_created"
+
+
+def _escape_ilike(value: str) -> str:
+    """Escape ILIKE special characters to prevent pattern injection."""
+    return re.sub(r'([%_\\])', r'\\\1', value)
 
 
 class MedicationRepository:
@@ -56,12 +66,12 @@ class MedicationRepository:
         Raises:
             DatabaseError: If the database query fails.
         """
-        pattern = f"%{query}%"
+        pattern = f"%{_escape_ilike(query)}%"
         try:
             # Fetch system entries
             sys_resp = (
                 await self.client.table("medications_reference")
-                .select("id, brand_name, generic_name, hormone_type, common_forms, common_doses, notes, is_user_created")
+                .select(_REF_COLS)
                 .eq("is_user_created", False)
                 .or_(f"brand_name.ilike.{pattern},generic_name.ilike.{pattern}")
                 .order("generic_name")
@@ -71,7 +81,7 @@ class MedicationRepository:
             # Fetch user-created entries for this user
             user_resp = (
                 await self.client.table("medications_reference")
-                .select("id, brand_name, generic_name, hormone_type, common_forms, common_doses, notes, is_user_created")
+                .select(_REF_COLS)
                 .eq("is_user_created", True)
                 .eq("created_by", user_id)
                 .or_(f"brand_name.ilike.{pattern},generic_name.ilike.{pattern}")
@@ -151,7 +161,7 @@ class MedicationRepository:
         try:
             response = (
                 await self.client.table("user_medications")
-                .select("id, medication_ref_id, medication_name, dose, delivery_method, frequency, start_date, end_date, previous_entry_id, notes")
+                .select(_MED_COLS)
                 .eq("user_id", user_id)
                 .order("start_date", desc=True)
                 .execute()
@@ -181,7 +191,7 @@ class MedicationRepository:
         try:
             response = (
                 await self.client.table("user_medications")
-                .select("id, medication_ref_id, medication_name, dose, delivery_method, frequency, start_date, end_date, previous_entry_id, notes")
+                .select(_MED_COLS)
                 .eq("id", medication_id)
                 .eq("user_id", user_id)
                 .execute()
@@ -244,7 +254,8 @@ class MedicationRepository:
         """Update allowed fields on a medication stint (notes and/or end_date only).
 
         Double-filters by id AND user_id (IDOR protection).
-        Uses model_fields_set so omitted fields are never overwritten.
+        Uses model_dump(exclude_unset=True) so omitted fields are never overwritten,
+        and explicit null (e.g. end_date=null) correctly clears the field.
 
         Args:
             user_id: Owner's user ID.
@@ -258,12 +269,11 @@ class MedicationRepository:
             EntityNotFoundError: If not found or not owned by user.
             DatabaseError: If the update fails.
         """
-        update_data: dict = {}
-        if "end_date" in data.model_fields_set:
-            update_data["end_date"] = data.end_date.isoformat() if data.end_date else None
-        if "notes" in data.model_fields_set:
-            update_data["notes"] = data.notes
-        update_data["updated_at"] = "now()"
+        update_data = data.model_dump(exclude_unset=True)
+        # Serialize date to ISO string if present
+        if "end_date" in update_data and update_data["end_date"] is not None:
+            update_data["end_date"] = update_data["end_date"].isoformat()
+        update_data["updated_at"] = datetime.now(timezone.utc).isoformat()
 
         try:
             response = (
@@ -328,9 +338,6 @@ class MedicationRepository:
             msg = str(exc)
             if "medication_not_found" in msg:
                 raise EntityNotFoundError("Active medication stint not found") from exc
-            if "effective_date_before_start" in msg:
-                from app.exceptions import ValidationError
-                raise ValidationError("Effective date must be after the medication's start date") from exc
             logger.error("RPC change_medication_dose failed user=%s: %s", hash_user_id(user_id), exc, exc_info=True)
             raise DatabaseError(f"Failed to change medication dose: {exc}") from exc
 
@@ -383,7 +390,7 @@ class MedicationRepository:
         try:
             response = (
                 await self.client.table("user_medications")
-                .select("id, medication_ref_id, medication_name, dose, delivery_method, frequency, start_date, end_date, previous_entry_id, notes")
+                .select(_MED_COLS)
                 .eq("user_id", user_id)
                 .is_("end_date", "null")
                 .order("start_date")
@@ -416,23 +423,21 @@ class MedicationRepository:
         cutoff = (date.today() - timedelta(days=lookback_days)).isoformat()
 
         try:
-            current_resp = (
-                await self.client.table("user_medications")
-                .select("id, medication_ref_id, medication_name, dose, delivery_method, frequency, start_date, end_date, previous_entry_id, notes")
+            current_resp, recent_resp = await asyncio.gather(
+                self.client.table("user_medications")
+                .select(_MED_COLS)
                 .eq("user_id", user_id)
                 .is_("end_date", "null")
                 .order("start_date")
-                .execute()
-            )
-            recent_resp = (
-                await self.client.table("user_medications")
-                .select("id, medication_ref_id, medication_name, dose, delivery_method, frequency, start_date, end_date, previous_entry_id, notes")
+                .execute(),
+                self.client.table("user_medications")
+                .select(_MED_COLS)
                 .eq("user_id", user_id)
                 .not_.is_("end_date", "null")
                 .gte("end_date", cutoff)
                 .order("end_date", desc=True)
                 .limit(5)
-                .execute()
+                .execute(),
             )
         except Exception as exc:
             logger.error("DB get_context failed user=%s: %s", hash_user_id(user_id), exc, exc_info=True)
@@ -465,7 +470,7 @@ class MedicationRepository:
         try:
             response = (
                 await self.client.table("user_medications")
-                .select("id, medication_ref_id, medication_name, dose, delivery_method, frequency, start_date, end_date, previous_entry_id, notes")
+                .select(_MED_COLS)
                 .eq("user_id", user_id)
                 .lte("start_date", range_end.isoformat())
                 .or_(f"end_date.is.null,end_date.gte.{range_start.isoformat()}")

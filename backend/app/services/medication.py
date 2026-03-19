@@ -90,13 +90,12 @@ class MedicationService(MedicationServiceBase):
     async def create(
         self, user_id: str, data: MedicationCreate
     ) -> MedicationResponse:
-        """Create a new medication stint and invalidate the symptom summary cache."""
+        """Create a new medication stint."""
         if data.start_date > date.today():
             raise ValidationError("start_date cannot be in the future")
 
         result = await self.medication_repo.create(user_id, data)
         logger.info("Medication created user=%s", hash_user_id(user_id))
-        asyncio.ensure_future(self._invalidate_summary_cache(user_id))
         return result
 
     async def update(
@@ -109,9 +108,7 @@ class MedicationService(MedicationServiceBase):
             if data.end_date < existing.start_date:
                 raise ValidationError("end_date cannot be before start_date")
 
-        result = await self.medication_repo.update(user_id, medication_id, data)
-        asyncio.ensure_future(self._invalidate_summary_cache(user_id))
-        return result
+        return await self.medication_repo.update(user_id, medication_id, data)
 
     async def change_dose(
         self, user_id: str, medication_id: str, data: MedicationChangeDose
@@ -137,7 +134,6 @@ class MedicationService(MedicationServiceBase):
             medication_ref_id=existing.medication_ref_id,
         )
         logger.info("Medication dose changed user=%s", hash_user_id(user_id))
-        asyncio.ensure_future(self._invalidate_summary_cache(user_id))
         return MedicationChangeDoseResponse(
             new_medication_id=new_id,
             previous_medication_id=medication_id,
@@ -146,7 +142,12 @@ class MedicationService(MedicationServiceBase):
     async def delete(self, user_id: str, medication_id: str) -> None:
         """Delete a medication stint."""
         await self.medication_repo.delete(user_id, medication_id)
-        asyncio.ensure_future(self._invalidate_summary_cache(user_id))
+
+    async def list_active_during(
+        self, user_id: str, range_start: date, range_end: date
+    ) -> list[MedicationResponse]:
+        """Return medications active at any point within a date range."""
+        return await self.medication_repo.list_active_during(user_id, range_start, range_end)
 
     # ------------------------------------------------------------------
     # Before/after symptom comparison
@@ -304,27 +305,6 @@ class MedicationService(MedicationServiceBase):
     # ------------------------------------------------------------------
     # Private helpers
     # ------------------------------------------------------------------
-
-    async def _invalidate_summary_cache(self, user_id: str) -> None:
-        """Fire-and-forget: mark symptom summary cache as stale.
-
-        The cache is append-only — a new row with a later generated_at
-        will be picked up by the next get_summary() call. We just trigger
-        the background regeneration signal here.
-        """
-        try:
-            # The cache regeneration is handled by the next call to get_summary
-            # via the LLM pipeline. Here we just log so monitoring can confirm
-            # the invalidation was triggered.
-            logger.info(
-                "Symptom summary cache invalidation triggered user=%s (medication change)",
-                hash_user_id(user_id),
-            )
-        except Exception as exc:
-            logger.warning(
-                "Failed to invalidate summary cache user=%s: %s",
-                hash_user_id(user_id), exc,
-            )
 
     async def _has_confounding_changes(
         self,

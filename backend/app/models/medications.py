@@ -1,7 +1,9 @@
 """Pydantic models for MHT medication tracking."""
 
+from __future__ import annotations
+
 from datetime import date
-from typing import Literal, Optional
+from typing import Literal
 
 from pydantic import BaseModel, Field, model_validator
 
@@ -26,12 +28,12 @@ class MedicationReferenceResult(BaseModel):
     """A medications_reference row returned from search."""
 
     id: str
-    brand_name: Optional[str] = None
+    brand_name: str | None = None
     generic_name: str
     hormone_type: HormoneType
     common_forms: list[str] = Field(default_factory=list)
     common_doses: list[str] = Field(default_factory=list)
-    notes: Optional[str] = None
+    notes: str | None = None
     is_user_created: bool = False
 
     model_config = {"from_attributes": True}
@@ -41,11 +43,11 @@ class MedicationReferenceCreate(BaseModel):
     """Payload for creating a user-created medications_reference entry."""
 
     generic_name: str = Field(min_length=1, max_length=200)
-    brand_name: Optional[str] = Field(default=None, max_length=200)
+    brand_name: str | None = Field(default=None, max_length=200)
     hormone_type: HormoneType
     common_forms: list[DeliveryMethod] = Field(default_factory=list)
     common_doses: list[str] = Field(default_factory=list)
-    notes: Optional[str] = Field(default=None, max_length=500)
+    notes: str | None = Field(default=None, max_length=500)
 
 
 # ---------------------------------------------------------------------------
@@ -55,13 +57,13 @@ class MedicationReferenceCreate(BaseModel):
 class MedicationCreate(BaseModel):
     """Payload for adding a new medication stint."""
 
-    medication_ref_id: Optional[str] = None
+    medication_ref_id: str | None = None
     medication_name: str = Field(min_length=1, max_length=200)
     dose: str = Field(min_length=1, max_length=100)
     delivery_method: DeliveryMethod
-    frequency: Optional[str] = Field(default=None, max_length=100)
+    frequency: str | None = Field(default=None, max_length=100)
     start_date: date
-    notes: Optional[str] = Field(default=None, max_length=1000)
+    notes: str | None = Field(default=None, max_length=1000)
 
 
 class MedicationUpdate(BaseModel):
@@ -71,8 +73,8 @@ class MedicationUpdate(BaseModel):
     (POST /medications/{id}/change) to preserve timeline integrity.
     """
 
-    end_date: Optional[date] = None
-    notes: Optional[str] = Field(default=None, max_length=1000)
+    end_date: date | None = None
+    notes: str | None = Field(default=None, max_length=1000)
 
     @model_validator(mode="after")
     def validate_not_all_none(self) -> "MedicationUpdate":
@@ -87,23 +89,23 @@ class MedicationChangeDose(BaseModel):
     effective_date: date
     dose: str = Field(min_length=1, max_length=100)
     delivery_method: DeliveryMethod
-    frequency: Optional[str] = Field(default=None, max_length=100)
-    notes: Optional[str] = Field(default=None, max_length=1000)
+    frequency: str | None = Field(default=None, max_length=100)
+    notes: str | None = Field(default=None, max_length=1000)
 
 
 class MedicationResponse(BaseModel):
     """A user_medications row returned from the API."""
 
     id: str
-    medication_ref_id: Optional[str] = None
+    medication_ref_id: str | None = None
     medication_name: str
     dose: str
     delivery_method: DeliveryMethod
-    frequency: Optional[str] = None
+    frequency: str | None = None
     start_date: date
-    end_date: Optional[date] = None
-    previous_entry_id: Optional[str] = None
-    notes: Optional[str] = None
+    end_date: date | None = None
+    previous_entry_id: str | None = None
+    notes: str | None = None
 
     model_config = {"from_attributes": True}
 
@@ -142,13 +144,13 @@ class SymptomComparisonResponse(BaseModel):
     dose: str
     delivery_method: str
     start_date: date
-    end_date: Optional[date] = None
+    end_date: date | None = None
 
     # Window used for the comparison
-    before_start: Optional[date] = None
-    before_end: Optional[date] = None
-    after_start: Optional[date] = None
-    after_end: Optional[date] = None
+    before_start: date | None = None
+    before_end: date | None = None
+    after_start: date | None = None
+    after_end: date | None = None
     window_days: int = 0
 
     has_after_data: bool = True

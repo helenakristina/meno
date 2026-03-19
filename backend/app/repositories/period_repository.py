@@ -5,7 +5,7 @@ Keeps data access logic out of routes and services.
 """
 
 import logging
-from datetime import date
+from datetime import date, datetime, timezone
 from typing import Optional
 
 from supabase import AsyncClient
@@ -290,7 +290,7 @@ class PeriodRepository:
             "cycle_variability": analysis.cycle_variability,
             "months_since_last_period": analysis.months_since_last_period,
             "inferred_stage": analysis.inferred_stage,
-            "calculated_at": "now()",
+            "calculated_at": datetime.now(timezone.utc).isoformat(),
         }
 
         try:
