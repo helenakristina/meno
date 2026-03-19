@@ -8,6 +8,7 @@
 
 	let settings = $state<{
 		period_tracking_enabled: boolean;
+		mht_tracking_enabled: boolean;
 		has_uterus: boolean | null;
 		journey_stage: string | null;
 	} | null>(null);
@@ -21,6 +22,9 @@
 
 	let cycleSaving = $state(false);
 	let cycleError = $state<string | null>(null);
+
+	let mhtSaving = $state(false);
+	let mhtError = $state<string | null>(null);
 
 	let anatomySaving = $state(false);
 	let anatomyError = $state<string | null>(null);
@@ -91,6 +95,24 @@
 			settings = { ...settings, period_tracking_enabled: !enabled };
 		} finally {
 			cycleSaving = false;
+		}
+	}
+
+	async function saveMhtTracking(enabled: boolean) {
+		if (!settings) return;
+		mhtSaving = true;
+		mhtError = null;
+		try {
+			const updated = await apiClient.patch('/api/users/settings', {
+				mht_tracking_enabled: enabled
+			});
+			settings = { ...settings, ...updated };
+			userSettings.set(settings);
+		} catch {
+			mhtError = 'Failed to save. Please try again.';
+			settings = { ...settings, mht_tracking_enabled: !enabled };
+		} finally {
+			mhtSaving = false;
 		}
 	}
 
@@ -214,6 +236,43 @@
 
 			{#if cycleError}
 				<p class="mt-2 text-sm text-red-600" role="alert">{cycleError}</p>
+			{/if}
+		</section>
+
+		<!-- ================================================================
+		     MHT Tracking
+		     ================================================================ -->
+		<section class="mb-8 rounded-lg border border-slate-200 bg-white p-6">
+			<h2 class="mb-1 text-base font-semibold text-slate-900">MHT Tracking</h2>
+			<p class="mb-4 text-sm text-slate-600">
+				Track your Menopausal Hormone Therapy (MHT) medications to understand how they affect your
+				symptoms over time. You can turn this off at any time.
+			</p>
+
+			<label class="flex cursor-pointer items-center gap-3">
+				<button
+					role="switch"
+					aria-checked={settings.mht_tracking_enabled}
+					onclick={() => saveMhtTracking(!settings!.mht_tracking_enabled)}
+					disabled={mhtSaving}
+					class="relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-slate-500 focus:ring-offset-1 disabled:opacity-50 {settings.mht_tracking_enabled
+						? 'bg-slate-800'
+						: 'bg-slate-300'}"
+					aria-label="Enable MHT tracking"
+				>
+					<span
+						class="inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform {settings.mht_tracking_enabled
+							? 'translate-x-6'
+							: 'translate-x-1'}"
+					></span>
+				</button>
+				<span class="text-sm font-medium text-slate-900">
+					{settings.mht_tracking_enabled ? 'Enabled' : 'Disabled'}
+				</span>
+			</label>
+
+			{#if mhtError}
+				<p class="mt-2 text-sm text-red-600" role="alert">{mhtError}</p>
 			{/if}
 		</section>
 

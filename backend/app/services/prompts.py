@@ -1,8 +1,13 @@
 """Service for building system prompts with dynamic context."""
 
-from typing import Optional
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Optional
 
 from app.llm.system_prompts import LAYER_1, LAYER_2, LAYER_3
+
+if TYPE_CHECKING:
+    from app.models.medications import MedicationContext
 
 
 class PromptService:
@@ -16,6 +21,7 @@ class PromptService:
         chunks: list[dict],
         cycle_context: Optional[dict] = None,
         has_uterus: Optional[bool] = None,
+        medication_context: Optional[MedicationContext] = None,
     ) -> str:
         """Assemble the four-layer system prompt with dynamic user context and RAG sources.
 
@@ -27,6 +33,7 @@ class PromptService:
             cycle_context: Optional dict with cycle analysis fields (average_cycle_length,
                 months_since_last_period, inferred_stage)
             has_uterus: Whether the user has a uterus, or None if not set
+            medication_context: Optional MHT medication context for LLM injection
 
         Returns:
             Complete four-layer system prompt ready for LLM consumption.
@@ -56,12 +63,34 @@ class PromptService:
                 cycle_lines.append(f"- Inferred stage from cycle data: {cycle_context['inferred_stage']}")
         cycle_block = ("\n" + "\n".join(cycle_lines)) if cycle_lines else ""
 
+        med_block = ""
+        if medication_context:
+            med_lines = []
+            if medication_context.current_medications:
+                for med in medication_context.current_medications:
+                    parts = [f"  - {med.medication_name} {med.dose} ({med.delivery_method})"]
+                    if med.frequency:
+                        parts[0] += f" — {med.frequency}"
+                    if med.start_date:
+                        parts[0] += f", started {med.start_date}"
+                    med_lines.extend(parts)
+                med_block += "\n- Current MHT medications:\n" + "\n".join(med_lines)
+            if medication_context.recent_changes:
+                change_lines = []
+                for med in medication_context.recent_changes:
+                    change_lines.append(
+                        f"  - {med.medication_name} {med.dose} ({med.delivery_method})"
+                        f", stopped {med.end_date}"
+                    )
+                med_block += "\n- Recently stopped MHT medications:\n" + "\n".join(change_lines)
+
         layer_4 = (
             f"User context:\n"
             f"- Journey stage: {journey_stage}\n"
             f"- Age: {age_str}\n"
             f"- Recent symptom summary: {symptom_summary}"
-            f"{cycle_block}\n\n"
+            f"{cycle_block}"
+            f"{med_block}\n\n"
             f"Source documents — there are exactly {source_count} source(s). "
             f"Only cite [Source 1] through [Source {source_count}]:\n\n{sources_block}"
         )

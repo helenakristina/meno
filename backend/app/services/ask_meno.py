@@ -35,6 +35,7 @@ from app.models.chat import (
     StructuredSection,
     SuggestedPromptsResponse,
 )
+from app.models.medications import MedicationContext
 from app.repositories.conversation_repository import ConversationRepository
 from app.repositories.period_repository import PeriodRepository
 from app.repositories.symptoms_repository import SymptomsRepository
@@ -65,6 +66,7 @@ class AskMenoService:
         citation_service: CitationService,
         rag_retriever: Callable,
         period_repo: Optional[PeriodRepository] = None,
+        medication_service=None,
     ):
         self.user_repo = user_repo
         self.symptoms_repo = symptoms_repo
@@ -73,6 +75,7 @@ class AskMenoService:
         self.citation_service = citation_service
         self.rag_retriever = rag_retriever
         self.period_repo = period_repo
+        self.medication_service = medication_service
         self._prompt_config: Optional[dict] = None
 
     # ---------------------------------------------------------------------------
@@ -131,26 +134,46 @@ class AskMenoService:
             )
             raise DatabaseError(f"Failed to process question: {exc}") from exc
 
-        # Fetch cycle data if available — used to enrich Layer 4 context
+        # Fetch optional enrichment data concurrently — all are supplementary
         cycle_context: Optional[dict] = None
         has_uterus: Optional[bool] = None
+        medication_context: Optional[MedicationContext] = None
+
+        gather_coros = []
+        gather_keys = []
+
         if self.period_repo is not None:
+            gather_coros.append(self.period_repo.get_cycle_analysis(user_id))
+            gather_keys.append("analysis")
+            gather_coros.append(self.user_repo.get_settings(user_id))
+            gather_keys.append("settings")
+
+        if self.medication_service is not None:
+            gather_coros.append(self.medication_service.get_context_if_enabled(user_id))
+            gather_keys.append("medications")
+
+        if gather_coros:
             try:
-                analysis_result, settings_result = await asyncio.gather(
-                    self.period_repo.get_cycle_analysis(user_id),
-                    self.user_repo.get_settings(user_id),
-                    return_exceptions=True,
-                )
-                if not isinstance(settings_result, Exception):
+                results = await asyncio.gather(*gather_coros, return_exceptions=True)
+                result_map = dict(zip(gather_keys, results))
+
+                settings_result = result_map.get("settings")
+                if settings_result is not None and not isinstance(settings_result, Exception):
                     has_uterus = settings_result.has_uterus
-                if not isinstance(analysis_result, Exception) and analysis_result is not None:
+
+                analysis_result = result_map.get("analysis")
+                if analysis_result is not None and not isinstance(analysis_result, Exception):
                     cycle_context = {
                         "average_cycle_length": analysis_result.average_cycle_length,
                         "months_since_last_period": analysis_result.months_since_last_period,
                         "inferred_stage": analysis_result.inferred_stage,
                     }
+
+                med_result = result_map.get("medications")
+                if med_result is not None and not isinstance(med_result, Exception):
+                    medication_context = med_result
             except Exception:
-                pass  # Cycle data is supplementary — degrade gracefully
+                pass  # Supplementary data — degrade gracefully
 
         # Load existing conversation messages (for storage continuity — not sent to LLM)
         existing_messages: list[dict] = []
@@ -212,7 +235,9 @@ class AskMenoService:
         # Build system prompt
         system_prompt = PromptService.build_system_prompt(
             journey_stage, age, symptom_summary, chunks,
-            cycle_context=cycle_context, has_uterus=has_uterus,
+            cycle_context=cycle_context,
+            has_uterus=has_uterus,
+            medication_context=medication_context,
         )
 
         # Call LLM (JSON mode, lower temperature for source faithfulness)

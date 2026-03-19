@@ -14,6 +14,7 @@
 	let mobileMenuOpen = $state(false);
 	let profileMenuOpen = $state(false);
 	const periodTrackingEnabled = $derived($userSettings?.period_tracking_enabled ?? false);
+	const mhtTrackingEnabled = $derived($userSettings?.mht_tracking_enabled ?? false);
 
 	// Check initial auth state (onMount — runs once, not reactive)
 	onMount(() => {
@@ -72,7 +73,8 @@
 
 	const navLinks = $derived([
 		...baseNavLinks,
-		...(periodTrackingEnabled ? [{ href: '/period', label: 'Cycles' }] : [])
+		...(periodTrackingEnabled ? [{ href: '/period', label: 'Cycles' }] : []),
+		...(mhtTrackingEnabled ? [{ href: '/medications', label: 'MHT' }] : [])
 	]);
 </script>
 

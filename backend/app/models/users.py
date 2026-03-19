@@ -56,12 +56,14 @@ class InsurancePreferenceUpdate(BaseModel):
 
 class UserSettingsResponse(BaseModel):
     period_tracking_enabled: bool
+    mht_tracking_enabled: bool
     has_uterus: bool | None
     journey_stage: str | None
 
 
 class UserSettingsUpdate(BaseModel):
     period_tracking_enabled: bool | None = None
+    mht_tracking_enabled: bool | None = None
     has_uterus: bool | None = None
     journey_stage: JourneyStage | None = None
 

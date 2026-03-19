@@ -245,7 +245,7 @@ class UserRepository:
         try:
             response = (
                 await self.client.table("users")
-                .select("period_tracking_enabled, has_uterus, journey_stage")
+                .select("period_tracking_enabled, mht_tracking_enabled, has_uterus, journey_stage")
                 .eq("id", user_id)
                 .execute()
             )
@@ -259,6 +259,7 @@ class UserRepository:
         row = response.data[0]
         return UserSettingsResponse(
             period_tracking_enabled=row.get("period_tracking_enabled", True),
+            mht_tracking_enabled=row.get("mht_tracking_enabled", False),
             has_uterus=row.get("has_uterus"),
             journey_stage=row.get("journey_stage"),
         )
@@ -284,6 +285,8 @@ class UserRepository:
         update_data: dict = {}
         if "period_tracking_enabled" in data.model_fields_set:
             update_data["period_tracking_enabled"] = data.period_tracking_enabled
+        if "mht_tracking_enabled" in data.model_fields_set:
+            update_data["mht_tracking_enabled"] = data.mht_tracking_enabled
         if "has_uterus" in data.model_fields_set:
             update_data["has_uterus"] = data.has_uterus
         if "journey_stage" in data.model_fields_set:
@@ -307,6 +310,7 @@ class UserRepository:
         logger.info("User settings updated: user=%s", hash_user_id(user_id))
         return UserSettingsResponse(
             period_tracking_enabled=row.get("period_tracking_enabled", True),
+            mht_tracking_enabled=row.get("mht_tracking_enabled", False),
             has_uterus=row.get("has_uterus"),
             journey_stage=row.get("journey_stage"),
         )

@@ -11,7 +11,7 @@ Routes become thin wrappers that call one method and return the result.
 import json
 import logging
 from datetime import datetime, timedelta
-from typing import Any
+from typing import Any, Optional
 
 from app.exceptions import DatabaseError, EntityNotFoundError
 from app.models.appointment import (
@@ -22,6 +22,7 @@ from app.models.appointment import (
     ScenarioCard,
 )
 from app.repositories.appointment_repository import AppointmentRepository
+from app.repositories.medication_repository import MedicationRepository
 from app.repositories.symptoms_repository import SymptomsRepository
 from app.repositories.user_repository import UserRepository
 from app.services.llm import LLMService
@@ -49,6 +50,7 @@ class AppointmentService:
         llm_service: LLMService,
         storage_service: StorageService,
         pdf_service: PdfService,
+        medication_repo: Optional[MedicationRepository] = None,
     ):
         self.appointment_repo = appointment_repo
         self.symptoms_repo = symptoms_repo
@@ -56,6 +58,7 @@ class AppointmentService:
         self.llm_service = llm_service
         self.storage_service = storage_service
         self.pdf_service = pdf_service
+        self.medication_repo = medication_repo
 
     # -------------------------------------------------------------------------
     # Step 2: Generate narrative
@@ -170,6 +173,18 @@ class AppointmentService:
             len(cooccurrence_stats),
         )
 
+        # Fetch current medications if available — supplementary, degrade gracefully
+        current_medications: list = []
+        if self.medication_repo is not None:
+            try:
+                current_medications = await self.medication_repo.list_current(user_id)
+            except Exception as exc:
+                logger.warning(
+                    "Failed to fetch medications for narrative: user=%s error=%s",
+                    hash_user_id(user_id),
+                    exc,
+                )
+
         # Build prompts
         system_prompt, user_prompt = self._build_narrative_prompts(
             context=context,
@@ -180,6 +195,7 @@ class AppointmentService:
             end_date=end_date,
             journey_stage=journey_stage,
             age=age,
+            current_medications=current_medications,
         )
 
         # Call LLM
@@ -555,6 +571,7 @@ class AppointmentService:
         end_date: Any,
         journey_stage: str,
         age: int | None,
+        current_medications: Optional[list] = None,
     ) -> tuple[str, str]:
         """Build system and user prompts for narrative LLM call."""
         goal_str = context.goal.value.replace("_", " ").title()
@@ -590,6 +607,15 @@ class AppointmentService:
             "\n".join(coocc_lines) if coocc_lines else "No notable co-occurrence patterns."
         )
 
+        med_section = ""
+        if current_medications:
+            med_lines = [
+                f"- {m.medication_name} {m.dose} ({m.delivery_method})"
+                + (f", started {m.start_date}" if m.start_date else "")
+                for m in current_medications
+            ]
+            med_section = "\n\nCurrent MHT medications:\n" + "\n".join(med_lines)
+
         user_prompt = (
             f"Write a 2–3 paragraph clinical summary for a healthcare appointment. "
             f"Patient context: {appt_type_str} appointment, goal is '{goal_str}', "
@@ -597,7 +623,8 @@ class AppointmentService:
             f"Symptom tracking covers {days_back} days "
             f"({start_date.strftime('%B %d, %Y')} to {end_date.strftime('%B %d, %Y')}).\n\n"
             f"Most frequently logged symptoms:\n{freq_text}\n\n"
-            f"Symptom patterns (co-occurrences):\n{coocc_text}\n\n"
+            f"Symptom patterns (co-occurrences):\n{coocc_text}"
+            f"{med_section}\n\n"
             "Write a clear, objective summary using 'logs show' language throughout. "
             "No diagnoses. No treatment recommendations."
         )
