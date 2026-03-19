@@ -3,17 +3,7 @@
 	import { apiClient } from '$lib/api/client';
 	import { userSettings } from '$lib/stores/settings';
 	import { goto } from '$app/navigation';
-
-	interface Medication {
-		id: string;
-		medication_name: string;
-		dose: string;
-		delivery_method: string;
-		frequency: string | null;
-		start_date: string;
-		end_date: string | null;
-		notes: string | null;
-	}
+	import type { Medication } from '$lib/types/api';
 
 	let loading = $state(true);
 	let error = $state<string | null>(null);
@@ -31,7 +21,7 @@
 
 	onMount(async () => {
 		try {
-			allMedications = (await apiClient.get('/api/medications')) as Medication[];
+			allMedications = await apiClient.get('/api/medications');
 		} catch {
 			error = 'Unable to load medications. Please refresh and try again.';
 		} finally {

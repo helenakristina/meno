@@ -2,16 +2,11 @@
 	import { onMount } from 'svelte';
 	import { apiClient } from '$lib/api/client';
 	import { authState } from '$lib/stores/auth';
-	import { userSettings } from '$lib/stores/settings';
+	import { userSettings, type UserSettings } from '$lib/stores/settings';
 
 	type JourneyStage = 'perimenopause' | 'menopause' | 'post-menopause' | 'unsure';
 
-	let settings = $state<{
-		period_tracking_enabled: boolean;
-		mht_tracking_enabled: boolean;
-		has_uterus: boolean | null;
-		journey_stage: string | null;
-	} | null>(null);
+	let settings = $state<UserSettings | null>(null);
 
 	let loadError = $state<string | null>(null);
 

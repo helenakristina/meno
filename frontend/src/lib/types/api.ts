@@ -341,11 +341,13 @@ export interface ApiEndpoints {
   '/api/users/settings': {
     request: {
       period_tracking_enabled?: boolean;
+      mht_tracking_enabled?: boolean;
       has_uterus?: boolean | null;
       journey_stage?: 'perimenopause' | 'menopause' | 'post-menopause' | 'unsure';
     };
     response: {
       period_tracking_enabled: boolean;
+      mht_tracking_enabled: boolean;
       has_uterus: boolean | null;
       journey_stage: string | null;
     };
@@ -434,6 +436,31 @@ export interface ApiEndpoints {
       offset: number;
     };
   };
+
+  // ========================================================================
+  // Medication Tracking Endpoints
+  // ========================================================================
+
+  '/api/medications': {
+    request: never;
+    response: Medication[];
+  };
+}
+
+/**
+ * A single MHT medication entry returned from the API.
+ */
+export interface Medication {
+  id: string;
+  medication_ref_id: string | null;
+  medication_name: string;
+  dose: string;
+  delivery_method: string;
+  frequency: string | null;
+  start_date: string;
+  end_date: string | null;
+  previous_entry_id: string | null;
+  notes: string | null;
 }
 
 /**

@@ -33,11 +33,7 @@
 	// Load settings into store — nav reactively derives periodTrackingEnabled from it
 	onMount(async () => {
 		try {
-			const settings = await apiClient.get('/api/users/settings') as {
-				period_tracking_enabled: boolean;
-				has_uterus: boolean | null;
-				journey_stage: string | null;
-			};
+			const settings = await apiClient.get('/api/users/settings');
 			userSettings.set(settings);
 		} catch {
 			// Leave store null — periodTrackingEnabled defaults to false
@@ -74,7 +70,7 @@
 	const navLinks = $derived([
 		...baseNavLinks,
 		...(periodTrackingEnabled ? [{ href: '/period', label: 'Cycles' }] : []),
-		...(mhtTrackingEnabled ? [{ href: '/medications', label: 'MHT' }] : [])
+		...(mhtTrackingEnabled ? [{ href: '/medications', label: 'Medications' }] : [])
 	]);
 </script>
 
