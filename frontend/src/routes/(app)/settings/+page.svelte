@@ -207,7 +207,7 @@
 				You can turn this off at any time.
 			</p>
 
-			<label class="flex cursor-pointer items-center gap-3">
+			<div class="flex cursor-pointer items-center gap-3">
 				<button
 					role="switch"
 					aria-checked={settings.period_tracking_enabled}
@@ -227,7 +227,7 @@
 				<span class="text-sm font-medium text-slate-900">
 					{settings.period_tracking_enabled ? 'Enabled' : 'Disabled'}
 				</span>
-			</label>
+			</div>
 
 			{#if cycleError}
 				<p class="mt-2 text-sm text-red-600" role="alert">{cycleError}</p>
@@ -244,7 +244,7 @@
 				symptoms over time. You can turn this off at any time.
 			</p>
 
-			<label class="flex cursor-pointer items-center gap-3">
+			<div class="flex cursor-pointer items-center gap-3">
 				<button
 					role="switch"
 					aria-checked={settings.mht_tracking_enabled}
@@ -264,7 +264,7 @@
 				<span class="text-sm font-medium text-slate-900">
 					{settings.mht_tracking_enabled ? 'Enabled' : 'Disabled'}
 				</span>
-			</label>
+			</div>
 
 			{#if mhtError}
 				<p class="mt-2 text-sm text-red-600" role="alert">{mhtError}</p>

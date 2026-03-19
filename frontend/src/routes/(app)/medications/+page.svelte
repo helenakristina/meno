@@ -12,14 +12,15 @@
 	const currentMedications = $derived(allMedications.filter((m) => !m.end_date));
 	const pastMedications = $derived(allMedications.filter((m) => !!m.end_date));
 
-	// Route guard — redirect if MHT tracking not enabled
-	$effect(() => {
+	onMount(async () => {
+		// Wait a tick so the layout's onMount can populate userSettings first
+		await new Promise((resolve) => setTimeout(resolve, 0));
+
 		if ($userSettings !== null && !$userSettings.mht_tracking_enabled) {
 			goto('/settings');
+			return;
 		}
-	});
 
-	onMount(async () => {
 		try {
 			allMedications = await apiClient.get('/api/medications');
 		} catch {
@@ -94,13 +95,13 @@
 								<div class="flex gap-2">
 									<a
 										href="/medications/{med.id}/impact"
-										class="rounded-md border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-700 hover:border-slate-300 hover:bg-slate-50"
+										class="min-h-[44px] flex items-center rounded-md border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-700 hover:border-slate-300 hover:bg-slate-50"
 									>
 										Impact
 									</a>
 									<a
 										href="/medications/{med.id}"
-										class="rounded-md border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-700 hover:border-slate-300 hover:bg-slate-50"
+										class="min-h-[44px] flex items-center rounded-md border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-700 hover:border-slate-300 hover:bg-slate-50"
 									>
 										View
 									</a>
@@ -131,7 +132,7 @@
 								</div>
 								<a
 									href="/medications/{med.id}"
-									class="rounded-md border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-700 hover:border-slate-300 hover:bg-slate-50"
+									class="min-h-[44px] flex items-center rounded-md border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-700 hover:border-slate-300 hover:bg-slate-50"
 								>
 									View
 								</a>
