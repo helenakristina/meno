@@ -21,7 +21,10 @@
 	let dose = $state('');
 	let delivery_method = $state('');
 	let frequency = $state('');
-	let start_date = $state(new Date().toISOString().split('T')[0]);
+	const today = new Date();
+	let start_date = $state(
+		`${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`
+	);
 	let notes = $state('');
 
 	let submitting = $state(false);
@@ -43,7 +46,7 @@
 		error = null;
 
 		try {
-			await apiClient.post('/api/medications/add', {
+			await apiClient.post('/api/medications', {
 				medication_name: medication_name.trim(),
 				dose: dose.trim(),
 				delivery_method,
