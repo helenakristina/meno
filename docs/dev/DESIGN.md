@@ -356,7 +356,7 @@ rag_documents (
 )
 ```
 
-### V2 Additions (Period Tracking - Designed, Not Built)
+### V2 Additions (Period Tracking - Designed and built)
 
 ```sql
 -- Added to users table in V2:
