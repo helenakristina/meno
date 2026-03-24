@@ -14,7 +14,12 @@ import pytest
 from openai import AsyncOpenAI
 
 from app.core.config import settings
-from app.llm.system_prompts import LAYER_1, LAYER_2, LAYER_3
+from app.llm.system_prompts import (
+    LAYER_1_IDENTITY,
+    LAYER_2_VOICE,
+    LAYER_3_SOURCE_RULES,
+    LAYER_4_SCOPE,
+)
 
 # Only run these tests if we explicitly request them (they call real OpenAI)
 pytestmark = pytest.mark.integration
@@ -60,12 +65,13 @@ class TestMedicalAdviceBoundary:
 
     @staticmethod
     def _build_system_prompt() -> str:
-        """Assemble the full 4-layer system prompt."""
+        """Assemble the full 5-layer system prompt."""
         return "\n\n".join(
             [
-                LAYER_1,
-                LAYER_2,
-                LAYER_3,
+                LAYER_1_IDENTITY,
+                LAYER_2_VOICE,
+                LAYER_3_SOURCE_RULES,
+                LAYER_4_SCOPE,
                 TestMedicalAdviceBoundary._LAYER_4_STUB,
             ]
         )

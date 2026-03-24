@@ -1,12 +1,73 @@
-"""System prompt layers for Ask Meno RAG (v2).
+"""Ask Meno v2 — Response schema and system prompts.
 
-Five-layer architecture:
-  1. LAYER_1_IDENTITY: Who Meno is
-  2. LAYER_2_VOICE: How Meno speaks (new in v2)
-  3. LAYER_3_SOURCE_RULES: JSON schema + one-source-per-section rule
-  4. LAYER_4_SCOPE: In-scope/out-of-scope guardrails
-  5. Layer 5 (dynamic): User context + RAG chunks, assembled at runtime by PromptService
+Key changes from v1:
+  - Paragraph-level blocks instead of individual claims
+  - Each paragraph maps to exactly ONE source
+  - Voice-forward: Meno sounds like a warm, knowledgeable friend
+  - Plain text only (no markdown) — frontend handles all rendering
+  - Proper Pydantic models for validation
 """
+
+from pydantic import BaseModel, Field
+
+
+# ---------------------------------------------------------------------------
+# Response Schema (Pydantic)
+# ---------------------------------------------------------------------------
+
+
+class ResponseSection(BaseModel):
+    """A paragraph or short block of related information from ONE source."""
+
+    heading: str | None = Field(
+        default=None,
+        description="Optional short heading for this section. Plain text, no markdown.",
+    )
+    body: str = Field(
+        description=(
+            "A conversational paragraph (or short set of points) drawn ONLY from "
+            "the single source referenced by source_index. Plain text, no markdown "
+            "formatting (no **, no ##, no bullet characters). "
+            "Write in Meno's voice: warm, direct, evidence-informed, human."
+        ),
+    )
+    source_index: int | None = Field(
+        default=None,
+        description=(
+            "The 1-based index of the single source this section draws from. "
+            "Every factual claim in `body` must come from this one source. "
+            "null only for the closing/disclaimer section."
+        ),
+    )
+
+
+class StructuredLLMResponse(BaseModel):
+    """Top-level response from Ask Meno RAG pipeline."""
+
+    sections: list[ResponseSection] = Field(
+        description="Ordered list of response sections, each tied to one source.",
+    )
+    disclaimer: str | None = Field(
+        default=None,
+        description=(
+            "Brief note about gaps in source coverage, or null if sources fully "
+            "answer the question. Example: 'My sources don't cover specific "
+            "dosing — your provider can help with that.'"
+        ),
+    )
+    insufficient_sources: bool = Field(
+        default=False,
+        description=(
+            "true if the sources contain NO relevant information to answer the "
+            "question at all. When true, sections should be empty and disclaimer "
+            "should explain the gap."
+        ),
+    )
+
+
+# ---------------------------------------------------------------------------
+# System Prompt Layers
+# ---------------------------------------------------------------------------
 
 LAYER_1_IDENTITY = (
     "You are Meno, a knowledgeable and compassionate guide for people navigating "
@@ -106,4 +167,30 @@ LAYER_4_SCOPE = (
     "guidelines and post-2015 research as primary sources."
 )
 
-# LAYER_5 is dynamic: user context + RAG chunks, assembled at runtime by PromptService
+# LAYER_5 is dynamic: user context + RAG chunks, built at runtime.
+
+
+# ---------------------------------------------------------------------------
+# Helper: Build full system prompt example, modify current prompt in prompt service
+# ---------------------------------------------------------------------------
+
+
+def build_system_prompt(
+    user_context: str | None = None,
+    rag_chunks: str | None = None,
+) -> str:
+    """Assemble the full system prompt from all layers."""
+    layers = [
+        LAYER_1_IDENTITY,
+        LAYER_2_VOICE,
+        LAYER_3_SOURCE_RULES,
+        LAYER_4_SCOPE,
+    ]
+
+    if user_context:
+        layers.append(f"USER CONTEXT:\n{user_context}")
+
+    if rag_chunks:
+        layers.append(f"SOURCE DOCUMENTS:\n{rag_chunks}")
+
+    return "\n\n---\n\n".join(layers)

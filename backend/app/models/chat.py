@@ -5,24 +5,30 @@ from datetime import datetime
 from pydantic import BaseModel, Field
 
 
-class StructuredClaim(BaseModel):
-    """A single claim or statement in the LLM response."""
-
-    text: str
-    source_indices: list[int] = Field(default_factory=list)
-
-
-class StructuredSection(BaseModel):
-    """A logical section of the response (e.g., a paragraph or list item)."""
+class ResponseSection(BaseModel):
+    """A paragraph drawn from exactly ONE source."""
 
     heading: str | None = None
-    claims: list[StructuredClaim] = Field(default_factory=list)
+    body: str = Field(
+        description=(
+            "A conversational paragraph drawn ONLY from the single source referenced "
+            "by source_index. Plain text, no markdown formatting. "
+            "Write in Meno's voice: warm, direct, evidence-informed, human."
+        )
+    )
+    source_index: int | None = Field(
+        default=None,
+        description=(
+            "The 1-based index of the single source this section draws from. "
+            "null only for the closing/disclaimer section."
+        ),
+    )
 
 
 class StructuredLLMResponse(BaseModel):
-    """The complete structured response from the LLM."""
+    """Complete structured response from the LLM (v2 paragraph-based schema)."""
 
-    sections: list[StructuredSection] = Field(default_factory=list)
+    sections: list[ResponseSection] = Field(default_factory=list)
     disclaimer: str | None = None
     insufficient_sources: bool = False
 
@@ -31,7 +37,9 @@ class Citation(BaseModel):
     url: str
     title: str
     section: str | None = None  # e.g., "Perimenopause Overview", "HRT Safety"
-    source_index: int | None = None  # 1, 2, 3, etc. for distinguishing same URL different sections
+    source_index: int | None = (
+        None  # 1, 2, 3, etc. for distinguishing same URL different sections
+    )
 
 
 class ChatMessage(BaseModel):
@@ -56,6 +64,7 @@ class ChatResponse(BaseModel):
 
 class ConversationSummary(BaseModel):
     """Summary of a conversation for list display."""
+
     id: UUID
     title: str  # First 50 chars of first user message; "New conversation" if empty
     created_at: datetime
@@ -64,6 +73,7 @@ class ConversationSummary(BaseModel):
 
 class ConversationListResponse(BaseModel):
     """Response for listing conversations with pagination."""
+
     conversations: list[ConversationSummary]
     total: int
     has_more: bool
@@ -73,10 +83,12 @@ class ConversationListResponse(BaseModel):
 
 class ConversationMessagesResponse(BaseModel):
     """Response for loading a specific conversation's messages."""
+
     conversation_id: UUID
     messages: list[ChatMessage]
 
 
 class SuggestedPromptsResponse(BaseModel):
     """Response for personalized starter prompts."""
+
     prompts: list[str]

@@ -154,11 +154,15 @@ class AskMenoService:
                 result_map = dict(zip(gather_keys, results))
 
                 settings_result = result_map.get("settings")
-                if settings_result is not None and not isinstance(settings_result, Exception):
+                if settings_result is not None and not isinstance(
+                    settings_result, Exception
+                ):
                     has_uterus = settings_result.has_uterus
 
                 analysis_result = result_map.get("analysis")
-                if analysis_result is not None and not isinstance(analysis_result, Exception):
+                if analysis_result is not None and not isinstance(
+                    analysis_result, Exception
+                ):
                     cycle_context = {
                         "average_cycle_length": analysis_result.average_cycle_length,
                         "months_since_last_period": analysis_result.months_since_last_period,
@@ -230,7 +234,10 @@ class AskMenoService:
 
         # Build system prompt
         system_prompt = PromptService.build_system_prompt(
-            journey_stage, age, symptom_summary, chunks,
+            journey_stage,
+            age,
+            symptom_summary,
+            chunks,
             cycle_context=cycle_context,
             has_uterus=has_uterus,
             medication_context=medication_context,
@@ -242,8 +249,8 @@ class AskMenoService:
                 system_prompt=system_prompt,
                 user_prompt=message,
                 response_format="json",
-                temperature=0.3,
-                max_tokens=1500,
+                temperature=0.5,
+                max_tokens=2000,
             )
         except Exception as exc:
             logger.error(

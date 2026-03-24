@@ -6,6 +6,7 @@ All tests use pure inputs/outputs (no mocking needed).
 
 import pytest
 
+from app.models.chat import ResponseSection, StructuredLLMResponse
 from app.services.citations import CitationService
 
 
@@ -410,3 +411,197 @@ class TestIntegration:
         # Extract doesn't deduplicate, so we get all references
         assert all(c.source_index <= 3 for c in citations)
         assert any(c.source_index == 2 for c in citations)
+
+
+# ---------------------------------------------------------------------------
+# TestRenderStructuredResponse
+# Tests for the v2 paragraph-based render_structured_response method.
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture
+def render_chunks():
+    """Three chunks for render_structured_response tests."""
+    return [
+        {
+            "source_url": "https://menopausewiki.ca/overview",
+            "title": "Perimenopause Overview",
+            "section_name": "Definition",
+            "content": "Perimenopause is the transition to menopause.",
+        },
+        {
+            "source_url": "https://pubmed.ncbi.nlm.nih.gov/123456",
+            "title": "Hot Flashes Research",
+            "section_name": "Methods",
+            "content": "A study of 500 participants found hot flashes common.",
+        },
+        {
+            "source_url": "https://nams.org/hrt-guidelines",
+            "title": "HRT Safety Guidelines",
+            "section_name": "Recommendations",
+            "content": "Current evidence supports HRT for eligible women.",
+        },
+    ]
+
+
+class TestRenderStructuredResponse:
+    """Tests for CitationService.render_structured_response() (v2 paragraph schema)."""
+
+    # CATCHES: regression to bullet-point format after refactor
+    def test_renders_paragraph_not_bullets(self, service, render_chunks):
+        structured = StructuredLLMResponse(
+            sections=[
+                ResponseSection(body="MHT is well-tolerated.", source_index=1),
+            ]
+        )
+        rendered, _ = service.render_structured_response(structured, render_chunks)
+        assert "\n-" not in rendered
+        assert "MHT is well-tolerated." in rendered
+
+    # CATCHES: duplicate Citation objects created when same source used in two sections
+    def test_deduplicates_citations_same_source(self, service, render_chunks):
+        structured = StructuredLLMResponse(
+            sections=[
+                ResponseSection(
+                    body="First paragraph about perimenopause.", source_index=1
+                ),
+                ResponseSection(
+                    body="Second paragraph also about perimenopause.", source_index=1
+                ),
+            ]
+        )
+        _, citations = service.render_structured_response(structured, render_chunks)
+        assert len(citations) == 1
+        assert citations[0].title == "Perimenopause Overview"
+
+    # CATCHES: [Source N] marker appended to section with null source_index
+    def test_null_source_index_no_citation_marker(self, service, render_chunks):
+        structured = StructuredLLMResponse(
+            sections=[
+                ResponseSection(
+                    body="Closing remarks with no source.", source_index=None
+                ),
+            ]
+        )
+        rendered, citations = service.render_structured_response(
+            structured, render_chunks
+        )
+        assert "[Source" not in rendered
+        assert len(citations) == 0
+
+    # CATCHES: heading omitted when section.heading is None (OK), or shown when present
+    def test_no_heading_when_null(self, service, render_chunks):
+        structured = StructuredLLMResponse(
+            sections=[
+                ResponseSection(heading=None, body="Body text.", source_index=1),
+            ]
+        )
+        rendered, _ = service.render_structured_response(structured, render_chunks)
+        assert "###" not in rendered
+
+    # CATCHES: heading not rendered above body when section.heading is set
+    def test_heading_rendered_above_body(self, service, render_chunks):
+        structured = StructuredLLMResponse(
+            sections=[
+                ResponseSection(
+                    heading="HRT Overview", body="MHT is effective.", source_index=1
+                ),
+            ]
+        )
+        rendered, _ = service.render_structured_response(structured, render_chunks)
+        # Heading should appear as ### heading before the body paragraph
+        assert "### HRT Overview" in rendered
+        assert "MHT is effective." in rendered
+        heading_pos = rendered.index("### HRT Overview")
+        body_pos = rendered.index("MHT is effective.")
+        assert heading_pos < body_pos
+
+    # CATCHES: out-of-range source_index (e.g. 99) causes IndexError or exception
+    def test_invalid_source_index_skipped_gracefully(self, service, render_chunks):
+        structured = StructuredLLMResponse(
+            sections=[
+                ResponseSection(body="Body with bad source.", source_index=99),
+            ]
+        )
+        # Should not raise; body is still rendered, no citation marker
+        rendered, citations = service.render_structured_response(
+            structured, render_chunks
+        )
+        assert "Body with bad source." in rendered
+        assert "[Source" not in rendered
+        assert len(citations) == 0
+
+    # CATCHES: disclaimer appended even when it is None (extra blank line or text)
+    def test_disclaimer_appended_when_present(self, service, render_chunks):
+        structured = StructuredLLMResponse(
+            sections=[
+                ResponseSection(body="Main content.", source_index=1),
+            ],
+            disclaimer="My sources don't cover dosing specifics.",
+        )
+        rendered, _ = service.render_structured_response(structured, render_chunks)
+        assert "My sources don't cover dosing specifics." in rendered
+
+    def test_no_disclaimer_when_none(self, service, render_chunks):
+        structured = StructuredLLMResponse(
+            sections=[
+                ResponseSection(body="Main content.", source_index=1),
+            ],
+            disclaimer=None,
+        )
+        rendered, _ = service.render_structured_response(structured, render_chunks)
+        # Just make sure nothing weird was appended
+        assert rendered.strip().endswith("[Source 1]")
+
+    # CATCHES: insufficient_sources flag bypassed, returning empty sections instead of disclaimer
+    def test_insufficient_sources_short_circuits(self, service, render_chunks):
+        structured = StructuredLLMResponse(
+            sections=[],
+            disclaimer="I don't have sources to answer that.",
+            insufficient_sources=True,
+        )
+        rendered, citations = service.render_structured_response(
+            structured, render_chunks
+        )
+        assert rendered == "I don't have sources to answer that."
+        assert citations == []
+
+    def test_insufficient_sources_default_message_when_no_disclaimer(
+        self, service, render_chunks
+    ):
+        structured = StructuredLLMResponse(
+            sections=[],
+            disclaimer=None,
+            insufficient_sources=True,
+        )
+        rendered, citations = service.render_structured_response(
+            structured, render_chunks
+        )
+        assert "don't have" in rendered.lower() or "not have" in rendered.lower()
+        assert citations == []
+
+    # CATCHES: multiple unique sources produce wrong number of Citation objects
+    def test_multiple_unique_sources_all_included(self, service, render_chunks):
+        structured = StructuredLLMResponse(
+            sections=[
+                ResponseSection(body="About perimenopause.", source_index=1),
+                ResponseSection(body="About hot flashes.", source_index=2),
+                ResponseSection(body="About HRT.", source_index=3),
+            ]
+        )
+        _, citations = service.render_structured_response(structured, render_chunks)
+        assert len(citations) == 3
+
+    # CATCHES: empty body sections producing blank paragraphs
+    def test_empty_body_sections_skipped(self, service, render_chunks):
+        structured = StructuredLLMResponse(
+            sections=[
+                ResponseSection(body="   ", source_index=1),
+                ResponseSection(body="Real content here.", source_index=2),
+            ]
+        )
+        rendered, citations = service.render_structured_response(
+            structured, render_chunks
+        )
+        assert "Real content here." in rendered
+        assert len(citations) == 1

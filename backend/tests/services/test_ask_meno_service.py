@@ -35,17 +35,20 @@ SAMPLE_CHUNKS = [
 # The final rendered response text (after citation rendering)
 LLM_RESPONSE = "Hot flashes are common during perimenopause. [Source 1]"
 
-# The raw JSON string returned by the LLM (structured output mode)
-LLM_RAW_JSON = json.dumps({
-    "sections": [
-        {
-            "heading": None,
-            "claims": [{"text": "Hot flashes are common during perimenopause.", "source_indices": [1]}],
-        }
-    ],
-    "disclaimer": None,
-    "insufficient_sources": False,
-})
+# The raw JSON string returned by the LLM (v2 structured output mode)
+LLM_RAW_JSON = json.dumps(
+    {
+        "sections": [
+            {
+                "heading": None,
+                "body": "Hot flashes are common during perimenopause.",
+                "source_index": 1,
+            }
+        ],
+        "disclaimer": None,
+        "insufficient_sources": False,
+    }
+)
 
 
 # ---------------------------------------------------------------------------
@@ -63,7 +66,9 @@ def mock_user_repo():
 @pytest.fixture
 def mock_symptoms_repo():
     mock = AsyncMock()
-    mock.get_summary.return_value = "Most frequent symptoms last 30 days: hot flashes 10x"
+    mock.get_summary.return_value = (
+        "Most frequent symptoms last 30 days: hot flashes 10x"
+    )
     return mock
 
 
@@ -156,9 +161,7 @@ async def test_ask_with_existing_conversation_loads_messages(
 
 
 @pytest.mark.asyncio
-async def test_ask_without_conversation_id_skips_load(
-    service, mock_conversation_repo
-):
+async def test_ask_without_conversation_id_skips_load(service, mock_conversation_repo):
     await service.ask(USER_ID, "New question", conversation_id=None)
 
     mock_conversation_repo.load.assert_not_called()
@@ -178,7 +181,9 @@ async def test_ask_persists_conversation(service, mock_conversation_repo):
 
 
 @pytest.mark.asyncio
-async def test_ask_deduplicates_chunks(service, mock_rag_retriever, mock_citation_service):
+async def test_ask_deduplicates_chunks(
+    service, mock_rag_retriever, mock_citation_service
+):
     duplicate_chunks = [
         {
             "id": "chunk-1",
@@ -245,9 +250,7 @@ async def test_ask_degrades_gracefully_when_rag_fails(
 
 
 @pytest.mark.asyncio
-async def test_ask_raises_database_error_when_llm_fails(
-    service, mock_llm_service
-):
+async def test_ask_raises_database_error_when_llm_fails(service, mock_llm_service):
     mock_llm_service.provider.chat_completion.side_effect = Exception("LLM timeout")
 
     with pytest.raises(DatabaseError, match="LLM call failed"):
@@ -300,13 +303,19 @@ def _make_log(log_id: str, symptoms: list[SymptomDetail]) -> SymptomLogResponse:
 @pytest.mark.asyncio
 async def test_get_suggested_prompts_with_recent_symptoms(service, mock_symptoms_repo):
     logs = [
-        _make_log("log-1", [
-            SymptomDetail(id="id-1", name="Hot flashes", category="vasomotor"),
-            SymptomDetail(id="id-2", name="Night sweats", category="vasomotor"),
-        ]),
-        _make_log("log-2", [
-            SymptomDetail(id="id-3", name="Brain fog", category="cognitive"),
-        ]),
+        _make_log(
+            "log-1",
+            [
+                SymptomDetail(id="id-1", name="Hot flashes", category="vasomotor"),
+                SymptomDetail(id="id-2", name="Night sweats", category="vasomotor"),
+            ],
+        ),
+        _make_log(
+            "log-2",
+            [
+                SymptomDetail(id="id-3", name="Brain fog", category="cognitive"),
+            ],
+        ),
     ]
     mock_symptoms_repo.get_logs.return_value = (logs, 2)
 
@@ -315,7 +324,9 @@ async def test_get_suggested_prompts_with_recent_symptoms(service, mock_symptoms
     assert isinstance(result.prompts, list)
     assert 0 < len(result.prompts) <= 6
     prompts_text = " ".join(result.prompts).lower()
-    assert any(term in prompts_text for term in ["hot flash", "brain fog", "night sweat"])
+    assert any(
+        term in prompts_text for term in ["hot flash", "brain fog", "night sweat"]
+    )
 
 
 @pytest.mark.asyncio
@@ -329,19 +340,33 @@ async def test_get_suggested_prompts_no_recent_symptoms_uses_general(
     assert 0 < len(result.prompts) <= 6
     # General prompts are the fallback
     prompts_text = " ".join(result.prompts).lower()
-    assert any(term in prompts_text for term in ["expect", "options", "conversations", "doctor"])
+    assert any(
+        term in prompts_text
+        for term in ["expect", "options", "conversations", "doctor"]
+    )
 
 
 @pytest.mark.asyncio
 async def test_get_suggested_prompts_returns_at_most_max(service, mock_symptoms_repo):
     logs = [
-        _make_log("log-1", [
-            SymptomDetail(id=f"id-{i}", name=name, category="cat")
-            for i, name in enumerate([
-                "Hot flashes", "Night sweats", "Brain fog",
-                "Fatigue", "Anxiety", "Insomnia", "Joint pain", "Headaches",
-            ])
-        ])
+        _make_log(
+            "log-1",
+            [
+                SymptomDetail(id=f"id-{i}", name=name, category="cat")
+                for i, name in enumerate(
+                    [
+                        "Hot flashes",
+                        "Night sweats",
+                        "Brain fog",
+                        "Fatigue",
+                        "Anxiety",
+                        "Insomnia",
+                        "Joint pain",
+                        "Headaches",
+                    ]
+                )
+            ],
+        )
     ]
     mock_symptoms_repo.get_logs.return_value = (logs, 1)
 
@@ -355,10 +380,13 @@ async def test_get_suggested_prompts_returns_at_most_max(service, mock_symptoms_
 @pytest.mark.asyncio
 async def test_get_suggested_prompts_no_duplicates(service, mock_symptoms_repo):
     logs = [
-        _make_log("log-1", [
-            SymptomDetail(id="id-1", name="Hot flashes", category="vasomotor"),
-            SymptomDetail(id="id-3", name="Brain fog", category="cognitive"),
-        ])
+        _make_log(
+            "log-1",
+            [
+                SymptomDetail(id="id-1", name="Hot flashes", category="vasomotor"),
+                SymptomDetail(id="id-3", name="Brain fog", category="cognitive"),
+            ],
+        )
     ]
     mock_symptoms_repo.get_logs.return_value = (logs, 1)
 
@@ -376,7 +404,9 @@ async def test_get_suggested_prompts_raises_database_error(service, mock_symptom
 
 
 @pytest.mark.asyncio
-async def test_get_suggested_prompts_wraps_unexpected_error(service, mock_symptoms_repo):
+async def test_get_suggested_prompts_wraps_unexpected_error(
+    service, mock_symptoms_repo
+):
     mock_symptoms_repo.get_logs.side_effect = Exception("Unexpected")
 
     with pytest.raises(DatabaseError, match="Failed to generate prompts"):
@@ -399,7 +429,10 @@ async def test_get_suggested_prompts_handles_empty_symptom_lists(
 ):
     logs = [
         _make_log("log-1", []),  # Empty symptoms
-        _make_log("log-2", [SymptomDetail(id="id-1", name="Hot flashes", category="vasomotor")]),
+        _make_log(
+            "log-2",
+            [SymptomDetail(id="id-1", name="Hot flashes", category="vasomotor")],
+        ),
     ]
     mock_symptoms_repo.get_logs.return_value = (logs, 2)
 
@@ -448,7 +481,11 @@ async def test_list_conversations_returns_response(service, mock_conversation_re
 @pytest.mark.asyncio
 async def test_list_conversations_has_more(service, mock_conversation_repo):
     rows = [
-        {"id": str(CONVERSATION_UUID), "created_at": "2026-03-13T10:00:00Z", "messages": []}
+        {
+            "id": str(CONVERSATION_UUID),
+            "created_at": "2026-03-13T10:00:00Z",
+            "messages": [],
+        }
     ]
     mock_conversation_repo.list.return_value = (rows, 50)
 
@@ -515,3 +552,58 @@ async def test_delete_conversation_not_found_raises(service, mock_conversation_r
 
     with pytest.raises(EntityNotFoundError):
         await service.delete_conversation(CONVERSATION_UUID, USER_ID)
+
+
+# ---------------------------------------------------------------------------
+# v1 JSON format regression test
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_v1_json_format_triggers_fallback(
+    mock_user_repo,
+    mock_symptoms_repo,
+    mock_conversation_repo,
+    mock_citation_service,
+    mock_rag_retriever,
+):
+    """CATCHES: v1 claims-based JSON format silently accepted instead of triggering fallback."""
+    # LLM returns the old v1 format (claims[] instead of body + source_index)
+    v1_json = json.dumps(
+        {
+            "sections": [
+                {
+                    "heading": None,
+                    "claims": [
+                        {"text": "Hot flashes are common.", "source_indices": [1]}
+                    ],
+                }
+            ],
+            "disclaimer": None,
+            "insufficient_sources": False,
+        }
+    )
+
+    mock_llm = AsyncMock()
+    mock_llm.provider.chat_completion = AsyncMock(return_value=v1_json)
+    llm_service = MagicMock()
+    llm_service.provider = mock_llm.provider
+
+    svc = AskMenoService(
+        user_repo=mock_user_repo,
+        symptoms_repo=mock_symptoms_repo,
+        conversation_repo=mock_conversation_repo,
+        llm_service=llm_service,
+        citation_service=mock_citation_service,
+        rag_retriever=mock_rag_retriever,
+    )
+
+    result = await svc.ask(USER_ID, "What causes hot flashes?")
+
+    # v1 format fails Pydantic validation → falls back to free-text pipeline
+    # The fallback calls sanitize_and_renumber, not render_structured_response
+    mock_citation_service.sanitize_and_renumber.assert_called_once()
+    # render_structured_response should NOT have been called with the bad data
+    mock_citation_service.render_structured_response.assert_not_called()
+    # Result is still a valid ChatResponse
+    assert result.message is not None

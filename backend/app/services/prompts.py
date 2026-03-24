@@ -4,7 +4,12 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Optional
 
-from app.llm.system_prompts import LAYER_1, LAYER_2, LAYER_3
+from app.llm.system_prompts import (
+    LAYER_1_IDENTITY,
+    LAYER_2_VOICE,
+    LAYER_3_SOURCE_RULES,
+    LAYER_4_SCOPE,
+)
 
 if TYPE_CHECKING:
     from app.models.medications import MedicationContext
@@ -36,7 +41,7 @@ class PromptService:
             medication_context: Optional MHT medication context for LLM injection
 
         Returns:
-            Complete four-layer system prompt ready for LLM consumption.
+            Complete five-layer system prompt ready for LLM consumption.
         """
         age_str = str(age) if age is not None else "unknown"
 
@@ -48,7 +53,9 @@ class PromptService:
             source_lines.append(f"(Source {i}) {title}\nURL: {url}\nContent: {content}")
         source_count = len(chunks)
         sources_block = (
-            "\n\n".join(source_lines) if source_lines else "No source documents available."
+            "\n\n".join(source_lines)
+            if source_lines
+            else "No source documents available."
         )
 
         cycle_lines = []
@@ -56,11 +63,17 @@ class PromptService:
             cycle_lines.append(f"- Has uterus: {'yes' if has_uterus else 'no'}")
         if cycle_context:
             if cycle_context.get("average_cycle_length") is not None:
-                cycle_lines.append(f"- Average cycle length: {cycle_context['average_cycle_length']:.0f} days")
+                cycle_lines.append(
+                    f"- Average cycle length: {cycle_context['average_cycle_length']:.0f} days"
+                )
             if cycle_context.get("months_since_last_period") is not None:
-                cycle_lines.append(f"- Months since last period: {cycle_context['months_since_last_period']}")
+                cycle_lines.append(
+                    f"- Months since last period: {cycle_context['months_since_last_period']}"
+                )
             if cycle_context.get("inferred_stage"):
-                cycle_lines.append(f"- Inferred stage from cycle data: {cycle_context['inferred_stage']}")
+                cycle_lines.append(
+                    f"- Inferred stage from cycle data: {cycle_context['inferred_stage']}"
+                )
         cycle_block = ("\n" + "\n".join(cycle_lines)) if cycle_lines else ""
 
         med_block = ""
@@ -68,7 +81,9 @@ class PromptService:
             med_lines = []
             if medication_context.current_medications:
                 for med in medication_context.current_medications:
-                    parts = [f"  - {med.medication_name} {med.dose} ({med.delivery_method})"]
+                    parts = [
+                        f"  - {med.medication_name} {med.dose} ({med.delivery_method})"
+                    ]
                     if med.frequency:
                         parts[0] += f" — {med.frequency}"
                     if med.start_date:
@@ -82,7 +97,9 @@ class PromptService:
                         f"  - {med.medication_name} {med.dose} ({med.delivery_method})"
                         f", stopped {med.end_date}"
                     )
-                med_block += "\n- Recently stopped MHT medications:\n" + "\n".join(change_lines)
+                med_block += "\n- Recently stopped MHT medications:\n" + "\n".join(
+                    change_lines
+                )
 
         layer_4 = (
             f"User context:\n"
@@ -95,4 +112,12 @@ class PromptService:
             f"Only cite [Source 1] through [Source {source_count}]:\n\n{sources_block}"
         )
 
-        return "\n\n".join([LAYER_1, LAYER_2, LAYER_3, layer_4])
+        return "\n\n".join(
+            [
+                LAYER_1_IDENTITY,
+                LAYER_2_VOICE,
+                LAYER_3_SOURCE_RULES,
+                LAYER_4_SCOPE,
+                layer_4,
+            ]
+        )
