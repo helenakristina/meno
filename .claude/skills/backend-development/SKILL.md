@@ -1,4 +1,4 @@
----
+`---
 name: backend-development
 description: >
   Use when writing, modifying, or reviewing any backend code (FastAPI routes,
@@ -310,3 +310,4 @@ specific to this backend:
   overrides
 - **Utils:** No mocks — pure input/output testing
 - **Every test** must have a `# CATCHES:` comment per the testing-discipline skill
+`

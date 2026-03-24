@@ -120,7 +120,13 @@ SvelteKit 2.x + Svelte 5 runes + TypeScript strict. Mobile-first (375px → 768p
 
 ## Testing
 
-**Testing philosophy and rules are in `.claude/skills/testing-discipline/SKILL.md`.** Consult it before writing any tests.
+**TDD is non-negotiable for new code.** For every new function, endpoint, or
+component: write a failing test FIRST, run it, confirm it fails because the
+feature is missing, then write the minimum implementation to make it pass.
+If you catch yourself writing implementation before the test, stop — delete
+the implementation, write the test, watch it fail, then reimplement. Read
+the `testing-discipline` skill in `.claude/skills/` for the full rules.
+Consult it before writing any code.
 
 **Backend:** pytest + pytest-asyncio. Test files mirror source structure. Use `tests/fixtures/supabase.py` helpers for Supabase mocking.
 
