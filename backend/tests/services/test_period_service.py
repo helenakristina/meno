@@ -62,6 +62,7 @@ def make_user_repo(journey_stage: str | None = "perimenopause"):
     user_repo.get_settings = AsyncMock(
         return_value=UserSettingsResponse(
             period_tracking_enabled=True,
+            mht_tracking_enabled=False,
             has_uterus=None,
             journey_stage=journey_stage,
         )

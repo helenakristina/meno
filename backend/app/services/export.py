@@ -10,14 +10,16 @@ Routes become thin wrappers that call one method and return the result.
 
 import csv
 import logging
-from datetime import date, datetime, timezone
+from datetime import date, datetime
 from io import StringIO
+from typing import Optional
 
 from app.exceptions import DatabaseError, ValidationError
 from app.models.export import ExportRequest, ExportResponse
 from app.repositories.export_repository import ExportRepository
 from app.repositories.symptoms_repository import SymptomsRepository
 from app.services.llm import LLMService
+from app.services.medication_base import MedicationServiceBase
 from app.services.pdf import PdfService
 from app.services.storage import StorageService
 from app.utils.logging import hash_user_id
@@ -40,12 +42,14 @@ class ExportService:
         pdf_service: PdfService,
         storage_service: StorageService,
         llm_service: LLMService,
+        medication_service: Optional[MedicationServiceBase] = None,
     ):
         self.symptoms_repo = symptoms_repo
         self.export_repo = export_repo
         self.pdf_service = pdf_service
         self.storage_service = storage_service
         self.llm_service = llm_service
+        self.medication_service = medication_service
 
     # -------------------------------------------------------------------------
     # PDF export
@@ -120,6 +124,22 @@ class ExportService:
             )
             raise DatabaseError("Failed to generate AI content for the report") from exc
 
+        # Fetch medications active during the export range — supplementary, degrade gracefully
+        current_medications: list = []
+        if self.medication_service is not None:
+            try:
+                current_medications = await self.medication_service.list_active_during(
+                    user_id,
+                    export_params.date_range_start,
+                    export_params.date_range_end,
+                )
+            except Exception as exc:
+                logger.warning(
+                    "Failed to fetch medications for PDF export: user=%s error=%s",
+                    hash_user_id(user_id),
+                    exc,
+                )
+
         try:
             pdf_bytes = self.pdf_service.build_export_pdf(
                 date_range_start=export_params.date_range_start,
@@ -128,6 +148,7 @@ class ExportService:
                 frequency_stats=freq_stats,
                 cooccurrence_pairs=coocc_pairs,
                 provider_questions=questions,
+                current_medications=current_medications or None,
             )
         except Exception as exc:
             logger.error(

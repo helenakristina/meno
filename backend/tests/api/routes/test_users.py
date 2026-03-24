@@ -546,6 +546,7 @@ _SETTINGS_ROW = {
     "id": USER_ID,
     "email": EMAIL,
     "period_tracking_enabled": True,
+    "mht_tracking_enabled": False,
     "has_uterus": None,
     "journey_stage": "perimenopause",
 }

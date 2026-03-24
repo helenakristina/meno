@@ -29,13 +29,6 @@
 
 **Frontend:** SvelteKit 2.x, Svelte 5 (runes), TypeScript, Tailwind CSS 4.x, shadcn-svelte, Supabase client (`@supabase/supabase-js`, `@supabase/ssr`), Node 25+
 
-**Svelte 5 Conventions (breaking changes from Svelte 4):**
-
-- Use `let { children } = $props()` and `{@render children()}` instead of `<slot />`
-- Use `onclick={}` instead of `on:click={}`
-- Use `$state()` for reactive variables
-- Import from `$app/state` not `$app/stores` (page rune)
-
 **Backend:** FastAPI (Python 3.11+) async/await throughout, uv for deps, Supabase (PostgreSQL 15+ with pgvector), Anthropic API (Claude Sonnet 4), OpenAI API (text-embedding-3-small) for production embeddings, sentence-transformers for local dev embeddings
 
 **Infrastructure:** Vercel (frontend), Railway (backend), Supabase (DB/auth/storage), GitHub
@@ -96,54 +89,14 @@ Full schema in `docs/dev/DESIGN.md` Section 9.
 
 ---
 
-## Backend Architecture Rules
+## Backend Architecture
 
-Read `docs/dev/backend/V2CODE_EXAMPLES.md` for full patterns with code examples.
-Read `docs/dev/backend/VERTICAL_SLICE_EXAMPLE.md` for a complete feature walkthrough.
+**All backend patterns and rules are in `.claude/skills/backend-development/SKILL.md`.** Consult it before writing any backend code.
 
-### Layer Responsibilities
+Layer order: Routes (thin) → Services (logic) → Repositories (data) → Utils (pure functions).
+Build order: Models → Repositories → Services → Dependencies → Routes → Tests.
 
-- **Routes** → HTTP only: auth, params, response formatting, error codes. Thin — just call services.
-- **Services** → Business logic, orchestration. Pure functions, stateless, no DB access, no side effects.
-- **Repositories** → Data access only. Supabase queries. Return typed Pydantic models, NEVER raw dicts.
-- **Utils** (`app/utils/`) → Shared business logic used across layers (dates, stats, formatting).
-
-### Build Order for New Features
-
-Models → Repositories → Services → Dependencies → Routes → Tests
-
-### Mandatory Patterns
-
-**Interfaces:** Always use ABC (Abstract Base Class), not Protocol. Define in `[service_name]_base.py`.
-
-```python
-from abc import ABC, abstractmethod
-
-class LLMProvider(ABC):
-    @abstractmethod
-    async def chat_completion(self, system_prompt: str, user_prompt: str) -> str: ...
-```
-
-**Exceptions:** Never raise `HTTPException` in repositories or services. Use domain exceptions from `app.exceptions`:
-
-```
-MenoBaseError (base)
-├── EntityNotFoundError  → 404
-├── DatabaseError        → 500
-├── ValidationError      → 400
-├── UnauthorizedError    → 401
-└── PermissionError      → 403
-```
-
-Global exception handlers in `main.py` convert these to HTTP responses automatically.
-
-**Repository returns:** Always Pydantic models with type hints, never raw dicts.
-
-**Retry logic:** All external API calls (OpenAI, Claude, etc.) must use `@retry_transient` decorator from `app/utils/retry.py`. Do NOT retry database queries, auth checks, or validation.
-
-**Dependency injection:** Use FastAPI `Depends()` chain. See `app/api/dependencies.py`.
-
-**Logging:** Use Python `logging` module. Style: `ruff`. Docstrings: Google style, only when they add info the code doesn't convey. Type hints on all function signatures.
+Logging: `ruff` style. Google-style docstrings only when they add info the code doesn't convey. Type hints on all function signatures.
 
 ### PII-Safe Logging (CRITICAL)
 
@@ -155,35 +108,29 @@ Global exception handlers in `main.py` convert these to HTTP responses automatic
 
 ---
 
-## Frontend Rules
+## Frontend
 
-Read `docs/dev/frontend/V2CODE_EXAMPLES.md` for full patterns (responsive design, accessibility, component standards).
+**All frontend patterns and rules are in `.claude/skills/frontend-development/SKILL.md`.** Consult it before writing any frontend code.
 
-- TypeScript strict mode, Svelte 5 runes for reactivity
-- All backend calls go through `$lib/api/client.ts` — never call `fetch()` directly for backend requests
-- `apiClient` handles auth tokens, headers, and error parsing automatically
-- Base URL from `VITE_API_BASE_URL` env var (falls back to `http://localhost:8000`)
-- Mobile-first responsive design (375px → 768px → 1024px)
-- WCAG 2.1 Level AA accessibility — all interactive elements ≥ 44×44px
-- Tailwind utility classes; avoid custom CSS unless necessary
+SvelteKit 2.x + Svelte 5 runes + TypeScript strict. Mobile-first (375px → 768px → 1024px). WCAG 2.1 Level AA. Tailwind utility classes.
+
+**Svelte 5 Conventions (breaking changes from Svelte 4):** Use `$props()` not `export let`. Use `onclick={}` not `on:click={}`. Use `{@render children()}` not `<slot />`. Import from `$app/state` not `$app/stores`.
 
 ---
 
 ## Testing
 
-**Backend (pytest + pytest-asyncio):**
+**TDD is non-negotiable for new code.** For every new function, endpoint, or
+component: write a failing test FIRST, run it, confirm it fails because the
+feature is missing, then write the minimum implementation to make it pass.
+If you catch yourself writing implementation before the test, stop — delete
+the implementation, write the test, watch it fail, then reimplement. Read
+the `testing-discipline` skill in `.claude/skills/` for the full rules.
+Consult it before writing any code.
 
-- Test files mirror source: `tests/api/routes/`, `tests/services/`, `tests/repositories/`
-- Mock Supabase using chain-agnostic helpers from `tests/fixtures/supabase.py`:
-  - `setup_supabase_response(mock, data=[], error=None)`
-  - `setup_supabase_error(mock, message)`
-  - `setup_supabase_not_found(mock)`
-  - `@pytest.fixture mock_supabase`
-- Mock external services (Supabase, Anthropic, OpenAI). Don't test their internals.
-- Test naming: `test_X_when_Y_then_Z` (no docstrings needed on tests)
-- Aim for >70% coverage on business logic
+**Backend:** pytest + pytest-asyncio. Test files mirror source structure. Use `tests/fixtures/supabase.py` helpers for Supabase mocking.
 
-**Frontend (Vitest):** Component logic, form validation, API call handling, auth state. E2e with Playwright in V2.
+**Frontend:** Vitest + @testing-library/svelte for components. Playwright for E2E (V2).
 
 ---
 
@@ -236,9 +183,9 @@ Supabase Auth: email/password for V1, magic links in V2. Frontend uses `@supabas
 
 ## Current Phase
 
-**V2 Status:** Appointment prep flow complete.
+**V2 Status:** Appointment prep flow complete. Period tracking complete. Medication tracking in progress.
 
-**Next priorities:** Period tracking, medication tracking, ensure code meets standards.
+**Next priorities:** Ensure code meets standards. Increase tests in frontend.
 
 **Deferred to V3:** MCP servers (RAG + provider search), magic link auth, mobile app, map view for providers.
 
@@ -267,13 +214,23 @@ npm test             # Tests
 
 ## Reference Documents
 
+**Skills (authoritative rules — consult before writing code):**
+
+- **Backend development:** `.claude/skills/backend-development/SKILL.md`
+- **Frontend development:** `.claude/skills/frontend-development/SKILL.md`
+- **Testing discipline:** `.claude/skills/testing-discipline/SKILL.md`
+
+**Design & architecture:**
+
 - **Design spec (DB schema, full architecture):** `docs/dev/DESIGN.md`
-- **Backend coding standards (full patterns + examples):** `docs/dev/backend/V2CODE_EXAMPLES.md`
-- **Frontend coding standards (responsive, a11y, components):** `docs/dev/frontend/V2CODE_EXAMPLES.md`
-- **Vertical slice example (complete feature walkthrough):** `docs/dev/backend/VERTICAL_SLICE_EXAMPLE.md`
-- **PII-safe logging guide:** `docs/dev/backend/LOGGING.md`
-- **Production checklist:** `PRODUCTION_CHECKLIST.md`
-- **Guardrails audit:** `GUARDRAILS_AUDIT.md`
+
+**Supplementary code examples (detailed reference, not authoritative — skills take precedence):**
+
+- **Backend patterns & examples:** `docs/dev/backend/V2CODE_EXAMPLES.md`
+- **Frontend patterns & examples:** `docs/dev/frontend/V2CODE_EXAMPLES.md`
+
+**Operations:**
+
 - **Supabase Dashboard:** https://supabase.com/dashboard
 - **Anthropic Console:** https://console.anthropic.com
 
@@ -282,3 +239,5 @@ npm test             # Tests
 ## Compaction Instructions
 
 When compacting, always preserve: the full list of modified files, any test commands that were run, the current feature being implemented, and any errors encountered.
+
+Always consult the skills in .claude/skills/ before writing code.

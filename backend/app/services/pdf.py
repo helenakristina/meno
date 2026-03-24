@@ -10,6 +10,7 @@ import logging
 import re
 from datetime import datetime, timezone
 from io import BytesIO
+from typing import Optional
 
 from reportlab.lib import colors
 from reportlab.lib.colors import HexColor
@@ -183,6 +184,7 @@ class PdfService:
         frequency_stats: list[SymptomFrequency],
         cooccurrence_pairs: list[SymptomPair],
         provider_questions: list[str],
+        current_medications: Optional[list] = None,
     ) -> bytes:
         """Assemble a clinical export PDF report and return raw bytes.
 
@@ -193,6 +195,7 @@ class PdfService:
             frequency_stats: List of SymptomFrequency objects.
             cooccurrence_pairs: List of SymptomPair objects.
             provider_questions: List of question strings for provider.
+            current_medications: Optional list of active MedicationResponse objects.
 
         Returns:
             PDF file content as bytes.
@@ -370,6 +373,35 @@ class PdfService:
             )
             for i, q in enumerate(provider_questions, 1):
                 story.append(Paragraph(f"{i}. {q}", question_style))
+
+        # --- Section 5: Current Medications ---
+        if current_medications:
+            story.append(Paragraph("Current MHT Medications", heading_style))
+            med_data = [["Medication", "Dose & Method", "Started"]]
+            for m in current_medications:
+                delivery = (m.delivery_method or "").replace("_", " ").title()
+                started = str(m.start_date) if m.start_date else "—"
+                med_data.append([m.medication_name, f"{m.dose} ({delivery})", started])
+
+            med_col_widths = [2.5 * inch, 2.5 * inch, 1.3 * inch]
+            med_table = Table(med_data, colWidths=med_col_widths)
+            med_ts = [
+                ("BACKGROUND", (0, 0), (-1, 0), _HEADER_BG),
+                ("TEXTCOLOR", (0, 0), (-1, 0), _NEUTRAL_DARK),
+                ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+                ("FONTSIZE", (0, 0), (-1, -1), 9),
+                ("GRID", (0, 0), (-1, -1), 0.5, _BORDER),
+                ("TOPPADDING", (0, 0), (-1, -1), 5),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 5),
+                ("LEFTPADDING", (0, 0), (-1, -1), 8),
+                ("RIGHTPADDING", (0, 0), (-1, -1), 8),
+            ]
+            for i in range(1, len(med_data)):
+                med_ts.append(
+                    ("BACKGROUND", (0, i), (-1, i), colors.white if i % 2 else _ALT_ROW)
+                )
+            med_table.setStyle(TableStyle(med_ts))
+            story.append(med_table)
 
         story.append(Spacer(1, 14))
 

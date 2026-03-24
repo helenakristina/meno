@@ -3,10 +3,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 import logging
 
-from app.api.routes import appointment, chat, export, period, providers, symptoms, users
+from app.api.routes import appointment, chat, export, medications, period, providers, symptoms, users
 from app.core.config import settings
 from app.exceptions import (
-    MenoBaseError,
     EntityNotFoundError,
     DatabaseError,
     ValidationError,
@@ -103,6 +102,7 @@ app.include_router(chat.router)
 app.include_router(providers.router)
 app.include_router(appointment.router)
 app.include_router(period.router)
+app.include_router(medications.router)
 
 
 @app.get("/health")

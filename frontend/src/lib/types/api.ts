@@ -341,11 +341,13 @@ export interface ApiEndpoints {
   '/api/users/settings': {
     request: {
       period_tracking_enabled?: boolean;
+      mht_tracking_enabled?: boolean;
       has_uterus?: boolean | null;
       journey_stage?: 'perimenopause' | 'menopause' | 'post-menopause' | 'unsure';
     };
     response: {
       period_tracking_enabled: boolean;
+      mht_tracking_enabled: boolean;
       has_uterus: boolean | null;
       journey_stage: string | null;
     };
@@ -434,6 +436,143 @@ export interface ApiEndpoints {
       offset: number;
     };
   };
+
+  // ========================================================================
+  // Medication Tracking Endpoints
+  // ========================================================================
+
+  '/api/medications': {
+    request: never;
+    response: Medication[];
+  };
+
+  '/api/medications/add': {
+    request: {
+      medication_name: string;
+      dose: string;
+      delivery_method: string;
+      frequency?: string;
+      start_date: string;
+      notes?: string;
+    };
+    response: Medication;
+  };
+
+  // Dynamic path: /api/medications/{id}
+  '/api/medications/{id}': {
+    request: never;
+    response: Medication;
+  };
+
+  // Dynamic path: /api/medications/{id} (PUT)
+  '/api/medications/{id}/update': {
+    request: {
+      dose?: string;
+      delivery_method?: string;
+      frequency?: string | null;
+      notes?: string | null;
+      end_date?: string | null;
+    };
+    response: Medication;
+  };
+
+  // Dynamic path: /api/medications/{id}/change
+  '/api/medications/{id}/change': {
+    request: {
+      new_dose: string;
+      new_delivery_method: string;
+      effective_date: string;
+    };
+    response: Medication;
+  };
+
+  // Dynamic path: /api/medications/{id}/delete
+  '/api/medications/{id}/delete': {
+    request: never;
+    response: never;
+  };
+
+  // Dynamic path: /api/medications/{id}/symptom-comparison
+  '/api/medications/{id}/symptom-comparison': {
+    request: never;
+    response: SymptomComparisonResponse;
+  };
+
+  // Reference medication search: GET /api/medications/reference?query=...
+  '/api/medications/reference': {
+    request: never;
+    response: MedicationReferenceResult[];
+  };
+}
+
+/**
+ * A single MHT medication entry returned from the API.
+ */
+export interface Medication {
+  id: string;
+  medication_ref_id: string | null;
+  medication_name: string;
+  dose: string;
+  delivery_method: string;
+  frequency: string | null;
+  start_date: string;
+  end_date: string | null;
+  previous_entry_id: string | null;
+  notes: string | null;
+}
+
+/**
+ * A single row in the before/after symptom comparison table.
+ */
+export interface ComparisonRow {
+  symptom_id: string;
+  symptom_name: string;
+  category: string;
+  before_count: number;
+  before_days: number;
+  before_pct: number;   // 0–100
+  after_count: number;
+  after_days: number;
+  after_pct: number;    // 0–100
+  direction: 'improved' | 'worsened' | 'stable';
+}
+
+/**
+ * Response from GET /api/medications/{id}/symptom-comparison
+ */
+export interface SymptomComparisonResponse {
+  medication_id: string;
+  medication_name: string;
+  dose: string;
+  delivery_method: string;
+  start_date: string;
+  end_date: string | null;
+  before_start: string | null;
+  before_end: string | null;
+  after_start: string | null;
+  after_end: string | null;
+  window_days: number;
+  has_after_data: boolean;
+  before_log_days: number;
+  after_log_days: number;
+  before_is_sparse: boolean;
+  after_is_sparse: boolean;
+  rows: ComparisonRow[];
+  has_confounding_changes: boolean;
+}
+
+/**
+ * A medication from the curated reference list (returned by GET /api/medications/reference).
+ */
+export interface MedicationReferenceResult {
+  id: string;
+  brand_name: string | null;
+  generic_name: string;
+  hormone_type: string;
+  common_forms: string[];
+  common_doses: string[];
+  notes: string | null;
+  is_user_created: boolean;
 }
 
 /**

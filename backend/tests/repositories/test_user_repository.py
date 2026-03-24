@@ -471,6 +471,7 @@ async def test_get_settings_success():
             data=[
                 {
                     "period_tracking_enabled": True,
+                    "mht_tracking_enabled": False,
                     "has_uterus": True,
                     "journey_stage": "perimenopause",
                 }
@@ -523,6 +524,7 @@ async def test_update_settings_journey_stage_only():
             data=[
                 {
                     "period_tracking_enabled": True,
+                    "mht_tracking_enabled": False,
                     "has_uterus": None,
                     "journey_stage": "menopause",
                 }
@@ -545,6 +547,7 @@ async def test_update_settings_has_uterus_null():
             data=[
                 {
                     "period_tracking_enabled": True,
+                    "mht_tracking_enabled": False,
                     "has_uterus": None,
                     "journey_stage": None,
                 }

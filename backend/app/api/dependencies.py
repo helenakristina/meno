@@ -9,6 +9,7 @@ from app.core.supabase import get_client
 from app.repositories.appointment_repository import AppointmentRepository
 from app.repositories.conversation_repository import ConversationRepository
 from app.repositories.export_repository import ExportRepository
+from app.repositories.medication_repository import MedicationRepository
 from app.repositories.period_repository import PeriodRepository
 from app.repositories.providers_repository import ProvidersRepository
 from app.repositories.symptoms_repository import SymptomsRepository
@@ -16,6 +17,7 @@ from app.repositories.user_repository import UserRepository
 from app.rag.retrieval import retrieve_relevant_chunks
 from app.services.appointment import AppointmentService
 from app.services.ask_meno import AskMenoService
+from app.services.medication import MedicationService
 from app.services.period import PeriodService
 from app.services.citations import CitationService
 from app.services.export import ExportService
@@ -160,7 +162,7 @@ def get_llm_service() -> LLMService:
         # Future: import AnthropicProvider when implemented
         # provider = AnthropicProvider(api_key=settings.ANTHROPIC_API_KEY)
         raise ValueError(
-            f"LLM_PROVIDER=anthropic not yet implemented. "
+            "LLM_PROVIDER=anthropic not yet implemented. "
             "Use LLM_PROVIDER=openai or wait for Anthropic provider."
         )
     else:
@@ -204,6 +206,24 @@ def get_pdf_service() -> PdfService:
     return PdfService()
 
 
+def get_medication_repo(client: AsyncClient = Depends(get_client)) -> MedicationRepository:
+    """Dependency for MedicationRepository."""
+    return MedicationRepository(client=client)
+
+
+def get_medication_service(
+    medication_repo: MedicationRepository = Depends(get_medication_repo),
+    symptoms_repo: SymptomsRepository = Depends(get_symptoms_repo),
+    user_repo: UserRepository = Depends(get_user_repo),
+) -> MedicationService:
+    """Dependency for MedicationService."""
+    return MedicationService(
+        medication_repo=medication_repo,
+        symptoms_repo=symptoms_repo,
+        user_repo=user_repo,
+    )
+
+
 def get_appointment_service(
     appointment_repo: AppointmentRepository = Depends(get_appointment_repo),
     symptoms_repo: SymptomsRepository = Depends(get_symptoms_repo),
@@ -211,6 +231,7 @@ def get_appointment_service(
     llm_service: LLMService = Depends(get_llm_service),
     storage_service: StorageService = Depends(get_storage_service),
     pdf_service: PdfService = Depends(get_pdf_service),
+    medication_service: MedicationService = Depends(get_medication_service),
 ) -> AppointmentService:
     """Dependency for AppointmentService.
 
@@ -224,6 +245,7 @@ def get_appointment_service(
         llm_service=llm_service,
         storage_service=storage_service,
         pdf_service=pdf_service,
+        medication_service=medication_service,
     )
 
 
@@ -233,6 +255,7 @@ def get_export_service(
     pdf_service: PdfService = Depends(get_pdf_service),
     storage_service: StorageService = Depends(get_storage_service),
     llm_service: LLMService = Depends(get_llm_service),
+    medication_service: MedicationService = Depends(get_medication_service),
 ) -> ExportService:
     """Dependency for ExportService.
 
@@ -245,6 +268,7 @@ def get_export_service(
         pdf_service=pdf_service,
         storage_service=storage_service,
         llm_service=llm_service,
+        medication_service=medication_service,
     )
 
 
@@ -268,6 +292,7 @@ def get_ask_meno_service(
     llm_service: LLMService = Depends(get_llm_service),
     citation_service: CitationService = Depends(get_citation_service),
     period_repo: PeriodRepository = Depends(get_period_repo),
+    medication_service: MedicationService = Depends(get_medication_service),
 ) -> AskMenoService:
     """Dependency for AskMenoService.
 
@@ -282,4 +307,5 @@ def get_ask_meno_service(
         citation_service=citation_service,
         rag_retriever=retrieve_relevant_chunks,
         period_repo=period_repo,
+        medication_service=medication_service,
     )
