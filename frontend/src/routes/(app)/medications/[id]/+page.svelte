@@ -24,7 +24,8 @@
 	let error = $state<string | null>(null);
 	let medication = $state<Medication | null>(null);
 
-	// Edit fields (notes + end_date)
+	// Edit fields (start_date, notes, end_date)
+	let editStartDate = $state('');
 	let editNotes = $state('');
 	let editEndDate = $state('');
 	let saving = $state(false);
@@ -47,7 +48,9 @@
 	const id = $derived(page.params.id);
 
 	const canSave = $derived(
-		editNotes !== (medication?.notes ?? '') || editEndDate !== (medication?.end_date ?? '')
+		editStartDate !== (medication?.start_date ?? '') ||
+		editNotes !== (medication?.notes ?? '') ||
+		editEndDate !== (medication?.end_date ?? '')
 	);
 
 	const canChangeDose = $derived(newDose.trim().length > 0 && newDeliveryMethod.length > 0);
@@ -57,7 +60,7 @@
 	}
 
 	function formatDate(dateStr: string): string {
-		return new Date(dateStr).toLocaleDateString('en-GB', {
+		return new Date(`${dateStr}T12:00:00`).toLocaleDateString('en-GB', {
 			day: 'numeric',
 			month: 'short',
 			year: 'numeric'
@@ -68,6 +71,7 @@
 		try {
 			const med = await apiClient.get(`/api/medications/${id}` as any);
 			medication = med;
+			editStartDate = med.start_date ?? '';
 			editNotes = med.notes ?? '';
 			editEndDate = med.end_date ?? '';
 			newDeliveryMethod = med.delivery_method;
@@ -88,10 +92,12 @@
 
 		try {
 			const updated = await apiClient.put(`/api/medications/${id}` as any, {
+				...(editStartDate !== (medication?.start_date ?? '') ? { start_date: editStartDate } : {}),
 				notes: editNotes.trim() || null,
 				end_date: editEndDate || null
 			} as any);
 			medication = updated;
+			editStartDate = updated.start_date ?? '';
 			editNotes = updated.notes ?? '';
 			editEndDate = updated.end_date ?? '';
 			saveSuccess = true;
@@ -222,6 +228,18 @@
 
 			<form onsubmit={handleSave} class="space-y-4">
 				<div>
+					<label for="edit_start_date" class="mb-1.5 block text-sm font-medium text-slate-700">
+						Start date
+					</label>
+					<input
+						id="edit_start_date"
+						type="date"
+						bind:value={editStartDate}
+						class="w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-slate-900 focus:border-slate-500 focus:outline-none focus:ring-2 focus:ring-slate-200"
+					/>
+				</div>
+
+				<div>
 					<label for="notes" class="mb-1.5 block text-sm font-medium text-slate-700">
 						Notes
 						<span class="text-xs font-normal text-slate-400">(optional)</span>
@@ -325,7 +343,7 @@
 
 					<div>
 						<label for="effective_date" class="mb-1.5 block text-sm font-medium text-slate-700">
-							Effective date <span class="text-red-500" aria-hidden="true">*</span>
+							Start date <span class="text-red-500" aria-hidden="true">*</span>
 						</label>
 						<input
 							id="effective_date"

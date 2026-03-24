@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import { apiClient } from '$lib/api/client';
+	import type { MedicationReferenceResult } from '$lib/types/api';
 
 	const DELIVERY_METHODS = [
 		'patch',
@@ -16,9 +17,39 @@
 		'other'
 	] as const;
 
-	// Form state
-	let medication_name = $state('');
+	// Combobox state
+	let searchQuery = $state('');
+	let searchResults = $state<MedicationReferenceResult[]>([]);
+	let selectedMedication = $state<MedicationReferenceResult | null>(null);
+	let showDropdown = $state(false);
+	let isSearching = $state(false);
+	let highlightedIndex = $state(-1);
+
+	// Dose state — used when no reference medication is selected
 	let dose = $state('');
+	// Dose state when reference is selected
+	let selectedDose = $state(''); // one of common_doses, or 'custom'
+	let customDose = $state('');
+	const useCustomDose = $derived(selectedDose === 'custom');
+
+	// The dose value to submit
+	const doseValue = $derived(
+		selectedMedication
+			? useCustomDose
+				? customDose.trim()
+				: selectedDose
+			: dose.trim()
+	);
+
+	// Delivery method filtered to the reference medication's forms (or full list)
+	const availableDeliveryMethods = $derived<readonly string[]>(
+		selectedMedication && selectedMedication.common_forms.length > 0
+			? selectedMedication.common_forms
+			: DELIVERY_METHODS
+	);
+
+	// The medication_name to submit (display name from combobox)
+	let medication_name = $state('');
 	let delivery_method = $state('');
 	let frequency = $state('');
 	const today = new Date();
@@ -31,11 +62,99 @@
 	let error = $state<string | null>(null);
 
 	const canSubmit = $derived(
-		medication_name.trim().length > 0 && dose.trim().length > 0 && delivery_method.length > 0
+		medication_name.trim().length > 0 &&
+			doseValue.length > 0 &&
+			delivery_method.length > 0 &&
+			!submitting
 	);
 
 	function formatDeliveryMethod(method: string): string {
 		return method.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+	}
+
+	// --- Combobox logic ---
+
+	let searchTimer: ReturnType<typeof setTimeout>;
+
+	function onSearchInput() {
+		clearTimeout(searchTimer);
+		// Clear any prior selection when user starts re-typing
+		selectedMedication = null;
+		medication_name = searchQuery;
+
+		if (searchQuery.trim().length < 2) {
+			searchResults = [];
+			showDropdown = false;
+			return;
+		}
+
+		searchTimer = setTimeout(async () => {
+			isSearching = true;
+			try {
+				const results = await apiClient.get('/api/medications/reference', {
+					query: searchQuery.trim()
+				});
+				searchResults = Array.isArray(results) ? results : [];
+				showDropdown = true;
+			} catch {
+				searchResults = [];
+			} finally {
+				isSearching = false;
+			}
+		}, 300);
+	}
+
+	function selectMedication(med: MedicationReferenceResult) {
+		selectedMedication = med;
+		searchQuery = med.brand_name ?? med.generic_name;
+		medication_name = searchQuery;
+		showDropdown = false;
+		highlightedIndex = -1;
+
+		// Auto-select delivery method when there's only one option
+		delivery_method = med.common_forms.length === 1 ? med.common_forms[0] : '';
+
+		// Reset dose
+		selectedDose = '';
+		customDose = '';
+	}
+
+	function selectCustom() {
+		selectedMedication = null;
+		medication_name = searchQuery;
+		showDropdown = false;
+		highlightedIndex = -1;
+		delivery_method = '';
+		dose = '';
+	}
+
+	function onKeyDown(e: KeyboardEvent) {
+		if (!showDropdown) return;
+		const total = searchResults.length + 1; // +1 for the custom option
+		if (e.key === 'ArrowDown') {
+			e.preventDefault();
+			highlightedIndex = (highlightedIndex + 1) % total;
+		} else if (e.key === 'ArrowUp') {
+			e.preventDefault();
+			highlightedIndex = (highlightedIndex - 1 + total) % total;
+		} else if (e.key === 'Enter' && highlightedIndex >= 0) {
+			e.preventDefault();
+			if (highlightedIndex < searchResults.length) {
+				selectMedication(searchResults[highlightedIndex]);
+			} else {
+				selectCustom();
+			}
+		} else if (e.key === 'Escape') {
+			showDropdown = false;
+			highlightedIndex = -1;
+		}
+	}
+
+	function onBlur() {
+		// Delay so mousedown on dropdown items fires before the blur hides the list
+		setTimeout(() => {
+			showDropdown = false;
+		}, 150);
 	}
 
 	async function handleSubmit(e: Event) {
@@ -48,8 +167,9 @@
 		try {
 			await apiClient.post('/api/medications', {
 				medication_name: medication_name.trim(),
-				dose: dose.trim(),
+				dose: doseValue,
 				delivery_method,
+				...(selectedMedication ? { medication_ref_id: selectedMedication.id } : {}),
 				...(frequency.trim() ? { frequency: frequency.trim() } : {}),
 				start_date,
 				...(notes.trim() ? { notes: notes.trim() } : {})
@@ -97,19 +217,94 @@
 	{/if}
 
 	<form onsubmit={handleSubmit} class="space-y-5" novalidate>
-		<!-- Medication name -->
+		<!-- Medication name — combobox -->
 		<div>
 			<label for="medication_name" class="mb-1.5 block text-sm font-medium text-slate-700">
 				Medication name <span class="text-red-500" aria-hidden="true">*</span>
 			</label>
-			<input
-				id="medication_name"
-				type="text"
-				bind:value={medication_name}
-				required
-				placeholder="e.g. Estradiol"
-				class="w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 focus:border-slate-500 focus:outline-none focus:ring-2 focus:ring-slate-200"
-			/>
+			<div class="relative">
+				<input
+					id="medication_name"
+					type="text"
+					role="combobox"
+					aria-expanded={showDropdown}
+					aria-autocomplete="list"
+					aria-controls="medication-listbox"
+					aria-activedescendant={highlightedIndex >= 0
+						? `med-option-${highlightedIndex}`
+						: undefined}
+					bind:value={searchQuery}
+					oninput={onSearchInput}
+					onkeydown={onKeyDown}
+					onblur={onBlur}
+					onfocus={() => {
+						if (searchResults.length > 0) showDropdown = true;
+					}}
+					required
+					autocomplete="off"
+					placeholder="Search medications (e.g. Estradiol, Climara)"
+					class="w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 focus:border-slate-500 focus:outline-none focus:ring-2 focus:ring-slate-200"
+				/>
+				{#if isSearching}
+					<span
+						class="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-400"
+						aria-live="polite"
+					>
+						Searching…
+					</span>
+				{/if}
+
+				{#if showDropdown && (searchResults.length > 0 || searchQuery.trim().length >= 2)}
+					<ul
+						id="medication-listbox"
+						role="listbox"
+						aria-label="Medication suggestions"
+						class="absolute z-10 mt-1 max-h-64 w-full overflow-auto rounded-lg border border-slate-200 bg-white shadow-md"
+					>
+						{#each searchResults as med, i}
+							<li
+								id="med-option-{i}"
+								role="option"
+								aria-selected={highlightedIndex === i}
+								class="cursor-pointer px-3 py-2.5 text-sm hover:bg-slate-50 {highlightedIndex === i
+									? 'bg-slate-50'
+									: ''}"
+								onmousedown={() => selectMedication(med)}
+							>
+								<span class="font-medium text-slate-900">{med.generic_name}</span>
+								{#if med.brand_name}
+									<span class="text-slate-500"> ({med.brand_name})</span>
+								{/if}
+								{#if med.common_forms.length > 0}
+									<span class="ml-1.5 text-xs text-slate-400"
+										>{med.common_forms.map(formatDeliveryMethod).join(', ')}</span
+									>
+								{/if}
+							</li>
+						{/each}
+						<!-- Custom option -->
+						<li
+							id="med-option-{searchResults.length}"
+							role="option"
+							aria-selected={highlightedIndex === searchResults.length}
+							class="cursor-pointer border-t border-slate-100 px-3 py-2.5 text-sm text-slate-500 hover:bg-slate-50 {highlightedIndex ===
+							searchResults.length
+								? 'bg-slate-50'
+								: ''}"
+							onmousedown={selectCustom}
+						>
+							+ Add "{searchQuery}" as custom medication
+						</li>
+					</ul>
+				{/if}
+			</div>
+			{#if selectedMedication}
+				<p class="mt-1 text-xs text-teal-600">
+					{selectedMedication.generic_name}
+					{#if selectedMedication.brand_name}({selectedMedication.brand_name}){/if}
+					selected
+				</p>
+			{/if}
 		</div>
 
 		<!-- Dose -->
@@ -117,14 +312,38 @@
 			<label for="dose" class="mb-1.5 block text-sm font-medium text-slate-700">
 				Dose <span class="text-red-500" aria-hidden="true">*</span>
 			</label>
-			<input
-				id="dose"
-				type="text"
-				bind:value={dose}
-				required
-				placeholder="e.g. 50mcg, 1mg, 0.05%"
-				class="w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 focus:border-slate-500 focus:outline-none focus:ring-2 focus:ring-slate-200"
-			/>
+			{#if selectedMedication && selectedMedication.common_doses.length > 0}
+				<select
+					id="dose"
+					bind:value={selectedDose}
+					required
+					class="w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-slate-900 focus:border-slate-500 focus:outline-none focus:ring-2 focus:ring-slate-200"
+				>
+					<option value="" disabled>Select a dose</option>
+					{#each selectedMedication.common_doses as d}
+						<option value={d}>{d}</option>
+					{/each}
+					<option value="custom">Other (type custom)</option>
+				</select>
+				{#if useCustomDose}
+					<input
+						id="dose_custom"
+						type="text"
+						bind:value={customDose}
+						placeholder="Enter dose (e.g. 0.075mg)"
+						class="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 focus:border-slate-500 focus:outline-none focus:ring-2 focus:ring-slate-200"
+					/>
+				{/if}
+			{:else}
+				<input
+					id="dose"
+					type="text"
+					bind:value={dose}
+					required
+					placeholder="e.g. 50mcg, 1mg, 0.05%"
+					class="w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 focus:border-slate-500 focus:outline-none focus:ring-2 focus:ring-slate-200"
+				/>
+			{/if}
 		</div>
 
 		<!-- Delivery method -->
@@ -139,7 +358,7 @@
 				class="w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-slate-900 focus:border-slate-500 focus:outline-none focus:ring-2 focus:ring-slate-200"
 			>
 				<option value="" disabled>Select a delivery method</option>
-				{#each DELIVERY_METHODS as method}
+				{#each availableDeliveryMethods as method}
 					<option value={method}>{formatDeliveryMethod(method)}</option>
 				{/each}
 			</select>
@@ -197,7 +416,7 @@
 			<button
 				type="submit"
 				disabled={!canSubmit || submitting}
-				class="flex-1 rounded-lg bg-slate-800 px-4 py-3 text-sm font-medium text-white hover:bg-slate-700 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400"
+				class="flex-1 rounded-lg bg-teal-600 px-4 py-3 text-sm font-medium text-white hover:bg-teal-700 disabled:cursor-not-allowed disabled:opacity-40"
 			>
 				{submitting ? 'Adding…' : 'Add medication'}
 			</button>

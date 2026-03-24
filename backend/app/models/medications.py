@@ -67,12 +67,13 @@ class MedicationCreate(BaseModel):
 
 
 class MedicationUpdate(BaseModel):
-    """Payload for updating a medication stint (notes and end_date only).
+    """Payload for updating a medication stint (start_date, notes, and end_date).
 
     Dose and delivery method changes must use the change-dose flow
     (POST /medications/{id}/change) to preserve timeline integrity.
     """
 
+    start_date: date | None = None
     end_date: date | None = None
     notes: str | None = Field(default=None, max_length=1000)
 

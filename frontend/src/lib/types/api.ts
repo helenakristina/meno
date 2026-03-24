@@ -497,6 +497,12 @@ export interface ApiEndpoints {
     request: never;
     response: SymptomComparisonResponse;
   };
+
+  // Reference medication search: GET /api/medications/reference?query=...
+  '/api/medications/reference': {
+    request: never;
+    response: MedicationReferenceResult[];
+  };
 }
 
 /**
@@ -516,29 +522,57 @@ export interface Medication {
 }
 
 /**
- * A single row in the symptom comparison table (before vs after starting a medication).
+ * A single row in the before/after symptom comparison table.
  */
 export interface ComparisonRow {
+  symptom_id: string;
   symptom_name: string;
   category: string;
-  before_frequency: number;
-  after_frequency: number;
-  change_pct: number;
-  direction: 'improved' | 'worsened' | 'unchanged';
+  before_count: number;
+  before_days: number;
+  before_pct: number;   // 0–100
+  after_count: number;
+  after_days: number;
+  after_pct: number;    // 0–100
+  direction: 'improved' | 'worsened' | 'stable';
 }
 
 /**
  * Response from GET /api/medications/{id}/symptom-comparison
  */
 export interface SymptomComparisonResponse {
-  medication_name: string;
   medication_id: string;
+  medication_name: string;
+  dose: string;
+  delivery_method: string;
   start_date: string;
-  before_window: { start: string; end: string };
-  after_window: { start: string; end: string };
-  comparison_rows: ComparisonRow[];
-  sparse_data: boolean;
+  end_date: string | null;
+  before_start: string | null;
+  before_end: string | null;
+  after_start: string | null;
+  after_end: string | null;
+  window_days: number;
+  has_after_data: boolean;
+  before_log_days: number;
+  after_log_days: number;
+  before_is_sparse: boolean;
+  after_is_sparse: boolean;
+  rows: ComparisonRow[];
   has_confounding_changes: boolean;
+}
+
+/**
+ * A medication from the curated reference list (returned by GET /api/medications/reference).
+ */
+export interface MedicationReferenceResult {
+  id: string;
+  brand_name: string | null;
+  generic_name: string;
+  hormone_type: string;
+  common_forms: string[];
+  common_doses: string[];
+  notes: string | null;
+  is_user_created: boolean;
 }
 
 /**

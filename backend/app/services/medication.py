@@ -101,12 +101,24 @@ class MedicationService(MedicationServiceBase):
     async def update(
         self, user_id: str, medication_id: str, data: MedicationUpdate
     ) -> MedicationResponse:
-        """Update notes and/or end_date on a medication stint."""
-        # Validate date ordering if end_date is being set
-        if "end_date" in data.model_fields_set and data.end_date is not None:
+        """Update start_date, end_date, and/or notes on a medication stint."""
+        changing_start = "start_date" in data.model_fields_set
+        changing_end = "end_date" in data.model_fields_set and data.end_date is not None
+
+        if changing_start or changing_end:
             existing = await self.medication_repo.get(user_id, medication_id)
-            if data.end_date < existing.start_date:
-                raise ValidationError("end_date cannot be before start_date")
+
+            if changing_start and data.start_date is not None:
+                if data.start_date > date.today():
+                    raise ValidationError("start_date cannot be in the future")
+                effective_end = data.end_date if "end_date" in data.model_fields_set else existing.end_date
+                if effective_end and data.start_date > effective_end:
+                    raise ValidationError("start_date cannot be after end_date")
+
+            if changing_end:
+                effective_start = data.start_date if changing_start and data.start_date else existing.start_date
+                if data.end_date < effective_start:
+                    raise ValidationError("end_date cannot be before start_date")
 
         return await self.medication_repo.update(user_id, medication_id, data)
 

@@ -35,7 +35,7 @@
 	}
 
 	function formatDate(dateStr: string): string {
-		return new Date(dateStr).toLocaleDateString('en-GB', {
+		return new Date(`${dateStr}T12:00:00`).toLocaleDateString('en-GB', {
 			day: 'numeric',
 			month: 'short',
 			year: 'numeric'
@@ -52,7 +52,7 @@
 		<h1 class="text-2xl font-bold text-slate-900">MHT Medications</h1>
 		<a
 			href="/medications/add"
-			class="rounded-md bg-slate-800 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700"
+			class="rounded-md bg-teal-600 px-4 py-2 text-sm font-medium text-white hover:bg-teal-700"
 		>
 			Add medication
 		</a>

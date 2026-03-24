@@ -10,8 +10,9 @@
 
 	const id = $derived(page.params.id);
 
-	function formatDate(dateStr: string): string {
-		return new Date(dateStr).toLocaleDateString('en-GB', {
+	function formatDate(dateStr: string | null): string {
+		if (!dateStr) return '—';
+		return new Date(`${dateStr}T12:00:00`).toLocaleDateString('en-GB', {
 			day: 'numeric',
 			month: 'short',
 			year: 'numeric'
@@ -40,6 +41,8 @@
 		if (pct === 0) return '—';
 		return `${Math.round(Math.abs(pct))}%`;
 	}
+
+	const isSparse = $derived(data ? data.before_is_sparse || data.after_is_sparse : false);
 
 	onMount(async () => {
 		try {
@@ -94,27 +97,40 @@
 	{:else if data}
 		<div class="mb-6">
 			<h1 class="text-2xl font-bold text-slate-900">{data.medication_name}</h1>
-			<p class="mt-1 text-sm text-slate-500">Symptom impact</p>
+			<p class="mt-1 text-sm text-slate-500">Symptom impact — before vs. after starting</p>
 		</div>
 
 		<!-- Date windows -->
-		<div class="mb-6 grid grid-cols-2 gap-3">
-			<div class="rounded-lg border border-slate-200 bg-white p-3">
-				<div class="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-400">Before</div>
-				<div class="text-xs text-slate-600">
-					{formatDate(data.before_window.start)} – {formatDate(data.before_window.end)}
+		{#if data.before_start && data.after_start}
+			<div class="mb-6 grid grid-cols-2 gap-3">
+				<div class="rounded-lg border border-slate-200 bg-white p-3">
+					<div class="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-400">Before</div>
+					<div class="text-xs text-slate-600">
+						{formatDate(data.before_start)} – {formatDate(data.before_end)}
+					</div>
+				</div>
+				<div class="rounded-lg border border-slate-200 bg-white p-3">
+					<div class="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-400">After</div>
+					<div class="text-xs text-slate-600">
+						{formatDate(data.after_start)} – {formatDate(data.after_end)}
+					</div>
 				</div>
 			</div>
-			<div class="rounded-lg border border-slate-200 bg-white p-3">
-				<div class="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-400">After</div>
-				<div class="text-xs text-slate-600">
-					{formatDate(data.after_window.start)} – {formatDate(data.after_window.end)}
-				</div>
-			</div>
-		</div>
+		{/if}
 
-		<!-- Warnings -->
-		{#if data.sparse_data}
+		<!-- No after data yet -->
+		{#if !data.has_after_data}
+			<div
+				class="mb-4 rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800"
+				role="note"
+			>
+				<span class="font-medium">No data after start date yet.</span> Keep logging symptoms to see
+				how this medication affects you over time.
+			</div>
+		{/if}
+
+		<!-- Sparse data warning -->
+		{#if isSparse}
 			<div
 				class="mb-4 rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800"
 				role="note"
@@ -124,6 +140,7 @@
 			</div>
 		{/if}
 
+		<!-- Confounding changes warning -->
 		{#if data.has_confounding_changes}
 			<div
 				class="mb-4 rounded-md border border-blue-200 bg-blue-50 p-3 text-sm text-blue-800"
@@ -135,7 +152,7 @@
 		{/if}
 
 		<!-- Comparison table -->
-		{#if data.comparison_rows.length === 0}
+		{#if data.rows.length === 0}
 			<div class="rounded-lg border border-dashed border-slate-300 p-8 text-center">
 				<p class="text-sm text-slate-500">
 					Not enough data yet to compare symptoms. Keep logging and check back later.
@@ -155,25 +172,21 @@
 
 				<!-- Rows -->
 				<ul class="divide-y divide-slate-100" role="list">
-					{#each data.comparison_rows as row (row.symptom_name)}
+					{#each data.rows as row (row.symptom_id)}
 						<li class="grid grid-cols-[1fr_auto_auto_auto] items-center gap-x-4 px-4 py-3">
 							<div>
 								<div class="text-sm font-medium text-slate-900">{row.symptom_name}</div>
 								<div class="text-xs text-slate-400">{row.category}</div>
 							</div>
-							<div class="text-right text-sm text-slate-600">
-								{Math.round(row.before_frequency)}%
-							</div>
-							<div class="text-right text-sm text-slate-600">
-								{Math.round(row.after_frequency)}%
-							</div>
+							<div class="text-right text-sm text-slate-600">{Math.round(row.before_pct)}%</div>
+							<div class="text-right text-sm text-slate-600">{Math.round(row.after_pct)}%</div>
 							<div class="text-right">
 								<span
 									class="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium {directionClasses(row)}"
-									aria-label="{directionLabel(row)}: {formatPct(row.change_pct)}"
+									aria-label="{directionLabel(row)}"
 								>
 									<span aria-hidden="true">{directionIcon(row)}</span>
-									{formatPct(row.change_pct)}
+									{formatPct(row.after_pct - row.before_pct)}
 								</span>
 							</div>
 						</li>
