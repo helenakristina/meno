@@ -3,6 +3,7 @@
 All Supabase calls are mocked via FastAPI's dependency_overrides so no
 real network connections are made.
 """
+
 from unittest.mock import AsyncMock, MagicMock
 
 from fastapi.testclient import TestClient
@@ -244,9 +245,7 @@ class TestCreateAppointmentContext:
 
     def test_create_context_invalid_token(self):
         """Test creating context with invalid JWT token."""
-        mock = make_mock_client(
-            auth_error=Exception("Invalid token")
-        )
+        mock = make_mock_client(auth_error=Exception("Invalid token"))
         cleanup = override(mock)
         try:
             with TestClient(app) as client:
@@ -263,9 +262,7 @@ class TestCreateAppointmentContext:
 
     def test_create_context_db_error(self):
         """Test creating context when database operation fails."""
-        mock = make_mock_client(
-            insert_error=Exception("DB connection error")
-        )
+        mock = make_mock_client(insert_error=Exception("DB connection error"))
         cleanup = override(mock)
         try:
             with TestClient(app) as client:
@@ -444,7 +441,13 @@ class TestGenerateAppointmentNarrative:
                 builder.eq.return_value = builder
                 builder.execute = AsyncMock(
                     return_value=MagicMock(
-                        data=[{"id": "test-user-uuid", "journey_stage": "perimenopause", "age": 48}]
+                        data=[
+                            {
+                                "id": "test-user-uuid",
+                                "journey_stage": "perimenopause",
+                                "age": 48,
+                            }
+                        ]
                     )
                 )
             elif table_name == "symptom_logs":

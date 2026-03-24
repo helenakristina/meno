@@ -3,6 +3,7 @@
 All Supabase calls are mocked via FastAPI's dependency_overrides so no
 real network connections are made.
 """
+
 from datetime import date
 from unittest.mock import AsyncMock, MagicMock
 
@@ -23,7 +24,9 @@ class MockQueryBuilder:
     Tracks the last mutating operation so execute() returns the right data.
     """
 
-    def __init__(self, select_data=None, insert_data=None, update_data=None, insert_error=None):
+    def __init__(
+        self, select_data=None, insert_data=None, update_data=None, insert_error=None
+    ):
         self._select_data = select_data if select_data is not None else []
         self._insert_data = insert_data if insert_data is not None else []
         self._update_data = update_data if update_data is not None else []
@@ -176,7 +179,9 @@ class TestOnboarding:
             finally:
                 cleanup()
 
-            assert response.status_code == 201, f"Expected 201 for journey_stage={stage!r}"
+            assert response.status_code == 201, (
+                f"Expected 201 for journey_stage={stage!r}"
+            )
             assert response.json()["journey_stage"] == stage
 
     def test_onboarding_requires_auth(self):
@@ -272,7 +277,10 @@ class TestOnboarding:
             with TestClient(app) as client:
                 response = client.post(
                     "/api/users/onboarding",
-                    json={"date_of_birth": "1975-06-15", "journey_stage": "early-menopause"},
+                    json={
+                        "date_of_birth": "1975-06-15",
+                        "journey_stage": "early-menopause",
+                    },
                     headers=AUTH_HEADER,
                 )
         finally:
@@ -348,7 +356,12 @@ class TestOnboarding:
 # GET /api/users/insurance-preference
 # ---------------------------------------------------------------------------
 
-_PREF_ROW = {"id": USER_ID, "email": EMAIL, "insurance_type": "private", "insurance_plan_name": "Aetna PPO"}
+_PREF_ROW = {
+    "id": USER_ID,
+    "email": EMAIL,
+    "insurance_type": "private",
+    "insurance_plan_name": "Aetna PPO",
+}
 
 
 class TestGetInsurancePreference:
@@ -370,7 +383,14 @@ class TestGetInsurancePreference:
 
     def test_returns_nulls_when_columns_not_set(self):
         mock = make_mock_client(
-            existing_user_data=[{"id": USER_ID, "email": EMAIL, "insurance_type": None, "insurance_plan_name": None}]
+            existing_user_data=[
+                {
+                    "id": USER_ID,
+                    "email": EMAIL,
+                    "insurance_type": None,
+                    "insurance_plan_name": None,
+                }
+            ]
         )
         cleanup = override(mock)
         try:
@@ -438,7 +458,12 @@ class TestGetInsurancePreference:
 
 class TestUpdateInsurancePreference:
     def test_updates_successfully(self):
-        updated_row = {"id": USER_ID, "email": EMAIL, "insurance_type": "medicaid", "insurance_plan_name": "UCare"}
+        updated_row = {
+            "id": USER_ID,
+            "email": EMAIL,
+            "insurance_type": "medicaid",
+            "insurance_plan_name": "UCare",
+        }
         mock = make_mock_client(update_data=[updated_row])
         cleanup = override(mock)
         try:
@@ -457,7 +482,12 @@ class TestUpdateInsurancePreference:
         assert body["insurance_plan_name"] == "UCare"
 
     def test_updates_with_null_plan_name(self):
-        updated_row = {"id": USER_ID, "email": EMAIL, "insurance_type": "self_pay", "insurance_plan_name": None}
+        updated_row = {
+            "id": USER_ID,
+            "email": EMAIL,
+            "insurance_type": "self_pay",
+            "insurance_plan_name": None,
+        }
         mock = make_mock_client(update_data=[updated_row])
         cleanup = override(mock)
         try:
@@ -632,7 +662,11 @@ class TestUpdateSettings:
         assert response.json()["period_tracking_enabled"] is False
 
     def test_update_has_uterus_false_disables_period_tracking(self):
-        updated_row = {**_SETTINGS_ROW, "has_uterus": False, "period_tracking_enabled": False}
+        updated_row = {
+            **_SETTINGS_ROW,
+            "has_uterus": False,
+            "period_tracking_enabled": False,
+        }
         mock = make_mock_client(update_data=[updated_row])
         cleanup = override(mock)
         try:

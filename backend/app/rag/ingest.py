@@ -8,6 +8,7 @@ based on source-specific identifiers like pmc_id).
 
 Cost reference: text-embedding-3-small is $0.02 per 1M tokens (~$0.00002 per 1K tokens).
 """
+
 import asyncio
 import logging
 import re
@@ -264,9 +265,12 @@ async def store_chunks(
             # For source-based deduplication, delete old chunks first then insert new ones.
             # This avoids "ON CONFLICT DO UPDATE command cannot affect row a second time"
             # error when upserting multiple chunks from the same source.
-            await client.from_("rag_documents").delete().eq(
-                source_id_field, source_id
-            ).execute()
+            await (
+                client.from_("rag_documents")
+                .delete()
+                .eq(source_id_field, source_id)
+                .execute()
+            )
             logger.info("Deleted old chunks with %s=%s", source_id_field, source_id)
 
             # Now insert new chunks

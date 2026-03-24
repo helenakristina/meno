@@ -79,7 +79,9 @@ class AppointmentRepository:
                 "Supabase returned no data after appointment context insert for user %s",
                 user_id,
             )
-            raise DatabaseError("Failed to create appointment context: no data returned")
+            raise DatabaseError(
+                "Failed to create appointment context: no data returned"
+            )
 
         row = response.data[0]
         context_id: str = row["id"]
@@ -125,7 +127,11 @@ class AppointmentRepository:
             )
             raise DatabaseError(f"Failed to fetch appointment context: {exc}") from exc
 
-        if not response.data or not isinstance(response.data, list) or len(response.data) == 0:
+        if (
+            not response.data
+            or not isinstance(response.data, list)
+            or len(response.data) == 0
+        ):
             raise EntityNotFoundError("Appointment context not found")
 
         row: dict[str, Any] = response.data[0]
@@ -199,7 +205,9 @@ class AppointmentRepository:
         data: dict[str, Any] = {}
         if provider_summary:
             data["provider_summary_content"] = provider_summary.content
-            data["provider_summary_generated_at"] = provider_summary.generated_at.isoformat()
+            data["provider_summary_generated_at"] = (
+                provider_summary.generated_at.isoformat()
+            )
         if personal_cheat_sheet:
             data["personal_cheat_sheet_content"] = personal_cheat_sheet.content
             data["personal_cheat_sheet_generated_at"] = (
@@ -289,7 +297,11 @@ class AppointmentRepository:
             )
             raise DatabaseError(f"Failed to fetch appointment prep: {exc}") from exc
 
-        if not response.data or not isinstance(response.data, list) or len(response.data) == 0:
+        if (
+            not response.data
+            or not isinstance(response.data, list)
+            or len(response.data) == 0
+        ):
             return None
 
         return response.data[0]
@@ -327,7 +339,11 @@ class AppointmentRepository:
             )
             raise DatabaseError(f"Failed to save narrative: {exc}") from exc
 
-        if not response.data or not isinstance(response.data, list) or len(response.data) == 0:
+        if (
+            not response.data
+            or not isinstance(response.data, list)
+            or len(response.data) == 0
+        ):
             raise EntityNotFoundError("Appointment context not found")
 
         logger.info(
@@ -369,7 +385,11 @@ class AppointmentRepository:
             )
             raise DatabaseError(f"Failed to save concerns: {exc}") from exc
 
-        if not response.data or not isinstance(response.data, list) or len(response.data) == 0:
+        if (
+            not response.data
+            or not isinstance(response.data, list)
+            or len(response.data) == 0
+        ):
             raise EntityNotFoundError("Appointment context not found")
 
         logger.info(
@@ -411,7 +431,11 @@ class AppointmentRepository:
             )
             raise DatabaseError(f"Failed to save scenarios: {exc}") from exc
 
-        if not response.data or not isinstance(response.data, list) or len(response.data) == 0:
+        if (
+            not response.data
+            or not isinstance(response.data, list)
+            or len(response.data) == 0
+        ):
             raise EntityNotFoundError("Appointment context not found")
 
         logger.info(
@@ -444,13 +468,15 @@ class AppointmentRepository:
         try:
             response = (
                 await self.client.table("appointment_prep_metadata")
-                .insert({
-                    "user_id": user_id,
-                    "appointment_id": appointment_id,
-                    "provider_summary_path": provider_summary_path,
-                    "personal_cheatsheet_path": personal_cheatsheet_path,
-                    "generated_at": datetime.now(timezone.utc).isoformat(),
-                })
+                .insert(
+                    {
+                        "user_id": user_id,
+                        "appointment_id": appointment_id,
+                        "provider_summary_path": provider_summary_path,
+                        "personal_cheatsheet_path": personal_cheatsheet_path,
+                        "generated_at": datetime.now(timezone.utc).isoformat(),
+                    }
+                )
                 .execute()
             )
 
@@ -583,7 +609,11 @@ class AppointmentRepository:
             )
             raise DatabaseError(f"Failed to fetch appointment data: {exc}") from exc
 
-        if not response.data or not isinstance(response.data, list) or len(response.data) == 0:
+        if (
+            not response.data
+            or not isinstance(response.data, list)
+            or len(response.data) == 0
+        ):
             raise EntityNotFoundError("Appointment context not found")
 
         return response.data[0]
@@ -627,7 +657,11 @@ class AppointmentRepository:
                 .execute()
             )
 
-            preps = response.data if response.data and isinstance(response.data, list) else []
+            preps = (
+                response.data
+                if response.data and isinstance(response.data, list)
+                else []
+            )
 
             logger.info(
                 "Fetched appointment prep history: user=%s count=%d total=%d",
@@ -644,4 +678,6 @@ class AppointmentRepository:
                 exc,
                 exc_info=True,
             )
-            raise DatabaseError(f"Failed to fetch appointment prep history: {exc}") from exc
+            raise DatabaseError(
+                f"Failed to fetch appointment prep history: {exc}"
+            ) from exc

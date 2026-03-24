@@ -19,6 +19,7 @@ from app.services.period import PeriodService
 # Helpers
 # ---------------------------------------------------------------------------
 
+
 def make_log(
     period_start: str,
     log_id: str = "log-1",
@@ -287,9 +288,12 @@ class TestCycleAnalysisRecalculation:
     async def test_refresh_cycle_analysis_infers_menopause_at_12_months(self):
         # A log from 13 months ago triggers the inference
         from datetime import date
+
         today = date.today()
-        old_start = today.replace(year=today.year - 2) if today.month == 1 else today.replace(
-            year=today.year - 1, month=today.month - 1
+        old_start = (
+            today.replace(year=today.year - 2)
+            if today.month == 1
+            else today.replace(year=today.year - 1, month=today.month - 1)
         )
         log = make_log(old_start.isoformat())
         repo = make_repo(get_all_return=[log])

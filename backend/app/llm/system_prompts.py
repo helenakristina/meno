@@ -90,6 +90,7 @@ LAYER_4_SCOPE = (
     "- How symptoms relate to each other\n"
     "- What questions to ask your doctor\n"
     "- Research findings and evidence, including the WHI study context\n\n"
+    "-Menopause-associated psychiatric and cognitive symptoms, including depression, anxiety, psychosis, bipolar escalation, rage, cognitive impairment, and brain fog — these are menopause symptoms and are always in scope\n\n"
     "OUT OF SCOPE — redirect gently:\n"
     "- Personal medical advice ('should I take X')\n"
     "- Diagnosis (never say 'you have' or 'you are experiencing' + condition)\n"

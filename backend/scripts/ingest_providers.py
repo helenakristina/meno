@@ -50,6 +50,7 @@ BATCH_SIZE = 50
 # Validation
 # ---------------------------------------------------------------------------
 
+
 def validate_env() -> None:
     """Raise if required environment variables are missing."""
     missing = []
@@ -96,6 +97,7 @@ def deduplicate(providers: list[dict]) -> tuple[list[dict], int]:
 # Ingestion
 # ---------------------------------------------------------------------------
 
+
 def ingest(
     providers: list[dict],
     supabase: Client,
@@ -109,9 +111,9 @@ def ingest(
     inserted = 0
     errors = 0
 
-    print(f"\n{'='*60}")
+    print(f"\n{'=' * 60}")
     print(f"{'DRY RUN — ' if dry_run else ''}Ingesting {total} providers into Supabase")
-    print(f"{'='*60}")
+    print(f"{'=' * 60}")
 
     for batch_start in range(0, total, BATCH_SIZE):
         batch = providers[batch_start : batch_start + BATCH_SIZE]
@@ -124,13 +126,13 @@ def ingest(
 
         try:
             result = (
-                supabase.table("providers")
-                .upsert(batch, on_conflict="id")
-                .execute()
+                supabase.table("providers").upsert(batch, on_conflict="id").execute()
             )
             batch_inserted = len(result.data) if result.data else len(batch)
             inserted += batch_inserted
-            print(f"  Upserted records {batch_start + 1}–{batch_end} ({batch_inserted} records)")
+            print(
+                f"  Upserted records {batch_start + 1}–{batch_end} ({batch_inserted} records)"
+            )
         except Exception as e:
             errors += len(batch)
             print(f"  ERROR on batch {batch_start + 1}–{batch_end}: {e}")
@@ -142,11 +144,12 @@ def ingest(
 # Validation Report
 # ---------------------------------------------------------------------------
 
+
 def print_validation_report(providers: list[dict]) -> None:
     """Print a data quality summary after ingestion."""
-    print(f"\n{'='*60}")
+    print(f"\n{'=' * 60}")
     print("VALIDATION REPORT")
-    print(f"{'='*60}")
+    print(f"{'=' * 60}")
 
     total = len(providers)
     print(f"\nTotal providers: {total}")
@@ -163,23 +166,27 @@ def print_validation_report(providers: list[dict]) -> None:
     type_counts = Counter(p.get("provider_type") for p in providers)
     print("\nProvider types:")
     for ptype, count in type_counts.most_common():
-        print(f"  {ptype or 'None':>25}  {count:>4}  ({count/total*100:4.1f}%)")
+        print(f"  {ptype or 'None':>25}  {count:>4}  ({count / total * 100:4.1f}%)")
 
     # NAMS certified
     nams_count = sum(1 for p in providers if p.get("nams_certified"))
-    print(f"\nNAMS certified (MSCP): {nams_count} ({nams_count/total*100:.1f}%)")
+    print(f"\nNAMS certified (MSCP): {nams_count} ({nams_count / total * 100:.1f}%)")
 
     # Phone numbers
     phone_count = sum(1 for p in providers if p.get("phone"))
-    print(f"Have phone number:     {phone_count} ({phone_count/total*100:.1f}%)")
+    print(f"Have phone number:     {phone_count} ({phone_count / total * 100:.1f}%)")
 
     # Websites
     website_count = sum(1 for p in providers if p.get("website"))
-    print(f"Have website:          {website_count} ({website_count/total*100:.1f}%)")
+    print(
+        f"Have website:          {website_count} ({website_count / total * 100:.1f}%)"
+    )
 
     # Insurance data
     insurance_count = sum(1 for p in providers if p.get("insurance_accepted"))
-    print(f"Have insurance data:   {insurance_count} ({insurance_count/total*100:.1f}%)")
+    print(
+        f"Have insurance data:   {insurance_count} ({insurance_count / total * 100:.1f}%)"
+    )
 
     # Insurance breakdown
     insurance_types: Counter = Counter()
@@ -213,6 +220,7 @@ def print_validation_report(providers: list[dict]) -> None:
 # ---------------------------------------------------------------------------
 # Entry Point
 # ---------------------------------------------------------------------------
+
 
 def main() -> None:
     import argparse
@@ -249,7 +257,9 @@ def main() -> None:
 
     # Deduplicate
     providers, skipped_dupes = deduplicate(providers)
-    print(f"  After deduplication: {len(providers)} records ({skipped_dupes} duplicates removed)")
+    print(
+        f"  After deduplication: {len(providers)} records ({skipped_dupes} duplicates removed)"
+    )
 
     # Print validation report first (useful even in dry-run)
     print_validation_report(providers)
@@ -266,9 +276,9 @@ def main() -> None:
     summary = ingest(providers, supabase, dry_run=args.dry_run)
 
     # Final summary
-    print(f"\n{'='*60}")
+    print(f"\n{'=' * 60}")
     print("INGESTION COMPLETE")
-    print(f"{'='*60}")
+    print(f"{'=' * 60}")
     print(f"  Total records:    {summary['total']}")
     print(f"  Upserted:         {summary['inserted']}")
     print(f"  Errors:           {summary['errors']}")

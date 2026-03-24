@@ -10,7 +10,12 @@ from typing import Optional
 
 from supabase import AsyncClient
 
-from app.exceptions import DatabaseError, DuplicateEntityError, EntityNotFoundError, ValidationError
+from app.exceptions import (
+    DatabaseError,
+    DuplicateEntityError,
+    EntityNotFoundError,
+    ValidationError,
+)
 
 from app.models.providers import (
     ProviderCard,
@@ -110,7 +115,9 @@ class ProvidersRepository:
                 raise DatabaseError(f"Failed to look up zip code: {exc}") from exc
 
             if not zip_response.data:
-                raise EntityNotFoundError(f"No providers found for zip_code '{zip_code}'")
+                raise EntityNotFoundError(
+                    f"No providers found for zip_code '{zip_code}'"
+                )
             effective_state = zip_response.data[0]["state"]
 
         logger.info(
@@ -203,9 +210,7 @@ class ProvidersRepository:
         )
         return options
 
-    async def get_shortlist(
-        self, user_id: str
-    ) -> list[ShortlistEntryWithProvider]:
+    async def get_shortlist(self, user_id: str) -> list[ShortlistEntryWithProvider]:
         """Return all shortlist entries with full provider data joined in.
 
         Makes two DB queries: one for shortlist entries, one for provider rows.
@@ -301,9 +306,7 @@ class ProvidersRepository:
 
         return [row["provider_id"] for row in (resp.data or [])]
 
-    async def add_to_shortlist(
-        self, user_id: str, provider_id: str
-    ) -> ShortlistEntry:
+    async def add_to_shortlist(self, user_id: str, provider_id: str) -> ShortlistEntry:
         """Add a provider to the user's shortlist.
 
         Args:
@@ -346,7 +349,13 @@ class ProvidersRepository:
         try:
             insert_resp = (
                 await self.client.table("provider_shortlist")
-                .insert({"user_id": user_id, "provider_id": provider_id, "status": "to_call"})
+                .insert(
+                    {
+                        "user_id": user_id,
+                        "provider_id": provider_id,
+                        "status": "to_call",
+                    }
+                )
                 .execute()
             )
         except Exception as exc:
@@ -359,7 +368,9 @@ class ProvidersRepository:
             )
             raise DatabaseError(f"Failed to add provider to shortlist: {exc}") from exc
 
-        logger.info("Shortlist add: success (user=%s provider=%s)", user_id, provider_id)
+        logger.info(
+            "Shortlist add: success (user=%s provider=%s)", user_id, provider_id
+        )
         return ShortlistEntry(**insert_resp.data[0])
 
     async def remove_from_shortlist(self, user_id: str, provider_id: str) -> None:
@@ -389,7 +400,9 @@ class ProvidersRepository:
                 exc,
                 exc_info=True,
             )
-            raise DatabaseError(f"Failed to remove provider from shortlist: {exc}") from exc
+            raise DatabaseError(
+                f"Failed to remove provider from shortlist: {exc}"
+            ) from exc
 
         if not existing_resp.data:
             raise EntityNotFoundError("Provider not in shortlist")
@@ -410,9 +423,13 @@ class ProvidersRepository:
                 exc,
                 exc_info=True,
             )
-            raise DatabaseError(f"Failed to remove provider from shortlist: {exc}") from exc
+            raise DatabaseError(
+                f"Failed to remove provider from shortlist: {exc}"
+            ) from exc
 
-        logger.info("Shortlist remove: success (user=%s provider=%s)", user_id, provider_id)
+        logger.info(
+            "Shortlist remove: success (user=%s provider=%s)", user_id, provider_id
+        )
 
     async def update_shortlist_entry(
         self,

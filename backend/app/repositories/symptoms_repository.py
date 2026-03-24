@@ -87,7 +87,10 @@ class SymptomsRepository:
                 .execute()
             )
             if response.data:
-                return response.data[0].get("summary_text") or "No symptom data logged yet."
+                return (
+                    response.data[0].get("summary_text")
+                    or "No symptom data logged yet."
+                )
         except Exception as exc:
             logger.warning("Failed to fetch symptom summary for %s: %s", user_id, exc)
         return "No symptom data logged yet."
@@ -181,7 +184,11 @@ class SymptomsRepository:
             DatabaseError: If the database queries fail.
         """
         try:
-            query = self.client.table("symptom_logs").select("symptoms").eq("user_id", user_id)
+            query = (
+                self.client.table("symptom_logs")
+                .select("symptoms")
+                .eq("user_id", user_id)
+            )
 
             if start_date is not None:
                 start_dt = datetime(
@@ -213,7 +220,9 @@ class SymptomsRepository:
                 exc,
                 exc_info=True,
             )
-            raise DatabaseError(f"Failed to retrieve symptom statistics: {exc}") from exc
+            raise DatabaseError(
+                f"Failed to retrieve symptom statistics: {exc}"
+            ) from exc
 
         # Extract all unique symptom IDs from logs
         all_ids = list({sid for row in rows for sid in (row.get("symptoms") or [])})
@@ -238,7 +247,9 @@ class SymptomsRepository:
                 exc,
                 exc_info=True,
             )
-            raise DatabaseError(f"Failed to retrieve symptom statistics: {exc}") from exc
+            raise DatabaseError(
+                f"Failed to retrieve symptom statistics: {exc}"
+            ) from exc
 
         # Build lookup dict: symptom_id → {id, name, category}
         ref_lookup = {row["id"]: row for row in ref_rows}
@@ -405,9 +416,7 @@ class SymptomsRepository:
         logger.info("Retrieved %d symptom logs for user %s", len(logs), user_id)
         return logs, len(logs)
 
-    async def _fetch_lookup(
-        self, symptom_ids: list[str]
-    ) -> dict[str, SymptomDetail]:
+    async def _fetch_lookup(self, symptom_ids: list[str]) -> dict[str, SymptomDetail]:
         """Query symptoms_reference for the given IDs and return an id → SymptomDetail map.
 
         Missing IDs are silently omitted from the result; callers handle the

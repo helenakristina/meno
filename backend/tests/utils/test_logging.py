@@ -131,6 +131,7 @@ class TestSafeType:
 
     def test_safe_type_custom_object(self):
         """Test: safe_type returns class name for custom objects."""
+
         class CustomClass:
             pass
 

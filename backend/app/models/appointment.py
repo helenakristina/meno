@@ -47,15 +47,13 @@ class AppointmentContext(BaseModel):
     appointment_type: AppointmentType = Field(
         description="Type of appointment: new provider or established relationship"
     )
-    goal: AppointmentGoal = Field(
-        description="Primary goal for the appointment"
-    )
+    goal: AppointmentGoal = Field(description="Primary goal for the appointment")
     dismissed_before: DismissalExperience = Field(
         description="Whether the user has been dismissed by providers before"
     )
     urgent_symptom: str | None = Field(
         default=None,
-        description="Which symptom is urgent (only set when goal is 'urgent_symptom')"
+        description="Which symptom is urgent (only set when goal is 'urgent_symptom')",
     )
 
 
@@ -146,7 +144,7 @@ class AppointmentContextResponse(BaseModel):
     dismissed_before: DismissalExperience
     urgent_symptom: str | None = Field(
         default=None,
-        description="Which symptom is urgent (only set when goal is 'urgent_symptom')"
+        description="Which symptom is urgent (only set when goal is 'urgent_symptom')",
     )
     created_at: datetime
 
@@ -188,15 +186,13 @@ class CreateAppointmentContextRequest(BaseModel):
     appointment_type: AppointmentType = Field(
         description="Type of appointment: new provider or established relationship"
     )
-    goal: AppointmentGoal = Field(
-        description="Primary goal for the appointment"
-    )
+    goal: AppointmentGoal = Field(description="Primary goal for the appointment")
     dismissed_before: DismissalExperience = Field(
         description="Whether the user has been dismissed by providers before"
     )
     urgent_symptom: str | None = Field(
         default=None,
-        description="Which symptom is urgent (only set when goal is 'urgent_symptom')"
+        description="Which symptom is urgent (only set when goal is 'urgent_symptom')",
     )
 
 
@@ -291,19 +287,19 @@ class ScenarioCard(BaseModel):
     """
 
     id: str = Field(description="Unique scenario ID (e.g. 'scenario-1')")
-    title: str = Field(description="The dismissal scenario (e.g. 'Brain fog is just normal aging')")
+    title: str = Field(
+        description="The dismissal scenario (e.g. 'Brain fog is just normal aging')"
+    )
     situation: str = Field(
         description="The dismissal scenario text (e.g. 'If your provider says...')"
     )
     suggestion: str = Field(
         description="LLM-generated response suggestion with evidence-based language and source links"
     )
-    category: str = Field(
-        description="Scenario category based on dismissal type"
-    )
+    category: str = Field(description="Scenario category based on dismissal type")
     sources: list[str] = Field(
         default_factory=list,
-        description="URLs referenced in the suggestion (e.g., NAMS links)"
+        description="URLs referenced in the suggestion (e.g., NAMS links)",
     )
 
 
@@ -315,7 +311,9 @@ class AppointmentPrepScenariosResponse(BaseModel):
     """
 
     appointment_id: str = Field(description="UUID of the appointment context")
-    scenarios: list[ScenarioCard] = Field(description="List of generated scenario cards")
+    scenarios: list[ScenarioCard] = Field(
+        description="List of generated scenario cards"
+    )
     next_step: str = Field(
         default="generate",
         description="Next step in the flow (always 'generate' after Step 4)",
@@ -336,7 +334,9 @@ class AppointmentPrepGenerateResponse(BaseModel):
 
     appointment_id: str = Field(description="UUID of the appointment context")
     provider_summary_url: str = Field(description="Public URL to provider summary PDF")
-    personal_cheat_sheet_url: str = Field(description="Public URL to personal cheat sheet PDF")
+    personal_cheat_sheet_url: str = Field(
+        description="Public URL to personal cheat sheet PDF"
+    )
     message: str = Field(
         default="Your appointment prep is ready!",
         description="Confirmation message",
@@ -357,9 +357,13 @@ class AppointmentPrepHistoryResponse(BaseModel):
 
     id: str = Field(description="Metadata record ID")
     appointment_id: str = Field(description="Associated appointment prep ID")
-    generated_at: str = Field(description="ISO format datetime when PDFs were generated")
+    generated_at: str = Field(
+        description="ISO format datetime when PDFs were generated"
+    )
     provider_summary_path: str = Field(description="Signed URL to provider summary PDF")
-    personal_cheatsheet_path: str = Field(description="Signed URL to personal cheat sheet PDF")
+    personal_cheatsheet_path: str = Field(
+        description="Signed URL to personal cheat sheet PDF"
+    )
 
 
 class AppointmentPrepHistoryListResponse(BaseModel):

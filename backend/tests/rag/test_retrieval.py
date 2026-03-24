@@ -224,8 +224,8 @@ class TestRetrieveRelevantChunks:
                 # Mock Supabase
                 mock_supabase = MagicMock()
                 mock_get_client.return_value = mock_supabase
-                mock_supabase.table.return_value.select.return_value.execute = AsyncMock(
-                    return_value=MagicMock(data=SAMPLE_DOCS)
+                mock_supabase.table.return_value.select.return_value.execute = (
+                    AsyncMock(return_value=MagicMock(data=SAMPLE_DOCS))
                 )
 
                 results = await retrieve_relevant_chunks("hot flashes", top_k=2)
@@ -245,8 +245,8 @@ class TestRetrieveRelevantChunks:
 
                 mock_supabase = MagicMock()
                 mock_get_client.return_value = mock_supabase
-                mock_supabase.table.return_value.select.return_value.execute = AsyncMock(
-                    return_value=MagicMock(data=[])
+                mock_supabase.table.return_value.select.return_value.execute = (
+                    AsyncMock(return_value=MagicMock(data=[]))
                 )
 
                 results = await retrieve_relevant_chunks("test query")
@@ -266,8 +266,8 @@ class TestRetrieveRelevantChunks:
 
                 mock_supabase = MagicMock()
                 mock_get_client.return_value = mock_supabase
-                mock_supabase.table.return_value.select.return_value.execute = AsyncMock(
-                    return_value=MagicMock(data=SAMPLE_DOCS)
+                mock_supabase.table.return_value.select.return_value.execute = (
+                    AsyncMock(return_value=MagicMock(data=SAMPLE_DOCS))
                 )
 
                 results = await retrieve_relevant_chunks("test query")
@@ -289,8 +289,8 @@ class TestRetrieveRelevantChunks:
 
                 mock_supabase = MagicMock()
                 mock_get_client.return_value = mock_supabase
-                mock_supabase.table.return_value.select.return_value.execute = AsyncMock(
-                    return_value=MagicMock(data=SAMPLE_DOCS)
+                mock_supabase.table.return_value.select.return_value.execute = (
+                    AsyncMock(return_value=MagicMock(data=SAMPLE_DOCS))
                 )
 
                 results = await retrieve_relevant_chunks("test query")
@@ -312,8 +312,8 @@ class TestRetrieveRelevantChunks:
 
                 mock_supabase = MagicMock()
                 mock_get_client.return_value = mock_supabase
-                mock_supabase.table.return_value.select.return_value.execute = AsyncMock(
-                    return_value=MagicMock(data=SAMPLE_DOCS)
+                mock_supabase.table.return_value.select.return_value.execute = (
+                    AsyncMock(return_value=MagicMock(data=SAMPLE_DOCS))
                 )
 
                 # Query with specific medical term that appears in doc-3
@@ -348,8 +348,8 @@ class TestRetrieveRelevantChunks:
 
                 mock_supabase = MagicMock()
                 mock_get_client.return_value = mock_supabase
-                mock_supabase.table.return_value.select.return_value.execute = AsyncMock(
-                    side_effect=Exception("Supabase error")
+                mock_supabase.table.return_value.select.return_value.execute = (
+                    AsyncMock(side_effect=Exception("Supabase error"))
                 )
 
                 with pytest.raises(Exception, match="Supabase error"):
@@ -395,8 +395,8 @@ class TestRetrieveRelevantChunks:
 
                 mock_supabase = MagicMock()
                 mock_get_client.return_value = mock_supabase
-                mock_supabase.table.return_value.select.return_value.execute = AsyncMock(
-                    return_value=MagicMock(data=docs_with_missing)
+                mock_supabase.table.return_value.select.return_value.execute = (
+                    AsyncMock(return_value=MagicMock(data=docs_with_missing))
                 )
 
                 results = await retrieve_relevant_chunks("test query")
@@ -438,8 +438,8 @@ class TestRetrieveRelevantChunks:
 
                 mock_supabase = MagicMock()
                 mock_get_client.return_value = mock_supabase
-                mock_supabase.table.return_value.select.return_value.execute = AsyncMock(
-                    return_value=MagicMock(data=docs_with_bad_embedding)
+                mock_supabase.table.return_value.select.return_value.execute = (
+                    AsyncMock(return_value=MagicMock(data=docs_with_bad_embedding))
                 )
 
                 results = await retrieve_relevant_chunks("test query")
@@ -462,8 +462,8 @@ class TestRetrieveRelevantChunks:
 
                 mock_supabase = MagicMock()
                 mock_get_client.return_value = mock_supabase
-                mock_supabase.table.return_value.select.return_value.execute = AsyncMock(
-                    return_value=MagicMock(data=SAMPLE_DOCS)
+                mock_supabase.table.return_value.select.return_value.execute = (
+                    AsyncMock(return_value=MagicMock(data=SAMPLE_DOCS))
                 )
 
                 results = await retrieve_relevant_chunks("test query", top_k=1)

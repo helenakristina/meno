@@ -49,7 +49,9 @@ class TestRecordExport:
         assert result["export_type"] == "pdf"
 
     @pytest.mark.asyncio
-    async def test_record_export_returns_empty_dict_when_no_data(self, repo, mock_client):
+    async def test_record_export_returns_empty_dict_when_no_data(
+        self, repo, mock_client
+    ):
         setup_supabase_response(mock_client, data=[])
 
         result = await repo.record_export(USER_ID, "csv", START, END)
@@ -57,7 +59,9 @@ class TestRecordExport:
         assert result == {}
 
     @pytest.mark.asyncio
-    async def test_record_export_raises_database_error_on_failure(self, repo, mock_client):
+    async def test_record_export_raises_database_error_on_failure(
+        self, repo, mock_client
+    ):
         mock_client.table.return_value.insert.return_value.execute = AsyncMock(
             side_effect=Exception("DB write failed")
         )

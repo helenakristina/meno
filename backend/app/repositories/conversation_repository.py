@@ -144,7 +144,11 @@ class ConversationRepository:
                     exc_info=True,
                 )
                 raise DatabaseError(f"Failed to save conversation: {exc}") from exc
-            logger.info("Conversation %s updated for user %s", conversation_id, hash_user_id(user_id))
+            logger.info(
+                "Conversation %s updated for user %s",
+                conversation_id,
+                hash_user_id(user_id),
+            )
             return conversation_id
 
         # Create new conversation
@@ -205,4 +209,8 @@ class ConversationRepository:
         if not response.data:
             raise EntityNotFoundError("Conversation not found")
 
-        logger.info("Conversation deleted: id=%s user=%s", conversation_id, hash_user_id(user_id))
+        logger.info(
+            "Conversation deleted: id=%s user=%s",
+            conversation_id,
+            hash_user_id(user_id),
+        )

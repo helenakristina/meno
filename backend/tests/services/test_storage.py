@@ -166,7 +166,9 @@ class TestStorageServiceCreateSignedUrl:
         )
 
     @pytest.mark.asyncio
-    async def test_create_signed_url_default_expiration(self, storage_service, mock_supabase):
+    async def test_create_signed_url_default_expiration(
+        self, storage_service, mock_supabase
+    ):
         """Test: Signed URL uses default 3600 second expiration."""
         mock_storage = MagicMock()
         mock_from = MagicMock()
@@ -185,7 +187,9 @@ class TestStorageServiceCreateSignedUrl:
         assert call_kwargs["expires_in"] == 3600
 
     @pytest.mark.asyncio
-    async def test_create_signed_url_custom_expiration(self, storage_service, mock_supabase):
+    async def test_create_signed_url_custom_expiration(
+        self, storage_service, mock_supabase
+    ):
         """Test: Signed URL respects custom expiration time."""
         mock_storage = MagicMock()
         mock_from = MagicMock()
@@ -227,7 +231,9 @@ class TestStorageServiceCreateSignedUrl:
         assert "Failed to generate signed URL" in str(exc_info.value)
 
     @pytest.mark.asyncio
-    async def test_create_signed_url_empty_response(self, storage_service, mock_supabase):
+    async def test_create_signed_url_empty_response(
+        self, storage_service, mock_supabase
+    ):
         """Test: Empty response raises RuntimeError."""
         mock_storage = MagicMock()
         mock_from = MagicMock()
@@ -245,7 +251,9 @@ class TestStorageServiceCreateSignedUrl:
         assert "Failed to generate signed URL" in str(exc_info.value)
 
     @pytest.mark.asyncio
-    async def test_create_signed_url_none_response(self, storage_service, mock_supabase):
+    async def test_create_signed_url_none_response(
+        self, storage_service, mock_supabase
+    ):
         """Test: None response raises RuntimeError."""
         mock_storage = MagicMock()
         mock_from = MagicMock()

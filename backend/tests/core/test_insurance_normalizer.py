@@ -1,6 +1,9 @@
 """Unit tests for the insurance name normalizer."""
 
-from app.core.insurance_normalizer import normalize_insurance_list, normalize_insurance_name
+from app.core.insurance_normalizer import (
+    normalize_insurance_list,
+    normalize_insurance_name,
+)
 
 
 class TestNormalizeInsuranceName:
@@ -16,8 +19,12 @@ class TestNormalizeInsuranceName:
 
     def test_near_miss_case_is_not_mapped(self):
         # Matching is case-sensitive — "commercial insurance" (lowercase) has no mapping
-        assert normalize_insurance_name("commercial insurance") == "commercial insurance"
-        assert normalize_insurance_name("COMMERCIAL INSURANCE") == "COMMERCIAL INSURANCE"
+        assert (
+            normalize_insurance_name("commercial insurance") == "commercial insurance"
+        )
+        assert (
+            normalize_insurance_name("COMMERCIAL INSURANCE") == "COMMERCIAL INSURANCE"
+        )
 
     def test_already_canonical_name_is_unchanged(self):
         assert normalize_insurance_name("Private Insurance") == "Private Insurance"
@@ -25,7 +32,9 @@ class TestNormalizeInsuranceName:
 
 class TestNormalizeInsuranceList:
     def test_maps_known_values_in_list(self):
-        result = normalize_insurance_list(["Commercial Insurance", "Medicare", "Medicaid"])
+        result = normalize_insurance_list(
+            ["Commercial Insurance", "Medicare", "Medicaid"]
+        )
         assert result == ["Private Insurance", "Medicare", "Medicaid"]
 
     def test_unknown_values_pass_through_unchanged(self):

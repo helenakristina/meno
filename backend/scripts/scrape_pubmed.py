@@ -61,7 +61,7 @@ USER_AGENT = "MenoEducationalBot/1.0 (Health education app; not for commercial u
 # Search query: menopause/perimenopause articles in PMC
 # Uses simplified query since full text filters may not be available in all databases
 # Note: The [sb] and [la] filters don't work reliably in PMC database searches
-SEARCH_QUERY = "(menopause OR perimenopause)"
+SEARCH_QUERY = "(mental health) AND (menopause[MeSH Major Topic])"
 
 # Sections shorter than this are too thin to be useful for RAG
 MIN_WORD_COUNT = 80
@@ -421,10 +421,12 @@ async def article_already_ingested(pmc_id: str) -> bool:
     """
     try:
         client = await get_client()
-        result = await client.from_("rag_documents").select(
-            "pmc_id",
-            count="exact"
-        ).eq("pmc_id", pmc_id).execute()
+        result = (
+            await client.from_("rag_documents")
+            .select("pmc_id", count="exact")
+            .eq("pmc_id", pmc_id)
+            .execute()
+        )
 
         # If any rows exist with this pmc_id, article is already ingested
         return len(result.data) > 0

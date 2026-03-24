@@ -81,9 +81,7 @@ class TestOpenAIProviderChatCompletion:
     ):
         """Test that system_prompt and user_prompt are sent correctly."""
         mock_response = MagicMock()
-        mock_response.choices = [
-            MagicMock(message=MagicMock(content="Response."))
-        ]
+        mock_response.choices = [MagicMock(message=MagicMock(content="Response."))]
         mock_response.model = "gpt-4o-mini"
         mock_response.usage = None
         mock_openai_client.chat.completions.create.return_value = mock_response
@@ -106,9 +104,7 @@ class TestOpenAIProviderChatCompletion:
     ):
         """Test that the correct OpenAI model is used."""
         mock_response = MagicMock()
-        mock_response.choices = [
-            MagicMock(message=MagicMock(content="Response."))
-        ]
+        mock_response.choices = [MagicMock(message=MagicMock(content="Response."))]
         mock_response.model = "gpt-4o-mini"
         mock_response.usage = None
         mock_openai_client.chat.completions.create.return_value = mock_response
@@ -250,9 +246,7 @@ class TestOpenAIProviderChatCompletion:
         """Test that special characters in response are preserved."""
         special_response = "UTF-8: café, 你好, émoji 🎯"
         mock_response = MagicMock()
-        mock_response.choices = [
-            MagicMock(message=MagicMock(content=special_response))
-        ]
+        mock_response.choices = [MagicMock(message=MagicMock(content=special_response))]
         mock_response.model = "gpt-4o-mini"
         mock_response.usage = None
         mock_openai_client.chat.completions.create.return_value = mock_response
@@ -272,9 +266,7 @@ class TestOpenAIProviderChatCompletion:
         """Test handling of very long responses."""
         long_response = "A" * 10000
         mock_response = MagicMock()
-        mock_response.choices = [
-            MagicMock(message=MagicMock(content=long_response))
-        ]
+        mock_response.choices = [MagicMock(message=MagicMock(content=long_response))]
         mock_response.model = "gpt-4o-mini"
         mock_response.usage = MagicMock(completion_tokens=9999)
         mock_openai_client.chat.completions.create.return_value = mock_response
@@ -336,7 +328,9 @@ class TestOpenAIProviderChatCompletion:
         assert provider.client is not None
 
     @pytest.mark.asyncio
-    async def test_chat_completion_with_json_response_format(self, provider, mock_openai_client):
+    async def test_chat_completion_with_json_response_format(
+        self, provider, mock_openai_client
+    ):
         """Test chat completion with JSON response format."""
         mock_response = MagicMock()
         mock_response.choices = [
@@ -377,7 +371,9 @@ class TestOpenAIProviderChatCompletionWithUsage:
         return OpenAIProvider(api_key="test-key-123")
 
     @pytest.mark.asyncio
-    async def test_chat_completion_with_usage_success(self, provider, mock_openai_client):
+    async def test_chat_completion_with_usage_success(
+        self, provider, mock_openai_client
+    ):
         """Test successful chat completion with usage info."""
         mock_response = MagicMock()
         mock_response.choices = [
@@ -387,7 +383,11 @@ class TestOpenAIProviderChatCompletionWithUsage:
         mock_response.usage = MagicMock(prompt_tokens=100, completion_tokens=50)
         mock_openai_client.chat.completions.create.return_value = mock_response
 
-        text, prompt_tokens, completion_tokens = await provider.chat_completion_with_usage(
+        (
+            text,
+            prompt_tokens,
+            completion_tokens,
+        ) = await provider.chat_completion_with_usage(
             system_prompt="You are helpful.",
             user_prompt="What is this?",
         )
@@ -397,17 +397,21 @@ class TestOpenAIProviderChatCompletionWithUsage:
         assert completion_tokens == 50
 
     @pytest.mark.asyncio
-    async def test_chat_completion_with_usage_no_usage_info(self, provider, mock_openai_client):
+    async def test_chat_completion_with_usage_no_usage_info(
+        self, provider, mock_openai_client
+    ):
         """Test with_usage when usage info is None."""
         mock_response = MagicMock()
-        mock_response.choices = [
-            MagicMock(message=MagicMock(content="Response."))
-        ]
+        mock_response.choices = [MagicMock(message=MagicMock(content="Response."))]
         mock_response.model = "gpt-4o-mini"
         mock_response.usage = None  # No usage info
         mock_openai_client.chat.completions.create.return_value = mock_response
 
-        text, prompt_tokens, completion_tokens = await provider.chat_completion_with_usage(
+        (
+            text,
+            prompt_tokens,
+            completion_tokens,
+        ) = await provider.chat_completion_with_usage(
             system_prompt="Role.",
             user_prompt="Question?",
         )
@@ -417,7 +421,9 @@ class TestOpenAIProviderChatCompletionWithUsage:
         assert completion_tokens == 0
 
     @pytest.mark.asyncio
-    async def test_chat_completion_with_usage_custom_params(self, provider, mock_openai_client):
+    async def test_chat_completion_with_usage_custom_params(
+        self, provider, mock_openai_client
+    ):
         """Test with_usage with custom max_tokens and temperature."""
         mock_response = MagicMock()
         mock_response.choices = [
@@ -427,7 +433,11 @@ class TestOpenAIProviderChatCompletionWithUsage:
         mock_response.usage = MagicMock(prompt_tokens=75, completion_tokens=25)
         mock_openai_client.chat.completions.create.return_value = mock_response
 
-        text, prompt_tokens, completion_tokens = await provider.chat_completion_with_usage(
+        (
+            text,
+            prompt_tokens,
+            completion_tokens,
+        ) = await provider.chat_completion_with_usage(
             system_prompt="Be specific.",
             user_prompt="Describe X.",
             max_tokens=2000,
@@ -440,7 +450,9 @@ class TestOpenAIProviderChatCompletionWithUsage:
         assert call_args.kwargs["temperature"] == 1.2
 
     @pytest.mark.asyncio
-    async def test_chat_completion_with_usage_json_format(self, provider, mock_openai_client):
+    async def test_chat_completion_with_usage_json_format(
+        self, provider, mock_openai_client
+    ):
         """Test with_usage with JSON response format."""
         mock_response = MagicMock()
         mock_response.choices = [
@@ -450,7 +462,11 @@ class TestOpenAIProviderChatCompletionWithUsage:
         mock_response.usage = MagicMock(prompt_tokens=80, completion_tokens=20)
         mock_openai_client.chat.completions.create.return_value = mock_response
 
-        text, prompt_tokens, completion_tokens = await provider.chat_completion_with_usage(
+        (
+            text,
+            prompt_tokens,
+            completion_tokens,
+        ) = await provider.chat_completion_with_usage(
             system_prompt="JSON mode.",
             user_prompt="Generate JSON.",
             response_format="json",
@@ -461,7 +477,9 @@ class TestOpenAIProviderChatCompletionWithUsage:
         assert call_args.kwargs["response_format"]["type"] == "json_object"
 
     @pytest.mark.asyncio
-    async def test_chat_completion_with_usage_no_choices(self, provider, mock_openai_client):
+    async def test_chat_completion_with_usage_no_choices(
+        self, provider, mock_openai_client
+    ):
         """Test error when with_usage gets no choices."""
         mock_response = MagicMock()
         mock_response.choices = []
@@ -474,7 +492,9 @@ class TestOpenAIProviderChatCompletionWithUsage:
             )
 
     @pytest.mark.asyncio
-    async def test_chat_completion_with_usage_empty_content(self, provider, mock_openai_client):
+    async def test_chat_completion_with_usage_empty_content(
+        self, provider, mock_openai_client
+    ):
         """Test error when with_usage gets empty content."""
         mock_response = MagicMock()
         mock_response.choices = [MagicMock(message=MagicMock(content=""))]
@@ -487,7 +507,9 @@ class TestOpenAIProviderChatCompletionWithUsage:
             )
 
     @pytest.mark.asyncio
-    async def test_chat_completion_with_usage_timeout(self, provider, mock_openai_client):
+    async def test_chat_completion_with_usage_timeout(
+        self, provider, mock_openai_client
+    ):
         """Test timeout error in with_usage."""
         mock_openai_client.chat.completions.create.side_effect = TimeoutError("Timeout")
 
@@ -498,7 +520,9 @@ class TestOpenAIProviderChatCompletionWithUsage:
             )
 
     @pytest.mark.asyncio
-    async def test_chat_completion_with_usage_api_error(self, provider, mock_openai_client):
+    async def test_chat_completion_with_usage_api_error(
+        self, provider, mock_openai_client
+    ):
         """Test API error in with_usage."""
         mock_openai_client.chat.completions.create.side_effect = Exception("API error")
 

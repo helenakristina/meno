@@ -86,11 +86,17 @@ from app.core.insurance_normalizer import normalize_insurance_list
 # Constants
 # ---------------------------------------------------------------------------
 
-DIRECTORY_URL = "https://portal.menopause.org/NAMS/NAMS/Directory/Menopause-Practitioner.aspx"
+DIRECTORY_URL = (
+    "https://portal.menopause.org/NAMS/NAMS/Directory/Menopause-Practitioner.aspx"
+)
 
-USER_AGENT = "Meno Health App / provider directory research (educational; not commercial)"
+USER_AGENT = (
+    "Meno Health App / provider directory research (educational; not commercial)"
+)
 
-PAGE_LOAD_DELAY_MS = 1500  # milliseconds between page navigations (respectful crawl rate)
+PAGE_LOAD_DELAY_MS = (
+    1500  # milliseconds between page navigations (respectful crawl rate)
+)
 
 DATA_DIR = Path(__file__).parent / "data"
 
@@ -99,12 +105,62 @@ CLEAN_OUTPUT = DATA_DIR / "providers_clean.json"
 
 # US state abbreviations for filtering (V1 is US-only)
 US_STATES = {
-    "AL", "AK", "AZ", "AR", "CA", "CO", "CT", "DE", "FL", "GA",
-    "HI", "ID", "IL", "IN", "IA", "KS", "KY", "LA", "ME", "MD",
-    "MA", "MI", "MN", "MS", "MO", "MT", "NE", "NV", "NH", "NJ",
-    "NM", "NY", "NC", "ND", "OH", "OK", "OR", "PA", "RI", "SC",
-    "SD", "TN", "TX", "UT", "VT", "VA", "WA", "WV", "WI", "WY",
-    "DC", "PR", "VI", "GU", "AS", "MP",  # territories
+    "AL",
+    "AK",
+    "AZ",
+    "AR",
+    "CA",
+    "CO",
+    "CT",
+    "DE",
+    "FL",
+    "GA",
+    "HI",
+    "ID",
+    "IL",
+    "IN",
+    "IA",
+    "KS",
+    "KY",
+    "LA",
+    "ME",
+    "MD",
+    "MA",
+    "MI",
+    "MN",
+    "MS",
+    "MO",
+    "MT",
+    "NE",
+    "NV",
+    "NH",
+    "NJ",
+    "NM",
+    "NY",
+    "NC",
+    "ND",
+    "OH",
+    "OK",
+    "OR",
+    "PA",
+    "RI",
+    "SC",
+    "SD",
+    "TN",
+    "TX",
+    "UT",
+    "VT",
+    "VA",
+    "WA",
+    "WV",
+    "WI",
+    "WY",
+    "DC",
+    "PR",
+    "VI",
+    "GU",
+    "AS",
+    "MP",  # territories
 }
 
 # Payment terms that represent actual insurance (vs billing model)
@@ -117,9 +173,26 @@ INSURANCE_TERMS = {
 
 # Credentials that indicate NP/PA provider type
 NP_PA_CREDS = {
-    "NP", "PA", "APRN", "CNM", "CNP", "FNP", "CRNP", "ANP", "GNP",
-    "PMHNP", "WHNP", "NPC", "NP-C", "FNP-C", "FNP-BC", "AGPCNP",
-    "AGACNP", "ACNP", "DNP", "CRNA",
+    "NP",
+    "PA",
+    "APRN",
+    "CNM",
+    "CNP",
+    "FNP",
+    "CRNP",
+    "ANP",
+    "GNP",
+    "PMHNP",
+    "WHNP",
+    "NPC",
+    "NP-C",
+    "FNP-C",
+    "FNP-BC",
+    "AGPCNP",
+    "AGACNP",
+    "ACNP",
+    "DNP",
+    "CRNA",
 }
 
 # Credentials that indicate MD/DO
@@ -129,6 +202,7 @@ MD_DO_CREDS = {"MD", "DO", "MBCHB", "MBBS"}
 # ---------------------------------------------------------------------------
 # Address Parsing
 # ---------------------------------------------------------------------------
+
 
 def parse_address(addr_text: str) -> dict:
     """Parse multiline NAMS address text into structured components.
@@ -185,7 +259,7 @@ def parse_address(addr_text: str) -> dict:
     result["zip_code"] = csz_match.group(3).split("-")[0]  # 5-digit only
 
     # Country: from any line after city/state/zip that isn't empty
-    lines_after = [l for l in lines[csz_idx + 1:] if l and l.upper() not in ("USA",)]
+    lines_after = [l for l in lines[csz_idx + 1 :] if l and l.upper() not in ("USA",)]
     result["country"] = lines_after[0] if lines_after else "USA"
 
     # Lines before city/state/zip: street ± practice name
@@ -212,6 +286,7 @@ def parse_address(addr_text: str) -> dict:
 # ---------------------------------------------------------------------------
 # Provider Type Inference
 # ---------------------------------------------------------------------------
+
 
 def infer_provider_type(credentials: str | None) -> str:
     """Infer provider_type from credentials string.
@@ -247,6 +322,7 @@ def infer_provider_type(credentials: str | None) -> str:
 # Insurance Normalization
 # ---------------------------------------------------------------------------
 
+
 def extract_insurance(raw_items: list[str]) -> list[str]:
     """Filter payment terms to actual insurance types only."""
     result = []
@@ -264,6 +340,7 @@ def extract_insurance(raw_items: list[str]) -> list[str]:
 # ---------------------------------------------------------------------------
 # HTML Parsing
 # ---------------------------------------------------------------------------
+
 
 def parse_provider_card(card) -> dict:
     """Parse a single div.benopausebox provider card into raw dict.
@@ -303,7 +380,9 @@ def parse_provider_card(card) -> dict:
         if link:
             href = link.get("href", "").strip()
             # Skip empty or javascript: hrefs
-            raw["website"] = href if href and not href.startswith("javascript") else None
+            raw["website"] = (
+                href if href and not href.startswith("javascript") else None
+            )
 
     # NAMS Certified: presence of the MSCP certification badge icon
     nams_img = card.select_one('img[src*="menopause_cert_icon"]')
@@ -311,8 +390,10 @@ def parse_provider_card(card) -> dict:
 
     # Also check credentials for MSCP (belt-and-suspenders)
     if not raw["nams_certified"] and raw.get("credentials"):
-        raw["nams_certified"] = "MSCP" in raw["credentials"].upper().split(",") or \
-                                 re.search(r"\bMSCP\b", raw["credentials"]) is not None
+        raw["nams_certified"] = (
+            "MSCP" in raw["credentials"].upper().split(",")
+            or re.search(r"\bMSCP\b", raw["credentials"]) is not None
+        )
 
     # Payment for Services / Insurance
     payment_items = []
@@ -346,6 +427,7 @@ def parse_page_html(html: str) -> list[dict]:
 # Scraping
 # ---------------------------------------------------------------------------
 
+
 async def get_total_pages(page) -> int:
     """Extract total page count from pager text.
 
@@ -358,7 +440,9 @@ async def get_total_pages(page) -> int:
         match = re.search(r"([\d,]+)\s+items?\s+in\s+(\d+)\s+pages?", text)
         if match:
             total = int(match.group(2))
-            print(f"  Found {match.group(1).replace(',', '')} providers across {total} pages")
+            print(
+                f"  Found {match.group(1).replace(',', '')} providers across {total} pages"
+            )
             return total
     except Exception:
         pass
@@ -369,12 +453,16 @@ async def get_total_pages(page) -> int:
         match = re.search(r"([\d,]+)\s+items?\s+in\s+(\d+)\s+pages?", text)
         if match:
             total = int(match.group(2))
-            print(f"  Found {match.group(1).replace(',', '')} providers across {total} pages")
+            print(
+                f"  Found {match.group(1).replace(',', '')} providers across {total} pages"
+            )
             return total
     except Exception:
         pass
 
-    print("  WARNING: Could not determine total pages — will paginate until Next is disabled")
+    print(
+        "  WARNING: Could not determine total pages — will paginate until Next is disabled"
+    )
     return 9999  # fallback: iterate until Next button disabled
 
 
@@ -391,7 +479,9 @@ async def is_next_enabled(page) -> bool:
         return False
 
 
-async def scrape_all_providers(headless: bool = True, max_pages: int | None = None) -> list[dict]:
+async def scrape_all_providers(
+    headless: bool = True, max_pages: int | None = None
+) -> list[dict]:
     """Main scraping function. Returns list of raw provider dicts."""
     all_providers: list[dict] = []
 
@@ -426,9 +516,9 @@ async def scrape_all_providers(headless: bool = True, max_pages: int | None = No
         )
         page = await context.new_page()
 
-        print(f"\n{'='*60}")
+        print(f"\n{'=' * 60}")
         print("NAMS Provider Directory Scraper")
-        print(f"{'='*60}")
+        print(f"{'=' * 60}")
         print(f"Target: {DIRECTORY_URL}")
         print(f"Mode: {'headless' if headless else 'visible browser'}")
         if max_pages:
@@ -491,9 +581,9 @@ async def scrape_all_providers(headless: bool = True, max_pages: int | None = No
 
         await browser.close()
 
-    print(f"\n{'='*60}")
+    print(f"\n{'=' * 60}")
     print(f"Scraping complete: {len(all_providers)} raw provider records")
-    print(f"{'='*60}\n")
+    print(f"{'=' * 60}\n")
     return all_providers
 
 
@@ -546,14 +636,16 @@ def transform_provider(raw: dict) -> dict | None:
         "city": city,
         "state": state,
         "zip_code": raw.get("zip_code"),
-        "latitude": None,   # V2: geocoding
+        "latitude": None,  # V2: geocoding
         "longitude": None,  # V2: geocoding
         "phone": raw.get("phone"),
         "website": raw.get("website"),
         "specialties": [],  # Not exposed in directory listing
         "provider_type": infer_provider_type(credentials),
         "nams_certified": raw.get("nams_certified", False),
-        "insurance_accepted": normalize_insurance_list(extract_insurance(raw.get("payment_raw", []))),
+        "insurance_accepted": normalize_insurance_list(
+            extract_insurance(raw.get("payment_raw", []))
+        ),
         "data_source": "nams_directory",
         "last_verified": date.today().isoformat(),
     }
@@ -575,8 +667,9 @@ def transform_all(raw_providers: list[dict]) -> list[dict]:
             skipped_missing += 1
             continue
 
-        if (country and country.upper() not in ("USA", "UNITED STATES", "")) or \
-                (state and state not in US_STATES):
+        if (country and country.upper() not in ("USA", "UNITED STATES", "")) or (
+            state and state not in US_STATES
+        ):
             skipped_non_us += 1
             continue
 
@@ -597,6 +690,7 @@ def transform_all(raw_providers: list[dict]) -> list[dict]:
 # ---------------------------------------------------------------------------
 # Entry Point
 # ---------------------------------------------------------------------------
+
 
 def main():
     parser = argparse.ArgumentParser(

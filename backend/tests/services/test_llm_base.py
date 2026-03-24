@@ -98,7 +98,9 @@ class TestLLMServiceChatCompletion:
         """Test that empty system_prompt raises ValueError."""
         service = LLMService(provider=mock_provider)
 
-        with pytest.raises(ValueError, match="system_prompt must be a non-empty string"):
+        with pytest.raises(
+            ValueError, match="system_prompt must be a non-empty string"
+        ):
             await service.chat_completion(
                 system_prompt="",
                 user_prompt="Question?",
@@ -128,7 +130,9 @@ class TestLLMServiceChatCompletion:
         """Test that non-string system_prompt raises ValueError."""
         service = LLMService(provider=mock_provider)
 
-        with pytest.raises(ValueError, match="system_prompt must be a non-empty string"):
+        with pytest.raises(
+            ValueError, match="system_prompt must be a non-empty string"
+        ):
             await service.chat_completion(
                 system_prompt=None,  # type: ignore
                 user_prompt="Question?",

@@ -73,9 +73,7 @@ async def test_validate_ids_success():
 @pytest.mark.asyncio
 async def test_validate_ids_with_duplicates():
     """Test that duplicate IDs in request are deduplicated before validation."""
-    mock_client = make_sequential_client(
-        MagicMock(data=[{"id": "symptom-1"}])
-    )
+    mock_client = make_sequential_client(MagicMock(data=[{"id": "symptom-1"}]))
     repo = SymptomsRepository(client=mock_client)
 
     await repo.validate_ids(["symptom-1", "symptom-1", "symptom-1"])
@@ -133,9 +131,7 @@ async def test_get_summary_found():
 @pytest.mark.asyncio
 async def test_get_summary_not_found():
     """Test that missing summary returns default message."""
-    mock_client = make_sequential_client(
-        MagicMock(data=[])
-    )
+    mock_client = make_sequential_client(MagicMock(data=[]))
     repo = SymptomsRepository(client=mock_client)
 
     result = await repo.get_summary("user-1")
@@ -146,9 +142,7 @@ async def test_get_summary_not_found():
 @pytest.mark.asyncio
 async def test_get_summary_null_text():
     """Test that null summary_text returns default message."""
-    mock_client = make_sequential_client(
-        MagicMock(data=[{"summary_text": None}])
-    )
+    mock_client = make_sequential_client(MagicMock(data=[{"summary_text": None}]))
     repo = SymptomsRepository(client=mock_client)
 
     result = await repo.get_summary("user-1")
@@ -244,7 +238,9 @@ async def test_create_log_with_logged_at():
             ]
         ),
         # lookup
-        MagicMock(data=[{"id": "symptom-1", "name": "Hot flash", "category": "vasomotor"}]),
+        MagicMock(
+            data=[{"id": "symptom-1", "name": "Hot flash", "category": "vasomotor"}]
+        ),
     )
     repo = SymptomsRepository(client=mock_client)
 
@@ -260,9 +256,7 @@ async def test_create_log_with_logged_at():
 @pytest.mark.asyncio
 async def test_create_log_validation_fails():
     """Test that invalid symptom IDs raise 400."""
-    mock_client = make_sequential_client(
-        MagicMock(data=[])
-    )
+    mock_client = make_sequential_client(MagicMock(data=[]))
     repo = SymptomsRepository(client=mock_client)
 
     with pytest.raises(ValidationError):
@@ -636,8 +630,12 @@ async def test_get_logs_with_reference_reference_query_fails():
     def table_side_effect(name):
         if name == "symptom_logs":
             chain = MagicMock()
-            chain.select.return_value.eq.return_value.execute = AsyncMock(return_value=logs_response)
-            chain.select.return_value.eq.return_value.eq.return_value = chain.select.return_value.eq.return_value
+            chain.select.return_value.eq.return_value.execute = AsyncMock(
+                return_value=logs_response
+            )
+            chain.select.return_value.eq.return_value.eq.return_value = (
+                chain.select.return_value.eq.return_value
+            )
             return chain
         else:  # symptoms_reference
             chain = MagicMock()

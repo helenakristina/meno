@@ -93,9 +93,7 @@ class TestCalculateCooccurrenceStats:
         logs = [LOG_AB, LOG_AB, LOG_AC]
         pairs = calculate_cooccurrence_stats(logs, REF, min_threshold=2)
         ab = next(
-            p
-            for p in pairs
-            if {p.symptom1_id, p.symptom2_id} == {"id-a", "id-b"}
+            p for p in pairs if {p.symptom1_id, p.symptom2_id} == {"id-a", "id-b"}
         )
         assert ab.cooccurrence_rate == round(2 / 3, 4)
         assert ab.total_occurrences_symptom1 == 3
@@ -118,7 +116,10 @@ class TestCalculateCooccurrenceStats:
         assert calculate_cooccurrence_stats([], REF) == []
 
     def test_missing_ref_id_pair_is_skipped(self):
-        logs = [{"symptoms": ["id-a", "unknown-id"]}, {"symptoms": ["id-a", "unknown-id"]}]
+        logs = [
+            {"symptoms": ["id-a", "unknown-id"]},
+            {"symptoms": ["id-a", "unknown-id"]},
+        ]
         pairs = calculate_cooccurrence_stats(logs, REF, min_threshold=1)
         assert pairs == []
 
@@ -126,7 +127,9 @@ class TestCalculateCooccurrenceStats:
         from app.utils.stats import MAX_COOCCURRENCE_PAIRS
 
         # Create more pairs than the cap by using many distinct symptom IDs
-        many_ref = {f"id-{i}": {"name": f"Symptom {i}", "category": "other"} for i in range(20)}
+        many_ref = {
+            f"id-{i}": {"name": f"Symptom {i}", "category": "other"} for i in range(20)
+        }
         # Each log has all 20 symptoms → C(20,2)=190 unique pairs
         logs = [{"symptoms": list(many_ref.keys())}] * 3
         pairs = calculate_cooccurrence_stats(logs, many_ref, min_threshold=1)

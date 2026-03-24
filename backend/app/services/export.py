@@ -82,7 +82,9 @@ class ExportService:
             ValidationError: Invalid date range or no logs in range.
             DatabaseError: LLM or storage operation failed.
         """
-        self._validate_date_range(export_params.date_range_start, export_params.date_range_end)
+        self._validate_date_range(
+            export_params.date_range_start, export_params.date_range_end
+        )
 
         rows, ref_lookup = await self.symptoms_repo.get_logs_for_export(
             user_id,
@@ -159,9 +161,7 @@ class ExportService:
             )
             raise DatabaseError("Failed to generate PDF") from exc
 
-        filename = (
-            f"meno-summary-{export_params.date_range_start}-{export_params.date_range_end}.pdf"
-        )
+        filename = f"meno-summary-{export_params.date_range_start}-{export_params.date_range_end}.pdf"
         storage_path = f"{user_id}/{filename}"
 
         try:
@@ -192,7 +192,9 @@ class ExportService:
             export_params.date_range_end,
         )
 
-        return ExportResponse(signed_url=signed_url, filename=filename, export_type="pdf")
+        return ExportResponse(
+            signed_url=signed_url, filename=filename, export_type="pdf"
+        )
 
     # -------------------------------------------------------------------------
     # CSV export
@@ -223,7 +225,9 @@ class ExportService:
             ValidationError: Invalid date range or no logs in range.
             DatabaseError: Storage operation failed.
         """
-        self._validate_date_range(export_params.date_range_start, export_params.date_range_end)
+        self._validate_date_range(
+            export_params.date_range_start, export_params.date_range_end
+        )
 
         rows, ref_lookup = await self.symptoms_repo.get_logs_for_export(
             user_id,
@@ -249,9 +253,7 @@ class ExportService:
 
         csv_bytes = output.getvalue().encode()
 
-        filename = (
-            f"meno-logs-{export_params.date_range_start}-{export_params.date_range_end}.csv"
-        )
+        filename = f"meno-logs-{export_params.date_range_start}-{export_params.date_range_end}.csv"
         storage_path = f"{user_id}/{filename}"
 
         try:
@@ -284,7 +286,9 @@ class ExportService:
             export_params.date_range_end,
         )
 
-        return ExportResponse(signed_url=signed_url, filename=filename, export_type="csv")
+        return ExportResponse(
+            signed_url=signed_url, filename=filename, export_type="csv"
+        )
 
     # -------------------------------------------------------------------------
     # Export history
@@ -309,7 +313,9 @@ class ExportService:
         Raises:
             DatabaseError: If the query fails.
         """
-        records, total = await self.export_repo.get_export_history(user_id, limit, offset)
+        records, total = await self.export_repo.get_export_history(
+            user_id, limit, offset
+        )
         return {
             "exports": records,
             "total": total,
@@ -326,7 +332,9 @@ class ExportService:
         """Raise ValidationError if the date range is invalid."""
         today = date.today()
         if start > end:
-            raise ValidationError("date_range_start must be on or before date_range_end")
+            raise ValidationError(
+                "date_range_start must be on or before date_range_end"
+            )
         if end > today:
             raise ValidationError("date_range_end cannot be in the future")
 

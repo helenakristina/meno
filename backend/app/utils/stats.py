@@ -4,6 +4,7 @@ Stateless helpers that operate on pre-fetched data — no DB access. Callers
 are responsible for fetching raw logs and the symptoms_reference lookup before
 calling these functions.
 """
+
 import itertools
 import logging
 from collections import Counter
@@ -98,7 +99,9 @@ def calculate_cooccurrence_stats(
     pair_counts: Counter[tuple[str, str]] = Counter()
 
     for row in logs:
-        symptoms = list(dict.fromkeys(row.get("symptoms") or []))  # deduplicate, preserve order
+        symptoms = list(
+            dict.fromkeys(row.get("symptoms") or [])
+        )  # deduplicate, preserve order
         for sid in symptoms:
             symptom_counts[sid] += 1
         if len(symptoms) >= 2:

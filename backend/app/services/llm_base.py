@@ -117,7 +117,11 @@ class LLMService:
             raise ValueError("user_prompt must be a non-empty string")
         if not isinstance(max_tokens, int) or max_tokens < 1 or max_tokens > 4096:
             raise ValueError("max_tokens must be an integer between 1 and 4096")
-        if not isinstance(temperature, (int, float)) or temperature < 0 or temperature > 2:
+        if (
+            not isinstance(temperature, (int, float))
+            or temperature < 0
+            or temperature > 2
+        ):
             raise ValueError("temperature must be a number between 0 and 2")
 
         # Call provider with separate exception handling for provider errors

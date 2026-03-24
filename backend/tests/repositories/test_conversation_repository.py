@@ -53,9 +53,7 @@ async def test_load_conversation_success():
         {"role": "assistant", "content": "Hi there"},
     ]
 
-    mock_client = make_sequential_client(
-        MagicMock(data=[{"messages": messages}])
-    )
+    mock_client = make_sequential_client(MagicMock(data=[{"messages": messages}]))
     repo = ConversationRepository(client=mock_client)
 
     result = await repo.load(conversation_id, "user-1")
@@ -68,9 +66,7 @@ async def test_load_conversation_empty_messages():
     """Test loading a conversation with empty messages array."""
     conversation_id = uuid4()
 
-    mock_client = make_sequential_client(
-        MagicMock(data=[{"messages": []}])
-    )
+    mock_client = make_sequential_client(MagicMock(data=[{"messages": []}]))
     repo = ConversationRepository(client=mock_client)
 
     result = await repo.load(conversation_id, "user-1")
@@ -83,9 +79,7 @@ async def test_load_conversation_null_messages():
     """Test loading a conversation with null messages field."""
     conversation_id = uuid4()
 
-    mock_client = make_sequential_client(
-        MagicMock(data=[{"messages": None}])
-    )
+    mock_client = make_sequential_client(MagicMock(data=[{"messages": None}]))
     repo = ConversationRepository(client=mock_client)
 
     result = await repo.load(conversation_id, "user-1")
@@ -98,9 +92,7 @@ async def test_load_conversation_not_found():
     """Test that loading non-existent conversation raises 404."""
     conversation_id = uuid4()
 
-    mock_client = make_sequential_client(
-        MagicMock(data=[])
-    )
+    mock_client = make_sequential_client(MagicMock(data=[]))
     repo = ConversationRepository(client=mock_client)
 
     with pytest.raises(EntityNotFoundError) as exc_info:
@@ -140,9 +132,7 @@ async def test_save_conversation_update_existing():
         {"role": "user", "content": "Updated message"},
     ]
 
-    mock_client = make_sequential_client(
-        MagicMock(data=[{"id": str(conversation_id)}])
-    )
+    mock_client = make_sequential_client(MagicMock(data=[{"id": str(conversation_id)}]))
     repo = ConversationRepository(client=mock_client)
 
     result = await repo.save(conversation_id, "user-1", messages)
@@ -159,9 +149,7 @@ async def test_save_conversation_create_new():
         {"role": "assistant", "content": "First response"},
     ]
 
-    mock_client = make_sequential_client(
-        MagicMock(data=[{"id": str(new_id)}])
-    )
+    mock_client = make_sequential_client(MagicMock(data=[{"id": str(new_id)}]))
     repo = ConversationRepository(client=mock_client)
 
     result = await repo.save(None, "user-1", messages)
@@ -174,9 +162,7 @@ async def test_save_conversation_create_empty_messages():
     """Test creating a new conversation with empty messages."""
     new_id = uuid4()
 
-    mock_client = make_sequential_client(
-        MagicMock(data=[{"id": str(new_id)}])
-    )
+    mock_client = make_sequential_client(MagicMock(data=[{"id": str(new_id)}]))
     repo = ConversationRepository(client=mock_client)
 
     result = await repo.save(None, "user-1", [])
@@ -199,7 +185,9 @@ async def test_save_conversation_update_fails():
     repo = ConversationRepository(client=mock_client)
 
     with pytest.raises(DatabaseError):
-        await repo.save(conversation_id, "user-1", [{"role": "user", "content": "test"}])
+        await repo.save(
+            conversation_id, "user-1", [{"role": "user", "content": "test"}]
+        )
 
 
 @pytest.mark.asyncio
@@ -220,9 +208,7 @@ async def test_save_conversation_create_fails():
 @pytest.mark.asyncio
 async def test_save_conversation_create_returns_empty():
     """Test that empty insert response raises 500."""
-    mock_client = make_sequential_client(
-        MagicMock(data=[])
-    )
+    mock_client = make_sequential_client(MagicMock(data=[]))
     repo = ConversationRepository(client=mock_client)
 
     with pytest.raises(DatabaseError):
@@ -239,9 +225,7 @@ async def test_delete_conversation_success():
     """Test deleting an existing conversation."""
     conversation_id = uuid4()
 
-    mock_client = make_sequential_client(
-        MagicMock(data=[{"id": str(conversation_id)}])
-    )
+    mock_client = make_sequential_client(MagicMock(data=[{"id": str(conversation_id)}]))
     repo = ConversationRepository(client=mock_client)
 
     await repo.delete(conversation_id, "user-1")
@@ -253,9 +237,7 @@ async def test_delete_conversation_not_found():
     """Test that deleting non-existent conversation raises 404."""
     conversation_id = uuid4()
 
-    mock_client = make_sequential_client(
-        MagicMock(data=[])
-    )
+    mock_client = make_sequential_client(MagicMock(data=[]))
     repo = ConversationRepository(client=mock_client)
 
     with pytest.raises(EntityNotFoundError):
@@ -292,9 +274,7 @@ async def test_conversation_workflow():
     new_id = uuid4()
 
     # Create conversation
-    mock_create = make_sequential_client(
-        MagicMock(data=[{"id": str(new_id)}])
-    )
+    mock_create = make_sequential_client(MagicMock(data=[{"id": str(new_id)}]))
     repo = ConversationRepository(client=mock_create)
 
     created_id = await repo.save(None, user_id, [])
@@ -302,9 +282,7 @@ async def test_conversation_workflow():
 
     # Load conversation
     messages = [{"role": "user", "content": "test"}]
-    mock_load = make_sequential_client(
-        MagicMock(data=[{"messages": messages}])
-    )
+    mock_load = make_sequential_client(MagicMock(data=[{"messages": messages}]))
     repo = ConversationRepository(client=mock_load)
 
     loaded_messages = await repo.load(new_id, user_id)
@@ -315,18 +293,14 @@ async def test_conversation_workflow():
         {"role": "user", "content": "test"},
         {"role": "assistant", "content": "response"},
     ]
-    mock_update = make_sequential_client(
-        MagicMock(data=[{"id": str(new_id)}])
-    )
+    mock_update = make_sequential_client(MagicMock(data=[{"id": str(new_id)}]))
     repo = ConversationRepository(client=mock_update)
 
     updated_id = await repo.save(new_id, user_id, updated_messages)
     assert updated_id == new_id
 
     # Delete conversation
-    mock_delete = make_sequential_client(
-        MagicMock(data=[{"id": str(new_id)}])
-    )
+    mock_delete = make_sequential_client(MagicMock(data=[{"id": str(new_id)}]))
     repo = ConversationRepository(client=mock_delete)
 
     await repo.delete(new_id, user_id)

@@ -87,9 +87,7 @@ class MedicationService(MedicationServiceBase):
         """Get a single medication stint by ID."""
         return await self.medication_repo.get(user_id, medication_id)
 
-    async def create(
-        self, user_id: str, data: MedicationCreate
-    ) -> MedicationResponse:
+    async def create(self, user_id: str, data: MedicationCreate) -> MedicationResponse:
         """Create a new medication stint."""
         if data.start_date > date.today():
             raise ValidationError("start_date cannot be in the future")
@@ -111,12 +109,20 @@ class MedicationService(MedicationServiceBase):
             if changing_start and data.start_date is not None:
                 if data.start_date > date.today():
                     raise ValidationError("start_date cannot be in the future")
-                effective_end = data.end_date if "end_date" in data.model_fields_set else existing.end_date
+                effective_end = (
+                    data.end_date
+                    if "end_date" in data.model_fields_set
+                    else existing.end_date
+                )
                 if effective_end and data.start_date > effective_end:
                     raise ValidationError("start_date cannot be after end_date")
 
             if changing_end:
-                effective_start = data.start_date if changing_start and data.start_date else existing.start_date
+                effective_start = (
+                    data.start_date
+                    if changing_start and data.start_date
+                    else existing.start_date
+                )
                 if data.end_date < effective_start:
                     raise ValidationError("end_date cannot be before start_date")
 
@@ -133,10 +139,14 @@ class MedicationService(MedicationServiceBase):
         existing = await self.medication_repo.get(user_id, medication_id)
 
         if existing.end_date is not None:
-            raise ValidationError("Cannot change dose on a medication that has already been stopped")
+            raise ValidationError(
+                "Cannot change dose on a medication that has already been stopped"
+            )
 
         if data.effective_date <= existing.start_date:
-            raise ValidationError("Effective date must be after the medication's start date")
+            raise ValidationError(
+                "Effective date must be after the medication's start date"
+            )
 
         new_id = await self.medication_repo.change_dose(
             user_id=user_id,
@@ -159,7 +169,9 @@ class MedicationService(MedicationServiceBase):
         self, user_id: str, range_start: date, range_end: date
     ) -> list[MedicationResponse]:
         """Return medications active at any point within a date range."""
-        return await self.medication_repo.list_active_during(user_id, range_start, range_end)
+        return await self.medication_repo.list_active_during(
+            user_id, range_start, range_end
+        )
 
     # ------------------------------------------------------------------
     # Before/after symptom comparison
@@ -216,7 +228,9 @@ class MedicationService(MedicationServiceBase):
 
         # Fetch logs for both windows concurrently
         (before_logs, ref), (after_logs, _) = await asyncio.gather(
-            self.symptoms_repo.get_logs_with_reference(user_id, before_start, before_end),
+            self.symptoms_repo.get_logs_with_reference(
+                user_id, before_start, before_end
+            ),
             self.symptoms_repo.get_logs_with_reference(user_id, after_start, after_end),
         )
 
@@ -228,8 +242,12 @@ class MedicationService(MedicationServiceBase):
         if not before_logs and not after_logs:
             return base
 
-        before_stats = {s.symptom_id: s for s in calculate_frequency_stats(before_logs, ref)}
-        after_stats = {s.symptom_id: s for s in calculate_frequency_stats(after_logs, ref)}
+        before_stats = {
+            s.symptom_id: s for s in calculate_frequency_stats(before_logs, ref)
+        }
+        after_stats = {
+            s.symptom_id: s for s in calculate_frequency_stats(after_logs, ref)
+        }
 
         # Build union of symptom IDs from both windows
         all_ids = set(before_stats) | set(after_stats)
@@ -304,13 +322,16 @@ class MedicationService(MedicationServiceBase):
                 return None
             ctx = await self.medication_repo.get_context(user_id)
             # Cap to stay within LLM token budget
-            ctx.current_medications = ctx.current_medications[:_MAX_CURRENT_MEDS_FOR_LLM]
+            ctx.current_medications = ctx.current_medications[
+                :_MAX_CURRENT_MEDS_FOR_LLM
+            ]
             ctx.recent_changes = ctx.recent_changes[:_MAX_RECENT_CHANGES_FOR_LLM]
             return ctx
         except Exception as exc:
             logger.warning(
                 "Failed to get medication context for user=%s (degrading gracefully): %s",
-                hash_user_id(user_id), exc,
+                hash_user_id(user_id),
+                exc,
             )
             return None
 

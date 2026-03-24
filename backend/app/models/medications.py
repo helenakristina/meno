@@ -8,9 +8,17 @@ from typing import Literal
 from pydantic import BaseModel, Field, model_validator
 
 DeliveryMethod = Literal[
-    "patch", "pill", "gel", "cream", "ring",
-    "injection", "pellet", "spray", "troche",
-    "sublingual", "other",
+    "patch",
+    "pill",
+    "gel",
+    "cream",
+    "ring",
+    "injection",
+    "pellet",
+    "spray",
+    "troche",
+    "sublingual",
+    "other",
 ]
 
 HormoneType = Literal[
@@ -23,6 +31,7 @@ ChangeDirection = Literal["improved", "worsened", "stable"]
 # ---------------------------------------------------------------------------
 # Reference table models
 # ---------------------------------------------------------------------------
+
 
 class MedicationReferenceResult(BaseModel):
     """A medications_reference row returned from search."""
@@ -53,6 +62,7 @@ class MedicationReferenceCreate(BaseModel):
 # ---------------------------------------------------------------------------
 # user_medications models
 # ---------------------------------------------------------------------------
+
 
 class MedicationCreate(BaseModel):
     """Payload for adding a new medication stint."""
@@ -122,6 +132,7 @@ class MedicationChangeDoseResponse(BaseModel):
 # Before/after symptom comparison models
 # ---------------------------------------------------------------------------
 
+
 class SymptomComparisonRow(BaseModel):
     """One symptom's data in the before/after comparison."""
 
@@ -130,10 +141,10 @@ class SymptomComparisonRow(BaseModel):
     category: str
     before_count: int
     before_days: int
-    before_pct: float           # 0.0–100.0
+    before_pct: float  # 0.0–100.0
     after_count: int
     after_days: int
-    after_pct: float            # 0.0–100.0
+    after_pct: float  # 0.0–100.0
     direction: ChangeDirection  # "improved" | "worsened" | "stable"
 
 
@@ -155,8 +166,8 @@ class SymptomComparisonResponse(BaseModel):
     window_days: int = 0
 
     has_after_data: bool = True
-    before_log_days: int = 0        # actual days with symptom logs in before window
-    after_log_days: int = 0         # actual days with symptom logs in after window
+    before_log_days: int = 0  # actual days with symptom logs in before window
+    after_log_days: int = 0  # actual days with symptom logs in after window
     before_is_sparse: bool = False  # fewer than 14 days of log data
     after_is_sparse: bool = False
 
@@ -170,8 +181,11 @@ class SymptomComparisonResponse(BaseModel):
 # Context models (used by integration consumers)
 # ---------------------------------------------------------------------------
 
+
 class MedicationContext(BaseModel):
     """Medication context injected into LLM prompts (Ask Meno, Appointment Prep)."""
 
     current_medications: list[MedicationResponse] = Field(default_factory=list)
-    recent_changes: list[MedicationResponse] = Field(default_factory=list)  # stopped in last 90 days
+    recent_changes: list[MedicationResponse] = Field(
+        default_factory=list
+    )  # stopped in last 90 days

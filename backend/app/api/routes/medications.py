@@ -22,6 +22,7 @@ router = APIRouter(prefix="/api/medications", tags=["medications"])
 # Reference table
 # ---------------------------------------------------------------------------
 
+
 @router.get(
     "/reference",
     response_model=list[MedicationReferenceResult],
@@ -30,7 +31,9 @@ router = APIRouter(prefix="/api/medications", tags=["medications"])
 )
 async def search_reference(
     user_id: CurrentUser,
-    search: str = Query(default="", max_length=100, description="Search term for brand or generic name"),
+    search: str = Query(
+        default="", max_length=100, description="Search term for brand or generic name"
+    ),
     service: MedicationServiceBase = Depends(get_medication_service),
 ) -> list[MedicationReferenceResult]:
     """Search the medications_reference table by brand or generic name.
@@ -65,6 +68,7 @@ async def create_reference_entry(
 # ---------------------------------------------------------------------------
 # user_medications CRUD
 # ---------------------------------------------------------------------------
+
 
 @router.get(
     "/current",

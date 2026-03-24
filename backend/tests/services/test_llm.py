@@ -37,8 +37,15 @@ class TestLLMServiceGenerateSymptomSummary:
         mock_provider.chat_completion.return_value = mock_response
 
         frequency_stats = [
-            SymptomFrequency(symptom_id="f1", symptom_name="Fatigue", category="energy", count=18),
-            SymptomFrequency(symptom_id="f2", symptom_name="Brain fog", category="cognitive", count=15),
+            SymptomFrequency(
+                symptom_id="f1", symptom_name="Fatigue", category="energy", count=18
+            ),
+            SymptomFrequency(
+                symptom_id="f2",
+                symptom_name="Brain fog",
+                category="cognitive",
+                count=15,
+            ),
         ]
         cooccurrence_stats = [
             SymptomPair(
@@ -62,7 +69,10 @@ class TestLLMServiceGenerateSymptomSummary:
         assert result == mock_response
         mock_provider.chat_completion.assert_called_once()
         call_args = mock_provider.chat_completion.call_args
-        assert "logs show" not in call_args.kwargs["system_prompt"].lower().split("logs")[0]  # System prompt includes "logs show"
+        assert (
+            "logs show"
+            not in call_args.kwargs["system_prompt"].lower().split("logs")[0]
+        )  # System prompt includes "logs show"
         assert "January 01, 2026" in call_args.kwargs["user_prompt"]
 
     @pytest.mark.asyncio
@@ -83,7 +93,9 @@ class TestLLMServiceGenerateSymptomSummary:
         assert "No symptom data available" in call_args.kwargs["user_prompt"]
 
     @pytest.mark.asyncio
-    async def test_generate_symptom_summary_sets_temperature(self, service, mock_provider):
+    async def test_generate_symptom_summary_sets_temperature(
+        self, service, mock_provider
+    ):
         """Test that summary generation uses deterministic temperature (0.3)."""
         mock_provider.chat_completion.return_value = "Summary."
 
@@ -97,7 +109,9 @@ class TestLLMServiceGenerateSymptomSummary:
         assert call_args.kwargs["temperature"] == 0.3  # Deterministic for summaries
 
     @pytest.mark.asyncio
-    async def test_generate_symptom_summary_sets_max_tokens(self, service, mock_provider):
+    async def test_generate_symptom_summary_sets_max_tokens(
+        self, service, mock_provider
+    ):
         """Test that summary generation uses appropriate token limit."""
         mock_provider.chat_completion.return_value = "Summary."
 
@@ -111,7 +125,9 @@ class TestLLMServiceGenerateSymptomSummary:
         assert call_args.kwargs["max_tokens"] == 600
 
     @pytest.mark.asyncio
-    async def test_generate_symptom_summary_provider_error(self, service, mock_provider):
+    async def test_generate_symptom_summary_provider_error(
+        self, service, mock_provider
+    ):
         """Test error handling when provider fails."""
         mock_provider.chat_completion.side_effect = RuntimeError("Provider error")
 
@@ -139,7 +155,9 @@ class TestLLMServiceGenerateProviderQuestions:
         mock_provider.chat_completion.return_value = mock_response
 
         frequency_stats = [
-            SymptomFrequency(symptom_id="f1", symptom_name="Fatigue", category="energy", count=18),
+            SymptomFrequency(
+                symptom_id="f1", symptom_name="Fatigue", category="energy", count=18
+            ),
         ]
         cooccurrence_stats = []
 
@@ -155,7 +173,9 @@ class TestLLMServiceGenerateProviderQuestions:
         assert not result[0].startswith("1.")
 
     @pytest.mark.asyncio
-    async def test_generate_provider_questions_with_context(self, service, mock_provider):
+    async def test_generate_provider_questions_with_context(
+        self, service, mock_provider
+    ):
         """Test questions generation with user context."""
         mock_response = "1. Question one?\n2. Question two?"
         mock_provider.chat_completion.return_value = mock_response
@@ -173,7 +193,7 @@ class TestLLMServiceGenerateProviderQuestions:
     async def test_generate_provider_questions_max_seven(self, service, mock_provider):
         """Test that at most 7 questions are returned."""
         # Generate 10 questions in response
-        mock_response = "\n".join([f"{i+1}. Question {i+1}?" for i in range(10)])
+        mock_response = "\n".join([f"{i + 1}. Question {i + 1}?" for i in range(10)])
         mock_provider.chat_completion.return_value = mock_response
 
         result = await service.generate_provider_questions(
@@ -184,7 +204,9 @@ class TestLLMServiceGenerateProviderQuestions:
         assert len(result) <= 7
 
     @pytest.mark.asyncio
-    async def test_generate_provider_questions_skips_empty_lines(self, service, mock_provider):
+    async def test_generate_provider_questions_skips_empty_lines(
+        self, service, mock_provider
+    ):
         """Test that empty lines are skipped."""
         mock_response = "1. Question one?\n\n\n2. Question two?\n\n3. Question three?"
         mock_provider.chat_completion.return_value = mock_response
@@ -222,7 +244,9 @@ class TestLLMServiceGenerateProviderQuestions:
         assert "Non-numbered line" in result[3]
 
     @pytest.mark.asyncio
-    async def test_generate_provider_questions_sets_temperature(self, service, mock_provider):
+    async def test_generate_provider_questions_sets_temperature(
+        self, service, mock_provider
+    ):
         """Test that questions generation uses moderate temperature (0.4)."""
         mock_provider.chat_completion.return_value = "1. Question?"
 
@@ -235,7 +259,9 @@ class TestLLMServiceGenerateProviderQuestions:
         assert call_args.kwargs["temperature"] == 0.4
 
     @pytest.mark.asyncio
-    async def test_generate_provider_questions_sets_max_tokens(self, service, mock_provider):
+    async def test_generate_provider_questions_sets_max_tokens(
+        self, service, mock_provider
+    ):
         """Test that questions generation uses appropriate token limit."""
         mock_provider.chat_completion.return_value = "1. Question?"
 
@@ -277,7 +303,9 @@ class TestLLMServiceGenerateCallingScript:
         )
 
     @pytest.mark.asyncio
-    async def test_generate_calling_script_sets_temperature(self, service, mock_provider):
+    async def test_generate_calling_script_sets_temperature(
+        self, service, mock_provider
+    ):
         """Test that calling script uses creative temperature (0.7)."""
         mock_provider.chat_completion.return_value = "Script."
 
@@ -290,7 +318,9 @@ class TestLLMServiceGenerateCallingScript:
         assert call_args.kwargs["temperature"] == 0.7  # Creative for scripts
 
     @pytest.mark.asyncio
-    async def test_generate_calling_script_sets_max_tokens(self, service, mock_provider):
+    async def test_generate_calling_script_sets_max_tokens(
+        self, service, mock_provider
+    ):
         """Test that calling script uses appropriate token limit."""
         mock_provider.chat_completion.return_value = "Script."
 
@@ -356,7 +386,9 @@ class TestLLMServiceGenerateScenarioSuggestions:
         assert call_args.kwargs["max_tokens"] == 1200
 
     @pytest.mark.asyncio
-    async def test_generate_scenario_suggestions_without_age(self, service, mock_provider):
+    async def test_generate_scenario_suggestions_without_age(
+        self, service, mock_provider
+    ):
         """Test scenario suggestions without user age."""
         mock_response = '[{"scenario_title": "Test", "suggestion": "Response"}]'
         mock_provider.chat_completion.return_value = mock_response
@@ -375,7 +407,9 @@ class TestLLMServiceGenerateScenarioSuggestions:
         mock_provider.chat_completion.assert_called_once()
 
     @pytest.mark.asyncio
-    async def test_generate_scenario_suggestions_multiple_scenarios(self, service, mock_provider):
+    async def test_generate_scenario_suggestions_multiple_scenarios(
+        self, service, mock_provider
+    ):
         """Test with multiple scenarios."""
         mock_response = '[{"scenario_title": "A", "suggestion": "X"}, {"scenario_title": "B", "suggestion": "Y"}]'
         mock_provider.chat_completion.return_value = mock_response
@@ -393,7 +427,9 @@ class TestLLMServiceGenerateScenarioSuggestions:
         assert result == mock_response
 
     @pytest.mark.asyncio
-    async def test_generate_scenario_suggestions_provider_error(self, service, mock_provider):
+    async def test_generate_scenario_suggestions_provider_error(
+        self, service, mock_provider
+    ):
         """Test error handling when provider fails."""
         mock_provider.chat_completion.side_effect = RuntimeError("LLM API error")
 
@@ -428,18 +464,30 @@ class TestLLMServiceGeneratePdfContent:
 
         assert result == mock_response
         call_args = mock_provider.chat_completion.call_args
-        assert "provider_summary" not in call_args.kwargs.get("system_prompt", "").lower()
+        assert (
+            "provider_summary" not in call_args.kwargs.get("system_prompt", "").lower()
+        )
         assert "clinical summary" in call_args.kwargs["user_prompt"].lower()
 
     @pytest.mark.asyncio
-    async def test_generate_pdf_content_personal_cheatsheet(self, service, mock_provider):
+    async def test_generate_pdf_content_personal_cheatsheet(
+        self, service, mock_provider
+    ):
         """Test PDF content generation for personal cheat sheet."""
         mock_response = "# Your Appointment Cheat Sheet\n\nKey points to discuss..."
         mock_provider.chat_completion.return_value = mock_response
 
         scenarios = [
-            {"title": "Provider dismisses", "suggestion": "Use evidence", "sources": []},
-            {"title": "Limited options", "suggestion": "Ask specific questions", "sources": []},
+            {
+                "title": "Provider dismisses",
+                "suggestion": "Use evidence",
+                "sources": [],
+            },
+            {
+                "title": "Limited options",
+                "suggestion": "Ask specific questions",
+                "sources": [],
+            },
         ]
 
         result = await service.generate_pdf_content(
@@ -455,7 +503,9 @@ class TestLLMServiceGeneratePdfContent:
         assert result == mock_response
 
     @pytest.mark.asyncio
-    async def test_generate_pdf_content_with_urgent_symptom(self, service, mock_provider):
+    async def test_generate_pdf_content_with_urgent_symptom(
+        self, service, mock_provider
+    ):
         """Test PDF content with urgent symptom specified."""
         mock_response = "# Provider Summary\n\nUrgent: Heart palpitations"
         mock_provider.chat_completion.return_value = mock_response

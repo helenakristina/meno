@@ -43,7 +43,9 @@ class TestListConversations:
 
         setup_supabase_response(mock_supabase, data=rows, count=2)
 
-        result_rows, total = await repository.list(user_id="user-123", limit=20, offset=0)
+        result_rows, total = await repository.list(
+            user_id="user-123", limit=20, offset=0
+        )
 
         assert len(result_rows) == 2
         assert total == 2
@@ -56,7 +58,11 @@ class TestListConversations:
     ):
         """Test pagination with limit and offset parameters."""
         rows = [
-            {"id": "conv-3", "created_at": datetime.utcnow().isoformat(), "messages": []},
+            {
+                "id": "conv-3",
+                "created_at": datetime.utcnow().isoformat(),
+                "messages": [],
+            },
         ]
 
         setup_supabase_response(mock_supabase, data=rows, count=100)
@@ -80,7 +86,9 @@ class TestListConversations:
         setup_supabase_response(mock_supabase, data=[])
         mock_supabase.table.return_value.select.return_value.count = 0
 
-        result_rows, total = await repository.list(user_id="user-no-convs", limit=20, offset=0)
+        result_rows, total = await repository.list(
+            user_id="user-no-convs", limit=20, offset=0
+        )
 
         assert result_rows == []
         assert total == 0
@@ -91,8 +99,8 @@ class TestListConversations:
     ):
         """Test that database errors are wrapped in DatabaseError (not HTTPException)."""
         # Make the execute() call raise an exception (simulating DB failure)
-        mock_supabase.table.return_value.select.return_value.order.return_value.range.return_value.execute = (
-            AsyncMock(side_effect=ConnectionError("Connection timeout"))
+        mock_supabase.table.return_value.select.return_value.order.return_value.range.return_value.execute = AsyncMock(
+            side_effect=ConnectionError("Connection timeout")
         )
 
         with pytest.raises(DatabaseError) as exc_info:

@@ -56,9 +56,7 @@ _REF = MedicationReferenceResult(
 
 def make_auth_client(user_id: str = USER_ID) -> MagicMock:
     mock = MagicMock()
-    mock.auth.get_user = AsyncMock(
-        return_value=MagicMock(user=MagicMock(id=user_id))
-    )
+    mock.auth.get_user = AsyncMock(return_value=MagicMock(user=MagicMock(id=user_id)))
     return mock
 
 
@@ -87,7 +85,9 @@ class TestSearchReference:
         override_auth(make_auth_client())
 
         with TestClient(app) as client:
-            resp = client.get("/api/medications/reference?search=estro", headers=AUTH_HEADER)
+            resp = client.get(
+                "/api/medications/reference?search=estro", headers=AUTH_HEADER
+            )
 
         clear_overrides()
         assert resp.status_code == 200
@@ -118,7 +118,9 @@ class TestCreateReference:
             "common_doses": [],
         }
         with TestClient(app) as client:
-            resp = client.post("/api/medications/reference", json=payload, headers=AUTH_HEADER)
+            resp = client.post(
+                "/api/medications/reference", json=payload, headers=AUTH_HEADER
+            )
 
         clear_overrides()
         assert resp.status_code == 201
@@ -211,7 +213,9 @@ class TestCreateMedication:
         from app.exceptions import ValidationError as DomainValidationError
 
         mock_service = MagicMock()
-        mock_service.create = AsyncMock(side_effect=DomainValidationError("future date"))
+        mock_service.create = AsyncMock(
+            side_effect=DomainValidationError("future date")
+        )
         override_service(mock_service)
         override_auth(make_auth_client())
 
@@ -293,7 +297,9 @@ class TestUpdateMedication:
         from app.exceptions import ValidationError as DomainValidationError
 
         mock_service = MagicMock()
-        mock_service.update = AsyncMock(side_effect=DomainValidationError("bad end date"))
+        mock_service.update = AsyncMock(
+            side_effect=DomainValidationError("bad end date")
+        )
         override_service(mock_service)
         override_auth(make_auth_client())
 

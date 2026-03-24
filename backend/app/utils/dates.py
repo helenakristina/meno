@@ -75,7 +75,9 @@ def get_date_range(days_back: int) -> tuple[date, date]:
     end_date = date.today()
     start_date = end_date - timedelta(days=days_back)
 
-    logger.debug("Date range for past %d days: %s to %s", days_back, start_date, end_date)
+    logger.debug(
+        "Date range for past %d days: %s to %s", days_back, start_date, end_date
+    )
     return start_date, end_date
 
 
@@ -213,7 +215,7 @@ def calculate_cycle_variability(cycle_lengths: list[int]) -> float:
         return 0.0
     mean = sum(cycle_lengths) / len(cycle_lengths)
     variance = sum((x - mean) ** 2 for x in cycle_lengths) / len(cycle_lengths)
-    return variance ** 0.5
+    return variance**0.5
 
 
 def months_since_date(past_date: date) -> int:
