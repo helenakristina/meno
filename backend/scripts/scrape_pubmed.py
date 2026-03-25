@@ -61,7 +61,7 @@ USER_AGENT = "MenoEducationalBot/1.0 (Health education app; not for commercial u
 # Search query: menopause/perimenopause articles in PMC
 # Uses simplified query since full text filters may not be available in all databases
 # Note: The [sb] and [la] filters don't work reliably in PMC database searches
-SEARCH_QUERY = "(mental health) AND (menopause[MeSH Major Topic])"
+SEARCH_QUERY = "(menopause OR perimenopause)"
 
 # Sections shorter than this are too thin to be useful for RAG
 MIN_WORD_COUNT = 80

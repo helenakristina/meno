@@ -104,12 +104,11 @@ async def retrieve_relevant_chunks(
         threshold.
     """
     openai = _openai_client()
+    query = _normalize_query(query)
 
     logger.info("RAG: Embedding query (model=%s): '%s'", _EMBEDDING_MODEL, query[:100])
     try:
-        response = await openai.embeddings.create(
-            model=_EMBEDDING_MODEL, input=_normalize_query(query)
-        )
+        response = await openai.embeddings.create(model=_EMBEDDING_MODEL, input=query)
     except Exception:
         logger.exception(
             "RAG: OpenAI embedding call failed for query: '%s'", query[:100]
