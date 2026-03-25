@@ -10,6 +10,7 @@ from app.rag.retrieval import retrieve_relevant_chunks
 # Helpers
 # ---------------------------------------------------------------------------
 
+
 def _make_supabase_mock(data: list[dict]) -> MagicMock:
     """Return a Supabase client mock whose rpc().execute() returns data."""
     mock_supabase = MagicMock()
@@ -69,11 +70,12 @@ SAMPLE_DOCS = [
 
 
 class TestRetrieveRelevantChunks:
-
     @pytest.mark.asyncio
     async def test_when_rpc_returns_docs_then_returns_them(self):
         with patch("app.rag.retrieval._openai_client") as mock_openai_class:
-            with patch("app.rag.retrieval.get_client", new_callable=AsyncMock) as mock_get_client:
+            with patch(
+                "app.rag.retrieval.get_client", new_callable=AsyncMock
+            ) as mock_get_client:
                 mock_openai_class.return_value = _make_openai_mock()
                 mock_get_client.return_value = _make_supabase_mock(SAMPLE_DOCS)
 
@@ -84,7 +86,9 @@ class TestRetrieveRelevantChunks:
     @pytest.mark.asyncio
     async def test_when_rpc_returns_no_docs_then_returns_empty_list(self):
         with patch("app.rag.retrieval._openai_client") as mock_openai_class:
-            with patch("app.rag.retrieval.get_client", new_callable=AsyncMock) as mock_get_client:
+            with patch(
+                "app.rag.retrieval.get_client", new_callable=AsyncMock
+            ) as mock_get_client:
                 mock_openai_class.return_value = _make_openai_mock()
                 mock_get_client.return_value = _make_supabase_mock([])
 
@@ -94,12 +98,11 @@ class TestRetrieveRelevantChunks:
 
     @pytest.mark.asyncio
     async def test_when_all_docs_below_min_similarity_then_returns_empty_list(self):
-        low_similarity_docs = [
-            {**doc, "similarity": 0.10}
-            for doc in SAMPLE_DOCS
-        ]
+        low_similarity_docs = [{**doc, "similarity": 0.10} for doc in SAMPLE_DOCS]
         with patch("app.rag.retrieval._openai_client") as mock_openai_class:
-            with patch("app.rag.retrieval.get_client", new_callable=AsyncMock) as mock_get_client:
+            with patch(
+                "app.rag.retrieval.get_client", new_callable=AsyncMock
+            ) as mock_get_client:
                 mock_openai_class.return_value = _make_openai_mock()
                 mock_get_client.return_value = _make_supabase_mock(low_similarity_docs)
 
@@ -115,7 +118,9 @@ class TestRetrieveRelevantChunks:
             {**SAMPLE_DOCS[2], "similarity": 0.40},  # above threshold
         ]
         with patch("app.rag.retrieval._openai_client") as mock_openai_class:
-            with patch("app.rag.retrieval.get_client", new_callable=AsyncMock) as mock_get_client:
+            with patch(
+                "app.rag.retrieval.get_client", new_callable=AsyncMock
+            ) as mock_get_client:
                 mock_openai_class.return_value = _make_openai_mock()
                 mock_get_client.return_value = _make_supabase_mock(mixed_docs)
 
@@ -130,7 +135,9 @@ class TestRetrieveRelevantChunks:
     @pytest.mark.asyncio
     async def test_when_top_k_specified_then_rpc_called_with_match_count(self):
         with patch("app.rag.retrieval._openai_client") as mock_openai_class:
-            with patch("app.rag.retrieval.get_client", new_callable=AsyncMock) as mock_get_client:
+            with patch(
+                "app.rag.retrieval.get_client", new_callable=AsyncMock
+            ) as mock_get_client:
                 mock_openai_class.return_value = _make_openai_mock()
                 mock_supabase = _make_supabase_mock(SAMPLE_DOCS[:2])
                 mock_get_client.return_value = mock_supabase
@@ -145,7 +152,9 @@ class TestRetrieveRelevantChunks:
     @pytest.mark.asyncio
     async def test_when_docs_returned_then_response_structure_complete(self):
         with patch("app.rag.retrieval._openai_client") as mock_openai_class:
-            with patch("app.rag.retrieval.get_client", new_callable=AsyncMock) as mock_get_client:
+            with patch(
+                "app.rag.retrieval.get_client", new_callable=AsyncMock
+            ) as mock_get_client:
                 mock_openai_class.return_value = _make_openai_mock()
                 mock_get_client.return_value = _make_supabase_mock(SAMPLE_DOCS[:1])
 
@@ -174,12 +183,16 @@ class TestRetrieveRelevantChunks:
     @pytest.mark.asyncio
     async def test_when_supabase_rpc_fails_then_raises(self):
         with patch("app.rag.retrieval._openai_client") as mock_openai_class:
-            with patch("app.rag.retrieval.get_client", new_callable=AsyncMock) as mock_get_client:
+            with patch(
+                "app.rag.retrieval.get_client", new_callable=AsyncMock
+            ) as mock_get_client:
                 mock_openai_class.return_value = _make_openai_mock()
 
                 mock_supabase = MagicMock()
                 mock_rpc = MagicMock()
-                mock_rpc.execute = AsyncMock(side_effect=Exception("Supabase RPC error"))
+                mock_rpc.execute = AsyncMock(
+                    side_effect=Exception("Supabase RPC error")
+                )
                 mock_supabase.rpc.return_value = mock_rpc
                 mock_get_client.return_value = mock_supabase
 
@@ -193,12 +206,16 @@ class TestRetrieveRelevantChunks:
             {**SAMPLE_DOCS[1], "similarity": 0.45},
         ]
         with patch("app.rag.retrieval._openai_client") as mock_openai_class:
-            with patch("app.rag.retrieval.get_client", new_callable=AsyncMock) as mock_get_client:
+            with patch(
+                "app.rag.retrieval.get_client", new_callable=AsyncMock
+            ) as mock_get_client:
                 mock_openai_class.return_value = _make_openai_mock()
                 mock_get_client.return_value = _make_supabase_mock(docs)
 
                 # With a high threshold, only doc-1 (0.60) should pass
-                results = await retrieve_relevant_chunks("test query", min_similarity=0.55)
+                results = await retrieve_relevant_chunks(
+                    "test query", min_similarity=0.55
+                )
 
                 assert len(results) == 1
                 assert results[0]["id"] == "doc-1"

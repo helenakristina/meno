@@ -108,9 +108,7 @@ class PromptService:
                         if isinstance(med.end_date, str)
                         else med.end_date
                     )
-                    change_lines.append(
-                        f"  - {name} {dose} ({method}), stopped {end}"
-                    )
+                    change_lines.append(f"  - {name} {dose} ({method}), stopped {end}")
                 med_block += "\n- Recently stopped MHT medications:\n" + "\n".join(
                     change_lines
                 )

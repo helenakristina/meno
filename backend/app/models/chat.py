@@ -12,7 +12,9 @@ class ResponseSection(BaseModel):
 
     heading: str | None = None
     body: str  # Plain prose, no markdown. One source only (see LAYER_3_SOURCE_RULES).
-    source_index: int | None = None  # 1-based index of the cited source; null for closing remarks
+    source_index: int | None = (
+        None  # 1-based index of the cited source; null for closing remarks
+    )
 
 
 class StructuredLLMResponse(BaseModel):

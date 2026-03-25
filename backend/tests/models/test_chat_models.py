@@ -18,7 +18,9 @@ from app.models.chat import (
 
 class TestResponseSection:
     # CATCHES: ResponseSection missing from chat.py after refactor
-    def test_response_section_when_minimal_fields_provided_then_heading_defaults_to_none(self):
+    def test_response_section_when_minimal_fields_provided_then_heading_defaults_to_none(
+        self,
+    ):
         section = ResponseSection(body="Test paragraph.", source_index=1)
         assert section.body == "Test paragraph."
         assert section.source_index == 1
@@ -43,7 +45,9 @@ class TestResponseSection:
 
 class TestStructuredLLMResponse:
     # CATCHES: v2 JSON format from LLM not parseable after model update
-    def test_structured_llm_response_when_v2_format_provided_then_parses_correctly(self):
+    def test_structured_llm_response_when_v2_format_provided_then_parses_correctly(
+        self,
+    ):
         data = {
             "sections": [
                 {"heading": None, "body": "MHT is well-tolerated.", "source_index": 1},
@@ -61,13 +65,17 @@ class TestStructuredLLMResponse:
         assert response.sections[0].body == "MHT is well-tolerated."
         assert response.sections[1].heading == "Guidelines"
 
-    def test_structured_llm_response_when_no_fields_provided_then_defaults_applied(self):
+    def test_structured_llm_response_when_no_fields_provided_then_defaults_applied(
+        self,
+    ):
         response = StructuredLLMResponse()
         assert response.sections == []
         assert response.disclaimer is None
         assert response.insufficient_sources is False
 
-    def test_structured_llm_response_when_insufficient_sources_true_then_flag_stored(self):
+    def test_structured_llm_response_when_insufficient_sources_true_then_flag_stored(
+        self,
+    ):
         response = StructuredLLMResponse(
             sections=[],
             disclaimer="No relevant sources found.",
@@ -77,7 +85,9 @@ class TestStructuredLLMResponse:
         assert response.disclaimer == "No relevant sources found."
 
     # CATCHES: v1 claims-based format silently accepted instead of triggering fallback
-    def test_structured_llm_response_when_v1_claims_format_provided_then_validation_error_raised(self):
+    def test_structured_llm_response_when_v1_claims_format_provided_then_validation_error_raised(
+        self,
+    ):
         """Old schema with claims[] should fail because body is required."""
         v1_data = {
             "sections": [
@@ -102,7 +112,9 @@ class TestUnchangedModels:
         assert c.title == "Test Source"
         assert c.section is None
 
-    def test_chat_request_model_when_message_provided_then_conversation_id_defaults_none(self):
+    def test_chat_request_model_when_message_provided_then_conversation_id_defaults_none(
+        self,
+    ):
         req = ChatRequest(message="What is MHT?")
         assert req.message == "What is MHT?"
         assert req.conversation_id is None

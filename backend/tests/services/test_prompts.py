@@ -53,7 +53,9 @@ class TestFiveLayerAssembly:
         assert "You are Meno" in prompt
 
     # CATCHES: layers joined without separator (text runs together)
-    def test_build_system_prompt_when_called_then_layers_separated_by_double_newline(self):
+    def test_build_system_prompt_when_called_then_layers_separated_by_double_newline(
+        self,
+    ):
         prompt = _build()
         assert "\n\n" in prompt
 
@@ -67,7 +69,9 @@ class TestFiveLayerAssembly:
         )
 
     # CATCHES: new v2 schema not reflected in prompt (still shows claims[])
-    def test_build_system_prompt_when_called_then_v2_schema_fields_present_and_v1_absent(self):
+    def test_build_system_prompt_when_called_then_v2_schema_fields_present_and_v1_absent(
+        self,
+    ):
         prompt = _build()
         assert '"body"' in prompt
         assert '"source_index"' in prompt
@@ -77,7 +81,9 @@ class TestFiveLayerAssembly:
 
 class TestDynamicContextLayer:
     # CATCHES: journey stage not injected into prompt
-    def test_build_system_prompt_when_journey_stage_postmenopause_then_stage_in_prompt(self):
+    def test_build_system_prompt_when_journey_stage_postmenopause_then_stage_in_prompt(
+        self,
+    ):
         prompt = _build(journey_stage="postmenopause")
         assert "postmenopause" in prompt
 
@@ -98,12 +104,16 @@ class TestDynamicContextLayer:
         assert "HRT Guidelines 2023" in prompt
 
     # CATCHES: source count wrong (off-by-one or missing entirely)
-    def test_build_system_prompt_when_two_chunks_provided_then_source_count_is_two(self):
+    def test_build_system_prompt_when_two_chunks_provided_then_source_count_is_two(
+        self,
+    ):
         prompt = _build(chunks=SAMPLE_CHUNKS)
         assert "2 source" in prompt
 
     # CATCHES: cycle context dropped when provided
-    def test_build_system_prompt_when_cycle_context_provided_then_cycle_data_in_prompt(self):
+    def test_build_system_prompt_when_cycle_context_provided_then_cycle_data_in_prompt(
+        self,
+    ):
         prompt = _build(
             cycle_context={
                 "average_cycle_length": 28,
@@ -123,7 +133,9 @@ class TestSanitizePromptField:
         assert "foo bar" == result
 
     # CATCHES: carriage return injection left intact
-    def test_sanitize_prompt_field_when_carriage_return_in_value_then_replaced_with_space(self):
+    def test_sanitize_prompt_field_when_carriage_return_in_value_then_replaced_with_space(
+        self,
+    ):
         result = PromptService._sanitize_prompt_field("foo\rbar")
         assert "\r" not in result
         assert "foo bar" == result
@@ -140,7 +152,9 @@ class TestSanitizePromptField:
         assert result == "hello"
 
     # CATCHES: combined attack (newlines + oversized) not fully neutralized
-    def test_sanitize_prompt_field_when_newline_and_oversized_then_both_neutralized(self):
+    def test_sanitize_prompt_field_when_newline_and_oversized_then_both_neutralized(
+        self,
+    ):
         value = "safe\ninjection payload " + "x" * 200
         result = PromptService._sanitize_prompt_field(value, max_len=50)
         assert "\n" not in result

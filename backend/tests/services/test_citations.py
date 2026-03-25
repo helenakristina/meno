@@ -172,7 +172,9 @@ class TestSanitizeAndRenumber:
 
         assert "[Source 1]" in result.text
 
-    def test_when_citation_preceded_by_slash_then_not_treated_as_citation(self, service):
+    def test_when_citation_preceded_by_slash_then_not_treated_as_citation(
+        self, service
+    ):
         """[N] immediately preceded by slash is not treated as a citation marker."""
         text = "See data at /items/[1] for reference."
         result = service.sanitize_and_renumber(text, 1)
@@ -420,8 +422,6 @@ class TestIntegration:
 # ---------------------------------------------------------------------------
 
 
-
-
 class TestRenderStructuredResponse:
     """Tests for CitationService.render_structured_response() (v2 paragraph schema)."""
 
@@ -520,7 +520,9 @@ class TestRenderStructuredResponse:
         rendered, _ = service.render_structured_response(structured, sample_chunks)
         assert "My sources don't cover dosing specifics." in rendered
 
-    def test_when_disclaimer_is_none_then_no_disclaimer_text_appended(self, service, sample_chunks):
+    def test_when_disclaimer_is_none_then_no_disclaimer_text_appended(
+        self, service, sample_chunks
+    ):
         structured = StructuredLLMResponse(
             sections=[
                 ResponseSection(body="Main content.", source_index=1),
@@ -612,7 +614,9 @@ class TestRenderStructuredResponse:
         with caplog.at_level(logging.WARNING, logger="app.services.citations"):
             service.render_structured_response(structured, chunks)
 
-        warning_messages = [r.message for r in caplog.records if r.levelno == logging.WARNING]
+        warning_messages = [
+            r.message for r in caplog.records if r.levelno == logging.WARNING
+        ]
         assert any("low overlap" in msg for msg in warning_messages), (
             f"Expected a 'low overlap' WARNING but got: {warning_messages}"
         )
@@ -629,7 +633,9 @@ class TestRenderStructuredResponse:
             ]
         )
         # Must not raise; both sections' bodies are rendered, no citation marker added
-        rendered, citations = service.render_structured_response(structured, sample_chunks)
+        rendered, citations = service.render_structured_response(
+            structured, sample_chunks
+        )
         assert "First section body." in rendered
         assert "Second section body." in rendered
         assert "[Source" not in rendered
@@ -648,7 +654,9 @@ class TestRenderStructuredResponse:
             insufficient_sources=False,
             disclaimer=None,
         )
-        rendered, citations = service.render_structured_response(structured, sample_chunks)
+        rendered, citations = service.render_structured_response(
+            structured, sample_chunks
+        )
         # All bodies are whitespace so rendered_text is empty — falls into the
         # "all sections empty" branch and returns the hardcoded fallback message.
         assert "don't have" in rendered.lower() or "not have" in rendered.lower()
