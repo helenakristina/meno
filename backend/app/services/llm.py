@@ -32,6 +32,44 @@ class LLMService:
         """
         self.provider = provider
 
+    async def chat_completion(
+        self,
+        system_prompt: str,
+        user_prompt: str,
+        max_tokens: int = 1024,
+        temperature: float = 0.7,
+        response_format: str | None = None,
+    ) -> str:
+        """Route a chat completion request through the injected LLM provider.
+
+        All provider calls from services should go through this method so that
+        any future cross-cutting concerns (retry logic, rate limiting, token
+        caps, provider switching) apply uniformly.
+
+        Args:
+            system_prompt: System-level instructions (role, behavior, constraints).
+            user_prompt: User's message or query.
+            max_tokens: Maximum tokens in the response (1–4096). Defaults to 1024.
+            temperature: Sampling temperature (0–2). Defaults to 0.7.
+            response_format: Output format hint. "json" for structured JSON output.
+                None (default) returns plain text.
+
+        Returns:
+            The completed text response from the LLM.
+
+        Raises:
+            ValueError: If arguments are invalid.
+            TimeoutError: If the LLM API times out.
+            RuntimeError: If the LLM API returns an error or empty response.
+        """
+        return await self.provider.chat_completion(
+            system_prompt=system_prompt,
+            user_prompt=user_prompt,
+            max_tokens=max_tokens,
+            temperature=temperature,
+            response_format=response_format,
+        )
+
     async def generate_symptom_summary(
         self,
         frequency_stats: list[SymptomFrequency],

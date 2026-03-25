@@ -4,6 +4,7 @@ Supabase is mocked via FastAPI dependency_overrides (same pattern as test_sympto
 OpenAI and RAG retrieval are patched so no real network calls are made.
 """
 
+import json
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -54,6 +55,19 @@ OPENAI_RESPONSE = (
     "Hot flashes affect up to 80% of women during perimenopause [Source 1]. "
     "Current guidelines support hormone therapy for eligible women [Source 2]."
 )
+
+# Valid v2 structured JSON response — exercises the render_structured_response path
+V2_OPENAI_RESPONSE = json.dumps({
+    "sections": [
+        {
+            "heading": "Hot Flashes",
+            "body": "Hot flashes are one of the most common symptoms of perimenopause.",
+            "source_index": 1,
+        }
+    ],
+    "disclaimer": None,
+    "insufficient_sources": False,
+})
 
 
 # ---------------------------------------------------------------------------
@@ -339,6 +353,39 @@ def test_chat_returns_empty_citations_when_no_sources_cited(client):
         assert response.status_code == 200
         body = response.json()
         assert body["citations"] == []
+    finally:
+        clear()
+
+
+def test_chat_when_llm_returns_v2_json_then_structured_path_exercised(client):
+    """LLM returning valid v2 JSON exercises render_structured_response, not the fallback."""
+    mock_client = make_mock_client()
+    clear = override(mock_client)
+    try:
+        with (
+            patch(
+                "app.api.dependencies.retrieve_relevant_chunks",
+                new=AsyncMock(return_value=SAMPLE_CHUNKS),
+            ),
+            patch("app.api.dependencies.OpenAIProvider") as MockProvider,
+        ):
+            mock_instance = AsyncMock()
+            mock_instance.chat_completion.return_value = V2_OPENAI_RESPONSE
+            MockProvider.return_value = mock_instance
+
+            response = client.post(
+                "/api/chat",
+                json={"message": "What causes hot flashes?"},
+                headers=AUTH_HEADER,
+            )
+
+        assert response.status_code == 200
+        body = response.json()
+        # The structured body text should appear in the rendered prose paragraph
+        assert "Hot flashes are one of the most common symptoms of perimenopause." in body["message"]
+        # source_index=1 resolves to SAMPLE_CHUNKS[0], so citations must be non-empty
+        assert len(body["citations"]) >= 1
+        assert body["citations"][0]["url"] == "https://menopausewiki.ca/hot-flashes"
     finally:
         clear()
 

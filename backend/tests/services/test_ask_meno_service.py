@@ -82,10 +82,8 @@ def mock_conversation_repo():
 
 @pytest.fixture
 def mock_llm_service():
-    provider = AsyncMock()
-    provider.chat_completion.return_value = LLM_RAW_JSON
     service = MagicMock()
-    service.provider = provider
+    service.chat_completion = AsyncMock(return_value=LLM_RAW_JSON)
     return service
 
 
@@ -246,12 +244,12 @@ async def test_ask_degrades_gracefully_when_rag_fails(
 
     # Should still return a response (LLM called with empty chunks)
     assert result.message == LLM_RESPONSE
-    mock_llm_service.provider.chat_completion.assert_called_once()
+    mock_llm_service.chat_completion.assert_called_once()
 
 
 @pytest.mark.asyncio
 async def test_ask_raises_database_error_when_llm_fails(service, mock_llm_service):
-    mock_llm_service.provider.chat_completion.side_effect = Exception("LLM timeout")
+    mock_llm_service.chat_completion.side_effect = Exception("LLM timeout")
 
     with pytest.raises(DatabaseError, match="LLM call failed"):
         await service.ask(USER_ID, "What causes hot flashes?")
@@ -280,7 +278,7 @@ async def test_ask_with_empty_rag_results_still_calls_llm(
 
     result = await service.ask(USER_ID, "What is perimenopause?")
 
-    mock_llm_service.provider.chat_completion.assert_called_once()
+    mock_llm_service.chat_completion.assert_called_once()
     assert result.message == LLM_RESPONSE
 
 
@@ -584,10 +582,8 @@ async def test_v1_json_format_triggers_fallback(
         }
     )
 
-    mock_llm = AsyncMock()
-    mock_llm.provider.chat_completion = AsyncMock(return_value=v1_json)
     llm_service = MagicMock()
-    llm_service.provider = mock_llm.provider
+    llm_service.chat_completion = AsyncMock(return_value=v1_json)
 
     svc = AskMenoService(
         user_repo=mock_user_repo,

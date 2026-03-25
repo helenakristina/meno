@@ -53,7 +53,7 @@ class CitationService:
     #   0.40 = strict — may strip some valid citations with paraphrased claims
     _RELEVANCE_MIN_OVERLAP: float = 0.20
 
-    _STOPWORDS: frozenset = frozenset(
+    _STOPWORDS: frozenset[str] = frozenset(
         {
             "a",
             "an",
@@ -377,22 +377,6 @@ class CitationService:
 
         return CitationExtractResult(text=cleaned_text, removed_indices=removed_indices)
 
-    # Phrases that are safe to include without a source citation (generic advice)
-    _SAFE_UNSOURCED_PATTERNS: tuple[str, ...] = (
-        "consult your healthcare provider",
-        "consult a healthcare provider",
-        "talk to your doctor",
-        "talk to your healthcare provider",
-        "talk with your",
-        "speak with your",
-        "speak to your",
-        "discuss with your",
-        "seek medical",
-        "ask your provider",
-        "ask your doctor",
-        "track your symptoms",
-    )
-
     def render_structured_response(
         self,
         structured: StructuredLLMResponse,
@@ -439,6 +423,14 @@ class CitationService:
                         display_n = len(citations) + 1
                         seen_indices[idx] = display_n
                         chunk = chunks[idx - 1]
+                        chunk_content = chunk.get("content", "")
+                        overlap = self._claim_source_overlap(body, chunk_content)
+                        if overlap < self._RELEVANCE_MIN_OVERLAP:
+                            logger.warning(
+                                "render_structured_response: low overlap for section source_index=%d overlap=%.2f",
+                                idx,
+                                overlap,
+                            )
                         url = chunk.get("source_url", "")
                         title = chunk.get("title", "")
                         section_name = chunk.get("section_name")

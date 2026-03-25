@@ -2,27 +2,17 @@ from typing import Literal
 from uuid import UUID
 from datetime import datetime
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class ResponseSection(BaseModel):
     """A paragraph drawn from exactly ONE source."""
 
+    model_config = ConfigDict(extra="forbid")
+
     heading: str | None = None
-    body: str = Field(
-        description=(
-            "A conversational paragraph drawn ONLY from the single source referenced "
-            "by source_index. Plain text, no markdown formatting. "
-            "Write in Meno's voice: warm, direct, evidence-informed, human."
-        )
-    )
-    source_index: int | None = Field(
-        default=None,
-        description=(
-            "The 1-based index of the single source this section draws from. "
-            "null only for the closing/disclaimer section."
-        ),
-    )
+    body: str  # Plain prose, no markdown. One source only (see LAYER_3_SOURCE_RULES).
+    source_index: int | None = None  # 1-based index of the cited source; null for closing remarks
 
 
 class StructuredLLMResponse(BaseModel):

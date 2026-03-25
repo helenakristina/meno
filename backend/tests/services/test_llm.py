@@ -344,6 +344,60 @@ class TestLLMServiceGenerateCallingScript:
             )
 
 
+class TestLLMServiceChatCompletion:
+    """Tests for LLMService.chat_completion()."""
+
+    @pytest.mark.asyncio
+    async def test_chat_completion_delegates_to_provider(self, service, mock_provider):
+        """chat_completion() routes through the injected provider."""
+        mock_provider.chat_completion.return_value = "response text"
+
+        result = await service.chat_completion(
+            system_prompt="You are a helpful assistant.",
+            user_prompt="What is perimenopause?",
+        )
+
+        assert result == "response text"
+        mock_provider.chat_completion.assert_called_once_with(
+            system_prompt="You are a helpful assistant.",
+            user_prompt="What is perimenopause?",
+            max_tokens=1024,
+            temperature=0.7,
+            response_format=None,
+        )
+
+    @pytest.mark.asyncio
+    async def test_chat_completion_passes_response_format(self, service, mock_provider):
+        """response_format parameter is forwarded to the provider."""
+        mock_provider.chat_completion.return_value = '{"key": "value"}'
+
+        await service.chat_completion(
+            system_prompt="System.",
+            user_prompt="User.",
+            response_format="json",
+            temperature=0.5,
+            max_tokens=2000,
+        )
+
+        call_args = mock_provider.chat_completion.call_args
+        assert call_args.kwargs["response_format"] == "json"
+        assert call_args.kwargs["temperature"] == 0.5
+        assert call_args.kwargs["max_tokens"] == 2000
+
+    @pytest.mark.asyncio
+    async def test_chat_completion_propagates_provider_error(
+        self, service, mock_provider
+    ):
+        """Errors from the provider propagate unchanged."""
+        mock_provider.chat_completion.side_effect = RuntimeError("Provider error")
+
+        with pytest.raises(RuntimeError, match="Provider error"):
+            await service.chat_completion(
+                system_prompt="System.",
+                user_prompt="User.",
+            )
+
+
 class TestLLMServiceInitialization:
     """Tests for LLMService initialization and provider injection."""
 
