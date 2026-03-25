@@ -67,7 +67,9 @@ class TestUpdateLogOwnership:
         # Both eq filters must have been applied
         eq_calls = [str(c) for c in chain.eq.call_args_list]
         assert any("log-1" in c for c in eq_calls), "Must filter by log id"
-        assert any("owner-user" in c for c in eq_calls), "Must filter by user_id (IDOR guard)"
+        assert any("owner-user" in c for c in eq_calls), (
+            "Must filter by user_id (IDOR guard)"
+        )
 
     @pytest.mark.asyncio
     async def test_update_log_returns_not_found_for_wrong_user(self):
@@ -99,7 +101,9 @@ class TestDeleteLogOwnership:
 
         eq_calls = [str(c) for c in chain.eq.call_args_list]
         assert any("log-1" in c for c in eq_calls), "Must filter by log id"
-        assert any("owner-user" in c for c in eq_calls), "Must filter by user_id (IDOR guard)"
+        assert any("owner-user" in c for c in eq_calls), (
+            "Must filter by user_id (IDOR guard)"
+        )
 
     @pytest.mark.asyncio
     async def test_delete_log_returns_not_found_for_wrong_user(self):
@@ -144,16 +148,20 @@ class TestUpdateLogModelFieldsSet:
     @pytest.mark.asyncio
     async def test_update_log_skips_field_not_in_payload(self):
         """Fields not in model_fields_set must not appear in the DB update."""
-        chain = make_chain(data=[{
-            "id": "log-1",
-            "user_id": "user-1",
-            "period_start": "2026-03-01",
-            "period_end": None,
-            "flow_level": "heavy",
-            "notes": "existing note",
-            "cycle_length": None,
-            "created_at": "2026-03-16T10:00:00+00:00",
-        }])
+        chain = make_chain(
+            data=[
+                {
+                    "id": "log-1",
+                    "user_id": "user-1",
+                    "period_start": "2026-03-01",
+                    "period_end": None,
+                    "flow_level": "heavy",
+                    "notes": "existing note",
+                    "cycle_length": None,
+                    "created_at": "2026-03-16T10:00:00+00:00",
+                }
+            ]
+        )
         client = make_client(chain)
         repo = PeriodRepository(client=client)
         # Only flow_level is in model_fields_set — notes should NOT be sent to DB
@@ -162,5 +170,7 @@ class TestUpdateLogModelFieldsSet:
         await repo.update_log("user-1", "log-1", data)
 
         update_call_kwargs = chain.update.call_args[0][0]
-        assert "notes" not in update_call_kwargs, "Should not include fields not in model_fields_set"
+        assert "notes" not in update_call_kwargs, (
+            "Should not include fields not in model_fields_set"
+        )
         assert "flow_level" in update_call_kwargs

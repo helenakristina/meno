@@ -3,6 +3,7 @@
 All Supabase calls are mocked via FastAPI's dependency_overrides so no
 real network connections are made.
 """
+
 from datetime import datetime, timezone
 from unittest.mock import AsyncMock, MagicMock
 
@@ -166,8 +167,12 @@ class TestCreateSymptomLog:
         assert body["free_text_entry"] is None
 
     def test_returns_201_when_source_is_text(self):
-        stored = {**STORED_LOG, "symptoms": [], "source": "text",
-                  "free_text_entry": TEXT_PAYLOAD["free_text_entry"]}
+        stored = {
+            **STORED_LOG,
+            "symptoms": [],
+            "source": "text",
+            "free_text_entry": TEXT_PAYLOAD["free_text_entry"],
+        }
         mock = make_mock_client(user_id=USER_ID, data=[stored])
         cleanup = override(mock)
         try:
@@ -408,7 +413,9 @@ class TestGetSymptomLogs:
         assert log["user_id"] == USER_ID
         # symptoms must be enriched objects, not raw strings
         assert isinstance(log["symptoms"], list)
-        assert all("id" in s and "name" in s and "category" in s for s in log["symptoms"])
+        assert all(
+            "id" in s and "name" in s and "category" in s for s in log["symptoms"]
+        )
 
     def test_returns_empty_list_when_user_has_no_logs(self):
         mock = make_mock_client(user_id=USER_ID, data=[])
@@ -562,12 +569,9 @@ class TestGetSymptomLogs:
 
     def test_returns_all_logs_ordered_newest_first(self):
         logs = [
-            {**STORED_LOG, "id": "log-1",
-             "logged_at": "2024-03-15T10:00:00+00:00"},
-            {**STORED_LOG, "id": "log-2",
-             "logged_at": "2024-03-14T09:00:00+00:00"},
-            {**STORED_LOG, "id": "log-3",
-             "logged_at": "2024-03-13T08:00:00+00:00"},
+            {**STORED_LOG, "id": "log-1", "logged_at": "2024-03-15T10:00:00+00:00"},
+            {**STORED_LOG, "id": "log-2", "logged_at": "2024-03-14T09:00:00+00:00"},
+            {**STORED_LOG, "id": "log-3", "logged_at": "2024-03-13T08:00:00+00:00"},
         ]
         mock = make_mock_client(user_id=USER_ID, data=logs)
         cleanup = override(mock)
@@ -840,17 +844,17 @@ SID_C = "uuid-ccc-fatigue"
 # Logs designed so (A,B) co-occurs 3×, (A,C) 2×, (B,C) 1×
 # A appears in 4 logs total, B in 3, C in 2
 COOCC_LOGS = [
-    {"symptoms": [SID_A, SID_B]},        # pair (A,B)
-    {"symptoms": [SID_A, SID_B]},        # pair (A,B)
-    {"symptoms": [SID_A, SID_B, SID_C]}, # pairs (A,B), (A,C), (B,C)
-    {"symptoms": [SID_A, SID_C]},        # pair (A,C)
-    {"symptoms": [SID_A]},               # single — no pairs
+    {"symptoms": [SID_A, SID_B]},  # pair (A,B)
+    {"symptoms": [SID_A, SID_B]},  # pair (A,B)
+    {"symptoms": [SID_A, SID_B, SID_C]},  # pairs (A,B), (A,C), (B,C)
+    {"symptoms": [SID_A, SID_C]},  # pair (A,C)
+    {"symptoms": [SID_A]},  # single — no pairs
 ]
 
 COOCC_REF = [
     {"id": SID_A, "name": "Hot flashes", "category": "vasomotor"},
-    {"id": SID_B, "name": "Brain fog",   "category": "cognitive"},
-    {"id": SID_C, "name": "Fatigue",     "category": "sleep"},
+    {"id": SID_B, "name": "Brain fog", "category": "cognitive"},
+    {"id": SID_C, "name": "Fatigue", "category": "sleep"},
 ]
 
 
@@ -880,8 +884,10 @@ class TestGetCooccurrenceStats:
         names = {(p["symptom1_name"], p["symptom2_name"]) for p in pairs}
         assert ("Hot flashes", "Brain fog") in names
         assert ("Hot flashes", "Fatigue") in names
-        assert all(p["symptom2_name"] != "Fatigue" or p["symptom1_name"] != "Brain fog"
-                   for p in pairs), "(B,C) pair should be excluded at threshold=2"
+        assert all(
+            p["symptom2_name"] != "Fatigue" or p["symptom1_name"] != "Brain fog"
+            for p in pairs
+        ), "(B,C) pair should be excluded at threshold=2"
 
     def test_cooccurrence_stats_calculates_rate_correctly(self):
         # A appears in all 5 logs, co-occurs with B in 3 → rate = 3/5 = 0.6
@@ -902,7 +908,8 @@ class TestGetCooccurrenceStats:
         assert response.status_code == 200
         pairs = response.json()["pairs"]
         ab = next(
-            p for p in pairs
+            p
+            for p in pairs
             if p["symptom1_name"] == "Hot flashes" and p["symptom2_name"] == "Brain fog"
         )
         assert ab["cooccurrence_count"] == 3
@@ -939,9 +946,7 @@ class TestGetCooccurrenceStats:
             {"symptoms": [SID_B]},
             {"symptoms": [SID_A]},
         ]
-        mock = make_mock_client(
-            user_id=USER_ID, data=logs, symptoms_ref_data=COOCC_REF
-        )
+        mock = make_mock_client(user_id=USER_ID, data=logs, symptoms_ref_data=COOCC_REF)
         cleanup = override(mock)
         try:
             with TestClient(app) as client:
@@ -1037,9 +1042,7 @@ class TestGetCooccurrenceStats:
             {"symptoms": [SID_A, SID_B, SID_C]},
             {"symptoms": [SID_A, SID_C]},
         ]
-        mock = make_mock_client(
-            user_id=USER_ID, data=logs, symptoms_ref_data=COOCC_REF
-        )
+        mock = make_mock_client(user_id=USER_ID, data=logs, symptoms_ref_data=COOCC_REF)
         cleanup = override(mock)
         try:
             with TestClient(app) as client:
@@ -1058,7 +1061,10 @@ class TestGetCooccurrenceStats:
 
     def test_cooccurrence_stats_omits_pairs_with_unknown_symptom_ids(self):
         # One symptom in logs but absent from reference → pair silently dropped
-        logs = [{"symptoms": [SID_A, "unknown-uuid"]}, {"symptoms": [SID_A, "unknown-uuid"]}]
+        logs = [
+            {"symptoms": [SID_A, "unknown-uuid"]},
+            {"symptoms": [SID_A, "unknown-uuid"]},
+        ]
         ref = [{"id": SID_A, "name": "Hot flashes", "category": "vasomotor"}]
         mock = make_mock_client(user_id=USER_ID, data=logs, symptoms_ref_data=ref)
         cleanup = override(mock)

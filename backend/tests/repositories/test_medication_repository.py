@@ -23,11 +23,27 @@ def make_chain(data=None, error=None):
     if error:
         chain.execute = AsyncMock(side_effect=error)
     else:
-        chain.execute = AsyncMock(return_value=MagicMock(data=data if data is not None else []))
+        chain.execute = AsyncMock(
+            return_value=MagicMock(data=data if data is not None else [])
+        )
     for method in [
-        "select", "insert", "update", "delete", "upsert",
-        "eq", "neq", "gt", "gte", "lt", "lte", "is_", "not_",
-        "or_", "order", "limit", "ilike",
+        "select",
+        "insert",
+        "update",
+        "delete",
+        "upsert",
+        "eq",
+        "neq",
+        "gt",
+        "gte",
+        "lt",
+        "lte",
+        "is_",
+        "not_",
+        "or_",
+        "order",
+        "limit",
+        "ilike",
     ]:
         getattr_mock = MagicMock(return_value=chain)
         setattr(chain, method, getattr_mock)
@@ -309,23 +325,30 @@ class TestChangeDose:
         result = await repo.change_dose("user-1", "med-1", data, "Estradiol", None)
 
         assert result == "new-stint-uuid"
-        client.rpc.assert_called_once_with("change_medication_dose", {
-            "p_old_id": "med-1",
-            "p_user_id": "user-1",
-            "p_effective_date": "2026-02-01",
-            "p_new_dose": "2mg",
-            "p_new_delivery": "gel",
-            "p_new_frequency": None,
-            "p_new_notes": None,
-            "p_ref_id": None,
-            "p_medication_name": "Estradiol",
-        })
+        client.rpc.assert_called_once_with(
+            "change_medication_dose",
+            {
+                "p_old_id": "med-1",
+                "p_user_id": "user-1",
+                "p_effective_date": "2026-02-01",
+                "p_new_dose": "2mg",
+                "p_new_delivery": "gel",
+                "p_new_frequency": None,
+                "p_new_notes": None,
+                "p_ref_id": None,
+                "p_medication_name": "Estradiol",
+            },
+        )
 
     @pytest.mark.asyncio
-    async def test_change_dose_raises_not_found_when_rpc_returns_medication_not_found(self):
+    async def test_change_dose_raises_not_found_when_rpc_returns_medication_not_found(
+        self,
+    ):
         client = MagicMock()
         rpc_mock = MagicMock()
-        rpc_mock.execute = AsyncMock(side_effect=Exception("medication_not_found: no rows"))
+        rpc_mock.execute = AsyncMock(
+            side_effect=Exception("medication_not_found: no rows")
+        )
         client.rpc.return_value = rpc_mock
         repo = MedicationRepository(client=client)
         data = MedicationChangeDose(
@@ -363,14 +386,24 @@ class TestSearchReference:
     @pytest.mark.asyncio
     async def test_search_reference_merges_system_and_user_results(self):
         system_row = {
-            "id": "ref-1", "brand_name": "Estrogel", "generic_name": "estradiol",
-            "hormone_type": "estrogen", "common_forms": ["gel"], "common_doses": ["0.75mg"],
-            "notes": None, "is_user_created": False,
+            "id": "ref-1",
+            "brand_name": "Estrogel",
+            "generic_name": "estradiol",
+            "hormone_type": "estrogen",
+            "common_forms": ["gel"],
+            "common_doses": ["0.75mg"],
+            "notes": None,
+            "is_user_created": False,
         }
         user_row = {
-            "id": "ref-2", "brand_name": None, "generic_name": "custom estrogen",
-            "hormone_type": "estrogen", "common_forms": [], "common_doses": [],
-            "notes": None, "is_user_created": True,
+            "id": "ref-2",
+            "brand_name": None,
+            "generic_name": "custom estrogen",
+            "hormone_type": "estrogen",
+            "common_forms": [],
+            "common_doses": [],
+            "notes": None,
+            "is_user_created": True,
         }
         client = MagicMock()
         chain1 = make_chain(data=[system_row])

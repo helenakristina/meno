@@ -98,7 +98,9 @@ class TestBuildExportPdf:
     def _freq_stat(self, name, category, count):
         from app.models.symptoms import SymptomFrequency
 
-        return SymptomFrequency(symptom_id="sym-1", symptom_name=name, category=category, count=count)
+        return SymptomFrequency(
+            symptom_id="sym-1", symptom_name=name, category=category, count=count
+        )
 
     def _coocc_pair(self, s1, s2, count, rate):
         from app.models.symptoms import SymptomPair

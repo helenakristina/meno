@@ -3,6 +3,7 @@
 pydantic-settings validates required fields at import time, so these must
 be set here — at the module level, before any `from app.*` import.
 """
+
 import os
 
 os.environ.setdefault("SUPABASE_URL", "https://test.supabase.co")

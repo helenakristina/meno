@@ -421,10 +421,12 @@ async def article_already_ingested(pmc_id: str) -> bool:
     """
     try:
         client = await get_client()
-        result = await client.from_("rag_documents").select(
-            "pmc_id",
-            count="exact"
-        ).eq("pmc_id", pmc_id).execute()
+        result = (
+            await client.from_("rag_documents")
+            .select("pmc_id", count="exact")
+            .eq("pmc_id", pmc_id)
+            .execute()
+        )
 
         # If any rows exist with this pmc_id, article is already ingested
         return len(result.data) > 0

@@ -4,6 +4,7 @@ Uses dependency injection to accept any LLMProvider (OpenAI, Claude, etc.).
 All prompts use "logs show" language and never diagnose, prescribe, or recommend
 specific treatments. See CLAUDE.md for the LLM provider migration strategy.
 """
+
 import logging
 from datetime import date
 
@@ -30,6 +31,44 @@ class LLMService:
             provider: An implementation of the LLMProvider protocol (dependency-injected).
         """
         self.provider = provider
+
+    async def chat_completion(
+        self,
+        system_prompt: str,
+        user_prompt: str,
+        max_tokens: int = 1024,
+        temperature: float = 0.7,
+        response_format: str | None = None,
+    ) -> str:
+        """Route a chat completion request through the injected LLM provider.
+
+        All provider calls from services should go through this method so that
+        any future cross-cutting concerns (retry logic, rate limiting, token
+        caps, provider switching) apply uniformly.
+
+        Args:
+            system_prompt: System-level instructions (role, behavior, constraints).
+            user_prompt: User's message or query.
+            max_tokens: Maximum tokens in the response (1–4096). Defaults to 1024.
+            temperature: Sampling temperature (0–2). Defaults to 0.7.
+            response_format: Output format hint. "json" for structured JSON output.
+                None (default) returns plain text.
+
+        Returns:
+            The completed text response from the LLM.
+
+        Raises:
+            ValueError: If arguments are invalid.
+            TimeoutError: If the LLM API times out.
+            RuntimeError: If the LLM API returns an error or empty response.
+        """
+        return await self.provider.chat_completion(
+            system_prompt=system_prompt,
+            user_prompt=user_prompt,
+            max_tokens=max_tokens,
+            temperature=temperature,
+            response_format=response_format,
+        )
 
     async def generate_symptom_summary(
         self,
@@ -61,7 +100,9 @@ class LLMService:
             f"- {s.symptom_name} ({s.category}): logged {s.count} time(s)"
             for s in frequency_stats[:10]
         ]
-        freq_text = "\n".join(freq_lines) if freq_lines else "No symptom data available."
+        freq_text = (
+            "\n".join(freq_lines) if freq_lines else "No symptom data available."
+        )
 
         coocc_lines = [
             f"- {p.symptom1_name} + {p.symptom2_name}: "
@@ -70,7 +111,9 @@ class LLMService:
             for p in cooccurrence_stats[:5]
         ]
         coocc_text = (
-            "\n".join(coocc_lines) if coocc_lines else "No notable co-occurrence patterns."
+            "\n".join(coocc_lines)
+            if coocc_lines
+            else "No notable co-occurrence patterns."
         )
 
         system_prompt = (
@@ -116,7 +159,6 @@ class LLMService:
         logger.info("Symptom summary generated: %d characters", len(summary))
         return summary
 
-
     async def generate_provider_questions(
         self,
         frequency_stats: list[SymptomFrequency],
@@ -141,7 +183,8 @@ class LLMService:
             RuntimeError: If the LLM API returns an error or empty response.
         """
         freq_lines = [
-            f"- {s.symptom_name}: logged {s.count} time(s)" for s in frequency_stats[:10]
+            f"- {s.symptom_name}: logged {s.count} time(s)"
+            for s in frequency_stats[:10]
         ]
         freq_text = "\n".join(freq_lines) if freq_lines else "No symptom data."
 
@@ -150,7 +193,9 @@ class LLMService:
             for p in cooccurrence_stats[:5]
         ]
         coocc_text = (
-            "\n".join(coocc_lines) if coocc_lines else "No notable co-occurrence patterns."
+            "\n".join(coocc_lines)
+            if coocc_lines
+            else "No notable co-occurrence patterns."
         )
 
         system_prompt = (
@@ -170,7 +215,9 @@ class LLMService:
             "- No introduction, no conclusion, no headers — just the numbered questions"
         )
 
-        context_section = f"\nAdditional context: {user_context}" if user_context else ""
+        context_section = (
+            f"\nAdditional context: {user_context}" if user_context else ""
+        )
         user_prompt = (
             f"Based on the following symptom tracking data, generate 5–7 questions "
             f"this person might ask their healthcare provider.\n\n"
@@ -211,7 +258,6 @@ class LLMService:
                 questions.append(line)
 
         return questions[:7]
-
 
     async def generate_calling_script(
         self, system_prompt: str, user_prompt: str
@@ -286,7 +332,7 @@ class LLMService:
             "- Acknowledge her experience and validate her concerns\n"
             "- Make responses conversational and natural (2-3 sentences max)\n"
             "- Return ONLY a valid JSON array with no markdown, no explanation\n"
-            "- Each object must have: {\"scenario_title\": string, \"suggestion\": string}"
+            '- Each object must have: {"scenario_title": string, "suggestion": string}'
         )
 
         user_prompt = (
@@ -306,14 +352,14 @@ class LLMService:
             f"CRITICAL: Do NOT include URLs or citations. We don't have verified sources to cite yet.\n"
             f"Focus on clear, confident, evidence-based language.\n\n"
             f"Examples of strong responses (use as templates):\n\n"
-            f"DISMISSAL: \"Hot flashes will go away on their own\"\n"
+            f'DISMISSAL: "Hot flashes will go away on their own"\n'
             f"RESPONSE: \"They might eventually, but I've had them for several months and they're significantly impacting my sleep and work. Research shows hormone therapy can be effective for hot flashes. Can we discuss what timeline you're thinking and what options exist in the meantime?\"\n\n"
-            f"DISMISSAL: \"Brain fog is just normal aging\"\n"
-            f"RESPONSE: \"I understand, but research shows cognitive changes during perimenopause can be significant and distinct from normal aging. Can we talk about whether treatment might help in my case?\"\n\n"
-            f"DISMISSAL: \"You should see a sleep specialist instead\"\n"
+            f'DISMISSAL: "Brain fog is just normal aging"\n'
+            f'RESPONSE: "I understand, but research shows cognitive changes during perimenopause can be significant and distinct from normal aging. Can we talk about whether treatment might help in my case?"\n\n'
+            f'DISMISSAL: "You should see a sleep specialist instead"\n'
             f"RESPONSE: \"I'm open to that if needed, but I'd like to explore what you can do first since this is directly related to my perimenopause. Can we start with your approach?\"\n\n"
-            f"DISMISSAL: \"Let's try an antidepressant first\"\n"
-            f"RESPONSE: \"I appreciate that option, but my anxiety started with my perimenopause symptoms. Can we discuss whether hormone therapy might address both?\"\n\n"
+            f'DISMISSAL: "Let\'s try an antidepressant first"\n'
+            f'RESPONSE: "I appreciate that option, but my anxiety started with my perimenopause symptoms. Can we discuss whether hormone therapy might address both?"\n\n'
             f"Guidelines:\n"
             f"- Sound confident and informed\n"
             f"- Reference 'research shows' where appropriate (without fake citations)\n"
@@ -322,7 +368,7 @@ class LLMService:
             f"- Don't apologize or minimize her concerns\n"
             f"- Don't invent sources\n\n"
             f"Return ONLY valid JSON with this exact structure, no markdown or explanation:\n"
-            f"{{\"scenarios\": [{{\"scenario_title\": \"...\", \"suggestion\": \"...\", \"sources\": []}}]}}"
+            f'{{"scenarios": [{{"scenario_title": "...", "suggestion": "...", "sources": []}}]}}'
         )
 
         logger.info(
@@ -419,51 +465,51 @@ class LLMService:
                 f"   - Age and menopausal stage (extract from narrative)\n"
                 f"   - Why she's here (appointment type + goal)\n"
                 f"   - Urgent concern if provided\n"
-                f"   - Example: \"Sarah is 50, in late perimenopause. She's presenting with concerns about sleep "\
-                f"disruption, which she reports is her urgent issue affecting her work and cognition. She's "\
-                f"interested in discussing treatment options.\"\n\n"
+                f"   - Example: \"Sarah is 50, in late perimenopause. She's presenting with concerns about sleep "
+                f"disruption, which she reports is her urgent issue affecting her work and cognition. She's "
+                f'interested in discussing treatment options."\n\n'
                 f"2. SYMPTOM PICTURE (3-4 sentences) - What she's experiencing\n"
                 f"   - Extract key symptoms from narrative ONLY\n"
-                f"   - Use actual frequencies from narrative (e.g., \"16 hot flash episodes in 60 days\")\n"
+                f'   - Use actual frequencies from narrative (e.g., "16 hot flash episodes in 60 days")\n'
                 f"   - Describe impact on function\n"
                 f"   - Do NOT add symptoms not mentioned in narrative\n"
                 f"   - Do NOT speculate about causes\n"
-                f"   - Example: \"Logs show 16 hot flash episodes in 60 days, 11 night sweats, and 10 instances "\
-                f"of insomnia. She reports sleep disruption is the primary issue affecting her daytime cognition "\
-                f"and work performance.\"\n\n"
+                f'   - Example: "Logs show 16 hot flash episodes in 60 days, 11 night sweats, and 10 instances '
+                f"of insomnia. She reports sleep disruption is the primary issue affecting her daytime cognition "
+                f'and work performance."\n\n'
                 f"3. KEY PATTERNS (2-3 sentences, ONLY if narrative mentions them)\n"
                 f"   - Reference co-occurrence patterns ONLY if the narrative explicitly mentions them\n"
                 f"   - Do NOT invent connections between symptoms\n"
-                f"   - Example: \"Her logs show difficulty concentrating consistently co-occurs with frequent "\
-                f"nighttime waking, suggesting sleep disruption is driving cognitive symptoms.\"\n"
+                f'   - Example: "Her logs show difficulty concentrating consistently co-occurs with frequent '
+                f'nighttime waking, suggesting sleep disruption is driving cognitive symptoms."\n'
                 f"   - If narrative doesn't mention patterns, skip this section entirely\n\n"
                 f"4. PRIORITIZED CONCERNS (bulleted, exactly as provided)\n"
                 f"   - Use the exact concerns from the list provided\n"
                 f"   - Do NOT add, remove, reorder, or interpret concerns\n"
                 f"   - Just list them\n"
                 f"   - Example:\n"
-                f"     \"• Clearly describe brain fog and its impact\n"
+                f'     "• Clearly describe brain fog and its impact\n'
                 f"      • Get targeted treatment options\n"
                 f"      • Understand the root cause\n"
-                f"      • Create a plan to track and manage symptoms\"\n\n"
+                f'      • Create a plan to track and manage symptoms"\n\n'
                 f"5. CLOSING (1-2 sentences) - What patient is seeking\n"
                 f"   - Brief statement of what she's asking for\n"
                 f"   - Do NOT make recommendations\n"
                 f"   - Do NOT suggest tests or treatments\n"
-                f"   - Example: \"Patient is well-informed and motivated. She's seeking discussion of management "\
-                f"options for her symptom picture.\"\n\n"
+                f"   - Example: \"Patient is well-informed and motivated. She's seeking discussion of management "
+                f'options for her symptom picture."\n\n'
                 f"Tone Guidelines:\n"
-                f"- Conversational: \"She reports\" not \"The data indicates\" or \"Logs show\"\n"
+                f'- Conversational: "She reports" not "The data indicates" or "Logs show"\n'
                 f"- Specific: Use actual numbers, frequencies, symptom names\n"
                 f"- Clinical: Professional language, but readable\n"
                 f"- Focused: 1-2 pages max, scannable\n"
-                f"- Plain language: \"sleep disruption\" yes, \"nocturnal polysomnography findings\" no\n"
+                f'- Plain language: "sleep disruption" yes, "nocturnal polysomnography findings" no\n'
                 f"- Honest: Only describe what's there, no speculation\n"
                 f"- No recommendations: This is description, not treatment guidance\n"
                 f"- No disclaimers: Patient adds medical disclaimer separately\n\n"
                 f"What NOT to include:\n"
                 f"- Recommendations or suggestions for treatment\n"
-                f"- Psychological interpretation (\"patient seems anxious\" unless she said that)\n"
+                f'- Psychological interpretation ("patient seems anxious" unless she said that)\n'
                 f"- Assumptions about root causes\n"
                 f"- Speculation about lab results\n"
                 f"- Age-based judgments\n"
@@ -495,7 +541,7 @@ class LLMService:
                 for scenario in scenarios[:5]:  # Use up to 5 scenarios
                     title = scenario.get("title", "")
                     suggestion = scenario.get("suggestion", "")
-                    sideways_section += f"- **If they say:** \"{title}\"\n  **You can say:** {suggestion}\n\n"
+                    sideways_section += f'- **If they say:** "{title}"\n  **You can say:** {suggestion}\n\n'
 
             user_prompt = (
                 f"Write a personal preparation document for a patient's healthcare appointment.\n"
@@ -517,7 +563,7 @@ class LLMService:
                 f"   - Start with age and menopause stage (from narrative)\n"
                 f"   - Lead with urgent symptom if provided\n"
                 f"   - State goal\n"
-                f"   - Example: 'I am 50 and in late perimenopause. My urgent concern is hot flashes, "\
+                f"   - Example: 'I am 50 and in late perimenopause. My urgent concern is hot flashes, "
                 f"which are significantly affecting my daily life. I'm here today to understand my options.'\n\n"
                 f"2. SYMPTOMS RANKED BY IMPACT\n"
                 f"   - IF urgent symptom is provided: Make it #1, describe impact, provide suggested language\n"
@@ -559,7 +605,12 @@ class LLMService:
                 f"Length: 2-3 pages maximum."
             )
 
-        logger.info("Generating PDF content: type=%s age=%s goal=%s", content_type, age_str, goal)
+        logger.info(
+            "Generating PDF content: type=%s age=%s goal=%s",
+            content_type,
+            age_str,
+            goal,
+        )
 
         content = await self.provider.chat_completion(
             system_prompt=system_prompt,
@@ -568,5 +619,7 @@ class LLMService:
             temperature=0.5,
         )
 
-        logger.info("PDF content generated: type=%s length=%d", content_type, len(content))
+        logger.info(
+            "PDF content generated: type=%s length=%d", content_type, len(content)
+        )
         return content

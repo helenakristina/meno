@@ -21,8 +21,6 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/symptoms", tags=["symptoms"])
 
 
-
-
 # ---------------------------------------------------------------------------
 # POST /api/symptoms/logs
 # ---------------------------------------------------------------------------
@@ -204,6 +202,7 @@ async def get_frequency_stats(
 # ---------------------------------------------------------------------------
 # GET /api/symptoms/stats/cooccurrence
 # ---------------------------------------------------------------------------
+
 
 @router.get(
     "/stats/cooccurrence",

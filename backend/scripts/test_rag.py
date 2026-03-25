@@ -14,6 +14,7 @@ Run from the backend directory:
     cd backend
     uv run python scripts/test_rag.py
 """
+
 import asyncio
 import logging
 import sys
@@ -66,8 +67,8 @@ SAMPLE_URL = "https://menopausewiki.ca/symptoms/hot-flashes"
 SAMPLE_QUERY = "What causes hot flashes?"
 
 # Use smaller chunks for the test doc so we get multiple chunks to search over
-TEST_CHUNK_SIZE = 80   # tokens (~320 chars)
-TEST_OVERLAP = 15      # tokens (~60 chars)
+TEST_CHUNK_SIZE = 80  # tokens (~320 chars)
+TEST_OVERLAP = 15  # tokens (~60 chars)
 
 
 async def main() -> None:

@@ -140,7 +140,9 @@ class AppointmentService:
                 appointment_id,
                 days_back,
             )
-            await self.appointment_repo.save_narrative(appointment_id, user_id, empty_narrative)
+            await self.appointment_repo.save_narrative(
+                appointment_id, user_id, empty_narrative
+            )
             return AppointmentPrepNarrativeResponse(
                 appointment_id=appointment_id,
                 narrative=empty_narrative,
@@ -153,7 +155,9 @@ class AppointmentService:
         # Fetch symptoms reference
         symptom_ids = list(set(sid for log in raw_logs for sid in log["symptoms"]))
         try:
-            symptoms_ref = await self.appointment_repo.get_symptom_reference(symptom_ids)
+            symptoms_ref = await self.appointment_repo.get_symptom_reference(
+                symptom_ids
+            )
         except Exception as exc:
             logger.error("Failed to fetch symptoms reference: %s", exc, exc_info=True)
             raise DatabaseError(f"Failed to generate narrative: {exc}") from exc
@@ -177,7 +181,9 @@ class AppointmentService:
         current_medications: list = []
         if self.medication_service is not None:
             try:
-                current_medications = await self.medication_service.list_current(user_id)
+                current_medications = await self.medication_service.list_current(
+                    user_id
+                )
             except Exception as exc:
                 logger.warning(
                     "Failed to fetch medications for narrative: user=%s error=%s",
@@ -199,7 +205,9 @@ class AppointmentService:
         )
 
         # Call LLM
-        logger.info("Calling LLM to generate narrative: appointment_id=%s", appointment_id)
+        logger.info(
+            "Calling LLM to generate narrative: appointment_id=%s", appointment_id
+        )
         try:
             narrative = await self.llm_service.provider.chat_completion(
                 system_prompt=system_prompt,
@@ -209,7 +217,8 @@ class AppointmentService:
             )
         except TimeoutError:
             logger.error(
-                "LLM timed out for appointment narrative: appointment_id=%s", appointment_id
+                "LLM timed out for appointment narrative: appointment_id=%s",
+                appointment_id,
             )
             raise DatabaseError("LLM request timed out generating narrative")
         except Exception as exc:
@@ -372,7 +381,9 @@ class AppointmentService:
             }
             for card in scenario_cards
         ]
-        await self.appointment_repo.save_scenarios(appointment_id, user_id, scenarios_to_save)
+        await self.appointment_repo.save_scenarios(
+            appointment_id, user_id, scenarios_to_save
+        )
 
         logger.info(
             "Scenarios generated and saved: appointment_id=%s count=%d",
@@ -442,7 +453,9 @@ class AppointmentService:
             )
             raise DatabaseError(f"Failed to generate PDF: {exc}") from exc
 
-        narrative_text: str = narrative if isinstance(narrative, str) else str(narrative)
+        narrative_text: str = (
+            narrative if isinstance(narrative, str) else str(narrative)
+        )
         concerns_list: list = concerns if isinstance(concerns, list) else []
 
         scenarios_for_pdf: list[dict] = []
@@ -604,7 +617,9 @@ class AppointmentService:
             for p in cooccurrence_stats[:5]
         ]
         coocc_text = (
-            "\n".join(coocc_lines) if coocc_lines else "No notable co-occurrence patterns."
+            "\n".join(coocc_lines)
+            if coocc_lines
+            else "No notable co-occurrence patterns."
         )
 
         med_section = ""
@@ -645,116 +660,178 @@ class AppointmentService:
         if context.goal.value == "urgent_symptom" and not urgent_symptom:
             urgent_symptom = "perimenopause symptoms"
 
-        if context.goal.value == "urgent_symptom" and urgent_symptom and urgent_symptom != "perimenopause symptoms":
-            if "brain fog" in urgent_symptom.lower() or "cognitive" in urgent_symptom.lower() or "concentration" in urgent_symptom.lower():
-                scenarios.extend([
-                    "Cognitive symptoms don't respond to hormone therapy",
-                    "Brain fog is just normal aging",
-                    "That's probably anxiety, not hormones",
-                    "You should see a neurologist, not a gynecologist",
-                    "Cognitive decline at your stage is expected",
-                ])
-            elif "hot flash" in urgent_symptom.lower() or "vasomotor" in urgent_symptom.lower():
-                scenarios.extend([
-                    "Hormone therapy increases breast cancer risk",
-                    "Hot flashes will go away on their own",
-                    "You just need to dress in layers and use a fan",
-                    "Hot flashes aren't a real medical symptom",
-                    "Let's try an antidepressant first",
-                ])
-            elif "sleep" in urgent_symptom.lower() or "insomnia" in urgent_symptom.lower() or "waking" in urgent_symptom.lower():
-                scenarios.extend([
-                    "Sleep disruption at your age is normal",
-                    "You should see a sleep specialist, not discuss hormones",
-                    "Melatonin or sleep hygiene will fix this",
-                    "Hormone therapy doesn't help sleep",
-                    "Let's try an antidepressant first",
-                ])
+        if (
+            context.goal.value == "urgent_symptom"
+            and urgent_symptom
+            and urgent_symptom != "perimenopause symptoms"
+        ):
+            if (
+                "brain fog" in urgent_symptom.lower()
+                or "cognitive" in urgent_symptom.lower()
+                or "concentration" in urgent_symptom.lower()
+            ):
+                scenarios.extend(
+                    [
+                        "Cognitive symptoms don't respond to hormone therapy",
+                        "Brain fog is just normal aging",
+                        "That's probably anxiety, not hormones",
+                        "You should see a neurologist, not a gynecologist",
+                        "Cognitive decline at your stage is expected",
+                    ]
+                )
+            elif (
+                "hot flash" in urgent_symptom.lower()
+                or "vasomotor" in urgent_symptom.lower()
+            ):
+                scenarios.extend(
+                    [
+                        "Hormone therapy increases breast cancer risk",
+                        "Hot flashes will go away on their own",
+                        "You just need to dress in layers and use a fan",
+                        "Hot flashes aren't a real medical symptom",
+                        "Let's try an antidepressant first",
+                    ]
+                )
+            elif (
+                "sleep" in urgent_symptom.lower()
+                or "insomnia" in urgent_symptom.lower()
+                or "waking" in urgent_symptom.lower()
+            ):
+                scenarios.extend(
+                    [
+                        "Sleep disruption at your age is normal",
+                        "You should see a sleep specialist, not discuss hormones",
+                        "Melatonin or sleep hygiene will fix this",
+                        "Hormone therapy doesn't help sleep",
+                        "Let's try an antidepressant first",
+                    ]
+                )
             elif "anxiety" in urgent_symptom.lower():
-                scenarios.extend([
-                    "That sounds like anxiety disorder, you need a psychiatrist",
-                    "Let's try an antidepressant first",
-                    "Hormone therapy won't help anxiety",
-                    "You're just stressed, try meditation",
-                    "Anxiety medications are better than hormone therapy",
-                ])
-            elif "vaginal" in urgent_symptom.lower() or "dryness" in urgent_symptom.lower() or "sexual" in urgent_symptom.lower():
-                scenarios.extend([
-                    "Just use lube, that's the standard treatment",
-                    "That's a gynecology issue, not a hormone issue",
-                    "Vaginal issues are normal at this stage",
-                    "You don't need systemic treatment for local symptoms",
-                    "Let's try an antidepressant first",
-                ])
+                scenarios.extend(
+                    [
+                        "That sounds like anxiety disorder, you need a psychiatrist",
+                        "Let's try an antidepressant first",
+                        "Hormone therapy won't help anxiety",
+                        "You're just stressed, try meditation",
+                        "Anxiety medications are better than hormone therapy",
+                    ]
+                )
+            elif (
+                "vaginal" in urgent_symptom.lower()
+                or "dryness" in urgent_symptom.lower()
+                or "sexual" in urgent_symptom.lower()
+            ):
+                scenarios.extend(
+                    [
+                        "Just use lube, that's the standard treatment",
+                        "That's a gynecology issue, not a hormone issue",
+                        "Vaginal issues are normal at this stage",
+                        "You don't need systemic treatment for local symptoms",
+                        "Let's try an antidepressant first",
+                    ]
+                )
             elif "joint" in urgent_symptom.lower() or "pain" in urgent_symptom.lower():
-                scenarios.extend([
-                    "Joint pain isn't related to hormones",
-                    "You should see a rheumatologist",
-                    "That's just arthritis, not perimenopause",
-                    "Exercise will fix this, not hormones",
-                    "Your symptoms aren't severe enough to treat",
-                ])
-            elif "bladder" in urgent_symptom.lower() or "urinary" in urgent_symptom.lower() or "incontinence" in urgent_symptom.lower():
-                scenarios.extend([
-                    "Bladder issues are gynecological, not hormonal",
-                    "You need pelvic floor physical therapy, not hormones",
-                    "That's normal at your stage, you'll have to manage it",
-                    "Kegel exercises should be enough",
-                    "Hormone therapy doesn't help bladder symptoms",
-                ])
-            elif "mood" in urgent_symptom.lower() or "depression" in urgent_symptom.lower():
-                scenarios.extend([
-                    "That sounds like depression, you need an antidepressant",
-                    "Hormone therapy isn't approved for mood",
-                    "You should see a psychiatrist",
-                    "Mood changes are psychological, not hormonal",
-                    "Let's try an antidepressant first",
-                ])
-            elif "fatigue" in urgent_symptom.lower() or "tired" in urgent_symptom.lower():
-                scenarios.extend([
-                    "Fatigue is normal aging, not hormonal",
-                    "You just need better sleep hygiene",
-                    "That sounds like thyroid or anemia, let me check labs",
-                    "Hormone therapy won't fix your energy",
-                    "You should get more exercise",
-                ])
-            elif "skin" in urgent_symptom.lower() or "hair" in urgent_symptom.lower() or "nail" in urgent_symptom.lower():
-                scenarios.extend([
-                    "Skin changes are cosmetic, not medical",
-                    "You should see a dermatologist",
-                    "That's not related to perimenopause",
-                    "Hair loss is normal aging",
-                    "Hormone therapy doesn't improve skin quality",
-                ])
+                scenarios.extend(
+                    [
+                        "Joint pain isn't related to hormones",
+                        "You should see a rheumatologist",
+                        "That's just arthritis, not perimenopause",
+                        "Exercise will fix this, not hormones",
+                        "Your symptoms aren't severe enough to treat",
+                    ]
+                )
+            elif (
+                "bladder" in urgent_symptom.lower()
+                or "urinary" in urgent_symptom.lower()
+                or "incontinence" in urgent_symptom.lower()
+            ):
+                scenarios.extend(
+                    [
+                        "Bladder issues are gynecological, not hormonal",
+                        "You need pelvic floor physical therapy, not hormones",
+                        "That's normal at your stage, you'll have to manage it",
+                        "Kegel exercises should be enough",
+                        "Hormone therapy doesn't help bladder symptoms",
+                    ]
+                )
+            elif (
+                "mood" in urgent_symptom.lower()
+                or "depression" in urgent_symptom.lower()
+            ):
+                scenarios.extend(
+                    [
+                        "That sounds like depression, you need an antidepressant",
+                        "Hormone therapy isn't approved for mood",
+                        "You should see a psychiatrist",
+                        "Mood changes are psychological, not hormonal",
+                        "Let's try an antidepressant first",
+                    ]
+                )
+            elif (
+                "fatigue" in urgent_symptom.lower() or "tired" in urgent_symptom.lower()
+            ):
+                scenarios.extend(
+                    [
+                        "Fatigue is normal aging, not hormonal",
+                        "You just need better sleep hygiene",
+                        "That sounds like thyroid or anemia, let me check labs",
+                        "Hormone therapy won't fix your energy",
+                        "You should get more exercise",
+                    ]
+                )
+            elif (
+                "skin" in urgent_symptom.lower()
+                or "hair" in urgent_symptom.lower()
+                or "nail" in urgent_symptom.lower()
+            ):
+                scenarios.extend(
+                    [
+                        "Skin changes are cosmetic, not medical",
+                        "You should see a dermatologist",
+                        "That's not related to perimenopause",
+                        "Hair loss is normal aging",
+                        "Hormone therapy doesn't improve skin quality",
+                    ]
+                )
             else:
-                scenarios.extend([
-                    "That symptom isn't really related to perimenopause",
-                    "Your symptoms aren't severe enough to treat",
-                    "Let's wait and see if it gets better",
-                    "That's probably something else, not hormones",
-                ])
-            scenarios.extend([
-                "Your symptoms will go away on their own",
-                "You're just stressed or anxious",
-            ])
-        else:
-            if context.goal.value == "explore_hrt":
-                scenarios.extend([
-                    "Hormone therapy increases breast cancer risk",
-                    "I don't prescribe that, I give the birth control pill instead",
-                    "Let's try an antidepressant first",
-                ])
-            elif context.goal.value == "optimize_current_treatment":
-                scenarios.extend([
-                    "Your symptoms aren't severe enough to treat",
-                    "That dose is already too high",
-                    "Let's try lifestyle changes first",
-                ])
-            elif context.goal.value == "assess_status":
-                scenarios.extend([
+                scenarios.extend(
+                    [
+                        "That symptom isn't really related to perimenopause",
+                        "Your symptoms aren't severe enough to treat",
+                        "Let's wait and see if it gets better",
+                        "That's probably something else, not hormones",
+                    ]
+                )
+            scenarios.extend(
+                [
                     "Your symptoms will go away on their own",
                     "You're just stressed or anxious",
-                ])
+                ]
+            )
+        else:
+            if context.goal.value == "explore_hrt":
+                scenarios.extend(
+                    [
+                        "Hormone therapy increases breast cancer risk",
+                        "I don't prescribe that, I give the birth control pill instead",
+                        "Let's try an antidepressant first",
+                    ]
+                )
+            elif context.goal.value == "optimize_current_treatment":
+                scenarios.extend(
+                    [
+                        "Your symptoms aren't severe enough to treat",
+                        "That dose is already too high",
+                        "Let's try lifestyle changes first",
+                    ]
+                )
+            elif context.goal.value == "assess_status":
+                scenarios.extend(
+                    [
+                        "Your symptoms will go away on their own",
+                        "You're just stressed or anxious",
+                    ]
+                )
 
             if context.dismissed_before.value == "multiple_times":
                 scenarios.extend(["What are the triggers?"])
@@ -779,21 +856,53 @@ class AppointmentService:
             return "hrt-safety"
         elif "antidepressant" in title_lower or "psychiatrist" in title_lower:
             return "wrong-specialist"
-        elif "normal" in title_lower or "aging" in title_lower or "expected" in title_lower or "natural" in title_lower:
+        elif (
+            "normal" in title_lower
+            or "aging" in title_lower
+            or "expected" in title_lower
+            or "natural" in title_lower
+        ):
             return "normalization"
-        elif "specialist" in title_lower or "dermatologist" in title_lower or "rheumatologist" in title_lower or "neurologist" in title_lower or "sleep specialist" in title_lower:
+        elif (
+            "specialist" in title_lower
+            or "dermatologist" in title_lower
+            or "rheumatologist" in title_lower
+            or "neurologist" in title_lower
+            or "sleep specialist" in title_lower
+        ):
             return "specialist-referral"
-        elif "won't help" in title_lower or "doesn't" in title_lower or "not related" in title_lower or "isn't" in title_lower:
+        elif (
+            "won't help" in title_lower
+            or "doesn't" in title_lower
+            or "not related" in title_lower
+            or "isn't" in title_lower
+        ):
             return "dismissal"
-        elif "lube" in title_lower or "kegel" in title_lower or "lifestyle" in title_lower or "meditation" in title_lower or "hygiene" in title_lower or "dress" in title_lower or "fan" in title_lower:
+        elif (
+            "lube" in title_lower
+            or "kegel" in title_lower
+            or "lifestyle" in title_lower
+            or "meditation" in title_lower
+            or "hygiene" in title_lower
+            or "dress" in title_lower
+            or "fan" in title_lower
+        ):
             return "lifestyle-only"
         elif "go away" in title_lower or "wait" in title_lower:
             return "wait-and-see"
-        elif "stressed" in title_lower or "anxious" in title_lower or "psychological" in title_lower or "anxiety" in title_lower:
+        elif (
+            "stressed" in title_lower
+            or "anxious" in title_lower
+            or "psychological" in title_lower
+            or "anxiety" in title_lower
+        ):
             return "psychology"
-        elif "severe" in title_lower or "enough" in title_lower or "dose" in title_lower or "high" in title_lower:
+        elif (
+            "severe" in title_lower
+            or "enough" in title_lower
+            or "dose" in title_lower
+            or "high" in title_lower
+        ):
             return "dismissal"
         else:
             return "general"
-
-

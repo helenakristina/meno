@@ -2,8 +2,16 @@
 
 import math
 
-from app.core.insurance_normalizer import normalize_insurance_list, normalize_insurance_name
-from app.models.providers import CallingScriptRequest, InsuranceType, ProviderCard, ProviderSearchResponse
+from app.core.insurance_normalizer import (
+    normalize_insurance_list,
+    normalize_insurance_name,
+)
+from app.models.providers import (
+    CallingScriptRequest,
+    InsuranceType,
+    ProviderCard,
+    ProviderSearchResponse,
+)
 
 
 def to_provider_card(row: dict) -> ProviderCard:
@@ -20,7 +28,9 @@ def to_provider_card(row: dict) -> ProviderCard:
         nams_certified=bool(row.get("nams_certified")),
         provider_type=row.get("provider_type"),
         specialties=row.get("specialties") or [],
-        insurance_accepted=normalize_insurance_list(row.get("insurance_accepted") or []),
+        insurance_accepted=normalize_insurance_list(
+            row.get("insurance_accepted") or []
+        ),
         data_source=row.get("data_source"),
         last_verified=row.get("last_verified"),
     )
@@ -45,18 +55,23 @@ def filter_and_paginate(
     if city:
         normalized = city.strip().lower()
         exact = [
-            p for p in providers
-            if (p.get("city") or "").strip().lower() == normalized
+            p for p in providers if (p.get("city") or "").strip().lower() == normalized
         ]
-        providers = exact if exact else [
-            p for p in providers
-            if normalized in (p.get("city") or "").strip().lower()
-        ]
+        providers = (
+            exact
+            if exact
+            else [
+                p
+                for p in providers
+                if normalized in (p.get("city") or "").strip().lower()
+            ]
+        )
 
     if insurance:
         normalized_ins = insurance.strip().lower()
         providers = [
-            p for p in providers
+            p
+            for p in providers
             if any(
                 normalized_ins in (ins or "").lower()
                 for ins in (p.get("insurance_accepted") or [])
@@ -65,7 +80,10 @@ def filter_and_paginate(
 
     providers = sorted(
         providers,
-        key=lambda p: (0 if p.get("nams_certified") else 1, (p.get("name") or "").lower()),
+        key=lambda p: (
+            0 if p.get("nams_certified") else 1,
+            (p.get("name") or "").lower(),
+        ),
     )
 
     total = len(providers)
@@ -102,7 +120,7 @@ def collect_insurance_options(rows: list[dict]) -> list[str]:
     seen: set[str] = set()
     options: list[str] = []
     for row in rows:
-        for ins in (row.get("insurance_accepted") or []):
+        for ins in row.get("insurance_accepted") or []:
             if ins:
                 normalized = normalize_insurance_name(ins)
                 if normalized not in seen:

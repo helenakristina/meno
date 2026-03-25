@@ -41,7 +41,9 @@ def make_med(
     )
 
 
-def make_settings(mht_enabled: bool = True, journey_stage: str = "perimenopause") -> UserSettingsResponse:
+def make_settings(
+    mht_enabled: bool = True, journey_stage: str = "perimenopause"
+) -> UserSettingsResponse:
     return UserSettingsResponse(
         period_tracking_enabled=True,
         mht_tracking_enabled=mht_enabled,
@@ -60,6 +62,7 @@ def make_med_repo(
     context_return=None,
 ):
     from app.models.medications import MedicationContext
+
     repo = MagicMock()
     repo.list_all = AsyncMock(return_value=list_all_return or [])
     repo.list_current = AsyncMock(return_value=list_current_return or [])
@@ -209,7 +212,9 @@ class TestChangeDose:
         assert result.new_medication_id == "new-id"
 
     @pytest.mark.asyncio
-    async def test_change_dose_raises_validation_error_when_effective_date_not_after_start(self):
+    async def test_change_dose_raises_validation_error_when_effective_date_not_after_start(
+        self,
+    ):
         med = make_med(start_date="2026-03-01")
         repo = make_med_repo(get_return=med)
         service = make_service(med_repo=repo)
@@ -285,6 +290,7 @@ class TestGetContextIfEnabled:
     @pytest.mark.asyncio
     async def test_returns_context_when_enabled(self):
         from app.models.medications import MedicationContext
+
         ctx = MedicationContext(current_medications=[make_med()])
         repo = make_med_repo(context_return=ctx)
         service = make_service(med_repo=repo, mht_enabled=True)
@@ -297,6 +303,7 @@ class TestGetContextIfEnabled:
     @pytest.mark.asyncio
     async def test_returns_none_when_disabled(self):
         from app.models.medications import MedicationContext
+
         ctx = MedicationContext(current_medications=[make_med()])
         repo = make_med_repo(context_return=ctx)
         service = make_service(med_repo=repo, mht_enabled=False)
@@ -335,6 +342,7 @@ class TestGetSymptomComparison:
     async def test_returns_sparse_data_flag_when_fewer_than_14_days(self):
         # Start date is recent — 7 days ago means sparse
         from datetime import timedelta
+
         start = (date.today() - timedelta(days=7)).isoformat()
         med = make_med(start_date=start)
         repo = make_med_repo(get_return=med)

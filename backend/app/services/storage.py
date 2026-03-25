@@ -60,7 +60,9 @@ class StorageService:
                 path, signed_url_expires
             )
             signed_url: str = signed["signedURL"]
-            logger.info("Signed URL created (expires %ds): %s", signed_url_expires, signed_url)
+            logger.info(
+                "Signed URL created (expires %ds): %s", signed_url_expires, signed_url
+            )
             return signed_url
 
         except Exception as exc:
@@ -116,7 +118,9 @@ class StorageService:
                 path, signed_url_expires
             )
             signed_url: str = signed["signedURL"]
-            logger.info("Signed URL created (expires %ds): %s", signed_url_expires, signed_url)
+            logger.info(
+                "Signed URL created (expires %ds): %s", signed_url_expires, signed_url
+            )
             return signed_url
 
         except Exception as exc:

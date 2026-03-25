@@ -94,10 +94,7 @@ class UserRepository:
         """
         try:
             response = (
-                await self.client.table("users")
-                .select("*")
-                .eq("id", user_id)
-                .execute()
+                await self.client.table("users").select("*").eq("id", user_id).execute()
             )
         except Exception as exc:
             logger.error(
@@ -185,7 +182,10 @@ class UserRepository:
                 exc_info=True,
             )
             # Check if it's a conflict (duplicate) error
-            if "duplicate key" in str(exc).lower() or "unique violation" in str(exc).lower():
+            if (
+                "duplicate key" in str(exc).lower()
+                or "unique violation" in str(exc).lower()
+            ):
                 raise DuplicateEntityError("User profile already exists") from exc
             raise DatabaseError(f"Failed to create user profile: {exc}") from exc
 
@@ -210,10 +210,7 @@ class UserRepository:
         """
         try:
             response = (
-                await self.client.table("users")
-                .select("*")
-                .eq("id", user_id)
-                .execute()
+                await self.client.table("users").select("*").eq("id", user_id).execute()
             )
         except Exception as exc:
             logger.error(
@@ -245,12 +242,19 @@ class UserRepository:
         try:
             response = (
                 await self.client.table("users")
-                .select("period_tracking_enabled, mht_tracking_enabled, has_uterus, journey_stage")
+                .select(
+                    "period_tracking_enabled, mht_tracking_enabled, has_uterus, journey_stage"
+                )
                 .eq("id", user_id)
                 .execute()
             )
         except Exception as exc:
-            logger.error("DB query failed fetching settings user=%s: %s", hash_user_id(user_id), exc, exc_info=True)
+            logger.error(
+                "DB query failed fetching settings user=%s: %s",
+                hash_user_id(user_id),
+                exc,
+                exc_info=True,
+            )
             raise DatabaseError(f"Failed to fetch user settings: {exc}") from exc
 
         if not response.data:
@@ -264,7 +268,9 @@ class UserRepository:
             journey_stage=row.get("journey_stage"),
         )
 
-    async def update_settings(self, user_id: str, data: UserSettingsUpdate) -> UserSettingsResponse:
+    async def update_settings(
+        self, user_id: str, data: UserSettingsUpdate
+    ) -> UserSettingsResponse:
         """Update user settings fields.
 
         Only fields explicitly present in data.model_fields_set are written.
@@ -300,7 +306,12 @@ class UserRepository:
                 .execute()
             )
         except Exception as exc:
-            logger.error("DB update failed for settings user=%s: %s", hash_user_id(user_id), exc, exc_info=True)
+            logger.error(
+                "DB update failed for settings user=%s: %s",
+                hash_user_id(user_id),
+                exc,
+                exc_info=True,
+            )
             raise DatabaseError(f"Failed to update user settings: {exc}") from exc
 
         if not response.data:
@@ -327,10 +338,7 @@ class UserRepository:
         """
         try:
             response = (
-                await self.client.table("users")
-                .delete()
-                .eq("id", user_id)
-                .execute()
+                await self.client.table("users").delete().eq("id", user_id).execute()
             )
         except Exception as exc:
             logger.error(

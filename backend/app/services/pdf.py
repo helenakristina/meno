@@ -406,7 +406,9 @@ class PdfService:
         story.append(Spacer(1, 14))
 
         # --- Disclaimer ---
-        story.append(HRFlowable(width="100%", thickness=0.5, color=_BORDER, spaceAfter=6))
+        story.append(
+            HRFlowable(width="100%", thickness=0.5, color=_BORDER, spaceAfter=6)
+        )
         story.append(
             Paragraph(
                 "<b>Disclaimer:</b> This report is generated from personal symptom logs "

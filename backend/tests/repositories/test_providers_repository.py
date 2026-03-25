@@ -4,7 +4,12 @@ import pytest
 from datetime import date
 from unittest.mock import AsyncMock, MagicMock
 
-from app.exceptions import DatabaseError, DuplicateEntityError, EntityNotFoundError, ValidationError
+from app.exceptions import (
+    DatabaseError,
+    DuplicateEntityError,
+    EntityNotFoundError,
+    ValidationError,
+)
 from app.repositories.providers_repository import ProvidersRepository
 from app.models.providers import (
     ProviderCard,
@@ -178,7 +183,9 @@ async def test_search_providers_db_error():
     response.execute = AsyncMock(side_effect=Exception("DB connection error"))
 
     client = MagicMock()
-    client.table.return_value.select.return_value.eq.return_value.limit.return_value = response
+    client.table.return_value.select.return_value.eq.return_value.limit.return_value = (
+        response
+    )
 
     repo = ProvidersRepository(client)
 
@@ -334,7 +341,9 @@ async def test_get_shortlist_db_error():
     response.execute = AsyncMock(side_effect=Exception("DB error"))
 
     client = MagicMock()
-    client.table.return_value.select.return_value.eq.return_value.order.return_value = response
+    client.table.return_value.select.return_value.eq.return_value.order.return_value = (
+        response
+    )
 
     repo = ProvidersRepository(client)
 

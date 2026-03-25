@@ -103,7 +103,9 @@ def get_symptoms_repo(client: AsyncClient = Depends(get_client)) -> SymptomsRepo
     return SymptomsRepository(client=client)
 
 
-def get_conversation_repo(client: AsyncClient = Depends(get_client)) -> ConversationRepository:
+def get_conversation_repo(
+    client: AsyncClient = Depends(get_client),
+) -> ConversationRepository:
     """Dependency for ConversationRepository.
 
     Args:
@@ -115,7 +117,9 @@ def get_conversation_repo(client: AsyncClient = Depends(get_client)) -> Conversa
     return ConversationRepository(client=client)
 
 
-def get_providers_repo(client: AsyncClient = Depends(get_client)) -> ProvidersRepository:
+def get_providers_repo(
+    client: AsyncClient = Depends(get_client),
+) -> ProvidersRepository:
     """Dependency for ProvidersRepository.
 
     Args:
@@ -127,7 +131,9 @@ def get_providers_repo(client: AsyncClient = Depends(get_client)) -> ProvidersRe
     return ProvidersRepository(client=client)
 
 
-def get_appointment_repo(client: AsyncClient = Depends(get_client)) -> AppointmentRepository:
+def get_appointment_repo(
+    client: AsyncClient = Depends(get_client),
+) -> AppointmentRepository:
     """Dependency for AppointmentRepository.
 
     Args:
@@ -206,7 +212,9 @@ def get_pdf_service() -> PdfService:
     return PdfService()
 
 
-def get_medication_repo(client: AsyncClient = Depends(get_client)) -> MedicationRepository:
+def get_medication_repo(
+    client: AsyncClient = Depends(get_client),
+) -> MedicationRepository:
     """Dependency for MedicationRepository."""
     return MedicationRepository(client=client)
 

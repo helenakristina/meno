@@ -38,7 +38,9 @@ class TestListConversationsEndpoint:
             "offset": 0,
         }
 
-        assert expected_response["conversations"][0]["title"] == "What causes brain fog?"
+        assert (
+            expected_response["conversations"][0]["title"] == "What causes brain fog?"
+        )
         assert len(expected_response["conversations"]) == 2
 
     def test_list_conversations_query_params_documentation(self):

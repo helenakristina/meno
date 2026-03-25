@@ -3,6 +3,8 @@
 Supabase is mocked via FastAPI dependency_overrides (same pattern as test_symptoms.py).
 OpenAI and RAG retrieval are patched so no real network calls are made.
 """
+
+import json
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -53,6 +55,19 @@ OPENAI_RESPONSE = (
     "Hot flashes affect up to 80% of women during perimenopause [Source 1]. "
     "Current guidelines support hormone therapy for eligible women [Source 2]."
 )
+
+# Valid v2 structured JSON response — exercises the render_structured_response path
+V2_OPENAI_RESPONSE = json.dumps({
+    "sections": [
+        {
+            "heading": "Hot Flashes",
+            "body": "Hot flashes are one of the most common symptoms of perimenopause.",
+            "source_index": 1,
+        }
+    ],
+    "disclaimer": None,
+    "insufficient_sources": False,
+})
 
 
 # ---------------------------------------------------------------------------
@@ -109,12 +124,16 @@ def make_mock_client(
 
     _user_data = user_data if user_data is not None else [SAMPLE_USER_ROW]
     _summary_data = summary_data if summary_data is not None else [SAMPLE_SUMMARY_ROW]
-    _conv_load = conversation_load_data if conversation_load_data is not None else [
-        {"id": CONVERSATION_UUID, "messages": "[]"}
-    ]
-    _conv_save = conversation_save_data if conversation_save_data is not None else [
-        {"id": CONVERSATION_UUID, "messages": "[]"}
-    ]
+    _conv_load = (
+        conversation_load_data
+        if conversation_load_data is not None
+        else [{"id": CONVERSATION_UUID, "messages": "[]"}]
+    )
+    _conv_save = (
+        conversation_save_data
+        if conversation_save_data is not None
+        else [{"id": CONVERSATION_UUID, "messages": "[]"}]
+    )
 
     # Track which call we're on for conversations table (load vs save)
     conv_call_count = {"n": 0}
@@ -208,9 +227,7 @@ def test_chat_rejects_empty_message(client):
                 "app.api.dependencies.retrieve_relevant_chunks",
                 new=AsyncMock(return_value=SAMPLE_CHUNKS),
             ),
-            patch(
-                "app.api.dependencies.OpenAIProvider"
-            ) as MockProvider,
+            patch("app.api.dependencies.OpenAIProvider") as MockProvider,
         ):
             mock_instance = AsyncMock()
             mock_instance.chat_completion.return_value = OPENAI_RESPONSE
@@ -252,9 +269,7 @@ def test_chat_success_returns_message_and_citations(client):
                 "app.api.dependencies.retrieve_relevant_chunks",
                 new=AsyncMock(return_value=SAMPLE_CHUNKS),
             ),
-            patch(
-                "app.api.dependencies.OpenAIProvider"
-            ) as MockProvider,
+            patch("app.api.dependencies.OpenAIProvider") as MockProvider,
         ):
             mock_instance = AsyncMock()
             mock_instance.chat_completion.return_value = OPENAI_RESPONSE
@@ -291,9 +306,7 @@ def test_chat_deduplicates_citations(client):
                 "app.api.dependencies.retrieve_relevant_chunks",
                 new=AsyncMock(return_value=SAMPLE_CHUNKS),
             ),
-            patch(
-                "app.api.dependencies.OpenAIProvider"
-            ) as MockProvider,
+            patch("app.api.dependencies.OpenAIProvider") as MockProvider,
         ):
             mock_instance = AsyncMock()
             mock_instance.chat_completion.return_value = response_text
@@ -323,12 +336,12 @@ def test_chat_returns_empty_citations_when_no_sources_cited(client):
                 "app.api.dependencies.retrieve_relevant_chunks",
                 new=AsyncMock(return_value=SAMPLE_CHUNKS),
             ),
-            patch(
-                "app.api.dependencies.OpenAIProvider"
-            ) as MockProvider,
+            patch("app.api.dependencies.OpenAIProvider") as MockProvider,
         ):
             mock_instance = AsyncMock()
-            mock_instance.chat_completion.return_value = "I'm only able to help with menopause and perimenopause education."
+            mock_instance.chat_completion.return_value = (
+                "I'm only able to help with menopause and perimenopause education."
+            )
             MockProvider.return_value = mock_instance
 
             response = client.post(
@@ -340,6 +353,39 @@ def test_chat_returns_empty_citations_when_no_sources_cited(client):
         assert response.status_code == 200
         body = response.json()
         assert body["citations"] == []
+    finally:
+        clear()
+
+
+def test_chat_when_llm_returns_v2_json_then_structured_path_exercised(client):
+    """LLM returning valid v2 JSON exercises render_structured_response, not the fallback."""
+    mock_client = make_mock_client()
+    clear = override(mock_client)
+    try:
+        with (
+            patch(
+                "app.api.dependencies.retrieve_relevant_chunks",
+                new=AsyncMock(return_value=SAMPLE_CHUNKS),
+            ),
+            patch("app.api.dependencies.OpenAIProvider") as MockProvider,
+        ):
+            mock_instance = AsyncMock()
+            mock_instance.chat_completion.return_value = V2_OPENAI_RESPONSE
+            MockProvider.return_value = mock_instance
+
+            response = client.post(
+                "/api/chat",
+                json={"message": "What causes hot flashes?"},
+                headers=AUTH_HEADER,
+            )
+
+        assert response.status_code == 200
+        body = response.json()
+        # The structured body text should appear in the rendered prose paragraph
+        assert "Hot flashes are one of the most common symptoms of perimenopause." in body["message"]
+        # source_index=1 resolves to SAMPLE_CHUNKS[0], so citations must be non-empty
+        assert len(body["citations"]) >= 1
+        assert body["citations"][0]["url"] == "https://menopausewiki.ca/hot-flashes"
     finally:
         clear()
 
@@ -360,9 +406,7 @@ def test_chat_creates_new_conversation_when_no_id_provided(client):
                 "app.api.dependencies.retrieve_relevant_chunks",
                 new=AsyncMock(return_value=[]),
             ),
-            patch(
-                "app.api.dependencies.OpenAIProvider"
-            ) as MockProvider,
+            patch("app.api.dependencies.OpenAIProvider") as MockProvider,
         ):
             mock_instance = AsyncMock()
             mock_instance.chat_completion.return_value = OPENAI_RESPONSE
@@ -421,12 +465,12 @@ def test_chat_degrades_gracefully_when_rag_fails(client):
                 "app.api.dependencies.retrieve_relevant_chunks",
                 new=AsyncMock(side_effect=Exception("pgvector unavailable")),
             ),
-            patch(
-                "app.api.dependencies.OpenAIProvider"
-            ) as MockProvider,
+            patch("app.api.dependencies.OpenAIProvider") as MockProvider,
         ):
             mock_instance = AsyncMock()
-            mock_instance.chat_completion.return_value = "I can share general information about perimenopause."
+            mock_instance.chat_completion.return_value = (
+                "I can share general information about perimenopause."
+            )
             MockProvider.return_value = mock_instance
 
             response = client.post(
@@ -449,9 +493,7 @@ def test_chat_500_when_openai_fails(client):
                 "app.api.dependencies.retrieve_relevant_chunks",
                 new=AsyncMock(return_value=SAMPLE_CHUNKS),
             ),
-            patch(
-                "app.api.dependencies.OpenAIProvider"
-            ) as MockProvider,
+            patch("app.api.dependencies.OpenAIProvider") as MockProvider,
         ):
             mock_instance = AsyncMock()
             mock_instance.chat_completion.side_effect = Exception("OpenAI API error")
@@ -484,9 +526,7 @@ def test_chat_uses_defaults_when_user_profile_missing(client):
                 "app.api.dependencies.retrieve_relevant_chunks",
                 new=AsyncMock(return_value=SAMPLE_CHUNKS),
             ),
-            patch(
-                "app.api.dependencies.OpenAIProvider"
-            ) as MockProvider,
+            patch("app.api.dependencies.OpenAIProvider") as MockProvider,
         ):
             mock_instance = AsyncMock()
             mock_instance.chat_completion.return_value = OPENAI_RESPONSE
@@ -513,9 +553,7 @@ def test_chat_uses_default_summary_when_cache_missing(client):
                 "app.api.dependencies.retrieve_relevant_chunks",
                 new=AsyncMock(return_value=SAMPLE_CHUNKS),
             ),
-            patch(
-                "app.api.dependencies.OpenAIProvider"
-            ) as MockProvider,
+            patch("app.api.dependencies.OpenAIProvider") as MockProvider,
         ):
             mock_instance = AsyncMock()
             mock_instance.chat_completion.return_value = OPENAI_RESPONSE
@@ -553,9 +591,7 @@ def test_chat_sanitizes_phantom_citations(client):
                 "app.api.dependencies.retrieve_relevant_chunks",
                 new=AsyncMock(return_value=SAMPLE_CHUNKS),
             ),
-            patch(
-                "app.api.dependencies.OpenAIProvider"
-            ) as MockProvider,
+            patch("app.api.dependencies.OpenAIProvider") as MockProvider,
         ):
             mock_instance = AsyncMock()
             mock_instance.chat_completion.return_value = response_text
@@ -590,9 +626,7 @@ def test_chat_citations_include_section_names(client):
                 "app.api.dependencies.retrieve_relevant_chunks",
                 new=AsyncMock(return_value=SAMPLE_CHUNKS),
             ),
-            patch(
-                "app.api.dependencies.OpenAIProvider"
-            ) as MockProvider,
+            patch("app.api.dependencies.OpenAIProvider") as MockProvider,
         ):
             mock_instance = AsyncMock()
             mock_instance.chat_completion.return_value = OPENAI_RESPONSE
@@ -632,9 +666,7 @@ def test_chat_handles_multiple_phantom_citations(client):
                 "app.api.dependencies.retrieve_relevant_chunks",
                 new=AsyncMock(return_value=SAMPLE_CHUNKS),
             ),
-            patch(
-                "app.api.dependencies.OpenAIProvider"
-            ) as MockProvider,
+            patch("app.api.dependencies.OpenAIProvider") as MockProvider,
         ):
             mock_instance = AsyncMock()
             mock_instance.chat_completion.return_value = response_text
@@ -676,9 +708,7 @@ def test_chat_sanitizes_plain_bracket_phantom_citations(client):
                 "app.api.dependencies.retrieve_relevant_chunks",
                 new=AsyncMock(return_value=SAMPLE_CHUNKS),
             ),
-            patch(
-                "app.api.dependencies.OpenAIProvider"
-            ) as MockProvider,
+            patch("app.api.dependencies.OpenAIProvider") as MockProvider,
         ):
             mock_instance = AsyncMock()
             mock_instance.chat_completion.return_value = response_text

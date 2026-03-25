@@ -36,7 +36,7 @@ _REF_COLS = "id, brand_name, generic_name, hormone_type, common_forms, common_do
 
 def _escape_ilike(value: str) -> str:
     """Escape ILIKE special characters to prevent pattern injection."""
-    return re.sub(r'([%_\\])', r'\\\1', value)
+    return re.sub(r"([%_\\])", r"\\\1", value)
 
 
 class MedicationRepository:
@@ -49,7 +49,9 @@ class MedicationRepository:
     # medications_reference queries
     # ------------------------------------------------------------------
 
-    async def search_reference(self, query: str, user_id: str) -> list[MedicationReferenceResult]:
+    async def search_reference(
+        self, query: str, user_id: str
+    ) -> list[MedicationReferenceResult]:
         """Search medications_reference by brand name or generic name.
 
         Returns system entries matching the query plus any user-created entries
@@ -90,8 +92,12 @@ class MedicationRepository:
                 .execute()
             )
         except Exception as exc:
-            logger.error("DB search failed on medications_reference: %s", exc, exc_info=True)
-            raise DatabaseError(f"Failed to search medications reference: {exc}") from exc
+            logger.error(
+                "DB search failed on medications_reference: %s", exc, exc_info=True
+            )
+            raise DatabaseError(
+                f"Failed to search medications reference: {exc}"
+            ) from exc
 
         rows = (sys_resp.data or []) + (user_resp.data or [])
         return [MedicationReferenceResult.model_validate(r) for r in rows]
@@ -126,19 +132,23 @@ class MedicationRepository:
 
         try:
             response = (
-                await self.client.table("medications_reference")
-                .insert(row)
-                .execute()
+                await self.client.table("medications_reference").insert(row).execute()
             )
         except Exception as exc:
             logger.error(
                 "DB insert failed for medications_reference user=%s: %s",
-                hash_user_id(user_id), exc, exc_info=True,
+                hash_user_id(user_id),
+                exc,
+                exc_info=True,
             )
-            raise DatabaseError(f"Failed to create medication reference entry: {exc}") from exc
+            raise DatabaseError(
+                f"Failed to create medication reference entry: {exc}"
+            ) from exc
 
         if not response.data:
-            raise DatabaseError("Failed to create medication reference entry: no data returned")
+            raise DatabaseError(
+                "Failed to create medication reference entry: no data returned"
+            )
 
         return MedicationReferenceResult.model_validate(response.data[0])
 
@@ -167,7 +177,12 @@ class MedicationRepository:
                 .execute()
             )
         except Exception as exc:
-            logger.error("DB list failed for user_medications user=%s: %s", hash_user_id(user_id), exc, exc_info=True)
+            logger.error(
+                "DB list failed for user_medications user=%s: %s",
+                hash_user_id(user_id),
+                exc,
+                exc_info=True,
+            )
             raise DatabaseError(f"Failed to list medications: {exc}") from exc
 
         return [MedicationResponse.model_validate(r) for r in (response.data or [])]
@@ -197,7 +212,12 @@ class MedicationRepository:
                 .execute()
             )
         except Exception as exc:
-            logger.error("DB get failed for user_medications user=%s: %s", hash_user_id(user_id), exc, exc_info=True)
+            logger.error(
+                "DB get failed for user_medications user=%s: %s",
+                hash_user_id(user_id),
+                exc,
+                exc_info=True,
+            )
             raise DatabaseError(f"Failed to get medication: {exc}") from exc
 
         if not response.data:
@@ -233,13 +253,14 @@ class MedicationRepository:
             row["notes"] = data.notes
 
         try:
-            response = (
-                await self.client.table("user_medications")
-                .insert(row)
-                .execute()
-            )
+            response = await self.client.table("user_medications").insert(row).execute()
         except Exception as exc:
-            logger.error("DB insert failed for user_medications user=%s: %s", hash_user_id(user_id), exc, exc_info=True)
+            logger.error(
+                "DB insert failed for user_medications user=%s: %s",
+                hash_user_id(user_id),
+                exc,
+                exc_info=True,
+            )
             raise DatabaseError(f"Failed to create medication: {exc}") from exc
 
         if not response.data:
@@ -284,7 +305,12 @@ class MedicationRepository:
                 .execute()
             )
         except Exception as exc:
-            logger.error("DB update failed for user_medications user=%s: %s", hash_user_id(user_id), exc, exc_info=True)
+            logger.error(
+                "DB update failed for user_medications user=%s: %s",
+                hash_user_id(user_id),
+                exc,
+                exc_info=True,
+            )
             raise DatabaseError(f"Failed to update medication: {exc}") from exc
 
         if not response.data:
@@ -338,7 +364,12 @@ class MedicationRepository:
             msg = str(exc)
             if "medication_not_found" in msg:
                 raise EntityNotFoundError("Active medication stint not found") from exc
-            logger.error("RPC change_medication_dose failed user=%s: %s", hash_user_id(user_id), exc, exc_info=True)
+            logger.error(
+                "RPC change_medication_dose failed user=%s: %s",
+                hash_user_id(user_id),
+                exc,
+                exc_info=True,
+            )
             raise DatabaseError(f"Failed to change medication dose: {exc}") from exc
 
         return str(response.data)
@@ -368,7 +399,12 @@ class MedicationRepository:
                 .execute()
             )
         except Exception as exc:
-            logger.error("DB delete failed for user_medications user=%s: %s", hash_user_id(user_id), exc, exc_info=True)
+            logger.error(
+                "DB delete failed for user_medications user=%s: %s",
+                hash_user_id(user_id),
+                exc,
+                exc_info=True,
+            )
             raise DatabaseError(f"Failed to delete medication: {exc}") from exc
 
         logger.info("Medication deleted user=%s", hash_user_id(user_id))
@@ -397,7 +433,12 @@ class MedicationRepository:
                 .execute()
             )
         except Exception as exc:
-            logger.error("DB list_current failed user=%s: %s", hash_user_id(user_id), exc, exc_info=True)
+            logger.error(
+                "DB list_current failed user=%s: %s",
+                hash_user_id(user_id),
+                exc,
+                exc_info=True,
+            )
             raise DatabaseError(f"Failed to list current medications: {exc}") from exc
 
         return [MedicationResponse.model_validate(r) for r in (response.data or [])]
@@ -440,12 +481,21 @@ class MedicationRepository:
                 .execute(),
             )
         except Exception as exc:
-            logger.error("DB get_context failed user=%s: %s", hash_user_id(user_id), exc, exc_info=True)
+            logger.error(
+                "DB get_context failed user=%s: %s",
+                hash_user_id(user_id),
+                exc,
+                exc_info=True,
+            )
             raise DatabaseError(f"Failed to get medication context: {exc}") from exc
 
         return MedicationContext(
-            current_medications=[MedicationResponse.model_validate(r) for r in (current_resp.data or [])],
-            recent_changes=[MedicationResponse.model_validate(r) for r in (recent_resp.data or [])],
+            current_medications=[
+                MedicationResponse.model_validate(r) for r in (current_resp.data or [])
+            ],
+            recent_changes=[
+                MedicationResponse.model_validate(r) for r in (recent_resp.data or [])
+            ],
         )
 
     async def list_active_during(
@@ -478,7 +528,14 @@ class MedicationRepository:
                 .execute()
             )
         except Exception as exc:
-            logger.error("DB list_active_during failed user=%s: %s", hash_user_id(user_id), exc, exc_info=True)
-            raise DatabaseError(f"Failed to list medications for date range: {exc}") from exc
+            logger.error(
+                "DB list_active_during failed user=%s: %s",
+                hash_user_id(user_id),
+                exc,
+                exc_info=True,
+            )
+            raise DatabaseError(
+                f"Failed to list medications for date range: {exc}"
+            ) from exc
 
         return [MedicationResponse.model_validate(r) for r in (response.data or [])]

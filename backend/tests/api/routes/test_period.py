@@ -52,9 +52,7 @@ CYCLE_ANALYSIS = CycleAnalysisResponse(
 
 def make_auth_client(user_id: str = USER_ID) -> MagicMock:
     mock = MagicMock()
-    mock.auth.get_user = AsyncMock(
-        return_value=MagicMock(user=MagicMock(id=user_id))
-    )
+    mock.auth.get_user = AsyncMock(return_value=MagicMock(user=MagicMock(id=user_id)))
     return mock
 
 
@@ -214,9 +212,7 @@ class TestCreatePeriodLog:
 class TestListPeriodLogs:
     def test_list_logs_returns_empty_list(self):
         mock_service = MagicMock()
-        mock_service.get_logs = AsyncMock(
-            return_value=PeriodLogListResponse(logs=[])
-        )
+        mock_service.get_logs = AsyncMock(return_value=PeriodLogListResponse(logs=[]))
         auth_client = make_auth_client()
         override_service(mock_service)
         override_auth(auth_client)
@@ -250,9 +246,7 @@ class TestListPeriodLogs:
 
     def test_list_logs_passes_date_params_to_service(self):
         mock_service = MagicMock()
-        mock_service.get_logs = AsyncMock(
-            return_value=PeriodLogListResponse(logs=[])
-        )
+        mock_service.get_logs = AsyncMock(return_value=PeriodLogListResponse(logs=[]))
         auth_client = make_auth_client()
         override_service(mock_service)
         override_auth(auth_client)
@@ -266,7 +260,9 @@ class TestListPeriodLogs:
         finally:
             clear_overrides()
 
-        mock_service.get_logs.assert_called_once_with(USER_ID, "2026-01-01", "2026-03-31")
+        mock_service.get_logs.assert_called_once_with(
+            USER_ID, "2026-01-01", "2026-03-31"
+        )
 
     def test_list_logs_requires_auth(self):
         mock_service = MagicMock()

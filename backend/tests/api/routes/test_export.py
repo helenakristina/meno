@@ -4,6 +4,7 @@ Route-level tests: verify auth, request validation, and that the service layer i
 called correctly. Business logic (CSV content, PDF bytes) is tested in
 test_export_service.py.
 """
+
 from unittest.mock import AsyncMock, MagicMock
 
 from fastapi.testclient import TestClient
@@ -107,9 +108,13 @@ def make_mock_client(
 
     def table_side_effect(table_name):
         if table_name == "symptom_logs":
-            return MockQueryBuilder(data=log_data if log_data is not None else [SAMPLE_LOG])
+            return MockQueryBuilder(
+                data=log_data if log_data is not None else [SAMPLE_LOG]
+            )
         elif table_name == "symptoms_reference":
-            return MockQueryBuilder(data=ref_data if ref_data is not None else SAMPLE_REF)
+            return MockQueryBuilder(
+                data=ref_data if ref_data is not None else SAMPLE_REF
+            )
         else:
             # exports table — return success
             return MockQueryBuilder(data=[{"id": "export-uuid"}])
@@ -141,7 +146,9 @@ MOCK_EXPORT_RESPONSE_CSV = ExportResponse(
 )
 
 
-def _mock_export_service(pdf_response=MOCK_EXPORT_RESPONSE_PDF, csv_response=MOCK_EXPORT_RESPONSE_CSV):
+def _mock_export_service(
+    pdf_response=MOCK_EXPORT_RESPONSE_PDF, csv_response=MOCK_EXPORT_RESPONSE_CSV
+):
     svc = AsyncMock()
     svc.export_as_pdf.return_value = pdf_response
     svc.export_as_csv.return_value = csv_response

@@ -286,7 +286,9 @@ async def test_save_outputs_create_success():
         generated_at=datetime.now(),
     )
 
-    result = await repo.save_outputs(appointment_id, "user-123", provider_summary=provider_summary)
+    result = await repo.save_outputs(
+        appointment_id, "user-123", provider_summary=provider_summary
+    )
 
     assert result == output_id
 
@@ -303,7 +305,9 @@ async def test_save_outputs_context_not_found():
     )
 
     with pytest.raises(EntityNotFoundError):
-        await repo.save_outputs("nonexistent-id", "user-123", provider_summary=provider_summary)
+        await repo.save_outputs(
+            "nonexistent-id", "user-123", provider_summary=provider_summary
+        )
 
 
 @pytest.mark.asyncio
@@ -321,7 +325,9 @@ async def test_save_outputs_context_verification_error():
     )
 
     with pytest.raises(DatabaseError):
-        await repo.save_outputs("appointment-id", "user-123", provider_summary=provider_summary)
+        await repo.save_outputs(
+            "appointment-id", "user-123", provider_summary=provider_summary
+        )
 
 
 # ============================================================================
@@ -469,8 +475,20 @@ async def test_save_scenarios_success():
     appointment_id = "appt-123"
     user_id = "user-456"
     scenarios = [
-        {"id": "s1", "title": "Best case", "situation": "Best outcome", "suggestion": "Discuss options", "category": "positive"},
-        {"id": "s2", "title": "Worst case", "situation": "Worst outcome", "suggestion": "Know alternatives", "category": "negative"},
+        {
+            "id": "s1",
+            "title": "Best case",
+            "situation": "Best outcome",
+            "suggestion": "Discuss options",
+            "category": "positive",
+        },
+        {
+            "id": "s2",
+            "title": "Worst case",
+            "situation": "Worst outcome",
+            "suggestion": "Know alternatives",
+            "category": "negative",
+        },
     ]
 
     update_response = MagicMock(data=[{"id": appointment_id}])
@@ -511,7 +529,9 @@ async def test_save_pdf_metadata_success():
     mock_client = make_sequential_client(pdf_response)
     repo = AppointmentRepository(client=mock_client)
 
-    result = await repo.save_pdf_metadata(user_id, appointment_id, provider_path, cheatsheet_path)
+    result = await repo.save_pdf_metadata(
+        user_id, appointment_id, provider_path, cheatsheet_path
+    )
 
     assert result == "metadata-789"
 
@@ -552,14 +572,23 @@ async def test_get_user_prep_history_success():
     data_chain.range.return_value = data_chain
     data_response = MagicMock(
         data=[
-            {"id": "metadata-1", "appointment_id": "appt-1", "generated_at": "2026-03-05T14:00:00Z"},
-            {"id": "metadata-2", "appointment_id": "appt-2", "generated_at": "2026-03-01T10:00:00Z"},
+            {
+                "id": "metadata-1",
+                "appointment_id": "appt-1",
+                "generated_at": "2026-03-05T14:00:00Z",
+            },
+            {
+                "id": "metadata-2",
+                "appointment_id": "appt-2",
+                "generated_at": "2026-03-01T10:00:00Z",
+            },
         ]
     )
     data_chain.execute = AsyncMock(return_value=data_response)
 
     # Make table() alternate between count and data chains
     call_count = [0]
+
     def table_side_effect(*args, **kwargs):
         call_count[0] += 1
         return count_chain if call_count[0] == 1 else data_chain
@@ -595,6 +624,7 @@ async def test_get_user_prep_history_empty():
     data_chain.execute = AsyncMock(return_value=MagicMock(data=[]))
 
     call_count = [0]
+
     def table_side_effect(*args, **kwargs):
         call_count[0] += 1
         return count_chain if call_count[0] == 1 else data_chain
@@ -652,7 +682,9 @@ async def test_save_outputs_update_existing():
         generated_at=datetime.now(timezone.utc),
     )
 
-    result = await repo.save_outputs(appointment_id, user_id, provider_summary=provider_summary)
+    result = await repo.save_outputs(
+        appointment_id, user_id, provider_summary=provider_summary
+    )
 
     assert result == output_id
 
@@ -709,6 +741,7 @@ async def test_save_outputs_existing_check_error():
     existing_chain.execute = AsyncMock(side_effect=Exception("Query failed"))
 
     call_count = [0]
+
     def table_side_effect(*args, **kwargs):
         call_count[0] += 1
         if call_count[0] == 1:

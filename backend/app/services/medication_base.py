@@ -64,7 +64,9 @@ class MedicationServiceBase(ABC):
     ) -> SymptomComparisonResponse: ...
 
     @abstractmethod
-    async def get_context_if_enabled(self, user_id: str) -> MedicationContext | None: ...
+    async def get_context_if_enabled(
+        self, user_id: str
+    ) -> MedicationContext | None: ...
 
     @abstractmethod
     async def list_active_during(

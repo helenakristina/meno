@@ -141,7 +141,11 @@ async def generate_appointment_narrative(
     except EntityNotFoundError as exc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc))
     except DatabaseError as exc:
-        logger.error("Narrative generation failed: appointment_id=%s error=%s", appointment_id, exc)
+        logger.error(
+            "Narrative generation failed: appointment_id=%s error=%s",
+            appointment_id,
+            exc,
+        )
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to generate narrative. Please try again.",
@@ -255,7 +259,11 @@ async def generate_appointment_scenarios(
     except EntityNotFoundError as exc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc))
     except DatabaseError as exc:
-        logger.error("Scenario generation failed: appointment_id=%s error=%s", appointment_id, exc)
+        logger.error(
+            "Scenario generation failed: appointment_id=%s error=%s",
+            appointment_id,
+            exc,
+        )
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to generate scenarios. Please try again.",
@@ -292,7 +300,9 @@ async def generate_appointment_outputs(
     except EntityNotFoundError as exc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc))
     except DatabaseError as exc:
-        logger.error("PDF generation failed: appointment_id=%s error=%s", appointment_id, exc)
+        logger.error(
+            "PDF generation failed: appointment_id=%s error=%s", appointment_id, exc
+        )
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to generate outputs. Please try again.",
@@ -411,5 +421,3 @@ async def get_appointment_prep_history(
         preps=history_items,
         total=total,
     )
-
-

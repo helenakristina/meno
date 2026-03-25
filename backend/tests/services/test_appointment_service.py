@@ -88,7 +88,9 @@ def mock_llm_service():
     svc.generate_scenario_suggestions = AsyncMock(
         return_value='[{"suggestion": "You can advocate for treatment by citing NAMS guidelines.", "sources": []}]'
     )
-    svc.generate_pdf_content = AsyncMock(return_value="## Provider Summary\n\nKey findings.")
+    svc.generate_pdf_content = AsyncMock(
+        return_value="## Provider Summary\n\nKey findings."
+    )
     return svc
 
 
@@ -395,14 +397,20 @@ class TestSelectScenarios:
         ctx = self._context(AppointmentGoal.explore_hrt)
         scenarios = svc._select_scenarios(ctx, "perimenopause")
 
-        assert any("hormone therapy" in s.lower() or "breast cancer" in s.lower() for s in scenarios)
+        assert any(
+            "hormone therapy" in s.lower() or "breast cancer" in s.lower()
+            for s in scenarios
+        )
 
     def test_urgent_hot_flash_selects_vasomotor_scenarios(self):
         svc = self._make_service()
         ctx = self._context(AppointmentGoal.urgent_symptom, urgent="hot flashes")
         scenarios = svc._select_scenarios(ctx, "perimenopause")
 
-        assert any("hot flash" in s.lower() or "vasomotor" in s.lower() or "layer" in s.lower() for s in scenarios)
+        assert any(
+            "hot flash" in s.lower() or "vasomotor" in s.lower() or "layer" in s.lower()
+            for s in scenarios
+        )
 
     def test_result_is_deduplicated(self):
         svc = self._make_service()
@@ -430,7 +438,10 @@ class TestGetScenarioCategory:
 
     def test_hormone_therapy_risk_returns_hrt_safety(self):
         svc = self._make_service()
-        assert svc._get_scenario_category("Hormone therapy increases breast cancer risk") == "hrt-safety"
+        assert (
+            svc._get_scenario_category("Hormone therapy increases breast cancer risk")
+            == "hrt-safety"
+        )
 
     def test_aging_normalization_returns_normalization(self):
         svc = self._make_service()
@@ -438,7 +449,10 @@ class TestGetScenarioCategory:
 
     def test_antidepressant_returns_wrong_specialist(self):
         svc = self._make_service()
-        assert svc._get_scenario_category("Let's try an antidepressant first") == "wrong-specialist"
+        assert (
+            svc._get_scenario_category("Let's try an antidepressant first")
+            == "wrong-specialist"
+        )
 
     def test_unknown_returns_general(self):
         svc = self._make_service()

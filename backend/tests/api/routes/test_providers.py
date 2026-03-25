@@ -314,8 +314,18 @@ class TestSearchProviders:
         assert len(body["providers"]) == 1
 
     def test_nams_certified_providers_sorted_first(self):
-        non_nams = {**PROVIDER_MN, "id": "uuid-non", "name": "Dr. AAA NonNams", "nams_certified": False}
-        nams = {**PROVIDER_MN, "id": "uuid-nams", "name": "Dr. ZZZ Nams", "nams_certified": True}
+        non_nams = {
+            **PROVIDER_MN,
+            "id": "uuid-non",
+            "name": "Dr. AAA NonNams",
+            "nams_certified": False,
+        }
+        nams = {
+            **PROVIDER_MN,
+            "id": "uuid-nams",
+            "name": "Dr. ZZZ Nams",
+            "nams_certified": True,
+        }
         mock = make_mock_client(data=[non_nams, nams])
         cleanup = override(mock)
         try:
@@ -373,7 +383,10 @@ class TestSearchProviders:
         assert body["total_pages"] == 1
 
     def test_search_results_normalize_commercial_insurance(self):
-        provider = {**PROVIDER_MN, "insurance_accepted": ["Commercial Insurance", "Medicare"]}
+        provider = {
+            **PROVIDER_MN,
+            "insurance_accepted": ["Commercial Insurance", "Medicare"],
+        }
         mock = make_mock_client(data=[provider])
         cleanup = override(mock)
         try:
@@ -545,7 +558,9 @@ class TestListInsuranceOptions:
 # POST /api/providers/calling-script
 # ---------------------------------------------------------------------------
 
-_MOCK_SCRIPT = "Hi, I'm calling to inquire about a new patient appointment with Dr. Smith."
+_MOCK_SCRIPT = (
+    "Hi, I'm calling to inquire about a new patient appointment with Dr. Smith."
+)
 
 _BASE_PAYLOAD = {
     "provider_id": "uuid-1",
@@ -599,7 +614,11 @@ class TestGenerateCallingScript:
 
     def test_medicaid_with_plan_returns_script(self):
         cleanup = override_auth_and_llm()
-        payload = {**_BASE_PAYLOAD, "insurance_type": "medicaid", "insurance_plan_name": "UCare"}
+        payload = {
+            **_BASE_PAYLOAD,
+            "insurance_type": "medicaid",
+            "insurance_plan_name": "UCare",
+        }
         try:
             with TestClient(app) as client:
                 response = self._post(client, payload)
@@ -641,7 +660,11 @@ class TestGenerateCallingScript:
 
     def test_medicare_original_no_plan_returns_script(self):
         cleanup = override_auth_and_llm()
-        payload = {**_BASE_PAYLOAD, "insurance_type": "medicare", "insurance_plan_name": None}
+        payload = {
+            **_BASE_PAYLOAD,
+            "insurance_type": "medicare",
+            "insurance_plan_name": None,
+        }
         try:
             with TestClient(app) as client:
                 response = self._post(client, payload)
@@ -652,7 +675,11 @@ class TestGenerateCallingScript:
 
     def test_self_pay_returns_script(self):
         cleanup = override_auth_and_llm()
-        payload = {**_BASE_PAYLOAD, "insurance_type": "self_pay", "insurance_plan_name": None}
+        payload = {
+            **_BASE_PAYLOAD,
+            "insurance_type": "self_pay",
+            "insurance_plan_name": None,
+        }
         try:
             with TestClient(app) as client:
                 response = self._post(client, payload)
@@ -974,7 +1001,11 @@ class TestUpdateShortlistEntry:
         assert response.json()["notes"] == "Call back in March"
 
     def test_updates_both_status_and_notes(self):
-        updated_entry = {**_SHORTLIST_ENTRY, "status": "booking", "notes": "Appointment next week"}
+        updated_entry = {
+            **_SHORTLIST_ENTRY,
+            "status": "booking",
+            "notes": "Appointment next week",
+        }
         mock = make_sequential_client([_SHORTLIST_ENTRY], [updated_entry])
         cleanup = override_both(mock)
         try:

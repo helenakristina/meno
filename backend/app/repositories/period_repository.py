@@ -11,7 +11,12 @@ from typing import Optional
 from supabase import AsyncClient
 
 from app.exceptions import DatabaseError, EntityNotFoundError
-from app.models.period import CycleAnalysisResponse, PeriodLogCreate, PeriodLogResponse, PeriodLogUpdate
+from app.models.period import (
+    CycleAnalysisResponse,
+    PeriodLogCreate,
+    PeriodLogResponse,
+    PeriodLogUpdate,
+)
 from app.utils.dates import calculate_cycle_length
 from app.utils.logging import hash_user_id
 
@@ -28,7 +33,9 @@ class PeriodRepository:
     def __init__(self, client: AsyncClient):
         self.client = client
 
-    async def create_log(self, user_id: str, data: PeriodLogCreate) -> PeriodLogResponse:
+    async def create_log(
+        self, user_id: str, data: PeriodLogCreate
+    ) -> PeriodLogResponse:
         """Create a new period log entry.
 
         Args:
@@ -46,7 +53,9 @@ class PeriodRepository:
         cycle_length: Optional[int] = None
         if previous is not None:
             try:
-                cycle_length = calculate_cycle_length(data.period_start, previous.period_start)
+                cycle_length = calculate_cycle_length(
+                    data.period_start, previous.period_start
+                )
             except ValueError:
                 cycle_length = None
 
@@ -65,7 +74,12 @@ class PeriodRepository:
         try:
             response = await self.client.table("period_logs").insert(row).execute()
         except Exception as exc:
-            logger.error("DB insert failed for period log user=%s: %s", hash_user_id(user_id), exc, exc_info=True)
+            logger.error(
+                "DB insert failed for period log user=%s: %s",
+                hash_user_id(user_id),
+                exc,
+                exc_info=True,
+            )
             raise DatabaseError(f"Failed to create period log: {exc}") from exc
 
         if not response.data:
@@ -94,11 +108,7 @@ class PeriodRepository:
             DatabaseError: If the database query fails.
         """
         try:
-            query = (
-                self.client.table("period_logs")
-                .select("*")
-                .eq("user_id", user_id)
-            )
+            query = self.client.table("period_logs").select("*").eq("user_id", user_id)
             if start_date is not None:
                 query = query.gte("period_start", start_date.isoformat())
             if end_date is not None:
@@ -107,7 +117,12 @@ class PeriodRepository:
             query = query.order("period_start", desc=True)
             response = await query.execute()
         except Exception as exc:
-            logger.error("DB query failed fetching period logs user=%s: %s", hash_user_id(user_id), exc, exc_info=True)
+            logger.error(
+                "DB query failed fetching period logs user=%s: %s",
+                hash_user_id(user_id),
+                exc,
+                exc_info=True,
+            )
             raise DatabaseError(f"Failed to retrieve period logs: {exc}") from exc
 
         return [self._to_model(row) for row in (response.data or [])]
@@ -134,7 +149,12 @@ class PeriodRepository:
                 .execute()
             )
         except Exception as exc:
-            logger.error("DB query failed fetching latest period log user=%s: %s", hash_user_id(user_id), exc, exc_info=True)
+            logger.error(
+                "DB query failed fetching latest period log user=%s: %s",
+                hash_user_id(user_id),
+                exc,
+                exc_info=True,
+            )
             raise DatabaseError(f"Failed to retrieve latest period log: {exc}") from exc
 
         if not response.data:
@@ -164,7 +184,12 @@ class PeriodRepository:
                 .execute()
             )
         except Exception as exc:
-            logger.error("DB query failed fetching all period logs user=%s: %s", hash_user_id(user_id), exc, exc_info=True)
+            logger.error(
+                "DB query failed fetching all period logs user=%s: %s",
+                hash_user_id(user_id),
+                exc,
+                exc_info=True,
+            )
             raise DatabaseError(f"Failed to retrieve period logs: {exc}") from exc
 
         return [self._to_model(row) for row in (response.data or [])]
@@ -193,7 +218,13 @@ class PeriodRepository:
                 .execute()
             )
         except Exception as exc:
-            logger.error("DB query failed fetching period log %s user=%s: %s", log_id, hash_user_id(user_id), exc, exc_info=True)
+            logger.error(
+                "DB query failed fetching period log %s user=%s: %s",
+                log_id,
+                hash_user_id(user_id),
+                exc,
+                exc_info=True,
+            )
             raise DatabaseError(f"Failed to retrieve period log: {exc}") from exc
 
         if not response.data:
@@ -220,7 +251,9 @@ class PeriodRepository:
         """
         update_data: dict = {}
         if "period_end" in data.model_fields_set:
-            update_data["period_end"] = data.period_end.isoformat() if data.period_end is not None else None
+            update_data["period_end"] = (
+                data.period_end.isoformat() if data.period_end is not None else None
+            )
         if "flow_level" in data.model_fields_set:
             update_data["flow_level"] = data.flow_level
         if "notes" in data.model_fields_set:
@@ -235,7 +268,13 @@ class PeriodRepository:
                 .execute()
             )
         except Exception as exc:
-            logger.error("DB update failed for period log %s user=%s: %s", log_id, hash_user_id(user_id), exc, exc_info=True)
+            logger.error(
+                "DB update failed for period log %s user=%s: %s",
+                log_id,
+                hash_user_id(user_id),
+                exc,
+                exc_info=True,
+            )
             raise DatabaseError(f"Failed to update period log: {exc}") from exc
 
         if not response.data:
@@ -264,7 +303,13 @@ class PeriodRepository:
                 .execute()
             )
         except Exception as exc:
-            logger.error("DB delete failed for period log %s user=%s: %s", log_id, hash_user_id(user_id), exc, exc_info=True)
+            logger.error(
+                "DB delete failed for period log %s user=%s: %s",
+                log_id,
+                hash_user_id(user_id),
+                exc,
+                exc_info=True,
+            )
             raise DatabaseError(f"Failed to delete period log: {exc}") from exc
 
         if not response.data:
@@ -300,7 +345,12 @@ class PeriodRepository:
                 .execute()
             )
         except Exception as exc:
-            logger.error("DB upsert failed for cycle_analysis user=%s: %s", hash_user_id(user_id), exc, exc_info=True)
+            logger.error(
+                "DB upsert failed for cycle_analysis user=%s: %s",
+                hash_user_id(user_id),
+                exc,
+                exc_info=True,
+            )
             raise DatabaseError(f"Failed to upsert cycle analysis: {exc}") from exc
 
     async def get_cycle_analysis(self, user_id: str) -> Optional[CycleAnalysisResponse]:
@@ -327,7 +377,12 @@ class PeriodRepository:
                 .execute()
             )
         except Exception as exc:
-            logger.error("DB query failed fetching cycle analysis user=%s: %s", hash_user_id(user_id), exc, exc_info=True)
+            logger.error(
+                "DB query failed fetching cycle analysis user=%s: %s",
+                hash_user_id(user_id),
+                exc,
+                exc_info=True,
+            )
             raise DatabaseError(f"Failed to retrieve cycle analysis: {exc}") from exc
 
         if not response.data:

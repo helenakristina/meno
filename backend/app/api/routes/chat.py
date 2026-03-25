@@ -71,7 +71,9 @@ async def ask_meno(
             conversation_id=payload.conversation_id,
         )
     except DatabaseError as exc:
-        logger.error("Ask Meno failed for user=%s: %s", hash_user_id(user_id), exc, exc_info=True)
+        logger.error(
+            "Ask Meno failed for user=%s: %s", hash_user_id(user_id), exc, exc_info=True
+        )
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="The AI assistant is temporarily unavailable. Please try again in a moment.",
@@ -127,7 +129,9 @@ async def get_suggested_prompts(
 async def list_conversations(
     user_id: CurrentUser,
     ask_meno_service: AskMenoService = Depends(get_ask_meno_service),
-    limit: int = Query(default=20, ge=1, le=100, description="Number of conversations per page"),
+    limit: int = Query(
+        default=20, ge=1, le=100, description="Number of conversations per page"
+    ),
     offset: int = Query(default=0, ge=0, description="Number of conversations to skip"),
 ) -> ConversationListResponse:
     """List all conversations for the current user.
@@ -139,7 +143,12 @@ async def list_conversations(
     try:
         return await ask_meno_service.list_conversations(user_id, limit, offset)
     except DatabaseError as exc:
-        logger.error("Failed to list conversations for user %s: %s", hash_user_id(user_id), exc, exc_info=True)
+        logger.error(
+            "Failed to list conversations for user %s: %s",
+            hash_user_id(user_id),
+            exc,
+            exc_info=True,
+        )
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to load conversations",
@@ -169,7 +178,9 @@ async def get_conversation(
     except EntityNotFoundError as exc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc))
     except DatabaseError as exc:
-        logger.error("Failed to load conversation %s: %s", conversation_id, exc, exc_info=True)
+        logger.error(
+            "Failed to load conversation %s: %s", conversation_id, exc, exc_info=True
+        )
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to load conversation",
@@ -199,7 +210,9 @@ async def delete_conversation(
     except EntityNotFoundError as exc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc))
     except DatabaseError as exc:
-        logger.error("Failed to delete conversation %s: %s", conversation_id, exc, exc_info=True)
+        logger.error(
+            "Failed to delete conversation %s: %s", conversation_id, exc, exc_info=True
+        )
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to delete conversation",

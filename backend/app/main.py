@@ -3,7 +3,16 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 import logging
 
-from app.api.routes import appointment, chat, export, medications, period, providers, symptoms, users
+from app.api.routes import (
+    appointment,
+    chat,
+    export,
+    medications,
+    period,
+    providers,
+    symptoms,
+    users,
+)
 from app.core.config import settings
 from app.exceptions import (
     EntityNotFoundError,

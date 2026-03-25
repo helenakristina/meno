@@ -15,7 +15,10 @@ import json
 import logging
 import random
 from pathlib import Path
-from typing import Callable, Optional
+from typing import TYPE_CHECKING, Callable
+
+if TYPE_CHECKING:
+    from app.services.medication import MedicationService
 from urllib.parse import urlparse
 from uuid import UUID
 
@@ -61,8 +64,8 @@ class AskMenoService:
         llm_service: LLMService,
         citation_service: CitationService,
         rag_retriever: Callable,
-        period_repo: Optional[PeriodRepository] = None,
-        medication_service=None,
+        period_repo: PeriodRepository | None = None,
+        medication_service: "MedicationService | None" = None,
     ):
         self.user_repo = user_repo
         self.symptoms_repo = symptoms_repo
@@ -72,7 +75,7 @@ class AskMenoService:
         self.rag_retriever = rag_retriever
         self.period_repo = period_repo
         self.medication_service = medication_service
-        self._prompt_config: Optional[dict] = None
+        self._prompt_config: dict | None = None
 
     # ---------------------------------------------------------------------------
     # ask()
@@ -131,9 +134,9 @@ class AskMenoService:
             raise DatabaseError(f"Failed to process question: {exc}") from exc
 
         # Fetch optional enrichment data concurrently — all are supplementary
-        cycle_context: Optional[dict] = None
-        has_uterus: Optional[bool] = None
-        medication_context: Optional[MedicationContext] = None
+        cycle_context: dict | None = None
+        has_uterus: bool | None = None
+        medication_context: MedicationContext | None = None
 
         gather_coros = []
         gather_keys = []
@@ -154,11 +157,15 @@ class AskMenoService:
                 result_map = dict(zip(gather_keys, results))
 
                 settings_result = result_map.get("settings")
-                if settings_result is not None and not isinstance(settings_result, Exception):
+                if settings_result is not None and not isinstance(
+                    settings_result, Exception
+                ):
                     has_uterus = settings_result.has_uterus
 
                 analysis_result = result_map.get("analysis")
-                if analysis_result is not None and not isinstance(analysis_result, Exception):
+                if analysis_result is not None and not isinstance(
+                    analysis_result, Exception
+                ):
                     cycle_context = {
                         "average_cycle_length": analysis_result.average_cycle_length,
                         "months_since_last_period": analysis_result.months_since_last_period,
@@ -230,20 +237,23 @@ class AskMenoService:
 
         # Build system prompt
         system_prompt = PromptService.build_system_prompt(
-            journey_stage, age, symptom_summary, chunks,
+            journey_stage,
+            age,
+            symptom_summary,
+            chunks,
             cycle_context=cycle_context,
             has_uterus=has_uterus,
             medication_context=medication_context,
         )
 
-        # Call LLM (JSON mode, lower temperature for source faithfulness)
+        # Call LLM (JSON mode; temperature=0.5 balances creativity with source grounding)
         try:
-            response_text = await self.llm_service.provider.chat_completion(
+            response_text = await self.llm_service.chat_completion(
                 system_prompt=system_prompt,
                 user_prompt=message,
                 response_format="json",
-                temperature=0.3,
-                max_tokens=1500,
+                temperature=0.5,
+                max_tokens=2000,
             )
         except Exception as exc:
             logger.error(
@@ -265,11 +275,13 @@ class AskMenoService:
         try:
             raw_response = json.loads(response_text)
 
-            # Log the raw structured response for debugging citation issues
+            # Log structural metadata only — never log LLM response content
             logger.info(
-                "Raw structured LLM response for user=%s: %s",
+                "Structured LLM response for user=%s: sections=%d insufficient=%s disclaimer=%s",
                 hash_user_id(user_id),
-                json.dumps(raw_response, indent=None)[:2000],
+                len(raw_response.get("sections", [])),
+                raw_response.get("insufficient_sources"),
+                bool(raw_response.get("disclaimer")),
             )
 
             structured = StructuredLLMResponse(**raw_response)
@@ -277,18 +289,13 @@ class AskMenoService:
                 structured, chunks
             )
 
-            # Log the final rendered text so we can verify no stray markers
             logger.info(
-                "Rendered text for user=%s: %s",
+                "Rendered response for user=%s: len=%d citations=%d",
                 hash_user_id(user_id),
-                response_text[:500],
-            )
-            logger.info(
-                "Structured response rendered: %d citation(s) for user=%s",
+                safe_len(response_text),
                 len(citations),
-                hash_user_id(user_id),
             )
-        except (json.JSONDecodeError, ValidationError, Exception) as exc:
+        except Exception as exc:
             logger.warning(
                 "Failed to parse structured LLM response for user=%s (%s: %s) — "
                 "falling back to free-text pipeline",

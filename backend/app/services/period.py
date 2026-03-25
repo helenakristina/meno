@@ -145,7 +145,9 @@ class PeriodService(PeriodServiceBase):
 
         # Recompute has_sufficient_data for cached analysis (not persisted)
         all_logs = await self.period_repo.get_all_logs(user_id)
-        cycle_lengths = [log.cycle_length for log in all_logs if log.cycle_length is not None]
+        cycle_lengths = [
+            log.cycle_length for log in all_logs if log.cycle_length is not None
+        ]
         analysis.has_sufficient_data = len(cycle_lengths) >= MIN_CYCLES_FOR_ANALYSIS
 
         return analysis
@@ -175,7 +177,9 @@ class PeriodService(PeriodServiceBase):
                 cycle_lengths.append(delta)
 
         avg = sum(cycle_lengths) / len(cycle_lengths) if cycle_lengths else None
-        variability = calculate_cycle_variability(cycle_lengths) if cycle_lengths else None
+        variability = (
+            calculate_cycle_variability(cycle_lengths) if cycle_lengths else None
+        )
 
         latest = all_logs[-1]  # most recent (ascending order)
         months_since = max(0, months_since_date(latest.period_start))
@@ -207,5 +211,9 @@ class PeriodService(PeriodServiceBase):
         except EntityNotFoundError:
             return None
         except Exception as exc:
-            logger.warning("Failed to fetch journey stage for user=%s: %s", hash_user_id(user_id), exc)
+            logger.warning(
+                "Failed to fetch journey stage for user=%s: %s",
+                hash_user_id(user_id),
+                exc,
+            )
             return None

@@ -40,7 +40,9 @@ class TestSelectScenarios:
 
         # Should include HRT-specific dismissals
         assert "Hormone therapy increases breast cancer risk" in scenarios
-        assert "I don't prescribe that, I give the birth control pill instead" in scenarios
+        assert (
+            "I don't prescribe that, I give the birth control pill instead" in scenarios
+        )
         assert "Let's try an antidepressant first" in scenarios
         assert len(scenarios) <= 7
 
@@ -132,7 +134,9 @@ class TestSelectScenarios:
                     dismissed_before=dismissed,
                 )
                 scenarios = _select_scenarios(context, "exploration")
-                assert len(scenarios) <= 7, f"Too many scenarios for {goal}: {len(scenarios)}"
+                assert len(scenarios) <= 7, (
+                    f"Too many scenarios for {goal}: {len(scenarios)}"
+                )
 
     def test_all_scenarios_are_realistic_dismissals(self):
         """All returned scenarios are real dismissals users experience."""
@@ -182,32 +186,49 @@ class TestGetScenarioCategory:
     def test_alternative_treatment_category(self):
         """Scenarios offering alternative treatments are categorized correctly."""
         assert (
-            _get_scenario_category("I don't prescribe that, I give the birth control pill instead")
+            _get_scenario_category(
+                "I don't prescribe that, I give the birth control pill instead"
+            )
             == "general"  # Doesn't match specific patterns in new categorization
         )
 
     def test_dismissal_psychology_category(self):
         """Scenarios blaming psychology are categorized as wrong-specialist or psychology."""
-        assert _get_scenario_category("Let's try an antidepressant first") == "wrong-specialist"
+        assert (
+            _get_scenario_category("Let's try an antidepressant first")
+            == "wrong-specialist"
+        )
         assert _get_scenario_category("You're just stressed or anxious") == "psychology"
 
     def test_treatment_adjustment_category(self):
         """Scenarios about dose/severity are categorized as dismissal."""
-        assert _get_scenario_category("Your symptoms aren't severe enough to treat") == "dismissal"
+        assert (
+            _get_scenario_category("Your symptoms aren't severe enough to treat")
+            == "dismissal"
+        )
         assert _get_scenario_category("That dose is already too high") == "dismissal"
 
     def test_deflection_category(self):
         """Scenarios deflecting with questions/lifestyle are categorized by type."""
         assert _get_scenario_category("What are the triggers?") == "general"
-        assert _get_scenario_category("Let's try lifestyle changes first") == "lifestyle-only"
+        assert (
+            _get_scenario_category("Let's try lifestyle changes first")
+            == "lifestyle-only"
+        )
 
     def test_dismissal_category(self):
         """Scenarios about waiting it out are categorized as wait-and-see."""
-        assert _get_scenario_category("Your symptoms will go away on their own") == "wait-and-see"
+        assert (
+            _get_scenario_category("Your symptoms will go away on their own")
+            == "wait-and-see"
+        )
 
     def test_category_case_insensitive(self):
         """Category detection is case-insensitive."""
-        assert _get_scenario_category("HORMONE THERAPY INCREASES BREAST CANCER RISK") == "hrt-safety"
+        assert (
+            _get_scenario_category("HORMONE THERAPY INCREASES BREAST CANCER RISK")
+            == "hrt-safety"
+        )
         assert _get_scenario_category("YOU'RE JUST STRESSED") == "psychology"
 
     def test_unknown_scenario_defaults_to_general(self):
@@ -246,6 +267,6 @@ class TestGetScenarioCategory:
                 scenarios = _select_scenarios(context, "exploration")
                 for scenario in scenarios:
                     category = _get_scenario_category(scenario)
-                    assert (
-                        category in valid_categories
-                    ), f"Invalid category '{category}' for scenario '{scenario}'"
+                    assert category in valid_categories, (
+                        f"Invalid category '{category}' for scenario '{scenario}'"
+                    )

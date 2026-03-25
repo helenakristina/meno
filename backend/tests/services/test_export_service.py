@@ -22,7 +22,9 @@ def _make_request(start=START, end=END):
 
 
 def _freq(name="Hot flashes", category="vasomotor", count=10):
-    return SymptomFrequency(symptom_id="sym-1", symptom_name=name, category=category, count=count)
+    return SymptomFrequency(
+        symptom_id="sym-1", symptom_name=name, category=category, count=count
+    )
 
 
 def _pair(s1="Hot flashes", s2="Night sweats", count=5, rate=0.5):
@@ -40,7 +42,11 @@ def _pair(s1="Hot flashes", s2="Night sweats", count=5, rate=0.5):
 @pytest.fixture
 def mock_symptoms_repo():
     mock = AsyncMock()
-    row = {"logged_at": "2026-01-10T08:00:00Z", "symptoms": ["sym-1"], "free_text_entry": None}
+    row = {
+        "logged_at": "2026-01-10T08:00:00Z",
+        "symptoms": ["sym-1"],
+        "free_text_entry": None,
+    }
     ref = {"sym-1": {"name": "Hot flashes", "category": "vasomotor"}}
     mock.get_logs_for_export.return_value = ([row], ref)
     return mock
@@ -184,28 +190,38 @@ class TestExportAsPdf:
             await service.export_as_pdf(USER_ID, _make_request(start=END, end=START))
 
     @pytest.mark.asyncio
-    async def test_raises_validation_error_when_no_logs(self, service, mock_symptoms_repo):
+    async def test_raises_validation_error_when_no_logs(
+        self, service, mock_symptoms_repo
+    ):
         mock_symptoms_repo.get_logs_for_export.return_value = ([], {})
 
         with pytest.raises(ValidationError, match="No symptom logs"):
             await service.export_as_pdf(USER_ID, _make_request())
 
     @pytest.mark.asyncio
-    async def test_raises_database_error_when_llm_fails(self, service, mock_llm_service):
-        mock_llm_service.generate_symptom_summary.side_effect = Exception("LLM unavailable")
+    async def test_raises_database_error_when_llm_fails(
+        self, service, mock_llm_service
+    ):
+        mock_llm_service.generate_symptom_summary.side_effect = Exception(
+            "LLM unavailable"
+        )
 
         with pytest.raises(DatabaseError, match="AI content"):
             await service.export_as_pdf(USER_ID, _make_request())
 
     @pytest.mark.asyncio
-    async def test_raises_database_error_when_pdf_build_fails(self, service, mock_pdf_service):
+    async def test_raises_database_error_when_pdf_build_fails(
+        self, service, mock_pdf_service
+    ):
         mock_pdf_service.build_export_pdf.side_effect = Exception("ReportLab error")
 
         with pytest.raises(DatabaseError, match="generate PDF"):
             await service.export_as_pdf(USER_ID, _make_request())
 
     @pytest.mark.asyncio
-    async def test_raises_database_error_when_upload_fails(self, service, mock_storage_service):
+    async def test_raises_database_error_when_upload_fails(
+        self, service, mock_storage_service
+    ):
         mock_storage_service.upload_pdf.side_effect = Exception("S3 unavailable")
 
         with pytest.raises(DatabaseError, match="upload PDF"):
@@ -265,14 +281,18 @@ class TestExportAsCsv:
         assert "Hot flashes" in csv_text
 
     @pytest.mark.asyncio
-    async def test_raises_validation_error_when_no_logs(self, service, mock_symptoms_repo):
+    async def test_raises_validation_error_when_no_logs(
+        self, service, mock_symptoms_repo
+    ):
         mock_symptoms_repo.get_logs_for_export.return_value = ([], {})
 
         with pytest.raises(ValidationError, match="No symptom logs"):
             await service.export_as_csv(USER_ID, _make_request())
 
     @pytest.mark.asyncio
-    async def test_raises_database_error_when_upload_fails(self, service, mock_storage_service):
+    async def test_raises_database_error_when_upload_fails(
+        self, service, mock_storage_service
+    ):
         mock_storage_service.upload_file.side_effect = Exception("S3 unavailable")
 
         with pytest.raises(DatabaseError, match="upload CSV"):
@@ -310,7 +330,9 @@ class TestGetExportHistory:
         assert result["has_more"] is False
 
     @pytest.mark.asyncio
-    async def test_has_more_is_true_when_more_records_exist(self, service, mock_export_repo):
+    async def test_has_more_is_true_when_more_records_exist(
+        self, service, mock_export_repo
+    ):
         mock_export_repo.get_export_history.return_value = (
             [{"id": "exp-1"}],
             100,
