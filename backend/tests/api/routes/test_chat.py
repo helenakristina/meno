@@ -57,17 +57,19 @@ OPENAI_RESPONSE = (
 )
 
 # Valid v2 structured JSON response — exercises the render_structured_response path
-V2_OPENAI_RESPONSE = json.dumps({
-    "sections": [
-        {
-            "heading": "Hot Flashes",
-            "body": "Hot flashes are one of the most common symptoms of perimenopause.",
-            "source_index": 1,
-        }
-    ],
-    "disclaimer": None,
-    "insufficient_sources": False,
-})
+V2_OPENAI_RESPONSE = json.dumps(
+    {
+        "sections": [
+            {
+                "heading": "Hot Flashes",
+                "body": "Hot flashes are one of the most common symptoms of perimenopause.",
+                "source_index": 1,
+            }
+        ],
+        "disclaimer": None,
+        "insufficient_sources": False,
+    }
+)
 
 
 # ---------------------------------------------------------------------------
@@ -382,7 +384,10 @@ def test_chat_when_llm_returns_v2_json_then_structured_path_exercised(client):
         assert response.status_code == 200
         body = response.json()
         # The structured body text should appear in the rendered prose paragraph
-        assert "Hot flashes are one of the most common symptoms of perimenopause." in body["message"]
+        assert (
+            "Hot flashes are one of the most common symptoms of perimenopause."
+            in body["message"]
+        )
         # source_index=1 resolves to SAMPLE_CHUNKS[0], so citations must be non-empty
         assert len(body["citations"]) >= 1
         assert body["citations"][0]["url"] == "https://menopausewiki.ca/hot-flashes"

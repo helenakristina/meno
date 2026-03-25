@@ -247,6 +247,7 @@ class TestMedicalAdviceBoundary:
         # v2: LLM returns JSON with source_index fields; [Source N] markers are added
         # by render_structured_response() — check the raw JSON for source citations instead.
         import json
+
         try:
             data = json.loads(response)
             has_sources = any(
