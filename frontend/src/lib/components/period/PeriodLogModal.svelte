@@ -303,10 +303,10 @@
 						type="button"
 						onclick={handleSubmit}
 						disabled={!startDate || saving}
-						class="flex-1 rounded-lg px-4 py-2.5 text-sm font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-300
+						class="flex-1 rounded-lg px-4 py-2.5 text-sm font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-400
 							{!startDate || saving
 							? 'cursor-not-allowed bg-neutral-100 text-neutral-400'
-							: 'bg-accent-600 text-white hover:bg-accent-700'}"
+							: 'bg-primary-500 text-white hover:bg-primary-600'}"
 					>
 						{saving ? 'Saving…' : isEditing ? 'Save changes' : 'Log period'}
 					</button>
