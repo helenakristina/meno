@@ -1,7 +1,7 @@
 ---
 title: "feat: Frontend Design System Overhaul"
 type: feat
-status: active
+status: completed
 date: 2026-03-25
 ---
 
