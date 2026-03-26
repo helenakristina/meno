@@ -6,6 +6,7 @@
 	import ProviderCard from '$lib/components/providers/ProviderCard.svelte';
 	import ProviderFilters from '$lib/components/providers/ProviderFilters.svelte';
 	import ProviderSkeleton from '$lib/components/providers/ProviderSkeleton.svelte';
+	import { ErrorBanner } from '$lib/components/shared';
 
 	// -------------------------------------------------------------------------
 	// Types
@@ -92,7 +93,7 @@
 
 	// Status config for badges and dropdown
 	const STATUS_CONFIG: Record<string, { label: string; badge: string }> = {
-		to_call: { label: 'To Call', badge: 'bg-accent-100 text-accent-800' },
+		to_call: { label: 'To Call', badge: 'bg-coral-100 text-coral-800' },
 		called: { label: 'Called', badge: 'bg-primary-100 text-primary-700' },
 		left_voicemail: { label: 'Left Voicemail', badge: 'bg-warning-light text-warning-dark' },
 		booking: { label: 'Booked Appointment', badge: 'bg-primary-100 text-primary-800' },
@@ -795,16 +796,7 @@
 			<ProviderSkeleton />
 		{:else if error}
 			<!-- Error state -->
-			<div class="rounded-2xl border border-danger-light bg-danger-light px-6 py-5">
-				<p class="font-medium text-danger-dark">Something went wrong</p>
-				<p class="mt-1 text-sm text-danger">{error}</p>
-				<button
-					onclick={handleSearch}
-					class="mt-3 rounded-lg bg-danger px-4 py-3 text-sm font-medium text-white transition-colors hover:bg-danger-dark focus:outline-none focus-visible:ring-2 focus-visible:ring-danger-light"
-				>
-					Try again
-				</button>
-			</div>
+			<ErrorBanner message={error} onRetry={handleSearch} />
 		{:else if !hasSearched}
 			<!-- Pre-search state -->
 			<div

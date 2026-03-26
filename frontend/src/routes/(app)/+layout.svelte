@@ -127,8 +127,8 @@
 						aria-current={page.url.pathname === link.href ? 'page' : undefined}
 						onclick={closeMenu}
 						class="rounded-md px-4 py-3 text-base font-medium {page.url.pathname === link.href
-							? 'bg-primary-50 text-primary-600 font-semibold'
-							: 'text-neutral-600 hover:bg-neutral-100 hover:text-primary-600'}"
+							? 'bg-primary-50 text-primary-800 font-semibold'
+							: 'text-neutral-600 hover:bg-neutral-100 hover:text-primary-800'}"
 					>
 						{link.label}
 					</a>
@@ -177,8 +177,8 @@
 									href={link.href}
 									aria-current={page.url.pathname === link.href ? 'page' : undefined}
 									class="rounded-md px-3 py-2 text-sm font-medium {page.url.pathname === link.href
-										? 'text-primary-600 font-semibold'
-										: 'text-neutral-600 hover:text-primary-600'}"
+										? 'text-primary-800 font-semibold'
+										: 'text-neutral-600 hover:text-primary-800'}"
 								>
 									{link.label}
 								</a>
@@ -208,7 +208,6 @@
 								class="flex h-9 w-9 items-center justify-center rounded-full bg-primary-500 text-sm font-semibold text-white hover:bg-primary-600 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-1"
 								aria-label="User menu"
 								aria-expanded={profileMenuOpen}
-								aria-haspopup="true"
 							>
 								{getUserInitials($authState.user?.email)}
 							</button>
@@ -216,7 +215,6 @@
 							{#if profileMenuOpen}
 								<div
 									class="absolute right-0 top-11 z-50 min-w-48 rounded-md border border-neutral-200 bg-white py-1 shadow-lg"
-									role="menu"
 								>
 									{#if $authState.user}
 										<div class="border-b border-neutral-100 px-4 py-2 text-xs text-neutral-500 truncate max-w-xs">
@@ -227,7 +225,6 @@
 										href="/settings"
 										onclick={closeProfileMenu}
 										class="block px-4 py-2 text-sm text-neutral-700 hover:bg-neutral-50"
-										role="menuitem"
 									>
 										Settings
 									</a>
@@ -237,7 +234,6 @@
 											handleLogout();
 										}}
 										class="block w-full px-4 py-2 text-left text-sm text-neutral-700 hover:bg-neutral-50"
-										role="menuitem"
 									>
 										Log out
 									</button>

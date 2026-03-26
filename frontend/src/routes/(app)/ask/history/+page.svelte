@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { apiClient } from '$lib/api/client';
+	import { ErrorBanner } from '$lib/components/shared';
 	import type { Conversation } from '$lib/types';
 	import type { ApiError } from '$lib/types/api';
 
@@ -156,17 +157,8 @@
 
 		<!-- Error Message -->
 		{#if error}
-			<div class="mb-6 rounded-lg border border-danger-light bg-danger-light p-4">
-				<p class="text-sm text-danger-dark">{error}</p>
-				<button
-					onclick={() => {
-						error = null;
-						fetchConversations();
-					}}
-					class="mt-3 text-sm font-medium text-danger hover:text-danger-dark"
-				>
-					Try again
-				</button>
+			<div class="mb-6">
+				<ErrorBanner message={error} onRetry={() => { error = null; fetchConversations(); }} />
 			</div>
 		{/if}
 

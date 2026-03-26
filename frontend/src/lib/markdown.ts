@@ -1,4 +1,5 @@
 import { marked } from 'marked';
+import DOMPurify from 'dompurify';
 
 // Configure marked to match our design
 marked.setOptions({
@@ -6,21 +7,48 @@ marked.setOptions({
 	gfm: true // GitHub Flavored Markdown
 });
 
+// Allowlist of tags and attributes permitted in rendered markdown.
+// Kept intentionally narrow — only what our UI actually emits.
+// Citation links rely on href/class/target/rel; data-citation-id is
+// included so future citation link enhancements survive sanitization.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const DOMPURIFY_CONFIG: Record<string, any> = {
+	ALLOWED_TAGS: [
+		'p',
+		'a',
+		'strong',
+		'em',
+		'ul',
+		'ol',
+		'li',
+		'code',
+		'pre',
+		'sup',
+		'br',
+		'h1',
+		'h2',
+		'h3',
+		'blockquote'
+	],
+	ALLOWED_ATTR: ['href', 'class', 'target', 'rel', 'data-citation-id']
+};
+
 /**
  * Render markdown to HTML with security checks.
  *
  * Security:
- * - Uses marked's default sanitizer (blocks <script>, etc.)
- * - Escapes all user content before rendering
- * - Validates URLs (http/https only)
+ * - Passes marked output through DOMPurify with an explicit tag/attr allowlist
+ * - marked does NOT sanitize by design; DOMPurify is the authoritative sanitizer
+ * - Escapes all user content on fallback path
+ * - Validates URLs (http/https only) in sanitizeMarkdownHtml
  */
 export function renderMarkdown(content: string): string {
 	try {
-		const html = marked.parse(content);
-		if (typeof html === 'string') {
-			return html;
+		const raw = marked.parse(content);
+		if (typeof raw !== 'string') {
+			return 'Failed to render content';
 		}
-		return 'Failed to render content';
+		return DOMPurify.sanitize(raw, DOMPURIFY_CONFIG);
 	} catch (error) {
 		console.error('Markdown rendering error:', error);
 		return escapeHtml(content); // Fallback to plain text

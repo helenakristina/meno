@@ -32,10 +32,10 @@
 	let bleedingAlert = $state(false);
 
 	const flowOptions: { value: FlowLevel; label: string; colorClass: string }[] = [
-		{ value: 'spotting', label: 'Spotting', colorClass: 'bg-accent-100 text-accent-800 border-accent-200' },
-		{ value: 'light', label: 'Light', colorClass: 'bg-accent-200 text-accent-800 border-accent-300' },
-		{ value: 'medium', label: 'Medium', colorClass: 'bg-accent-400 text-white border-accent-400' },
-		{ value: 'heavy', label: 'Heavy', colorClass: 'bg-accent-600 text-white border-accent-600' }
+		{ value: 'spotting', label: 'Spotting', colorClass: 'bg-coral-100 text-coral-800 border-coral-200' },
+		{ value: 'light', label: 'Light', colorClass: 'bg-coral-200 text-coral-800 border-coral-300' },
+		{ value: 'medium', label: 'Medium', colorClass: 'bg-coral-400 text-white border-coral-400' },
+		{ value: 'heavy', label: 'Heavy', colorClass: 'bg-coral-600 text-white border-coral-600' }
 	];
 
 	function dateValueToString(d: DateValue): string {
@@ -184,7 +184,7 @@
 				<h2 id="period-log-title" class="text-base font-semibold text-neutral-800">{title}</h2>
 				<button
 					onclick={close}
-					class="rounded-full p-1.5 text-neutral-400 transition-colors hover:bg-neutral-100 hover:text-neutral-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-300"
+					class="rounded-full p-1.5 text-neutral-400 transition-colors hover:bg-neutral-100 hover:text-neutral-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-coral-300"
 					aria-label="Close modal"
 				>
 					<svg
@@ -219,14 +219,14 @@
 				<!-- Start date (required) -->
 				<div>
 					<label for="period-start" class="mb-1.5 block text-sm font-medium text-neutral-700">
-						Period start date <span class="text-accent-500" aria-hidden="true">*</span>
+						Period start date <span class="text-coral-500" aria-hidden="true">*</span>
 					</label>
 					<input
 						id="period-start"
 						type="date"
 						bind:value={startDate}
 						required
-						class="w-full rounded-lg border border-neutral-200 px-3 py-2 text-sm text-neutral-700 shadow-sm focus:border-accent-400 focus:ring-2 focus:ring-accent-200 focus:outline-none"
+						class="w-full rounded-lg border border-neutral-200 px-3 py-2 text-sm text-neutral-700 shadow-sm focus:border-coral-400 focus:ring-2 focus:ring-coral-200 focus:outline-none"
 					/>
 				</div>
 
@@ -241,7 +241,7 @@
 						type="date"
 						bind:value={endDate}
 						min={startDate}
-						class="w-full rounded-lg border border-neutral-200 px-3 py-2 text-sm text-neutral-700 shadow-sm focus:border-accent-400 focus:ring-2 focus:ring-accent-200 focus:outline-none"
+						class="w-full rounded-lg border border-neutral-200 px-3 py-2 text-sm text-neutral-700 shadow-sm focus:border-coral-400 focus:ring-2 focus:ring-coral-200 focus:outline-none"
 					/>
 				</div>
 
@@ -257,10 +257,10 @@
 								type="button"
 								onclick={() => (flowLevel = flowLevel === opt.value ? '' : opt.value)}
 								aria-pressed={flowLevel === opt.value}
-								class="rounded-full border px-3 py-1.5 text-xs font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-300
+								class="rounded-full border px-3 py-1.5 text-xs font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-coral-300
 									{flowLevel === opt.value
 									? opt.colorClass
-									: 'border-neutral-200 bg-white text-neutral-600 hover:border-accent-200 hover:bg-accent-50 hover:text-accent-700'}"
+									: 'border-neutral-200 bg-white text-neutral-600 hover:border-coral-200 hover:bg-coral-50hover:text-coral-700'}"
 							>
 								{opt.label}
 							</button>
@@ -279,7 +279,7 @@
 						bind:value={notes}
 						placeholder="Any additional details…"
 						rows={3}
-						class="w-full resize-none rounded-lg border border-neutral-200 px-3 py-2.5 text-sm text-neutral-700 placeholder-neutral-400 shadow-sm focus:border-accent-400 focus:ring-2 focus:ring-accent-200 focus:outline-none"
+						class="w-full resize-none rounded-lg border border-neutral-200 px-3 py-2.5 text-sm text-neutral-700 placeholder-neutral-400 shadow-sm focus:border-coral-400 focus:ring-2 focus:ring-coral-200 focus:outline-none"
 					></textarea>
 				</div>
 
@@ -295,7 +295,7 @@
 					<button
 						type="button"
 						onclick={close}
-						class="flex-1 rounded-lg border border-neutral-200 bg-white px-4 py-2.5 text-sm font-medium text-neutral-700 transition-colors hover:border-neutral-300 hover:bg-neutral-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-300"
+						class="flex-1 rounded-lg border border-neutral-200 bg-white px-4 py-2.5 text-sm font-medium text-neutral-700 transition-colors hover:border-neutral-300 hover:bg-neutral-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-coral-300"
 					>
 						Cancel
 					</button>

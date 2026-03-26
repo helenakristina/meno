@@ -34,17 +34,17 @@
 	{#each { length: variant === 'card' ? 1 : lines } as _}
 		{#if variant === 'card'}
 			<!-- Card skeleton -->
-			<div class="space-y-3 rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
-				<div class="h-6 w-2/3 animate-pulse rounded bg-slate-200"></div>
+			<div class="space-y-3 rounded-lg border border-neutral-200 bg-white p-4 shadow-sm">
+				<div class="h-6 w-2/3 animate-pulse rounded bg-neutral-200"></div>
 				<div class="space-y-2">
-					<div class="h-4 animate-pulse rounded bg-slate-100"></div>
-					<div class="h-4 w-5/6 animate-pulse rounded bg-slate-100"></div>
+					<div class="h-4 animate-pulse rounded bg-neutral-100"></div>
+					<div class="h-4 w-5/6 animate-pulse rounded bg-neutral-100"></div>
 				</div>
 			</div>
 		{:else}
 			<!-- Text/title skeleton -->
 			<div
-				class="animate-pulse rounded {heightClass} {variant === 'title' ? 'bg-slate-200' : 'bg-slate-100'}"
+				class="animate-pulse rounded {heightClass} {variant === 'title' ? 'bg-neutral-200' : 'bg-neutral-100'}"
 			></div>
 		{/if}
 	{/each}

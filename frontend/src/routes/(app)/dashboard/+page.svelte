@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { slide } from 'svelte/transition';
 	import { apiClient } from '$lib/api/client';
-	import { SkeletonLoader } from '$lib/components/shared';
+	import { ErrorBanner, SkeletonLoader } from '$lib/components/shared';
 
 	// -------------------------------------------------------------------------
 	// Types
@@ -264,9 +264,7 @@
 				<SkeletonLoader variant="text" lines={5} height="h-5" />
 			</div>
 		{:else if frequencyError}
-			<div class="rounded-xl border border-danger-light bg-danger-light px-5 py-4 text-sm text-danger-dark">
-				{frequencyError}
-			</div>
+			<ErrorBanner message={frequencyError} />
 		{:else if topSymptoms.length === 0}
 			<p class="py-6 text-center text-sm text-neutral-400">No symptoms logged in this period.</p>
 		{:else}
@@ -329,9 +327,7 @@
 				<SkeletonLoader variant="text" lines={4} height="h-6" />
 			</div>
 		{:else if cooccurrenceError}
-			<div class="rounded-xl border border-danger-light bg-danger-light px-5 py-4 text-sm text-danger-dark">
-				{cooccurrenceError}
-			</div>
+			<ErrorBanner message={cooccurrenceError} />
 		{:else if topPairs.length === 0}
 			<p class="py-6 text-center text-sm text-neutral-400">
 				Not enough data yet to identify patterns. Keep logging to see connections.
@@ -387,9 +383,7 @@
 
 	<!-- Error -->
 	{:else if error}
-		<div class="rounded-xl border border-danger-light bg-danger-light px-5 py-4 text-sm text-danger-dark">
-			{error}
-		</div>
+		<ErrorBanner message={error} onRetry={() => fetchAll(selectedRange)} />
 
 	<!-- Empty state -->
 	{:else if dayGroups.length === 0}

@@ -3,8 +3,8 @@
 	import { goto } from '$app/navigation';
 	import { fly, fade } from 'svelte/transition';
 	import { supabase } from '$lib/supabase/client';
-
-	const API_BASE = 'http://localhost:8000';
+	import { apiClient } from '$lib/api/client';
+	import { ApiError } from '$lib/types/api';
 
 	type JourneyStage = 'perimenopause' | 'menopause' | 'post-menopause' | 'unsure';
 
@@ -117,48 +117,28 @@
 		error = '';
 
 		try {
-			const { data: sessionData } = await supabase.auth.getSession();
-			const token = sessionData.session?.access_token;
-
-			if (!token) {
-				error = 'Your session has expired. Please sign in again.';
-				goto('/login');
-				return;
-			}
-
-			const response = await fetch(`${API_BASE}/api/users/onboarding`, {
-				method: 'POST',
-				headers: {
-					Authorization: `Bearer ${token}`,
-					'Content-Type': 'application/json'
-				},
-				body: JSON.stringify({
-					date_of_birth: dateOfBirth,
-					journey_stage: journeyStage
-				})
+			await apiClient.post('/api/users/onboarding', {
+				date_of_birth: dateOfBirth,
+				journey_stage: journeyStage as 'perimenopause' | 'menopause' | 'post-menopause' | 'unsure'
 			});
-
-			if (response.status === 409) {
-				// Already onboarded — redirect silently
-				goto('/dashboard');
-				return;
-			}
-
-			if (!response.ok) {
-				const errorData = await response.json().catch(() => ({}));
-				if (response.status === 400) {
-					error = errorData.detail ?? 'Please check your date of birth and try again.';
-				} else {
-					error = errorData.detail ?? 'Something went wrong. Please try again.';
-				}
-				return;
-			}
 
 			success = true;
 			setTimeout(() => goto('/dashboard'), 1200);
 		} catch (e) {
-			error = 'Network error. Please check your connection and try again.';
-			console.error('Onboarding error:', e);
+			if (e instanceof ApiError) {
+				if (e.status === 409) {
+					// Already onboarded — redirect silently
+					goto('/dashboard');
+					return;
+				} else if (e.status === 400) {
+					error = e.detail ?? 'Please check your date of birth and try again.';
+				} else {
+					error = e.detail ?? 'Something went wrong. Please try again.';
+				}
+			} else {
+				error = 'Network error. Please check your connection and try again.';
+				console.error('Onboarding error:', e);
+			}
 		} finally {
 			loading = false;
 		}

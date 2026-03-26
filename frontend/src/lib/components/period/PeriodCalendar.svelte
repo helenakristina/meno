@@ -60,11 +60,11 @@
 
 	function flowColorClass(flowLevel: FlowLevel | null): string {
 		switch (flowLevel) {
-			case 'spotting': return 'bg-accent-100 text-accent-900';
-			case 'light': return 'bg-accent-200 text-accent-900';
-			case 'medium': return 'bg-accent-400 text-white';
-			case 'heavy': return 'bg-accent-600 text-white';
-			default: return 'bg-accent-300 text-white';
+			case 'spotting': return 'bg-coral-100 text-coral-900';
+			case 'light': return 'bg-coral-200 text-coral-900';
+			case 'medium': return 'bg-coral-400 text-white';
+			case 'heavy': return 'bg-coral-600 text-white';
+			default: return 'bg-coral-300 text-white';
 		}
 	}
 
@@ -121,17 +121,17 @@
 								>
 									<!-- Period range background stripe (days between start and end) -->
 									{#if isRangeDay}
-										<div class="absolute inset-y-0 inset-x-0 bg-accent-100 rounded-none pointer-events-none"></div>
+										<div class="absolute inset-y-0 inset-x-0 bg-coral-100 rounded-none pointer-events-none"></div>
 									{/if}
 
 									<Calendar.Day
 										class="relative z-10 mx-auto flex h-9 w-9 items-center justify-center rounded-full text-sm transition-colors
 											{log ? flowColorClass(log.flow_level) : ''}
 											{!log && !isRangeDay ? 'text-neutral-700 hover:bg-neutral-100' : ''}
-											{!log && isRangeDay ? 'text-accent-700 hover:bg-accent-200' : ''}
+											{!log && isRangeDay ? 'text-coral-700 hover:bg-coral-200' : ''}
 											data-[outside-month]:opacity-30
 											data-[outside-month]:pointer-events-none
-											focus:outline-none focus:ring-2 focus:ring-accent-400 focus:ring-offset-1"
+											focus:outline-none focus:ring-2 focus:ring-coral-400 focus:ring-offset-1"
 										onclick={() => onDayClick(date, log)}
 									>
 										<span>{date.day}</span>
@@ -156,19 +156,19 @@
 <!-- Legend -->
 <div class="mt-4 flex flex-wrap items-center gap-3 text-xs text-neutral-500">
 	<span class="flex items-center gap-1.5">
-		<span class="inline-block h-3 w-3 rounded-full bg-accent-100 border border-accent-200"></span>
+		<span class="inline-block h-3 w-3 rounded-full bg-coral-100 border border-coral-200"></span>
 		Spotting
 	</span>
 	<span class="flex items-center gap-1.5">
-		<span class="inline-block h-3 w-3 rounded-full bg-accent-200"></span>
+		<span class="inline-block h-3 w-3 rounded-full bg-coral-200"></span>
 		Light
 	</span>
 	<span class="flex items-center gap-1.5">
-		<span class="inline-block h-3 w-3 rounded-full bg-accent-400"></span>
+		<span class="inline-block h-3 w-3 rounded-full bg-coral-400"></span>
 		Medium
 	</span>
 	<span class="flex items-center gap-1.5">
-		<span class="inline-block h-3 w-3 rounded-full bg-accent-600"></span>
+		<span class="inline-block h-3 w-3 rounded-full bg-coral-600"></span>
 		Heavy
 	</span>
 </div>

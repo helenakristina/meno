@@ -220,7 +220,7 @@
 			</div>
 			<a
 				href="/ask/history"
-				class="text-sm font-medium text-primary-600 hover:text-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 rounded px-2 py-1"
+				class="text-sm font-medium text-primary-800 hover:text-primary-900 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 rounded px-2 py-1"
 			>
 				History
 			</a>
@@ -304,7 +304,7 @@
 														href={citation.url}
 														target="_blank"
 														rel="noopener noreferrer"
-														class="ml-1 text-primary-600 hover:text-primary-800 hover:underline"
+														class="ml-1 text-primary-800 hover:text-primary-900 hover:underline"
 													>
 														{citation.title || citation.url}
 														{#if citation.section}
@@ -395,12 +395,12 @@
 <style>
 	/* Inline citation superscript links */
 	:global(.citation-ref) {
-		color: #0d9478; /* primary-600 */
+		color: var(--color-primary-800);
 		font-weight: 500;
 		text-decoration: none;
 	}
 	:global(.citation-ref:hover) {
-		color: #0f7663; /* primary-700 */
+		color: var(--color-primary-900);
 		text-decoration: underline;
 	}
 
@@ -487,11 +487,11 @@
 	}
 
 	:global(.message-content a) {
-		color: #0d9478; /* primary-600 */
+		color: var(--color-primary-800);
 		text-decoration: underline;
 	}
 
 	:global(.message-content a:hover) {
-		color: #0f7663; /* primary-700 */
+		color: var(--color-primary-900);
 	}
 </style>

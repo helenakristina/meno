@@ -118,3 +118,21 @@ class TestUnchangedModels:
         req = ChatRequest(message="What is MHT?")
         assert req.message == "What is MHT?"
         assert req.conversation_id is None
+
+
+class TestChatRequestValidation:
+    """Validates length constraints on ChatRequest.message."""
+
+    # CATCHES: backend accepts empty message and passes blank string to LLM
+    def test_chat_request_rejects_message_over_2000_chars(self):
+        valid_message = "a" * 2000
+        req = ChatRequest(message=valid_message)
+        assert len(req.message) == 2000
+
+        with pytest.raises(ValidationError):
+            ChatRequest(message="a" * 2001)
+
+    # CATCHES: backend accepts empty message and passes blank string to LLM
+    def test_chat_request_rejects_empty_message(self):
+        with pytest.raises(ValidationError):
+            ChatRequest(message="")

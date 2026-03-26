@@ -26,19 +26,6 @@
 	--border: #e7e5e4;
 	--input: #e7e5e4;
 	--ring: oklch(0.673 0.15 171.6);
-	--chart-1: oklch(0.646 0.222 41.116);
-	--chart-2: oklch(0.6 0.118 184.704);
-	--chart-3: oklch(0.398 0.07 227.392);
-	--chart-4: oklch(0.828 0.189 84.429);
-	--chart-5: oklch(0.769 0.188 70.08);
-	--sidebar: oklch(0.984 0.003 247.858);
-	--sidebar-foreground: oklch(0.129 0.042 264.695);
-	--sidebar-primary: oklch(0.673 0.15 171.6);
-	--sidebar-primary-foreground: oklch(1 0 0);
-	--sidebar-accent: oklch(0.968 0.007 247.896);
-	--sidebar-accent-foreground: oklch(0.208 0.042 265.755);
-	--sidebar-border: oklch(0.929 0.013 255.508);
-	--sidebar-ring: oklch(0.704 0.04 256.788);
 }
 
 .dark {
@@ -60,19 +47,6 @@
 	--border: oklch(1 0 0 / 10%);
 	--input: oklch(1 0 0 / 15%);
 	--ring: oklch(0.551 0.027 264.364);
-	--chart-1: oklch(0.488 0.243 264.376);
-	--chart-2: oklch(0.696 0.17 162.48);
-	--chart-3: oklch(0.769 0.188 70.08);
-	--chart-4: oklch(0.627 0.265 303.9);
-	--chart-5: oklch(0.645 0.246 16.439);
-	--sidebar: oklch(0.208 0.042 265.755);
-	--sidebar-foreground: oklch(0.984 0.003 247.858);
-	--sidebar-primary: oklch(0.793 0.139 171.6);
-	--sidebar-primary-foreground: oklch(1 0 0);
-	--sidebar-accent: oklch(0.279 0.041 260.031);
-	--sidebar-accent-foreground: oklch(0.984 0.003 247.858);
-	--sidebar-border: oklch(1 0 0 / 10%);
-	--sidebar-ring: oklch(0.551 0.027 264.364);
 }
 
 @theme inline {
@@ -98,20 +72,6 @@
 	--color-border: var(--border);
 	--color-input: var(--input);
 	--color-ring: var(--ring);
-	--color-chart-1: var(--chart-1);
-	--color-chart-2: var(--chart-2);
-	--color-chart-3: var(--chart-3);
-	--color-chart-4: var(--chart-4);
-	--color-chart-5: var(--chart-5);
-	--color-sidebar: var(--sidebar);
-	--color-sidebar-foreground: var(--sidebar-foreground);
-	--color-sidebar-primary: var(--sidebar-primary);
-	--color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
-	--color-sidebar-accent: var(--sidebar-accent);
-	--color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
-	--color-sidebar-border: var(--sidebar-border);
-	--color-sidebar-ring: var(--sidebar-ring);
-
 	/* Meno design tokens — primary teal */
 	--color-primary-50: #f0fdf9;
 	--color-primary-100: #ccfbef;
@@ -136,17 +96,17 @@
 	--color-neutral-800: #292524;
 	--color-neutral-900: #1c1917;
 
-	/* Meno design tokens — accent coral */
-	--color-accent-50: #fff7ed;
-	--color-accent-100: #ffedd5;
-	--color-accent-200: #fed7aa;
-	--color-accent-300: #fdba74;
-	--color-accent-400: #fb923c;
-	--color-accent-500: #f97316;
-	--color-accent-600: #ea580c;
-	--color-accent-700: #c2410c;
-	--color-accent-800: #9a3412;
-	--color-accent-900: #7c2d12;
+	/* Meno design tokens — coral (period indicators, warm highlights, status badges) */
+	--color-coral-50: #fff7ed;
+	--color-coral-100: #ffedd5;
+	--color-coral-200: #fed7aa;
+	--color-coral-300: #fdba74;
+	--color-coral-400: #fb923c;
+	--color-coral-500: #f97316;
+	--color-coral-600: #ea580c;
+	--color-coral-700: #c2410c;
+	--color-coral-800: #9a3412;
+	--color-coral-900: #7c2d12;
 
 	/* Meno design tokens — semantic */
 	--color-success-light: #dcfce7;
@@ -161,12 +121,6 @@
 	--color-info-light: #dbeafe;
 	--color-info: #2563eb;
 	--color-info-dark: #1e40af;
-
-	/* Meno design tokens — backgrounds */
-	--color-bg-page: #ffffff;
-	--color-bg-card: #ffffff;
-	--color-bg-subtle: #fafaf9;
-	--color-bg-overlay: rgba(0, 0, 0, 0.5);
 
 	/* Meno design tokens — typography */
 	--font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
