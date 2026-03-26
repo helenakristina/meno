@@ -95,7 +95,7 @@
 	const STATUS_CONFIG: Record<string, { label: string; badge: string }> = {
 		to_call: { label: 'To Call', badge: 'bg-coral-100 text-coral-800' },
 		called: { label: 'Called', badge: 'bg-primary-100 text-primary-700' },
-		left_voicemail: { label: 'Left Voicemail', badge: 'bg-warning-light text-warning-dark' },
+		left_voicemail: { label: 'Left Voicemail', badge: 'bg-neutral-100 text-neutral-700' },
 		booking: { label: 'Booked Appointment', badge: 'bg-primary-100 text-primary-800' },
 		not_available: { label: 'Not Available', badge: 'bg-neutral-100 text-neutral-500' }
 	};
