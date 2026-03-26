@@ -70,7 +70,7 @@
 						name="appointment_type"
 						{value}
 						bind:group={$formData.appointment_type}
-						class="h-4 w-4 accent-primary-600"
+						class="h-4 w-4"
 					/>
 					<span class="text-sm font-medium text-neutral-700">{APPOINTMENT_TYPE_LABELS[value]}</span>
 				</label>
@@ -101,7 +101,7 @@
 						name="goal"
 						{value}
 						bind:group={$formData.goal}
-						class="h-4 w-4 accent-primary-600"
+						class="h-4 w-4"
 					/>
 					<span class="text-sm font-medium text-neutral-700">{APPOINTMENT_GOAL_LABELS[value]}</span>
 				</label>
@@ -132,7 +132,7 @@
 						name="dismissed_before"
 						{value}
 						bind:group={$formData.dismissed_before}
-						class="h-4 w-4 accent-primary-600"
+						class="h-4 w-4"
 					/>
 					<span class="text-sm font-medium text-neutral-700"
 						>{DISMISSAL_EXPERIENCE_LABELS[value]}</span

@@ -134,4 +134,9 @@
 	body {
 		@apply bg-background text-foreground;
 	}
+	input[type='radio'],
+	input[type='checkbox'] {
+		color: var(--color-primary-500);
+		accent-color: var(--color-primary-500);
+	}
 }
