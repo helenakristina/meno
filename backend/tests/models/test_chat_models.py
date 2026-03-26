@@ -123,7 +123,7 @@ class TestUnchangedModels:
 class TestChatRequestValidation:
     """Validates length constraints on ChatRequest.message."""
 
-    # CATCHES: backend accepts empty message and passes blank string to LLM
+    # CATCHES: backend accepts messages over 2000 characters
     def test_chat_request_rejects_message_over_2000_chars(self):
         valid_message = "a" * 2000
         req = ChatRequest(message=valid_message)

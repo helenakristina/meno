@@ -52,3 +52,4 @@ Option 1.
 
 - 2026-03-23: Found by code-simplicity-reviewer in PR #4 review
 - 2026-03-24: Approved during triage session. Status changed pending → ready.
+2026-03-25: Resolved.
