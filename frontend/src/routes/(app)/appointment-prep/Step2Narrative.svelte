@@ -46,17 +46,17 @@
 <div class="mx-auto max-w-2xl space-y-6">
 	{#if isLoading}
 		<div
-			class="flex flex-col items-center gap-4 rounded-xl border border-slate-200 bg-white p-8"
+			class="flex flex-col items-center gap-4 rounded-xl border border-neutral-200 bg-white p-8"
 			aria-busy="true"
 			role="status"
 		>
-			<div class="h-8 w-8 animate-spin rounded-full border-4 border-teal-200 border-t-teal-600"></div>
-			<p class="text-sm text-slate-500" aria-live="polite">
+			<div class="h-8 w-8 animate-spin rounded-full border-4 border-primary-200 border-t-primary-600"></div>
+			<p class="text-sm text-neutral-500" aria-live="polite">
 				Generating your symptom summary…
 			</p>
 		</div>
 	{:else if loadError}
-		<div class="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700" role="alert">
+		<div class="rounded-xl border border-danger-light bg-danger-light p-4 text-sm text-danger-dark" role="alert">
 			{loadError}
 			<button
 				type="button"
@@ -67,22 +67,22 @@
 			</button>
 		</div>
 	{:else}
-		<div class="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+		<div class="rounded-xl border border-warning bg-warning-light px-4 py-3 text-sm text-warning-dark">
 			AI-generated summary — review and edit before sharing with your provider.
 		</div>
 
 		<div>
-			<label for="narrative" class="mb-2 block text-sm font-medium text-slate-700">
+			<label for="narrative" class="mb-2 block text-sm font-medium text-neutral-700">
 				Your symptom summary
 			</label>
 			<textarea
 				id="narrative"
 				bind:value={narrative}
 				rows="12"
-				class="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm text-slate-800 placeholder-slate-400 transition-colors focus:border-teal-400 focus:outline-none focus:ring-2 focus:ring-teal-400/20"
+				class="w-full rounded-xl border border-neutral-200 px-4 py-3 text-sm text-neutral-800 placeholder-neutral-400 transition-colors focus:border-primary-400 focus:outline-none focus:ring-2 focus:ring-primary-400/20"
 				aria-describedby="narrative-hint"
 			></textarea>
-			<p id="narrative-hint" class="mt-1 text-xs text-slate-500">
+			<p id="narrative-hint" class="mt-1 text-xs text-neutral-500">
 				Edit freely — this is your document.
 			</p>
 		</div>
@@ -91,7 +91,7 @@
 			type="button"
 			onclick={handleNext}
 			disabled={!narrative.trim()}
-			class="w-full rounded-xl bg-teal-600 py-3 text-sm font-semibold text-white transition-colors hover:bg-teal-700 disabled:cursor-not-allowed disabled:opacity-40"
+			class="w-full rounded-xl bg-primary-500 py-3 text-sm font-semibold text-white transition-colors hover:bg-primary-600 disabled:cursor-not-allowed disabled:opacity-40"
 		>
 			Next: Prioritize your concerns
 		</button>

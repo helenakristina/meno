@@ -105,7 +105,7 @@
 </script>
 
 <div class="mx-auto max-w-2xl space-y-6">
-	<p class="text-sm text-slate-600">
+	<p class="text-sm text-neutral-600">
 		Drag to reorder, or use the arrows. Your top concern will be listed first in your materials.
 	</p>
 
@@ -119,23 +119,23 @@
 				ondrop={(e) => handleDrop(e, i)}
 				ondragend={handleDragEnd}
 				aria-label="Drag to reorder: {concern}"
-				class="flex items-center gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-sm transition-opacity {dragSrcIndex === i
+				class="flex items-center gap-3 rounded-xl border border-neutral-200 bg-white px-4 py-3 shadow-sm transition-opacity {dragSrcIndex === i
 					? 'opacity-40'
 					: 'opacity-100'}"
 			>
 				<!-- Drag handle -->
 				<span
-					class="cursor-grab select-none text-slate-400 active:cursor-grabbing"
+					class="cursor-grab select-none text-neutral-400 active:cursor-grabbing"
 					aria-hidden="true"
 				>
 					⠿
 				</span>
 
 				<!-- Number -->
-				<span class="min-w-[1.5rem] text-sm font-semibold text-slate-500">{i + 1}.</span>
+				<span class="min-w-[1.5rem] text-sm font-semibold text-neutral-500">{i + 1}.</span>
 
 				<!-- Concern text -->
-				<span class="flex-1 text-sm text-slate-800">{concern}</span>
+				<span class="flex-1 text-sm text-neutral-800">{concern}</span>
 
 				<!-- Up/down + remove -->
 				<div class="flex items-center gap-1">
@@ -144,7 +144,7 @@
 						onclick={() => moveUp(i)}
 						disabled={i === 0}
 						aria-label="Move '{concern}' up"
-						class="flex h-11 w-11 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600 disabled:cursor-not-allowed disabled:opacity-30"
+						class="flex h-11 w-11 items-center justify-center rounded-lg text-neutral-400 transition-colors hover:bg-neutral-100 hover:text-neutral-600 disabled:cursor-not-allowed disabled:opacity-30"
 					>
 						▲
 					</button>
@@ -153,7 +153,7 @@
 						onclick={() => moveDown(i)}
 						disabled={i === concerns.length - 1}
 						aria-label="Move '{concern}' down"
-						class="flex h-11 w-11 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600 disabled:cursor-not-allowed disabled:opacity-30"
+						class="flex h-11 w-11 items-center justify-center rounded-lg text-neutral-400 transition-colors hover:bg-neutral-100 hover:text-neutral-600 disabled:cursor-not-allowed disabled:opacity-30"
 					>
 						▼
 					</button>
@@ -161,7 +161,7 @@
 						type="button"
 						onclick={() => removeConcern(i)}
 						aria-label="Remove '{concern}'"
-						class="flex h-11 w-11 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-red-50 hover:text-red-500"
+						class="flex h-11 w-11 items-center justify-center rounded-lg text-neutral-400 transition-colors hover:bg-danger-light hover:text-danger"
 					>
 						×
 					</button>
@@ -177,28 +177,28 @@
 			bind:value={newConcernText}
 			onkeydown={handleAddKeydown}
 			placeholder="Add a concern…"
-			class="h-11 flex-1 rounded-xl border border-slate-200 px-4 text-sm text-slate-800 placeholder-slate-400 transition-colors focus:border-teal-400 focus:outline-none focus:ring-2 focus:ring-teal-400/20"
+			class="h-11 flex-1 rounded-xl border border-neutral-200 px-4 text-sm text-neutral-800 placeholder-neutral-400 transition-colors focus:border-primary-400 focus:outline-none focus:ring-2 focus:ring-primary-400/20"
 			aria-label="New concern text"
 		/>
 		<button
 			type="button"
 			onclick={addConcern}
 			disabled={!newConcernText.trim()}
-			class="rounded-xl bg-slate-100 px-4 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-200 disabled:cursor-not-allowed disabled:opacity-40"
+			class="rounded-xl bg-neutral-100 px-4 py-2 text-sm font-medium text-neutral-700 transition-colors hover:bg-neutral-200 disabled:cursor-not-allowed disabled:opacity-40"
 		>
 			Add
 		</button>
 	</div>
 
 	{#if concerns.length === 0}
-		<p class="text-sm text-red-600">Add at least one concern to continue.</p>
+		<p class="text-sm text-danger">Add at least one concern to continue.</p>
 	{/if}
 
 	<button
 		type="button"
 		onclick={handleNext}
 		disabled={concerns.length === 0 || isSaving}
-		class="w-full rounded-xl bg-teal-600 py-3 text-sm font-semibold text-white transition-colors hover:bg-teal-700 disabled:cursor-not-allowed disabled:opacity-40"
+		class="w-full rounded-xl bg-primary-500 py-3 text-sm font-semibold text-white transition-colors hover:bg-primary-600 disabled:cursor-not-allowed disabled:opacity-40"
 	>
 		{isSaving ? 'Saving…' : 'Next: Practice scenarios'}
 	</button>

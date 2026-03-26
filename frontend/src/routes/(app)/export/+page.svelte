@@ -122,18 +122,18 @@
 <div class="w-full max-w-full overflow-hidden px-4 py-8 sm:px-6 lg:px-8">
 	<!-- Header -->
 	<div class="mb-8">
-		<h1 class="text-2xl font-bold text-slate-900">Export Your Data</h1>
-		<p class="mt-1 text-slate-500">Download your symptom history to share with your healthcare provider.</p>
+		<h1 class="text-2xl font-bold text-neutral-800">Export Your Data</h1>
+		<p class="mt-1 text-neutral-500">Download your symptom history to share with your healthcare provider.</p>
 	</div>
 
 	<!-- Date Range Card -->
-	<section class="mb-6 rounded-2xl border border-slate-200 bg-white px-6 py-5 shadow-sm">
-		<h2 class="mb-4 text-base font-semibold text-slate-800">Select Date Range</h2>
+	<section class="mb-6 rounded-2xl border border-neutral-200 bg-white px-6 py-5 shadow-sm">
+		<h2 class="mb-4 text-base font-semibold text-neutral-800">Select Date Range</h2>
 
 		<div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
 			<!-- Start date -->
 			<div>
-				<label for="start-date" class="mb-1.5 block text-sm font-medium text-slate-700">
+				<label for="start-date" class="mb-1.5 block text-sm font-medium text-neutral-700">
 					From
 				</label>
 				<input
@@ -142,17 +142,17 @@
 					bind:value={startDate}
 					max={todayStr}
 					aria-describedby={startError ? 'start-date-error' : undefined}
-					class="h-11 w-full rounded-lg border px-3 text-sm text-slate-700 shadow-sm transition-colors focus:outline-none focus:ring-2 focus:ring-teal-200
-						{startError ? 'border-red-300 focus:border-red-400 focus:ring-red-100' : 'border-slate-200 focus:border-teal-400'}"
+					class="h-11 w-full rounded-lg border px-3 text-sm text-neutral-700 shadow-sm transition-colors focus:outline-none focus:ring-2 focus:ring-primary-200
+						{startError ? 'border-danger-light focus:border-danger focus:ring-danger-light' : 'border-neutral-200 focus:border-primary-400'}"
 				/>
 				{#if startError}
-					<p id="start-date-error" class="mt-1.5 text-xs text-red-600">{startError}</p>
+					<p id="start-date-error" class="mt-1.5 text-xs text-danger">{startError}</p>
 				{/if}
 			</div>
 
 			<!-- End date -->
 			<div>
-				<label for="end-date" class="mb-1.5 block text-sm font-medium text-slate-700">
+				<label for="end-date" class="mb-1.5 block text-sm font-medium text-neutral-700">
 					To
 				</label>
 				<input
@@ -161,11 +161,11 @@
 					bind:value={endDate}
 					max={todayStr}
 					aria-describedby={endError ? 'end-date-error' : undefined}
-					class="h-11 w-full rounded-lg border px-3 text-sm text-slate-700 shadow-sm transition-colors focus:outline-none focus:ring-2 focus:ring-teal-200
-						{endError ? 'border-red-300 focus:border-red-400 focus:ring-red-100' : 'border-slate-200 focus:border-teal-400'}"
+					class="h-11 w-full rounded-lg border px-3 text-sm text-neutral-700 shadow-sm transition-colors focus:outline-none focus:ring-2 focus:ring-primary-200
+						{endError ? 'border-danger-light focus:border-danger focus:ring-danger-light' : 'border-neutral-200 focus:border-primary-400'}"
 				/>
 				{#if endError}
-					<p id="end-date-error" class="mt-1.5 text-xs text-red-600">{endError}</p>
+					<p id="end-date-error" class="mt-1.5 text-xs text-danger">{endError}</p>
 				{/if}
 			</div>
 		</div>
@@ -173,11 +173,11 @@
 
 	<!-- Success banner -->
 	{#if successMessage}
-		<div class="mb-6 flex items-center gap-3 rounded-xl border border-emerald-200 bg-emerald-50 px-5 py-4">
-			<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 shrink-0 text-emerald-500" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+		<div class="mb-6 flex items-center gap-3 rounded-xl border border-success-light bg-success-light px-5 py-4">
+			<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 shrink-0 text-success" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
 				<path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
 			</svg>
-			<p class="text-sm font-medium text-emerald-800">{successMessage}</p>
+			<p class="text-sm font-medium text-success-dark">{successMessage}</p>
 		</div>
 	{/if}
 
@@ -185,57 +185,57 @@
 	<div class="grid grid-cols-1 gap-5 lg:grid-cols-2">
 
 		<!-- PDF card -->
-		<div class="rounded-2xl border border-slate-200 bg-white px-6 py-5 shadow-sm">
+		<div class="rounded-2xl border border-neutral-200 bg-white px-6 py-5 shadow-sm">
 			<div class="mb-4 flex items-start gap-3">
-				<div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-teal-50 text-teal-600">
+				<div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary-50 text-primary-600">
 					<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
 						<path fill-rule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4zm2 6a1 1 0 011-1h6a1 1 0 110 2H7a1 1 0 01-1-1zm1 3a1 1 0 100 2h6a1 1 0 100-2H7z" clip-rule="evenodd" />
 					</svg>
 				</div>
 				<div>
-					<h3 class="font-semibold text-slate-800">Doctor Visit Summary</h3>
-					<p class="mt-0.5 text-sm text-slate-500">PDF · Best for provider appointments</p>
+					<h3 class="font-semibold text-neutral-800">Doctor Visit Summary</h3>
+					<p class="mt-0.5 text-sm text-neutral-500">PDF · Best for provider appointments</p>
 				</div>
 			</div>
 
-			<p class="mb-5 text-sm leading-relaxed text-slate-600">
+			<p class="mb-5 text-sm leading-relaxed text-neutral-600">
 				Includes AI-generated symptom patterns, frequency analysis, co-occurrence insights, and suggested questions for your provider. Formatted for clinical conversations.
 			</p>
 
-			<ul class="mb-5 space-y-1.5 text-xs text-slate-500">
+			<ul class="mb-5 space-y-1.5 text-xs text-neutral-500">
 				<li class="flex items-center gap-2">
-					<span class="h-1.5 w-1.5 shrink-0 rounded-full bg-teal-400"></span>
+					<span class="h-1.5 w-1.5 shrink-0 rounded-full bg-primary-400"></span>
 					Symptom pattern summary
 				</li>
 				<li class="flex items-center gap-2">
-					<span class="h-1.5 w-1.5 shrink-0 rounded-full bg-teal-400"></span>
+					<span class="h-1.5 w-1.5 shrink-0 rounded-full bg-primary-400"></span>
 					Top 10 most-logged symptoms
 				</li>
 				<li class="flex items-center gap-2">
-					<span class="h-1.5 w-1.5 shrink-0 rounded-full bg-teal-400"></span>
+					<span class="h-1.5 w-1.5 shrink-0 rounded-full bg-primary-400"></span>
 					Co-occurrence insights
 				</li>
 				<li class="flex items-center gap-2">
-					<span class="h-1.5 w-1.5 shrink-0 rounded-full bg-teal-400"></span>
+					<span class="h-1.5 w-1.5 shrink-0 rounded-full bg-primary-400"></span>
 					5–7 questions to ask your provider
 				</li>
 			</ul>
 
 			{#if pdfError}
-				<div class="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3">
+				<div class="mb-4 rounded-lg border border-danger-light bg-danger-light px-4 py-3">
 					{#if isNoDataError(pdfError)}
-						<p class="text-sm text-red-700">
+						<p class="text-sm text-danger-dark">
 							No symptoms logged in this date range.
-							<a href="/log" class="font-medium underline hover:text-red-900">Start logging</a>
+							<a href="/log" class="font-medium underline hover:text-danger-dark">Start logging</a>
 							to generate a report.
 						</p>
 					{:else}
 						<div class="flex items-start justify-between gap-2">
-							<p class="text-sm text-red-700">{pdfError}</p>
+							<p class="text-sm text-danger-dark">{pdfError}</p>
 							<button
 								onclick={() => (pdfError = '')}
 								aria-label="Dismiss error"
-								class="shrink-0 text-red-400 hover:text-red-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-300"
+								class="shrink-0 text-danger hover:text-danger focus:outline-none focus-visible:ring-2 focus-visible:ring-danger-light"
 							>
 								<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
 									<path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd" />
@@ -250,7 +250,7 @@
 				onclick={downloadPdf}
 				disabled={!isValid || pdfLoading}
 				aria-busy={pdfLoading}
-				class="flex w-full items-center justify-center gap-2 rounded-xl bg-teal-600 px-5 py-3 text-sm font-semibold text-white shadow-sm transition-all hover:bg-teal-700 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400 sm:w-auto"
+				class="flex w-full items-center justify-center gap-2 rounded-xl bg-primary-500 px-5 py-3 text-sm font-semibold text-white shadow-sm transition-all hover:bg-primary-600 disabled:cursor-not-allowed disabled:bg-neutral-200 disabled:text-neutral-400 sm:w-auto"
 			>
 				{#if pdfLoading}
 					<svg class="h-4 w-4 animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" aria-hidden="true">
@@ -267,62 +267,62 @@
 			</button>
 
 			{#if pdfLoading}
-				<p class="mt-2 text-xs text-slate-400">This usually takes 3–5 seconds while we generate your summary.</p>
+				<p class="mt-2 text-xs text-neutral-400">This usually takes 3–5 seconds while we generate your summary.</p>
 			{/if}
 		</div>
 
 		<!-- CSV card -->
-		<div class="rounded-2xl border border-slate-200 bg-white px-6 py-5 shadow-sm">
+		<div class="rounded-2xl border border-neutral-200 bg-white px-6 py-5 shadow-sm">
 			<div class="mb-4 flex items-start gap-3">
-				<div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-slate-600">
+				<div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-neutral-100 text-neutral-600">
 					<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
 						<path fill-rule="evenodd" d="M3 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" clip-rule="evenodd" />
 					</svg>
 				</div>
 				<div>
-					<h3 class="font-semibold text-slate-800">Raw Data Export</h3>
-					<p class="mt-0.5 text-sm text-slate-500">CSV · Opens in Excel or Google Sheets</p>
+					<h3 class="font-semibold text-neutral-800">Raw Data Export</h3>
+					<p class="mt-0.5 text-sm text-neutral-500">CSV · Opens in Excel or Google Sheets</p>
 				</div>
 			</div>
 
-			<p class="mb-5 text-sm leading-relaxed text-slate-600">
+			<p class="mb-5 text-sm leading-relaxed text-neutral-600">
 				Simple spreadsheet with dates, symptoms, and notes. Import to Excel, Google Sheets, or Numbers for your own analysis or personal records.
 			</p>
 
-			<ul class="mb-5 space-y-1.5 text-xs text-slate-500">
+			<ul class="mb-5 space-y-1.5 text-xs text-neutral-500">
 				<li class="flex items-center gap-2">
-					<span class="h-1.5 w-1.5 shrink-0 rounded-full bg-slate-400"></span>
+					<span class="h-1.5 w-1.5 shrink-0 rounded-full bg-neutral-400"></span>
 					Date, symptoms, and notes per row
 				</li>
 				<li class="flex items-center gap-2">
-					<span class="h-1.5 w-1.5 shrink-0 rounded-full bg-slate-400"></span>
+					<span class="h-1.5 w-1.5 shrink-0 rounded-full bg-neutral-400"></span>
 					Compatible with Excel, Sheets, Numbers
 				</li>
 				<li class="flex items-center gap-2">
-					<span class="h-1.5 w-1.5 shrink-0 rounded-full bg-slate-400"></span>
+					<span class="h-1.5 w-1.5 shrink-0 rounded-full bg-neutral-400"></span>
 					Oldest entries first
 				</li>
 				<li class="flex items-center gap-2">
-					<span class="h-1.5 w-1.5 shrink-0 rounded-full bg-slate-400"></span>
+					<span class="h-1.5 w-1.5 shrink-0 rounded-full bg-neutral-400"></span>
 					No account data or PII included
 				</li>
 			</ul>
 
 			{#if csvError}
-				<div class="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3">
+				<div class="mb-4 rounded-lg border border-danger-light bg-danger-light px-4 py-3">
 					{#if isNoDataError(csvError)}
-						<p class="text-sm text-red-700">
+						<p class="text-sm text-danger-dark">
 							No symptoms logged in this date range.
-							<a href="/log" class="font-medium underline hover:text-red-900">Start logging</a>
+							<a href="/log" class="font-medium underline hover:text-danger-dark">Start logging</a>
 							to generate a report.
 						</p>
 					{:else}
 						<div class="flex items-start justify-between gap-2">
-							<p class="text-sm text-red-700">{csvError}</p>
+							<p class="text-sm text-danger-dark">{csvError}</p>
 							<button
 								onclick={() => (csvError = '')}
 								aria-label="Dismiss error"
-								class="shrink-0 text-red-400 hover:text-red-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-300"
+								class="shrink-0 text-danger hover:text-danger focus:outline-none focus-visible:ring-2 focus-visible:ring-danger-light"
 							>
 								<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
 									<path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd" />
@@ -337,7 +337,7 @@
 				onclick={downloadCsv}
 				disabled={!isValid || csvLoading}
 				aria-busy={csvLoading}
-				class="flex w-full items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white px-5 py-3 text-sm font-semibold text-slate-700 shadow-sm transition-all hover:border-slate-400 hover:bg-slate-50 disabled:cursor-not-allowed disabled:border-slate-200 disabled:text-slate-400 sm:w-auto"
+				class="flex w-full items-center justify-center gap-2 rounded-xl border border-neutral-300 bg-white px-5 py-3 text-sm font-semibold text-neutral-700 shadow-sm transition-all hover:border-neutral-400 hover:bg-neutral-50 disabled:cursor-not-allowed disabled:border-neutral-200 disabled:text-neutral-400 sm:w-auto"
 			>
 				{#if csvLoading}
 					<svg class="h-4 w-4 animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" aria-hidden="true">
@@ -356,7 +356,7 @@
 	</div>
 
 	<!-- Disclaimer -->
-	<p class="mt-8 text-xs text-slate-400">
+	<p class="mt-8 text-xs text-neutral-400">
 		Reports contain symptom observations only — not medical diagnoses. Share with your provider to support an informed conversation.
 	</p>
 </div>

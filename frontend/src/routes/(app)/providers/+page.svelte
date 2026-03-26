@@ -92,11 +92,11 @@
 
 	// Status config for badges and dropdown
 	const STATUS_CONFIG: Record<string, { label: string; badge: string }> = {
-		to_call: { label: 'To Call', badge: 'bg-blue-100 text-blue-700' },
-		called: { label: 'Called', badge: 'bg-teal-100 text-teal-700' },
-		left_voicemail: { label: 'Left Voicemail', badge: 'bg-amber-100 text-amber-700' },
-		booking: { label: 'Booked Appointment', badge: 'bg-green-100 text-green-700' },
-		not_available: { label: 'Not Available', badge: 'bg-slate-100 text-slate-500' }
+		to_call: { label: 'To Call', badge: 'bg-accent-100 text-accent-800' },
+		called: { label: 'Called', badge: 'bg-primary-100 text-primary-700' },
+		left_voicemail: { label: 'Left Voicemail', badge: 'bg-warning-light text-warning-dark' },
+		booking: { label: 'Booked Appointment', badge: 'bg-primary-100 text-primary-800' },
+		not_available: { label: 'Not Available', badge: 'bg-neutral-100 text-neutral-500' }
 	};
 
 	const STATUSES = Object.entries(STATUS_CONFIG).map(([value, cfg]) => ({
@@ -384,25 +384,25 @@
 <div class="w-full max-w-full overflow-hidden px-4 py-8 sm:px-6 lg:px-8">
 	<!-- Page header -->
 	<div class="mb-8">
-		<h1 class="text-2xl font-bold text-slate-900">Find a Menopause Specialist</h1>
-		<p class="mt-1 text-slate-500">
+		<h1 class="text-2xl font-bold text-neutral-800">Find a Menopause Specialist</h1>
+		<p class="mt-1 text-neutral-500">
 			Search our directory of NAMS-certified menopause practitioners near you.
 		</p>
 	</div>
 
 	<!-- ── MY SHORTLIST ──────────────────────────────────────────────────── -->
 	{#if shortlist.length > 0}
-		<section class="mb-6 rounded-2xl border border-slate-200 bg-white shadow-sm">
+		<section class="mb-6 rounded-2xl border border-neutral-200 bg-white shadow-sm">
 			<!-- Section header -->
 			<div class="flex items-center justify-between px-6 py-4">
-				<h2 class="text-sm font-semibold text-slate-700">
+				<h2 class="text-sm font-semibold text-neutral-700">
 					My Shortlist
-					<span class="ml-1 font-normal text-slate-400">({shortlist.length})</span>
+					<span class="ml-1 font-normal text-neutral-400">({shortlist.length})</span>
 				</h2>
 				{#if shortlist.length > 3}
 					<button
 						onclick={() => (shortlistExpanded = !shortlistExpanded)}
-						class="text-xs font-medium text-teal-600 transition-colors hover:text-teal-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-300"
+						class="text-xs font-medium text-primary-600 transition-colors hover:text-primary-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-300"
 						aria-expanded={shortlistExpanded}
 						aria-controls="shortlist-entries"
 					>
@@ -412,7 +412,7 @@
 			</div>
 
 			<!-- Entry list -->
-			<ul id="shortlist-entries" class="divide-y divide-slate-100 border-t border-slate-100">
+			<ul id="shortlist-entries" class="divide-y divide-neutral-100 border-t border-neutral-100">
 				{#each visibleShortlist as entry (entry.provider_id)}
 					{@const statusCfg = STATUS_CONFIG[entry.status] ?? STATUS_CONFIG.to_call}
 					{@const isExpanded = expandedEntries.has(entry.provider_id)}
@@ -434,13 +434,13 @@
 							<!-- Name, phone, status in a row -->
 							<div class="min-w-0 flex-1">
 								<div class="flex flex-col sm:flex-row sm:items-center sm:gap-4 gap-1">
-									<h4 class="text-sm font-semibold text-slate-900 truncate">
+									<h4 class="text-sm font-semibold text-neutral-800 truncate">
 										{entry.provider.name}
 									</h4>
 									{#if entry.provider.phone}
 										<a
 											href="tel:{entry.provider.phone}"
-											class="text-xs text-teal-600 hover:text-teal-800 font-medium whitespace-nowrap"
+											class="text-xs text-primary-600 hover:text-primary-800 font-medium whitespace-nowrap"
 										>
 											{entry.provider.phone}
 										</a>
@@ -466,7 +466,7 @@
 										expandedEntries = updated;
 									}}
 									aria-label={isExpanded ? 'Collapse details' : 'Expand details'}
-									class="flex h-9 w-9 items-center justify-center rounded text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-300"
+									class="flex h-9 w-9 items-center justify-center rounded text-neutral-400 transition-colors hover:bg-neutral-100 hover:text-neutral-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-300"
 								>
 									<svg
 										xmlns="http://www.w3.org/2000/svg"
@@ -482,7 +482,7 @@
 								<button
 									onclick={() => handleRemoveFromShortlist(entry.provider_id)}
 									aria-label="Remove from shortlist"
-									class="flex h-9 w-9 items-center justify-center rounded text-slate-300 transition-colors hover:bg-slate-100 hover:text-slate-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-300"
+									class="flex h-9 w-9 items-center justify-center rounded text-neutral-300 transition-colors hover:bg-neutral-100 hover:text-neutral-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-300"
 								>
 									<svg
 										xmlns="http://www.w3.org/2000/svg"
@@ -500,14 +500,14 @@
 
 						<!-- Expandable details -->
 						{#if isExpanded}
-							<div class="border-t border-slate-100 bg-slate-50 px-6 py-4 space-y-3">
+							<div class="border-t border-neutral-100 bg-neutral-50 px-6 py-4 space-y-3">
 								<!-- Provider info -->
 								<div>
-									<p class="text-xs font-medium text-slate-500 mb-1">Provider Details</p>
+									<p class="text-xs font-medium text-neutral-500 mb-1">Provider Details</p>
 									{#if entry.provider.practice_name}
-										<p class="text-xs text-slate-600">{entry.provider.practice_name}</p>
+										<p class="text-xs text-neutral-600">{entry.provider.practice_name}</p>
 									{/if}
-									<p class="text-xs text-slate-600">{entry.provider.city}, {entry.provider.state}</p>
+									<p class="text-xs text-neutral-600">{entry.provider.city}, {entry.provider.state}</p>
 								</div>
 
 								<!-- Type, NAMS, Website -->
@@ -515,14 +515,14 @@
 									<div class="flex flex-wrap items-center gap-2">
 										{#if entry.provider.provider_type}
 											<span
-												class="inline-flex text-xs font-medium rounded-full border border-teal-100 bg-teal-50 px-2 py-0.5 text-teal-700"
+												class="inline-flex text-xs font-medium rounded-full border border-primary-100 bg-primary-50 px-2 py-0.5 text-primary-700"
 											>
 												{TYPE_LABELS[entry.provider.provider_type] ?? entry.provider.provider_type}
 											</span>
 										{/if}
 										{#if entry.provider.nams_certified}
 											<span
-												class="inline-flex text-xs font-semibold rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-amber-700"
+												class="inline-flex text-xs font-semibold rounded-full border border-primary-200 bg-primary-50 px-2 py-0.5 text-primary-700"
 												title="NAMS Certified Menopause Practitioner"
 											>
 												✦ NAMS
@@ -533,7 +533,7 @@
 												href={entry.provider.website}
 												target="_blank"
 												rel="noopener noreferrer"
-												class="text-xs text-teal-600 hover:text-teal-800 font-medium"
+												class="text-xs text-primary-600 hover:text-primary-800 font-medium"
 											>
 												Website ↗
 											</a>
@@ -544,15 +544,15 @@
 								<!-- Insurance -->
 								{#if entry.provider.insurance_accepted.length > 0}
 									<div>
-										<p class="text-xs font-medium text-slate-500 mb-1">Insurance</p>
+										<p class="text-xs font-medium text-neutral-500 mb-1">Insurance</p>
 										<div class="flex flex-wrap gap-1">
 											{#each visibleIns as ins (ins)}
-												<span class="text-xs rounded border border-slate-200 bg-white px-1.5 py-0.5 text-slate-600">
+												<span class="text-xs rounded border border-neutral-200 bg-white px-1.5 py-0.5 text-neutral-600">
 													{ins}
 												</span>
 											{/each}
 											{#if extraIns > 0}
-												<span class="text-xs text-slate-400">+{extraIns}</span>
+												<span class="text-xs text-neutral-400">+{extraIns}</span>
 											{/if}
 										</div>
 									</div>
@@ -568,7 +568,7 @@
 												btn?.click();
 											}
 										}}
-										class="text-xs font-medium rounded px-2.5 py-1.5 border border-slate-200 bg-white text-slate-700 hover:border-teal-300 hover:bg-teal-50 hover:text-teal-700 transition-colors"
+										class="text-xs font-medium rounded px-2.5 py-1.5 border border-neutral-200 bg-white text-neutral-700 hover:border-primary-300 hover:bg-primary-50 hover:text-primary-700 transition-colors"
 									>
 										Generate Script
 									</button>
@@ -576,7 +576,7 @@
 										value={entry.status}
 										onchange={(e) =>
 											handleUpdateStatus(entry.provider_id, (e.target as HTMLSelectElement).value)}
-										class="text-xs rounded border border-slate-200 bg-white px-2 py-1 text-slate-600 focus:border-teal-400 focus:ring-1 focus:ring-teal-200 focus:outline-none"
+										class="text-xs rounded border border-neutral-200 bg-white px-2 py-1 text-neutral-600 focus:border-primary-400 focus:ring-1 focus:ring-primary-200 focus:outline-none"
 										aria-label="Update call status"
 									>
 										{#each STATUSES as s (s.value)}
@@ -596,10 +596,10 @@
 										}}
 										onblur={() => handleNotesSave(entry.provider_id)}
 										disabled={notesSaving[entry.provider_id]}
-										class="w-full resize-none rounded text-xs border border-slate-200 bg-white px-2.5 py-2 text-slate-700 placeholder-slate-400 focus:border-teal-400 focus:ring-1 focus:ring-teal-200 focus:outline-none disabled:opacity-60"
+										class="w-full resize-none rounded text-xs border border-neutral-200 bg-white px-2.5 py-2 text-neutral-700 placeholder-neutral-400 focus:border-primary-400 focus:ring-1 focus:ring-primary-200 focus:outline-none disabled:opacity-60"
 									></textarea>
 									{#if notesSaved[entry.provider_id]}
-										<span class="absolute right-2 bottom-2 text-xs text-teal-500">Saved</span>
+										<span class="absolute right-2 bottom-2 text-xs text-primary-500">Saved</span>
 									{/if}
 								</div>
 							</div>
@@ -610,10 +610,10 @@
 
 			<!-- "Show more" footer when collapsed and there are hidden entries -->
 			{#if shortlist.length > 3 && !shortlistExpanded}
-				<div class="border-t border-slate-100 px-6 py-3 text-center">
+				<div class="border-t border-neutral-100 px-6 py-3 text-center">
 					<button
 						onclick={() => (shortlistExpanded = true)}
-						class="text-xs text-slate-400 transition-colors hover:text-slate-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-300"
+						class="text-xs text-neutral-400 transition-colors hover:text-neutral-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-300"
 					>
 						+{shortlist.length - 3} more — show all
 					</button>
@@ -623,12 +623,12 @@
 	{/if}
 
 	<!-- Search bar -->
-	<section class="mb-4 rounded-2xl border border-slate-200 bg-white px-6 py-5 shadow-sm">
+	<section class="mb-4 rounded-2xl border border-neutral-200 bg-white px-6 py-5 shadow-sm">
 		<div class="flex flex-wrap items-end gap-3">
 			<!-- State custom dropdown -->
 			<div class="relative min-w-[160px] flex-1">
-				<p class="mb-1.5 text-sm font-medium text-slate-500">
-					State <span class="text-red-400">*</span>
+				<p class="mb-1.5 text-sm font-medium text-neutral-500">
+					State <span class="text-danger">*</span>
 				</p>
 				<!-- Backdrop to close on outside click -->
 				{#if stateDropdownOpen}
@@ -651,11 +651,11 @@
 					}
 				}}
 					onkeydown={handleStateDropdownKeydown}
-					class="flex w-full items-center justify-between rounded-lg border bg-white px-3 py-3 text-sm shadow-sm transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-300
+					class="flex w-full items-center justify-between rounded-lg border bg-white px-3 py-3 text-sm shadow-sm transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-300
 						{stateDropdownOpen
-						? 'border-teal-400 ring-2 ring-teal-200'
-						: 'border-slate-200 hover:border-slate-300'}
-						{selectedState ? 'text-slate-700' : 'text-slate-400'}"
+						? 'border-primary-400 ring-2 ring-primary-200'
+						: 'border-neutral-200 hover:border-neutral-300'}
+						{selectedState ? 'text-neutral-700' : 'text-neutral-400'}"
 					aria-haspopup="listbox"
 					aria-expanded={stateDropdownOpen}
 					aria-controls="state-dropdown-list"
@@ -667,7 +667,7 @@
 					</span>
 					<svg
 						xmlns="http://www.w3.org/2000/svg"
-						class="size-4 shrink-0 text-slate-400 transition-transform {stateDropdownOpen
+						class="size-4 shrink-0 text-neutral-400 transition-transform {stateDropdownOpen
 							? 'rotate-180'
 							: ''}"
 						viewBox="0 0 24 24"
@@ -682,16 +682,16 @@
 				{#if stateDropdownOpen}
 					<div
 						id="state-dropdown-list"
-						class="absolute left-0 top-full z-20 mt-1 w-full rounded-lg border border-slate-200 bg-white shadow-lg"
+						class="absolute left-0 top-full z-20 mt-1 w-full rounded-lg border border-neutral-200 bg-white shadow-lg"
 						role="listbox"
 						aria-label="State"
 					>
-						<div class="border-b border-slate-100 p-2">
+						<div class="border-b border-neutral-100 p-2">
 						<input
 							type="text"
 							placeholder="Type state name or code..."
 							bind:value={stateSearchInput}
-							class="w-full rounded px-2 py-1.5 text-sm border border-slate-200 focus:border-teal-400 focus:outline-none focus:ring-2 focus:ring-teal-200"
+							class="w-full rounded px-2 py-1.5 text-sm border border-neutral-200 focus:border-primary-400 focus:outline-none focus:ring-2 focus:ring-primary-200"
 							aria-label="Search states"
 						/>
 					</div>
@@ -708,16 +708,16 @@
 								}}
 									class="flex w-full items-center justify-between px-3 py-3 text-left text-sm transition-colors
 										{selectedState === s.state
-										? 'bg-teal-50 font-medium text-teal-700'
-										: 'text-slate-700 hover:bg-teal-50 hover:text-teal-700'}"
+										? 'bg-primary-50 font-medium text-primary-700'
+										: 'text-neutral-700 hover:bg-primary-50 hover:text-primary-700'}"
 								>
 									<span>{s.state}</span>
-									<span class="text-xs text-slate-400">{s.count}</span>
+									<span class="text-xs text-neutral-400">{s.count}</span>
 								</button>
 							</li>
 						{/each}
 						{:else}
-							<li class="px-3 py-4 text-center text-sm text-slate-400">
+							<li class="px-3 py-4 text-center text-sm text-neutral-400">
 								No states found
 							</li>
 						{/if}
@@ -728,8 +728,8 @@
 
 		<!-- City input -->
 			<div class="min-w-[180px] flex-1">
-				<label for="city-input" class="mb-1.5 block text-sm font-medium text-slate-500">
-					City <span class="text-slate-300">(optional)</span>
+				<label for="city-input" class="mb-1.5 block text-sm font-medium text-neutral-500">
+					City <span class="text-neutral-300">(optional)</span>
 				</label>
 				<input
 					id="city-input"
@@ -737,7 +737,7 @@
 					placeholder="e.g. Minneapolis"
 					bind:value={city}
 					onkeydown={handleSearchKeydown}
-					class="w-full h-11 rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-700 shadow-sm transition-colors focus:border-teal-400 focus:ring-2 focus:ring-teal-200 focus:outline-none"
+					class="w-full h-11 rounded-lg border border-neutral-200 bg-white px-3 text-sm text-neutral-700 shadow-sm transition-colors focus:border-primary-400 focus:ring-2 focus:ring-primary-200 focus:outline-none"
 				/>
 			</div>
 
@@ -745,7 +745,7 @@
 			<button
 				onclick={handleSearch}
 				disabled={!canSearch || loading}
-				class="min-h-11 rounded-lg bg-teal-600 px-5 text-sm font-medium text-white shadow-sm transition-colors hover:bg-teal-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-300 disabled:cursor-not-allowed disabled:opacity-50"
+				class="min-h-11 rounded-lg bg-primary-500 px-5 text-sm font-medium text-white shadow-sm transition-colors hover:bg-primary-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-300 disabled:cursor-not-allowed disabled:opacity-50"
 			>
 				{loading && !hasSearched ? 'Searching…' : 'Search'}
 			</button>
@@ -754,11 +754,11 @@
 
 	<!-- Filters section -->
 	{#if hasSearched}
-		<section class="mb-4 rounded-2xl border border-slate-200 bg-white px-6 py-5 shadow-sm">
+		<section class="mb-4 rounded-2xl border border-neutral-200 bg-white px-6 py-5 shadow-sm">
 			<!-- Mobile toggle -->
 			<button
 				onclick={() => (filtersOpen = !filtersOpen)}
-				class="flex w-full items-center justify-between text-sm font-medium text-slate-700 sm:hidden focus:outline-none"
+				class="flex w-full items-center justify-between text-sm font-medium text-neutral-700 sm:hidden focus:outline-none"
 				aria-expanded={filtersOpen}
 				aria-controls="filters-panel"
 			>
@@ -791,16 +791,16 @@
 	<section id="results-section">
 		{#if loading}
 			<!-- Skeleton loading -->
-			<div class="mb-4 h-5 w-48 animate-pulse rounded bg-slate-200"></div>
+			<div class="mb-4 h-5 w-48 animate-pulse rounded bg-neutral-200"></div>
 			<ProviderSkeleton />
 		{:else if error}
 			<!-- Error state -->
-			<div class="rounded-2xl border border-red-200 bg-red-50 px-6 py-5">
-				<p class="font-medium text-red-700">Something went wrong</p>
-				<p class="mt-1 text-sm text-red-600">{error}</p>
+			<div class="rounded-2xl border border-danger-light bg-danger-light px-6 py-5">
+				<p class="font-medium text-danger-dark">Something went wrong</p>
+				<p class="mt-1 text-sm text-danger">{error}</p>
 				<button
 					onclick={handleSearch}
-					class="mt-3 rounded-lg bg-red-600 px-4 py-3 text-sm font-medium text-white transition-colors hover:bg-red-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-300"
+					class="mt-3 rounded-lg bg-danger px-4 py-3 text-sm font-medium text-white transition-colors hover:bg-danger-dark focus:outline-none focus-visible:ring-2 focus-visible:ring-danger-light"
 				>
 					Try again
 				</button>
@@ -808,28 +808,28 @@
 		{:else if !hasSearched}
 			<!-- Pre-search state -->
 			<div
-				class="rounded-2xl border border-dashed border-slate-300 bg-slate-50 py-20 text-center"
+				class="rounded-2xl border border-dashed border-neutral-300 bg-neutral-50 py-20 text-center"
 			>
-				<div class="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-teal-100 text-2xl">
+				<div class="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-primary-100 text-2xl">
 					🔍
 				</div>
-				<p class="font-medium text-slate-700">Find specialists near you</p>
-				<p class="mt-1 text-sm text-slate-400">
+				<p class="font-medium text-neutral-700">Find specialists near you</p>
+				<p class="mt-1 text-sm text-neutral-400">
 					Select a state above to search our directory of menopause-knowledgeable providers.
 				</p>
 			</div>
 		{:else if results && results.total === 0}
 			<!-- Empty state -->
 			<div
-				class="rounded-2xl border border-dashed border-slate-300 bg-slate-50 py-16 text-center"
+				class="rounded-2xl border border-dashed border-neutral-300 bg-neutral-50 py-16 text-center"
 			>
-				<div class="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-slate-200 text-2xl">
+				<div class="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-neutral-200 text-2xl">
 					🌿
 				</div>
-				<p class="font-medium text-slate-700">
+				<p class="font-medium text-neutral-700">
 					No specialists found in {city ? `${city}, ` : ''}{selectedStateName}
 				</p>
-				<p class="mt-1 text-sm text-slate-400">
+				<p class="mt-1 text-sm text-neutral-400">
 					Try searching just by state, or expanding your filters.
 				</p>
 				<button
@@ -840,7 +840,7 @@
 						namsOnly = true;
 						handleSearch();
 					}}
-					class="mt-4 rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-300"
+					class="mt-4 rounded-lg border border-neutral-200 bg-white px-4 py-2 text-sm font-medium text-neutral-700 transition-colors hover:bg-neutral-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-300"
 				>
 					Clear filters
 				</button>
@@ -848,14 +848,14 @@
 		{:else if results}
 			<!-- Results header -->
 			<div class="mb-4 flex items-center justify-between gap-4">
-				<p class="text-sm text-slate-500">
-					Showing <span class="font-medium text-slate-700">{showingFrom}–{showingTo}</span>
+				<p class="text-sm text-neutral-500">
+					Showing <span class="font-medium text-neutral-700">{showingFrom}–{showingTo}</span>
 					of
-					<span class="font-medium text-slate-700">{results.total}</span>
+					<span class="font-medium text-neutral-700">{results.total}</span>
 					providers in
-					<span class="font-medium text-slate-700">{selectedStateName}</span>
+					<span class="font-medium text-neutral-700">{selectedStateName}</span>
 					{#if loading}
-						<span class="ml-1 text-slate-400">·&nbsp;Refreshing…</span>
+						<span class="ml-1 text-neutral-400">·&nbsp;Refreshing…</span>
 					{/if}
 				</p>
 			</div>
@@ -886,7 +886,7 @@
 					<button
 						onclick={() => goToPage(currentPage - 1)}
 						disabled={currentPage <= 1}
-						class="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm text-slate-600 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40 focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-300"
+						class="rounded-lg border border-neutral-200 bg-white px-3 py-1.5 text-sm text-neutral-600 transition-colors hover:bg-neutral-50 disabled:cursor-not-allowed disabled:opacity-40 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-300"
 						aria-label="Previous page"
 					>
 						← Prev
@@ -894,15 +894,15 @@
 
 					{#each paginationPages as p (String(p) + '-' + paginationPages.indexOf(p))}
 						{#if p === '…'}
-							<span class="px-1 text-sm text-slate-400">…</span>
+							<span class="px-1 text-sm text-neutral-400">…</span>
 						{:else}
 							<button
 								onclick={() => goToPage(p as number)}
 								aria-current={currentPage === p ? 'page' : undefined}
-								class="min-w-[36px] rounded-lg border px-3 py-1.5 text-sm transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-300
+								class="min-w-[36px] rounded-lg border px-3 py-1.5 text-sm transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-300
 									{currentPage === p
-									? 'border-teal-500 bg-teal-500 font-medium text-white'
-									: 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'}"
+									? 'border-primary-500 bg-primary-500 font-medium text-white'
+									: 'border-neutral-200 bg-white text-neutral-600 hover:bg-neutral-50'}"
 							>
 								{p}
 							</button>
@@ -913,7 +913,7 @@
 					<button
 						onclick={() => goToPage(currentPage + 1)}
 						disabled={currentPage >= (results?.total_pages ?? 1)}
-						class="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm text-slate-600 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40 focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-300"
+						class="rounded-lg border border-neutral-200 bg-white px-3 py-1.5 text-sm text-neutral-600 transition-colors hover:bg-neutral-50 disabled:cursor-not-allowed disabled:opacity-40 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-300"
 						aria-label="Next page"
 					>
 						Next →
@@ -922,7 +922,7 @@
 			{/if}
 
 			<!-- Disclaimer -->
-			<p class="mt-8 text-center text-xs text-slate-400">
+			<p class="mt-8 text-center text-xs text-neutral-400">
 				Provider availability and new patient status change frequently. We recommend calling ahead
 				to confirm they are accepting new patients.
 			</p>

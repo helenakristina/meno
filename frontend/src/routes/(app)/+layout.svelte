@@ -4,10 +4,11 @@
 	import { authState } from '$lib/stores/auth';
 	import { goto } from '$app/navigation';
 	import { supabase } from '$lib/supabase/client';
-	import { Menu, X, User } from '@lucide/svelte';
+	import { Menu, X } from '@lucide/svelte';
 	import { onMount } from 'svelte';
 	import { apiClient } from '$lib/api/client';
 	import { userSettings } from '$lib/stores/settings';
+	import logo from '$lib/assets/logo.png';
 
 	let { children }: { children: Snippet } = $props();
 	let loading = $state(true);
@@ -85,11 +86,11 @@
 />
 
 {#if loading}
-	<div class="flex min-h-screen items-center justify-center bg-slate-50">
-		<div class="text-slate-600">Loading...</div>
+	<div class="flex min-h-screen items-center justify-center bg-neutral-50">
+		<div class="text-neutral-600">Loading...</div>
 	</div>
 {:else}
-	<div class="min-h-screen bg-slate-50">
+	<div class="min-h-screen bg-neutral-50">
 		<!-- Mobile menu backdrop -->
 		{#if mobileMenuOpen}
 			<button
@@ -104,11 +105,14 @@
 				class="fixed left-0 top-0 z-50 h-full w-64 transform bg-white shadow-lg transition-transform duration-300"
 			>
 			<!-- Close button -->
-			<div class="flex items-center justify-between border-b border-slate-200 p-4">
-				<a href="/dashboard" class="text-xl font-bold text-slate-900">Meno</a>
+			<div class="flex items-center justify-between border-b border-neutral-200 p-4">
+				<a href="/dashboard" class="flex items-center gap-2">
+					<img src={logo} alt="Meno" class="h-8 w-auto" />
+					<span class="text-xl font-bold text-neutral-800">Meno</span>
+				</a>
 				<button
 					onclick={closeMenu}
-					class="text-slate-600 hover:text-slate-900"
+					class="text-neutral-500 hover:text-neutral-700"
 					aria-label="Close menu"
 				>
 					<X size={24} />
@@ -123,8 +127,8 @@
 						aria-current={page.url.pathname === link.href ? 'page' : undefined}
 						onclick={closeMenu}
 						class="rounded-md px-4 py-3 text-base font-medium {page.url.pathname === link.href
-							? 'bg-slate-100 text-slate-900'
-							: 'text-slate-700 hover:bg-slate-100 hover:text-slate-900'}"
+							? 'bg-primary-50 text-primary-600 font-semibold'
+							: 'text-neutral-600 hover:bg-neutral-100 hover:text-primary-600'}"
 					>
 						{link.label}
 					</a>
@@ -133,12 +137,12 @@
 
 			<!-- Mobile user area -->
 			{#if $authState.user}
-				<div class="border-t border-slate-200 p-4">
-					<div class="mb-3 text-sm text-slate-600 break-all">{$authState.user.email}</div>
+				<div class="border-t border-neutral-200 p-4">
+					<div class="mb-3 text-sm text-neutral-600 break-all">{$authState.user.email}</div>
 					<a
 						href="/settings"
 						onclick={closeMenu}
-						class="mb-2 block rounded-md px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100"
+						class="mb-2 block rounded-md px-3 py-2 text-sm font-medium text-neutral-600 hover:bg-neutral-100"
 					>
 						Settings
 					</a>
@@ -147,7 +151,7 @@
 							closeMenu();
 							handleLogout();
 						}}
-						class="w-full rounded-md px-3 py-2 text-left text-sm font-medium text-slate-700 hover:bg-slate-100"
+						class="w-full rounded-md px-3 py-2 text-left text-sm font-medium text-neutral-600 hover:bg-neutral-100"
 					>
 						Log out
 					</button>
@@ -157,11 +161,14 @@
 		{/if}
 
 		<!-- Desktop nav -->
-		<nav class="border-b border-slate-200 bg-white">
+		<nav class="border-b border-neutral-200 bg-white">
 			<div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
 				<div class="flex h-16 items-center justify-between">
 					<div class="flex items-center gap-10">
-						<a href="/dashboard" class="text-xl font-bold text-slate-900">Meno</a>
+						<a href="/dashboard" class="flex items-center gap-2">
+							<img src={logo} alt="Meno" class="h-8 w-auto" />
+							<span class="text-xl font-bold text-neutral-800">Meno</span>
+						</a>
 
 						<!-- Desktop nav links (hidden on mobile) -->
 						<div class="hidden gap-1 md:flex">
@@ -170,8 +177,8 @@
 									href={link.href}
 									aria-current={page.url.pathname === link.href ? 'page' : undefined}
 									class="rounded-md px-3 py-2 text-sm font-medium {page.url.pathname === link.href
-										? 'bg-slate-100 text-slate-900'
-										: 'text-slate-700 hover:bg-slate-100 hover:text-slate-900'}"
+										? 'text-primary-600 font-semibold'
+										: 'text-neutral-600 hover:text-primary-600'}"
 								>
 									{link.label}
 								</a>
@@ -184,7 +191,7 @@
 						<!-- Mobile hamburger button (hidden on md and up) -->
 						<button
 							onclick={() => (mobileMenuOpen = !mobileMenuOpen)}
-							class="flex h-11 w-11 items-center justify-center rounded md:hidden text-slate-600 hover:text-slate-900"
+							class="flex h-11 w-11 items-center justify-center rounded md:hidden text-neutral-500 hover:text-neutral-700"
 							aria-label="Toggle menu"
 							aria-expanded={mobileMenuOpen}
 						>
@@ -198,7 +205,7 @@
 									e.stopPropagation();
 									profileMenuOpen = !profileMenuOpen;
 								}}
-								class="flex h-9 w-9 items-center justify-center rounded-full bg-slate-800 text-sm font-semibold text-white hover:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-500 focus:ring-offset-1"
+								class="flex h-9 w-9 items-center justify-center rounded-full bg-primary-500 text-sm font-semibold text-white hover:bg-primary-600 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-1"
 								aria-label="User menu"
 								aria-expanded={profileMenuOpen}
 								aria-haspopup="true"
@@ -208,18 +215,18 @@
 
 							{#if profileMenuOpen}
 								<div
-									class="absolute right-0 top-11 z-50 min-w-48 rounded-md border border-slate-200 bg-white py-1 shadow-lg"
+									class="absolute right-0 top-11 z-50 min-w-48 rounded-md border border-neutral-200 bg-white py-1 shadow-lg"
 									role="menu"
 								>
 									{#if $authState.user}
-										<div class="border-b border-slate-100 px-4 py-2 text-xs text-slate-500 truncate max-w-xs">
+										<div class="border-b border-neutral-100 px-4 py-2 text-xs text-neutral-500 truncate max-w-xs">
 											{$authState.user.email}
 										</div>
 									{/if}
 									<a
 										href="/settings"
 										onclick={closeProfileMenu}
-										class="block px-4 py-2 text-sm text-slate-700 hover:bg-slate-50"
+										class="block px-4 py-2 text-sm text-neutral-700 hover:bg-neutral-50"
 										role="menuitem"
 									>
 										Settings
@@ -229,7 +236,7 @@
 											closeProfileMenu();
 											handleLogout();
 										}}
-										class="block w-full px-4 py-2 text-left text-sm text-slate-700 hover:bg-slate-50"
+										class="block w-full px-4 py-2 text-left text-sm text-neutral-700 hover:bg-neutral-50"
 										role="menuitem"
 									>
 										Log out

@@ -65,28 +65,28 @@
 <div class="space-y-6">
 	<!-- Header -->
 	<div>
-		<h1 class="text-2xl font-bold text-slate-900">Your Appointment Preps</h1>
-		<p class="text-slate-600 mt-1">Access all of your generated appointment preparation documents</p>
+		<h1 class="text-2xl font-bold text-neutral-800">Your Appointment Preps</h1>
+		<p class="text-neutral-600 mt-1">Access all of your generated appointment preparation documents</p>
 	</div>
 
 	<!-- Loading state -->
 	{#if isLoading}
 		<div class="flex justify-center py-12">
-			<div class="text-slate-500">Loading...</div>
+			<div class="text-neutral-500">Loading...</div>
 		</div>
 	{:else if error}
 		<!-- Error state -->
-		<div class="rounded-lg bg-red-50 p-4 text-red-700 border border-red-200">
+		<div class="rounded-lg bg-danger-light p-4 text-danger-dark border border-danger-light">
 			<p class="font-semibold">Unable to load history</p>
 			<p class="text-sm mt-1">{error}</p>
 		</div>
 	{:else if preps.length === 0}
 		<!-- Empty state -->
-		<div class="rounded-lg bg-slate-50 p-8 text-center">
-			<p class="text-slate-600 font-medium mb-4">No appointment preps yet.</p>
+		<div class="rounded-lg bg-neutral-50 p-8 text-center">
+			<p class="text-neutral-600 font-medium mb-4">No appointment preps yet.</p>
 			<a
 				href="/appointment-prep"
-				class="inline-block rounded-lg bg-teal-600 px-6 py-2 text-white hover:bg-teal-700 transition-colors"
+				class="inline-block rounded-lg bg-primary-500 px-6 py-2 text-white hover:bg-primary-600 transition-colors"
 			>
 				Create your first appointment prep
 			</a>
@@ -95,11 +95,11 @@
 		<!-- History list -->
 		<div class="space-y-3">
 			{#each preps as prep (prep.id)}
-				<div class="rounded-lg border border-slate-200 p-4 hover:border-slate-300 transition-colors">
+				<div class="rounded-lg border border-neutral-200 p-4 hover:border-neutral-300 transition-colors">
 					<div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
 						<div class="flex-1 min-w-0">
-							<p class="font-semibold text-slate-900">Generated {formatDate(prep.generated_at)}</p>
-							<p class="text-sm text-slate-600">
+							<p class="font-semibold text-neutral-800">Generated {formatDate(prep.generated_at)}</p>
+							<p class="text-sm text-neutral-600">
 								Appointment ID: <code class="font-mono">{prep.appointment_id.slice(0, 8)}...</code>
 							</p>
 						</div>
@@ -108,7 +108,7 @@
 								href={prep.provider_summary_path}
 								target="_blank"
 								rel="noopener noreferrer"
-								class="flex-1 sm:flex-none rounded-lg bg-teal-600 px-4 py-2 text-sm text-white text-center hover:bg-teal-700 transition-colors min-h-10 flex items-center justify-center"
+								class="flex-1 sm:flex-none rounded-lg bg-primary-500 px-4 py-2 text-sm text-white text-center hover:bg-primary-600 transition-colors min-h-10 flex items-center justify-center"
 							>
 								Provider Summary
 							</a>
@@ -116,7 +116,7 @@
 								href={prep.personal_cheatsheet_path}
 								target="_blank"
 								rel="noopener noreferrer"
-								class="flex-1 sm:flex-none rounded-lg bg-teal-600 px-4 py-2 text-sm text-white text-center hover:bg-teal-700 transition-colors min-h-10 flex items-center justify-center"
+								class="flex-1 sm:flex-none rounded-lg bg-primary-500 px-4 py-2 text-sm text-white text-center hover:bg-primary-600 transition-colors min-h-10 flex items-center justify-center"
 							>
 								Cheat Sheet
 							</a>
@@ -128,21 +128,21 @@
 
 		<!-- Pagination info and controls -->
 		<div class="flex flex-col sm:flex-row items-center justify-between gap-4 pt-4">
-			<p class="text-sm text-slate-600">
+			<p class="text-sm text-neutral-600">
 				Showing {offset + 1} to {Math.min(offset + limit, total)} of {total} appointment preps
 			</p>
 			<div class="flex gap-2">
 				<button
 					onclick={handlePrevPage}
 					disabled={offset === 0}
-					class="rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors min-h-10"
+					class="rounded-lg border border-neutral-200 px-4 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors min-h-10"
 				>
 					Previous
 				</button>
 				<button
 					onclick={handleNextPage}
 					disabled={offset + limit >= total}
-					class="rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors min-h-10"
+					class="rounded-lg border border-neutral-200 px-4 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors min-h-10"
 				>
 					Next
 				</button>

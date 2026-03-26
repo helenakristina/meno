@@ -124,11 +124,11 @@
 
 <div class="flex flex-col" style="height: calc(100vh - 7rem);">
 	<!-- Header with step indicator -->
-	<div class="flex-shrink-0 border-b border-slate-200 bg-white px-4 py-4 sm:px-6 lg:px-8">
+	<div class="flex-shrink-0 border-b border-neutral-200 bg-white px-4 py-4 sm:px-6 lg:px-8">
 		<div class="flex items-center justify-between">
 			<div>
-				<h1 class="text-2xl font-bold text-slate-900">Appointment Prep</h1>
-				<p class="mt-0.5 text-sm text-slate-500">
+				<h1 class="text-2xl font-bold text-neutral-800">Appointment Prep</h1>
+				<p class="mt-0.5 text-sm text-neutral-500">
 					Step {state.currentStep} of 5: {STEP_TITLES[state.currentStep]}
 				</p>
 			</div>
@@ -136,7 +136,7 @@
 				<button
 					type="button"
 					onclick={goBack}
-					class="rounded-lg px-3 py-2 text-sm text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-700"
+					class="rounded-lg px-3 py-2 text-sm text-neutral-500 transition-colors hover:bg-neutral-100 hover:text-neutral-700"
 					aria-label="Go back to previous step"
 				>
 					← Back
@@ -146,7 +146,7 @@
 
 		<!-- Progress bar -->
 		<div
-			class="mt-3 h-1.5 w-full overflow-hidden rounded-full bg-slate-100"
+			class="mt-3 h-1.5 w-full overflow-hidden rounded-full bg-neutral-100"
 			role="progressbar"
 			aria-valuenow={state.currentStep}
 			aria-valuemin={1}
@@ -154,7 +154,7 @@
 			aria-label="Step {state.currentStep} of 5"
 		>
 			<div
-				class="h-full rounded-full bg-teal-500 transition-all duration-500"
+				class="h-full rounded-full bg-primary-500 transition-all duration-500"
 				style="width: {progressPercent}%"
 			></div>
 		</div>
@@ -163,10 +163,10 @@
 	<!-- Error banner -->
 	{#if state.error}
 		<div
-			class="flex-shrink-0 border-b border-red-200 bg-red-50 px-4 py-3 sm:px-6 lg:px-8"
+			class="flex-shrink-0 border-b border-danger-light bg-danger-light px-4 py-3 sm:px-6 lg:px-8"
 			role="alert"
 		>
-			<div class="flex items-center justify-between text-sm text-red-700">
+			<div class="flex items-center justify-between text-sm text-danger-dark">
 				<span>{state.error}</span>
 				<button
 					type="button"
@@ -182,12 +182,12 @@
 	<!-- Loading overlay -->
 	{#if state.isLoading}
 		<div
-			class="flex-shrink-0 border-b border-teal-100 bg-teal-50 px-4 py-3 sm:px-6 lg:px-8"
+			class="flex-shrink-0 border-b border-primary-100 bg-primary-50 px-4 py-3 sm:px-6 lg:px-8"
 			role="status"
 			aria-live="polite"
 			aria-busy="true"
 		>
-			<p class="text-sm text-teal-700">Saving your selections…</p>
+			<p class="text-sm text-primary-700">Saving your selections…</p>
 		</div>
 	{/if}
 

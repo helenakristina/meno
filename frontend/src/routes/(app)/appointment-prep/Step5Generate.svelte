@@ -45,16 +45,16 @@
 
 <div class="mx-auto max-w-2xl space-y-6">
 	{#if !isDone}
-		<div class="rounded-xl border border-slate-200 bg-white p-6 text-center shadow-sm">
-			<h2 class="text-lg font-semibold text-slate-800">Ready to generate your prep materials?</h2>
-			<p class="mt-2 text-sm text-slate-500">
+		<div class="rounded-xl border border-neutral-200 bg-white p-6 text-center shadow-sm">
+			<h2 class="text-lg font-semibold text-neutral-800">Ready to generate your prep materials?</h2>
+			<p class="mt-2 text-sm text-neutral-500">
 				We'll create a provider summary and a personal cheat sheet based on everything you've
 				entered.
 			</p>
 
 			{#if generateError}
 				<div
-					class="mt-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700"
+					class="mt-4 rounded-lg border border-danger-light bg-danger-light p-3 text-sm text-danger-dark"
 					role="alert"
 				>
 					{generateError}
@@ -65,7 +65,7 @@
 				type="button"
 				onclick={handleGenerate}
 				disabled={isGenerating}
-				class="mt-6 w-full rounded-xl bg-teal-600 py-3 text-sm font-semibold text-white transition-colors hover:bg-teal-700 disabled:cursor-not-allowed disabled:opacity-40"
+				class="mt-6 w-full rounded-xl bg-primary-500 py-3 text-sm font-semibold text-white transition-colors hover:bg-primary-600 disabled:cursor-not-allowed disabled:opacity-40"
 			>
 				{#if isGenerating}
 					<span class="flex items-center justify-center gap-2">
@@ -82,15 +82,15 @@
 	{:else}
 		<!-- Success state -->
 		<div
-			class="rounded-xl border border-teal-200 bg-teal-50 p-6 text-center"
+			class="rounded-xl border border-primary-200 bg-primary-50 p-6 text-center"
 			role="status"
 			aria-live="polite"
 		>
 			<div class="text-3xl" aria-hidden="true">✓</div>
-			<h2 class="mt-2 text-lg font-semibold text-teal-800">
+			<h2 class="mt-2 text-lg font-semibold text-primary-800">
 				{message || 'Your appointment prep is ready!'}
 			</h2>
-			<p class="mt-1 text-sm text-teal-700">Take these documents to your appointment.</p>
+			<p class="mt-1 text-sm text-primary-700">Take these documents to your appointment.</p>
 		</div>
 
 		<div class="space-y-3">
@@ -98,26 +98,26 @@
 				href={summaryUrl}
 				target="_blank"
 				rel="noopener noreferrer"
-				class="flex items-center justify-between rounded-xl border border-slate-200 bg-white p-4 shadow-sm transition-colors hover:border-teal-300 hover:bg-teal-50"
+				class="flex items-center justify-between rounded-xl border border-neutral-200 bg-white p-4 shadow-sm transition-colors hover:border-primary-300 hover:bg-primary-50"
 			>
 				<div>
-					<p class="font-semibold text-slate-800">Provider Summary</p>
-					<p class="text-sm text-slate-500">A clinical overview to share with your provider</p>
+					<p class="font-semibold text-neutral-800">Provider Summary</p>
+					<p class="text-sm text-neutral-500">A clinical overview to share with your provider</p>
 				</div>
-				<span class="text-teal-600" aria-hidden="true">↓ PDF</span>
+				<span class="text-primary-600" aria-hidden="true">↓ PDF</span>
 			</a>
 
 			<a
 				href={cheatsheetUrl}
 				target="_blank"
 				rel="noopener noreferrer"
-				class="flex items-center justify-between rounded-xl border border-slate-200 bg-white p-4 shadow-sm transition-colors hover:border-teal-300 hover:bg-teal-50"
+				class="flex items-center justify-between rounded-xl border border-neutral-200 bg-white p-4 shadow-sm transition-colors hover:border-primary-300 hover:bg-primary-50"
 			>
 				<div>
-					<p class="font-semibold text-slate-800">Personal Cheat Sheet</p>
-					<p class="text-sm text-slate-500">Your private reference for the appointment</p>
+					<p class="font-semibold text-neutral-800">Personal Cheat Sheet</p>
+					<p class="text-sm text-neutral-500">Your private reference for the appointment</p>
 				</div>
-				<span class="text-teal-600" aria-hidden="true">↓ PDF</span>
+				<span class="text-primary-600" aria-hidden="true">↓ PDF</span>
 			</a>
 		</div>
 
@@ -125,13 +125,13 @@
 			<button
 				type="button"
 				onclick={onStartOver}
-				class="flex-1 rounded-xl border border-slate-200 py-3 text-sm font-medium text-slate-600 transition-colors hover:bg-slate-50"
+				class="flex-1 rounded-xl border border-neutral-200 py-3 text-sm font-medium text-neutral-600 transition-colors hover:bg-neutral-50"
 			>
 				Start over
 			</button>
 			<a
 				href="/appointment-prep/history"
-				class="flex-1 rounded-xl border border-slate-200 py-3 text-sm font-medium text-slate-600 transition-colors hover:bg-slate-50 text-center"
+				class="flex-1 rounded-xl border border-neutral-200 py-3 text-sm font-medium text-neutral-600 transition-colors hover:bg-neutral-50 text-center"
 			>
 				View all my preps
 			</a>

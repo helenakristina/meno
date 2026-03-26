@@ -166,21 +166,21 @@
 </script>
 
 {#if checkingAuth}
-	<div class="flex min-h-screen items-center justify-center bg-slate-50">
-		<p class="text-sm text-slate-400">Loading…</p>
+	<div class="flex min-h-screen items-center justify-center bg-neutral-50">
+		<p class="text-sm text-neutral-400">Loading…</p>
 	</div>
 {:else if success}
 	<div
-		class="flex min-h-screen items-center justify-center bg-slate-50 px-4"
+		class="flex min-h-screen items-center justify-center bg-neutral-50 px-4"
 		in:fade={{ duration: 200 }}
 	>
 		<div class="text-center">
 			<div
-				class="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-full bg-emerald-100"
+				class="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-full bg-success-light"
 			>
 				<svg
 					xmlns="http://www.w3.org/2000/svg"
-					class="h-8 w-8 text-emerald-600"
+					class="h-8 w-8 text-success"
 					fill="none"
 					viewBox="0 0 24 24"
 					stroke="currentColor"
@@ -190,30 +190,30 @@
 					<path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
 				</svg>
 			</div>
-			<h2 class="text-2xl font-semibold text-slate-900">You're all set!</h2>
-			<p class="mt-2 text-slate-500">Taking you to your dashboard…</p>
+			<h2 class="text-2xl font-semibold text-neutral-800">You're all set!</h2>
+			<p class="mt-2 text-neutral-500">Taking you to your dashboard…</p>
 		</div>
 	</div>
 {:else}
-	<div class="min-h-screen bg-slate-50 px-4 py-12" in:fade={{ duration: 150 }}>
+	<div class="min-h-screen bg-neutral-50 px-4 py-12" in:fade={{ duration: 150 }}>
 		<div class="mx-auto max-w-lg">
 
 			<!-- Header -->
 			<div class="mb-8 text-center">
-				<h1 class="text-3xl font-bold text-slate-900">Welcome to Meno</h1>
-				<p class="mt-2 text-slate-500">
+				<h1 class="text-3xl font-bold text-neutral-800">Welcome to Meno</h1>
+				<p class="mt-2 text-neutral-500">
 					Meno helps you track perimenopause and menopause symptoms, understand patterns,
 					and prepare for healthcare conversations.
 				</p>
-				<p class="mt-5 text-lg font-medium text-slate-700">Tell us a bit about yourself</p>
+				<p class="mt-5 text-lg font-medium text-neutral-700">Tell us a bit about yourself</p>
 			</div>
 
 			<!-- Medical disclaimer -->
-			<div class="mb-6 rounded-xl border border-amber-200 bg-amber-50 p-5">
+			<div class="mb-6 rounded-xl border border-warning bg-warning-light p-5">
 				<div class="flex gap-3">
 					<svg
 						xmlns="http://www.w3.org/2000/svg"
-						class="mt-0.5 h-5 w-5 shrink-0 text-amber-600"
+						class="mt-0.5 h-5 w-5 shrink-0 text-warning"
 						fill="none"
 						viewBox="0 0 24 24"
 						stroke="currentColor"
@@ -226,7 +226,7 @@
 							d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
 						/>
 					</svg>
-					<p class="text-sm leading-relaxed text-amber-900">
+					<p class="text-sm leading-relaxed text-warning-dark">
 						Meno provides educational information and symptom tracking. It is not a medical tool
 						and cannot diagnose conditions, recommend treatments, or replace the advice of a
 						healthcare provider. Please discuss your symptoms and any treatment decisions with
@@ -237,14 +237,14 @@
 					<input
 						type="checkbox"
 						bind:checked={disclaimerAcknowledged}
-						class="h-4 w-4 rounded border-amber-400 accent-amber-600"
+						class="h-4 w-4 rounded border-warning"
 					/>
-					<span class="text-sm font-medium text-amber-900">I understand</span>
+					<span class="text-sm font-medium text-warning-dark">I understand</span>
 				</label>
 			</div>
 
 			<!-- Form card -->
-			<div class="rounded-xl border border-slate-200 bg-white p-8 shadow-sm">
+			<div class="rounded-xl border border-neutral-200 bg-white p-8 shadow-sm">
 				<form
 					onsubmit={(e) => {
 						e.preventDefault();
@@ -253,7 +253,7 @@
 				>
 					<!-- Date of Birth -->
 					<div class="mb-8">
-						<label for="dob" class="mb-1.5 block text-sm font-semibold text-slate-700">
+						<label for="dob" class="mb-1.5 block text-sm font-semibold text-neutral-700">
 							Date of Birth
 						</label>
 						<input
@@ -264,21 +264,21 @@
 							onblur={validateDob}
 							max={todayStr}
 							required
-							class="w-full rounded-lg border px-3 py-2.5 text-sm text-slate-800 transition-colors focus:outline-none focus:ring-2
+							class="w-full rounded-lg border px-3 py-2.5 text-sm text-neutral-800 transition-colors focus:outline-none focus:ring-2
 								{dobError
-								? 'border-red-300 focus:border-red-400 focus:ring-red-200'
-								: 'border-slate-300 focus:border-violet-400 focus:ring-violet-200'}"
+								? 'border-danger-light focus:border-danger focus:ring-danger-light'
+								: 'border-neutral-300 focus:border-primary-500 focus:ring-primary-200'}"
 						/>
 						{#if dobError}
 							<p
-								class="mt-1.5 text-sm text-red-600"
+								class="mt-1.5 text-sm text-danger"
 								in:fly={{ y: -4, duration: 150 }}
 								role="alert"
 							>
 								{dobError}
 							</p>
 						{:else}
-							<p class="mt-1.5 text-xs text-slate-400">
+							<p class="mt-1.5 text-xs text-neutral-400">
 								Used to provide age-appropriate information
 							</p>
 						{/if}
@@ -286,7 +286,7 @@
 
 					<!-- Journey Stage -->
 					<fieldset class="mb-8">
-						<legend class="mb-3 text-sm font-semibold text-slate-700">
+						<legend class="mb-3 text-sm font-semibold text-neutral-700">
 							Where are you in your journey?
 						</legend>
 						<div class="space-y-2.5">
@@ -294,31 +294,31 @@
 								<label
 									class="flex cursor-pointer items-start gap-3 rounded-xl border p-4 transition-all
 										{journeyStage === stage.value
-										? 'border-violet-400 bg-violet-50 shadow-sm'
-										: 'border-slate-200 hover:border-slate-300 hover:bg-slate-50/80'}"
+										? 'border-primary-400 bg-primary-50 shadow-sm'
+										: 'border-neutral-200 hover:border-neutral-300 hover:bg-neutral-50'}"
 								>
 									<input
 										type="radio"
 										name="journey_stage"
 										value={stage.value}
 										bind:group={journeyStage}
-										class="mt-0.5 shrink-0 accent-violet-600"
+										class="mt-0.5 shrink-0 accent-primary-500"
 									/>
 									<div>
 										<span
 											class="block font-medium
-												{journeyStage === stage.value ? 'text-violet-900' : 'text-slate-800'}"
+												{journeyStage === stage.value ? 'text-primary-800' : 'text-neutral-800'}"
 										>
 											{stage.label}
 										</span>
-										<span class="mt-0.5 block text-sm text-slate-500">
+										<span class="mt-0.5 block text-sm text-neutral-500">
 											{stage.description}
 										</span>
 									</div>
 								</label>
 							{/each}
 						</div>
-						<p class="mt-3 text-xs text-slate-400">
+						<p class="mt-3 text-xs text-neutral-400">
 							Don't worry if you're unsure — this helps us show relevant information, and you can
 							update it later.
 						</p>
@@ -327,7 +327,7 @@
 					<!-- API error -->
 					{#if error}
 						<div
-							class="mb-5 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700"
+							class="mb-5 rounded-lg border border-danger-light bg-danger-light px-4 py-3 text-sm text-danger-dark"
 							in:fly={{ y: -4, duration: 150 }}
 							role="alert"
 						>
@@ -339,9 +339,9 @@
 					<button
 						type="submit"
 						disabled={!canSubmit}
-						class="w-full rounded-xl bg-slate-900 px-6 py-3.5 text-sm font-semibold text-white shadow-sm transition-all
-							hover:bg-slate-800
-							disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400"
+						class="w-full rounded-xl bg-primary-500 px-6 py-3.5 text-sm font-semibold text-white shadow-sm transition-all
+							hover:bg-primary-600
+							disabled:cursor-not-allowed disabled:bg-neutral-200 disabled:text-neutral-400"
 					>
 						{loading ? 'Setting up your account…' : 'Complete Setup'}
 					</button>
