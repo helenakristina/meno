@@ -173,14 +173,14 @@
 		<!-- Inference banner -->
 		{#if showInferenceBanner}
 			<div
-				class="mb-6 rounded-lg border border-success-light bg-success-light px-4 py-4"
+				class="mb-6 rounded-lg border border-primary-200 bg-primary-50 px-4 py-4"
 				role="status"
 				aria-live="polite"
 			>
-				<p class="text-sm font-medium text-success-dark">
+				<p class="text-sm font-medium text-primary-800">
 					You haven't logged a period in {cycleAnalysis?.months_since_last_period} months.
 				</p>
-				<p class="mt-0.5 text-sm text-success">
+				<p class="mt-0.5 text-sm text-primary-700">
 					Would you like to update your journey stage to
 					<strong>{formatStageLabel(cycleAnalysis?.inferred_stage ?? null)}</strong>?
 				</p>
@@ -188,13 +188,13 @@
 					<button
 						onclick={handleUpdateJourneyStage}
 						disabled={updatingStage}
-						class="rounded-md bg-success px-3 py-1.5 text-xs font-medium text-white hover:bg-success disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-success"
+						class="rounded-md bg-primary-500 px-3 py-1.5 text-xs font-medium text-white hover:bg-primary-600 disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-300"
 					>
 						{updatingStage ? 'Updating…' : 'Update'}
 					</button>
 					<button
 						onclick={() => (bannerDismissed = true)}
-						class="rounded-md border border-success-light px-3 py-1.5 text-xs font-medium text-success hover:bg-success-light focus:outline-none focus-visible:ring-2 focus-visible:ring-success"
+						class="rounded-md border border-primary-200 px-3 py-1.5 text-xs font-medium text-primary-700 hover:bg-primary-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-300"
 					>
 						Dismiss
 					</button>
