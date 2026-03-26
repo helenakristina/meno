@@ -28,7 +28,7 @@
 					<div class="h-4 w-36 rounded-md bg-neutral-100"></div>
 					<div class="h-4 w-24 rounded-md bg-neutral-100"></div>
 				</div>
-				<div class="h-7 w-32 shrink-0 rounded-full bg-warning-light"></div>
+				<div class="h-7 w-32 shrink-0 rounded-full bg-neutral-200"></div>
 			</div>
 
 			<!-- Provider type pill -->
