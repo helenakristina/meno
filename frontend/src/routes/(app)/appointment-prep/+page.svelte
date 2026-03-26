@@ -197,11 +197,11 @@
 		aria-label="Appointment prep step {state.currentStep}"
 	>
 		{#if savedStateExists && state.currentStep > 1}
-			<div role="dialog" class="mb-6 rounded-lg border border-blue-200 bg-blue-50 p-4">
+			<div role="dialog" class="mb-6 rounded-lg border border-primary-200 bg-primary-50 p-4">
 				<div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
 					<div>
-						<h3 class="font-semibold text-blue-900">Resume Previous Session?</h3>
-						<p class="mt-1 text-sm text-blue-700">
+						<h3 class="font-semibold text-primary-900">Resume Previous Session?</h3>
+						<p class="mt-1 text-sm text-primary-700">
 							We found your previous appointment prep session at Step {state.currentStep}. You can continue where you left off or start fresh.
 						</p>
 					</div>
@@ -209,7 +209,7 @@
 						<button
 							type="button"
 							onclick={() => (savedStateExists = false)}
-							class="rounded-lg bg-blue-600 px-3 py-2 text-sm font-semibold text-white transition-colors hover:bg-blue-700"
+							class="rounded-lg bg-primary-500 px-3 py-2 text-sm font-semibold text-white transition-colors hover:bg-primary-600"
 						>
 							Resume
 						</button>
@@ -220,7 +220,7 @@
 								startOver();
 								savedStateExists = false;
 							}}
-							class="rounded-lg border border-blue-600 px-3 py-2 text-sm font-semibold text-blue-600 transition-colors hover:bg-blue-50"
+							class="rounded-lg border border-primary-500 px-3 py-2 text-sm font-semibold text-primary-600 transition-colors hover:bg-primary-50"
 						>
 							Start Fresh
 						</button>

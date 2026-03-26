@@ -118,7 +118,7 @@
 	];
 
 	const STATUS_COLORS: Record<ShortlistStatus, string> = {
-		to_call: 'text-blue-700 border-blue-200 bg-blue-50',
+		to_call: 'text-accent-700 border-accent-200 bg-accent-50',
 		called: 'text-primary-700 border-primary-200 bg-primary-50',
 		left_voicemail: 'text-warning-dark border-warning bg-warning-light',
 		booking: 'text-primary-700 border-primary-200 bg-primary-50',

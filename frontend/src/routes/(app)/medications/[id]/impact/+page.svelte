@@ -143,7 +143,7 @@
 		<!-- Confounding changes warning -->
 		{#if data.has_confounding_changes}
 			<div
-				class="mb-4 rounded-md border border-blue-200 bg-blue-50 p-3 text-sm text-blue-800"
+				class="mb-4 rounded-md border border-info-light bg-info-light p-3 text-sm text-info-dark"
 				role="note"
 			>
 				<span class="font-medium">Note:</span> Other medication changes occurred during this window. Results
