@@ -520,7 +520,7 @@
 			{:else if modalState === 'result'}
 				<div class="space-y-4">
 					<!-- Script card — warm off-white, generous line height for reading aloud -->
-					<div class="rounded-xl bg-warning-light px-5 py-4">
+					<div class="rounded-xl bg-primary-50 px-5 py-4">
 						<p class="text-base leading-relaxed text-neutral-800">{generatedScript}</p>
 					</div>
 
@@ -531,7 +531,7 @@
 							<span class="text-sm text-neutral-500">Ready to call?</span>
 							<a
 								href="tel:{provider.phone}"
-								class="text-sm font-medium text-primary-600 hover:text-primary-800"
+								class="text-sm font-medium text-primary-800 hover:text-primary-900"
 							>
 								{provider.phone}
 							</a>
