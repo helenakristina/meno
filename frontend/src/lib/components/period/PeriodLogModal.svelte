@@ -32,10 +32,10 @@
 	let bleedingAlert = $state(false);
 
 	const flowOptions: { value: FlowLevel; label: string; colorClass: string }[] = [
-		{ value: 'spotting', label: 'Spotting', colorClass: 'bg-rose-100 text-rose-800 border-rose-200' },
-		{ value: 'light', label: 'Light', colorClass: 'bg-rose-200 text-rose-800 border-rose-300' },
-		{ value: 'medium', label: 'Medium', colorClass: 'bg-rose-400 text-white border-rose-400' },
-		{ value: 'heavy', label: 'Heavy', colorClass: 'bg-rose-600 text-white border-rose-600' }
+		{ value: 'spotting', label: 'Spotting', colorClass: 'bg-coral-100 text-coral-800 border-coral-200' },
+		{ value: 'light', label: 'Light', colorClass: 'bg-coral-200 text-coral-800 border-coral-300' },
+		{ value: 'medium', label: 'Medium', colorClass: 'bg-coral-400 text-white border-coral-400' },
+		{ value: 'heavy', label: 'Heavy', colorClass: 'bg-coral-600 text-white border-coral-600' }
 	];
 
 	function dateValueToString(d: DateValue): string {
@@ -181,10 +181,10 @@
 		>
 			<!-- Header -->
 			<div class="mb-5 flex items-center justify-between">
-				<h2 id="period-log-title" class="text-base font-semibold text-slate-900">{title}</h2>
+				<h2 id="period-log-title" class="text-base font-semibold text-neutral-800">{title}</h2>
 				<button
 					onclick={close}
-					class="rounded-full p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-rose-300"
+					class="rounded-full p-1.5 text-neutral-400 transition-colors hover:bg-neutral-100 hover:text-neutral-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-coral-300"
 					aria-label="Close modal"
 				>
 					<svg
@@ -203,12 +203,12 @@
 			<!-- Postmenopausal bleeding alert -->
 			{#if bleedingAlert}
 				<div
-					class="mb-5 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3"
+					class="mb-5 rounded-lg border border-warning bg-warning-light px-4 py-3"
 					role="alert"
 					aria-live="polite"
 				>
-					<p class="text-sm font-medium text-amber-800">Important: Please contact your doctor</p>
-					<p class="mt-0.5 text-sm text-amber-700">
+					<p class="text-sm font-medium text-warning-dark">Important: Please contact your doctor</p>
+					<p class="mt-0.5 text-sm text-warning">
 						Postmenopausal bleeding should be evaluated by a healthcare provider promptly. You can
 						still save this log — it may be helpful to share with your doctor.
 					</p>
@@ -218,38 +218,38 @@
 			<div class="space-y-5">
 				<!-- Start date (required) -->
 				<div>
-					<label for="period-start" class="mb-1.5 block text-sm font-medium text-slate-700">
-						Period start date <span class="text-rose-500" aria-hidden="true">*</span>
+					<label for="period-start" class="mb-1.5 block text-sm font-medium text-neutral-700">
+						Period start date <span class="text-coral-500" aria-hidden="true">*</span>
 					</label>
 					<input
 						id="period-start"
 						type="date"
 						bind:value={startDate}
 						required
-						class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 shadow-sm focus:border-rose-400 focus:ring-2 focus:ring-rose-200 focus:outline-none"
+						class="w-full rounded-lg border border-neutral-200 px-3 py-2 text-sm text-neutral-700 shadow-sm focus:border-coral-400 focus:ring-2 focus:ring-coral-200 focus:outline-none"
 					/>
 				</div>
 
 				<!-- End date (optional) -->
 				<div>
-					<label for="period-end" class="mb-1.5 block text-sm font-medium text-slate-700">
+					<label for="period-end" class="mb-1.5 block text-sm font-medium text-neutral-700">
 						Period end date
-						<span class="ml-1 text-xs font-normal text-slate-400">optional</span>
+						<span class="ml-1 text-xs font-normal text-neutral-400">optional</span>
 					</label>
 					<input
 						id="period-end"
 						type="date"
 						bind:value={endDate}
 						min={startDate}
-						class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 shadow-sm focus:border-rose-400 focus:ring-2 focus:ring-rose-200 focus:outline-none"
+						class="w-full rounded-lg border border-neutral-200 px-3 py-2 text-sm text-neutral-700 shadow-sm focus:border-coral-400 focus:ring-2 focus:ring-coral-200 focus:outline-none"
 					/>
 				</div>
 
 				<!-- Flow level (optional) -->
 				<div>
-					<p class="mb-2 text-sm font-medium text-slate-700">
+					<p class="mb-2 text-sm font-medium text-neutral-700">
 						Flow level
-						<span class="ml-1 text-xs font-normal text-slate-400">optional</span>
+						<span class="ml-1 text-xs font-normal text-neutral-400">optional</span>
 					</p>
 					<div class="flex flex-wrap gap-2" role="group" aria-label="Select flow level">
 						{#each flowOptions as opt (opt.value)}
@@ -257,10 +257,10 @@
 								type="button"
 								onclick={() => (flowLevel = flowLevel === opt.value ? '' : opt.value)}
 								aria-pressed={flowLevel === opt.value}
-								class="rounded-full border px-3 py-1.5 text-xs font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-rose-300
+								class="rounded-full border px-3 py-1.5 text-xs font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-coral-300
 									{flowLevel === opt.value
 									? opt.colorClass
-									: 'border-slate-200 bg-white text-slate-600 hover:border-rose-200 hover:bg-rose-50 hover:text-rose-700'}"
+									: 'border-neutral-200 bg-white text-neutral-600 hover:border-coral-200 hover:bg-coral-50hover:text-coral-700'}"
 							>
 								{opt.label}
 							</button>
@@ -270,22 +270,22 @@
 
 				<!-- Notes (optional) -->
 				<div>
-					<label for="period-notes" class="mb-1.5 block text-sm font-medium text-slate-700">
+					<label for="period-notes" class="mb-1.5 block text-sm font-medium text-neutral-700">
 						Notes
-						<span class="ml-1 text-xs font-normal text-slate-400">optional</span>
+						<span class="ml-1 text-xs font-normal text-neutral-400">optional</span>
 					</label>
 					<textarea
 						id="period-notes"
 						bind:value={notes}
 						placeholder="Any additional details…"
 						rows={3}
-						class="w-full resize-none rounded-lg border border-slate-200 px-3 py-2.5 text-sm text-slate-700 placeholder-slate-400 shadow-sm focus:border-rose-400 focus:ring-2 focus:ring-rose-200 focus:outline-none"
+						class="w-full resize-none rounded-lg border border-neutral-200 px-3 py-2.5 text-sm text-neutral-700 placeholder-neutral-400 shadow-sm focus:border-coral-400 focus:ring-2 focus:ring-coral-200 focus:outline-none"
 					></textarea>
 				</div>
 
 				<!-- Error -->
 				{#if error}
-					<p class="rounded-lg border border-red-100 bg-red-50 px-3 py-2 text-sm text-red-700" role="alert">
+					<p class="rounded-lg border border-danger-light bg-danger-light px-3 py-2 text-sm text-danger-dark" role="alert">
 						{error}
 					</p>
 				{/if}
@@ -295,7 +295,7 @@
 					<button
 						type="button"
 						onclick={close}
-						class="flex-1 rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 transition-colors hover:border-slate-300 hover:bg-slate-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-rose-300"
+						class="flex-1 rounded-lg border border-neutral-200 bg-white px-4 py-2.5 text-sm font-medium text-neutral-700 transition-colors hover:border-neutral-300 hover:bg-neutral-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-coral-300"
 					>
 						Cancel
 					</button>
@@ -303,10 +303,10 @@
 						type="button"
 						onclick={handleSubmit}
 						disabled={!startDate || saving}
-						class="flex-1 rounded-lg px-4 py-2.5 text-sm font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-rose-300
+						class="flex-1 rounded-lg px-4 py-2.5 text-sm font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-400
 							{!startDate || saving
-							? 'cursor-not-allowed bg-slate-100 text-slate-400'
-							: 'bg-rose-600 text-white hover:bg-rose-700'}"
+							? 'cursor-not-allowed bg-neutral-100 text-neutral-400'
+							: 'bg-primary-500 text-white hover:bg-primary-600'}"
 					>
 						{saving ? 'Saving…' : isEditing ? 'Save changes' : 'Log period'}
 					</button>
@@ -317,19 +317,19 @@
 					<div class="flex justify-center pt-1">
 						{#if confirmingDelete}
 							<div class="flex items-center gap-3 text-sm">
-								<span class="text-slate-600">Delete this log?</span>
+								<span class="text-neutral-600">Delete this log?</span>
 								<button
 									type="button"
 									onclick={handleDelete}
 									disabled={deleting}
-									class="font-medium text-red-600 hover:text-red-700 focus:outline-none focus-visible:underline"
+									class="font-medium text-danger hover:text-danger-dark focus:outline-none focus-visible:underline"
 								>
 									{deleting ? 'Deleting…' : 'Yes, delete'}
 								</button>
 								<button
 									type="button"
 									onclick={() => (confirmingDelete = false)}
-									class="text-slate-500 hover:text-slate-700 focus:outline-none focus-visible:underline"
+									class="text-neutral-500 hover:text-neutral-700 focus:outline-none focus-visible:underline"
 								>
 									Keep
 								</button>
@@ -338,7 +338,7 @@
 							<button
 								type="button"
 								onclick={() => (confirmingDelete = true)}
-								class="text-sm text-slate-400 hover:text-red-600 focus:outline-none focus-visible:underline"
+								class="text-sm text-neutral-400 hover:text-danger focus:outline-none focus-visible:underline"
 							>
 								Delete log
 							</button>

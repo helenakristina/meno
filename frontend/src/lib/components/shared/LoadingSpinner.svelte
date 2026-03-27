@@ -28,10 +28,10 @@
 		role="status"
 		aria-live="polite"
 		aria-label={label || 'Loading'}
-		class="animate-spin rounded-full border-2 border-slate-300 border-t-slate-600 {sizeClasses[size]}"
+		class="animate-spin rounded-full border-2 border-neutral-300 border-t-neutral-600 {sizeClasses[size]}"
 	></div>
 	{#if label}
-		<span class="text-sm text-slate-500">{label}</span>
+		<span class="text-sm text-neutral-500">{label}</span>
 	{/if}
 </div>
 

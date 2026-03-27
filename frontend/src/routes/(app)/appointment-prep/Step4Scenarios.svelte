@@ -46,17 +46,17 @@
 <div class="mx-auto max-w-2xl space-y-6">
 	{#if isLoading}
 		<div
-			class="flex flex-col items-center gap-4 rounded-xl border border-slate-200 bg-white p-8"
+			class="flex flex-col items-center gap-4 rounded-xl border border-neutral-200 bg-white p-8"
 			aria-busy="true"
 			role="status"
 		>
-			<div class="h-8 w-8 animate-spin rounded-full border-4 border-teal-200 border-t-teal-600"></div>
-			<p class="text-sm text-slate-500" aria-live="polite">
+			<div class="h-8 w-8 animate-spin rounded-full border-4 border-primary-200 border-t-primary-600"></div>
+			<p class="text-sm text-neutral-500" aria-live="polite">
 				Generating practice scenarios… this may take a moment.
 			</p>
 		</div>
 	{:else if loadError}
-		<div class="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700" role="alert">
+		<div class="rounded-xl border border-danger-light bg-danger-light p-4 text-sm text-danger-dark" role="alert">
 			{loadError}
 			<button
 				type="button"
@@ -67,20 +67,20 @@
 			</button>
 		</div>
 	{:else}
-		<p class="text-sm text-slate-600">
+		<p class="text-sm text-neutral-600">
 			Read through these scenarios before your appointment. They're tailored to your situation.
 		</p>
 
 		<div class="space-y-4">
 			{#each scenarios as card (card.id)}
-				<div class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-					<h3 class="font-semibold text-slate-800">{card.title}</h3>
-					<p class="mt-1 text-sm italic text-slate-500">{card.situation}</p>
-					<div class="mt-3 rounded-lg bg-teal-50 p-3">
-						<p class="text-sm text-teal-800">{card.suggestion}</p>
+				<div class="rounded-xl border border-neutral-200 bg-white p-5 shadow-sm">
+					<h3 class="font-semibold text-neutral-800">{card.title}</h3>
+					<p class="mt-1 text-sm italic text-neutral-500">{card.situation}</p>
+					<div class="mt-3 rounded-lg bg-primary-50 p-3">
+						<p class="text-sm text-primary-800">{card.suggestion}</p>
 					</div>
 					<span
-						class="mt-2 inline-block rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-500"
+						class="mt-2 inline-block rounded-full bg-neutral-100 px-2 py-0.5 text-xs text-neutral-500"
 					>
 						{card.category.replace(/-/g, ' ')}
 					</span>
@@ -91,7 +91,7 @@
 		<button
 			type="button"
 			onclick={handleNext}
-			class="w-full rounded-xl bg-teal-600 py-3 text-sm font-semibold text-white transition-colors hover:bg-teal-700"
+			class="w-full rounded-xl bg-primary-500 py-3 text-sm font-semibold text-white transition-colors hover:bg-primary-600"
 		>
 			I'm ready — get my materials
 		</button>

@@ -126,16 +126,16 @@
 <div class="space-y-5">
 	<!-- Provider type segmented control -->
 	<div>
-		<p class="mb-2 text-xs font-medium tracking-wide text-slate-500 uppercase">Provider Type</p>
+		<p class="mb-2 text-xs font-medium tracking-wide text-neutral-500 uppercase">Provider Type</p>
 		<div class="flex flex-wrap gap-1.5" role="group" aria-label="Filter by provider type">
 			{#each PROVIDER_TYPES as type (type.value)}
 				<button
 					onclick={() => handleTypeChange(type.value)}
 					aria-pressed={providerType === type.value}
-					class="rounded-full border px-3 py-1.5 text-xs font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-300
+					class="rounded-full border px-3 py-1.5 text-xs font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-300
 						{providerType === type.value
-						? 'border-teal-500 bg-teal-500 text-white'
-						: 'border-slate-200 bg-white text-slate-600 hover:border-teal-200 hover:bg-teal-50 hover:text-teal-700'}"
+						? 'border-primary-500 bg-primary-500 text-white'
+						: 'border-neutral-200 bg-white text-neutral-600 hover:border-primary-200 hover:bg-primary-50 hover:text-primary-700'}"
 				>
 					{type.label}
 				</button>
@@ -147,7 +147,7 @@
 	<div class="flex flex-wrap items-start gap-5">
 		<!-- Insurance searchable combobox -->
 		<div class="relative min-w-[200px] flex-1">
-			<p class="mb-2 text-xs font-medium tracking-wide text-slate-500 uppercase">Insurance</p>
+			<p class="mb-2 text-xs font-medium tracking-wide text-neutral-500 uppercase">Insurance</p>
 			<div class="relative">
 				<input
 					type="text"
@@ -156,13 +156,13 @@
 					onfocus={openInsuranceDropdown}
 					oninput={openInsuranceDropdown}
 					onblur={closeInsuranceDropdown}
-					class="w-full rounded-lg border border-slate-200 bg-white py-2 pr-8 pl-3 text-sm text-slate-700 shadow-sm transition-colors focus:border-teal-400 focus:ring-2 focus:ring-teal-200 focus:outline-none"
+					class="w-full rounded-lg border border-neutral-200 bg-white py-2 pr-8 pl-3 text-sm text-neutral-700 shadow-sm transition-colors focus:border-primary-400 focus:ring-2 focus:ring-primary-200 focus:outline-none"
 				/>
 				{#if insuranceSearch}
 					<button
 						onmousedown={(e) => e.preventDefault()}
 						onclick={clearInsurance}
-						class="absolute right-2 top-1/2 -translate-y-1/2 rounded p-0.5 text-slate-400 transition-colors hover:text-slate-600 focus:outline-none"
+						class="absolute right-2 top-1/2 -translate-y-1/2 rounded p-0.5 text-neutral-400 transition-colors hover:text-neutral-600 focus:outline-none"
 						aria-label="Clear insurance filter"
 					>
 						<svg
@@ -182,18 +182,18 @@
 			<!-- Dropdown -->
 			{#if insuranceOpen}
 				<div
-					class="absolute left-0 top-full z-20 mt-1 max-h-52 w-full overflow-auto rounded-lg border border-slate-200 bg-white shadow-lg"
+					class="absolute left-0 top-full z-20 mt-1 max-h-52 w-full overflow-auto rounded-lg border border-neutral-200 bg-white shadow-lg"
 				>
 					{#if insuranceLoading}
-						<div class="px-3 py-3 text-sm text-slate-400">Loading options…</div>
+						<div class="px-3 py-3 text-sm text-neutral-400">Loading options…</div>
 					{:else if filteredInsurance.length === 0}
-						<div class="px-3 py-3 text-sm text-slate-400">No matches</div>
+						<div class="px-3 py-3 text-sm text-neutral-400">No matches</div>
 					{:else}
 						{#each filteredInsurance.slice(0, 40) as opt (opt)}
 							<button
 								onmousedown={(e) => e.preventDefault()}
 								onclick={() => selectInsurance(opt)}
-								class="block w-full px-3 py-2 text-left text-sm text-slate-700 transition-colors hover:bg-teal-50 hover:text-teal-700 focus:bg-teal-50 focus:outline-none"
+								class="block w-full px-3 py-2 text-left text-sm text-neutral-700 transition-colors hover:bg-primary-50 hover:text-primary-700 focus:bg-primary-50 focus:outline-none"
 							>
 								{opt}
 							</button>
@@ -205,15 +205,15 @@
 
 		<!-- NAMS Only toggle -->
 		<div class="shrink-0">
-			<p class="mb-2 text-xs font-medium tracking-wide text-slate-500 uppercase">NAMS Certified</p>
+			<p class="mb-2 text-xs font-medium tracking-wide text-neutral-500 uppercase">NAMS Certified</p>
 			<button
 				onclick={handleNamsToggle}
 				role="switch"
 				aria-checked={namsOnly}
-				class="flex items-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-300
+				class="flex items-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-300
 					{namsOnly
-					? 'border-teal-500 bg-teal-500 text-white'
-					: 'border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-50'}"
+					? 'border-primary-500 bg-primary-500 text-white'
+					: 'border-neutral-200 bg-white text-neutral-600 hover:border-neutral-300 hover:bg-neutral-50'}"
 			>
 				<span class="text-xs">{namsOnly ? '✓' : '○'}</span>
 				NAMS Only

@@ -254,6 +254,21 @@ export interface ApiEndpoints {
     };
   };
 
+  '/api/users/onboarding': {
+    request: {
+      date_of_birth: string;
+      journey_stage: 'perimenopause' | 'menopause' | 'post-menopause' | 'unsure';
+    };
+    response: {
+      id: string;
+      email: string;
+      date_of_birth: string;
+      journey_stage: string;
+      onboarding_completed: boolean;
+      created_at: string;
+    };
+  };
+
   '/api/users/profile': {
     request: never;
     response: {

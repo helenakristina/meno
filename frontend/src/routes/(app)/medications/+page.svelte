@@ -49,29 +49,29 @@
 
 <div class="mx-auto max-w-2xl">
 	<div class="mb-6 flex items-center justify-between">
-		<h1 class="text-2xl font-bold text-slate-900">MHT Medications</h1>
+		<h1 class="text-2xl font-bold text-neutral-800">MHT Medications</h1>
 		<a
 			href="/medications/add"
-			class="rounded-md bg-teal-600 px-4 py-2 text-sm font-medium text-white hover:bg-teal-700"
+			class="rounded-md bg-primary-500 px-4 py-2 text-sm font-medium text-white hover:bg-primary-600"
 		>
 			Add medication
 		</a>
 	</div>
 
 	{#if loading}
-		<div class="text-slate-600">Loading medications…</div>
+		<div class="text-neutral-600">Loading medications…</div>
 	{:else if error}
-		<div class="rounded-md bg-red-50 p-4 text-sm text-red-700" role="alert">{error}</div>
+		<div class="rounded-md bg-danger-light p-4 text-sm text-danger-dark" role="alert">{error}</div>
 	{:else}
 		<!-- Current medications -->
 		<section class="mb-8">
-			<h2 class="mb-3 text-base font-semibold text-slate-900">Current</h2>
+			<h2 class="mb-3 text-base font-semibold text-neutral-800">Current</h2>
 			{#if currentMedications.length === 0}
-				<div class="rounded-lg border border-dashed border-slate-300 p-6 text-center">
-					<p class="text-sm text-slate-500">No active medications.</p>
+				<div class="rounded-lg border border-dashed border-neutral-300 p-6 text-center">
+					<p class="text-sm text-neutral-500">No active medications.</p>
 					<a
 						href="/medications/add"
-						class="mt-2 inline-block text-sm font-medium text-slate-700 underline hover:text-slate-900"
+						class="mt-2 inline-block text-sm font-medium text-neutral-700 underline hover:text-neutral-800"
 					>
 						Add your first medication
 					</a>
@@ -79,29 +79,29 @@
 			{:else}
 				<ul class="space-y-3">
 					{#each currentMedications as med (med.id)}
-						<li class="rounded-lg border border-slate-200 bg-white p-4">
+						<li class="rounded-lg border border-neutral-200 bg-white p-4">
 							<div class="flex items-start justify-between">
 								<div>
-									<div class="text-sm font-semibold text-slate-900">{med.medication_name}</div>
-									<div class="mt-0.5 text-xs text-slate-500">
+									<div class="text-sm font-semibold text-neutral-800">{med.medication_name}</div>
+									<div class="mt-0.5 text-xs text-neutral-500">
 										{med.dose} · {formatDeliveryMethod(med.delivery_method)}{med.frequency
 											? ` · ${med.frequency.replace(/_/g, ' ')}`
 											: ''}
 									</div>
-									<div class="mt-1 text-xs text-slate-400">
+									<div class="mt-1 text-xs text-neutral-400">
 										Started {formatDate(med.start_date)}
 									</div>
 								</div>
 								<div class="flex gap-2">
 									<a
 										href="/medications/{med.id}/impact"
-										class="min-h-[44px] flex items-center rounded-md border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-700 hover:border-slate-300 hover:bg-slate-50"
+										class="min-h-[44px] flex items-center rounded-md border border-neutral-200 px-3 py-1.5 text-xs font-medium text-neutral-700 hover:border-neutral-300 hover:bg-neutral-50"
 									>
 										Impact
 									</a>
 									<a
 										href="/medications/{med.id}"
-										class="min-h-[44px] flex items-center rounded-md border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-700 hover:border-slate-300 hover:bg-slate-50"
+										class="min-h-[44px] flex items-center rounded-md border border-neutral-200 px-3 py-1.5 text-xs font-medium text-neutral-700 hover:border-neutral-300 hover:bg-neutral-50"
 									>
 										View
 									</a>
@@ -116,23 +116,23 @@
 		<!-- Past medications -->
 		{#if pastMedications.length > 0}
 			<section>
-				<h2 class="mb-3 text-base font-semibold text-slate-900">Past</h2>
+				<h2 class="mb-3 text-base font-semibold text-neutral-800">Past</h2>
 				<ul class="space-y-3">
 					{#each pastMedications as med (med.id)}
-						<li class="rounded-lg border border-slate-200 bg-white p-4 opacity-75">
+						<li class="rounded-lg border border-neutral-200 bg-white p-4 opacity-75">
 							<div class="flex items-start justify-between">
 								<div>
-									<div class="text-sm font-semibold text-slate-900">{med.medication_name}</div>
-									<div class="mt-0.5 text-xs text-slate-500">
+									<div class="text-sm font-semibold text-neutral-800">{med.medication_name}</div>
+									<div class="mt-0.5 text-xs text-neutral-500">
 										{med.dose} · {formatDeliveryMethod(med.delivery_method)}
 									</div>
-									<div class="mt-1 text-xs text-slate-400">
+									<div class="mt-1 text-xs text-neutral-400">
 										{formatDate(med.start_date)} – {formatDate(med.end_date!)}
 									</div>
 								</div>
 								<a
 									href="/medications/{med.id}"
-									class="min-h-[44px] flex items-center rounded-md border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-700 hover:border-slate-300 hover:bg-slate-50"
+									class="min-h-[44px] flex items-center rounded-md border border-neutral-200 px-3 py-1.5 text-xs font-medium text-neutral-700 hover:border-neutral-300 hover:bg-neutral-50"
 								>
 									View
 								</a>

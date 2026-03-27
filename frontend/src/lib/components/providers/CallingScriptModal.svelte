@@ -118,11 +118,11 @@
 	];
 
 	const STATUS_COLORS: Record<ShortlistStatus, string> = {
-		to_call: 'text-blue-700 border-blue-200 bg-blue-50',
-		called: 'text-teal-700 border-teal-200 bg-teal-50',
-		left_voicemail: 'text-amber-700 border-amber-200 bg-amber-50',
-		booking: 'text-green-700 border-green-200 bg-green-50',
-		not_available: 'text-slate-500 border-slate-200 bg-slate-50'
+		to_call: 'text-coral-700 border-coral-200 bg-coral-50',
+		called: 'text-primary-700 border-primary-200 bg-primary-50',
+		left_voicemail: 'text-neutral-700 border-neutral-200 bg-neutral-100',
+		booking: 'text-primary-700 border-primary-200 bg-primary-50',
+		not_available: 'text-neutral-500 border-neutral-200 bg-neutral-50'
 	};
 
 	function close() {
@@ -328,19 +328,19 @@
 			<!-- Header -->
 			<div class="mb-5 flex items-start justify-between gap-4">
 				<div>
-					<h2 id="calling-script-title" class="text-base font-semibold text-slate-900">
+					<h2 id="calling-script-title" class="text-base font-semibold text-neutral-800">
 						{modalState === 'result' ? 'Your Calling Script' : 'Generate Calling Script'}
 					</h2>
-					<p class="mt-0.5 text-sm text-slate-500">
+					<p class="mt-0.5 text-sm text-neutral-500">
 						{provider.name}{provider.credentials ? `, ${provider.credentials}` : ''}
 						{#if provider.practice_name}
-							<span class="text-slate-400"> · {provider.practice_name}</span>
+							<span class="text-neutral-400"> · {provider.practice_name}</span>
 						{/if}
 					</p>
 				</div>
 				<button
 					onclick={close}
-					class="rounded-full p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-300"
+					class="rounded-full p-1.5 text-neutral-400 transition-colors hover:bg-neutral-100 hover:text-neutral-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-300"
 					aria-label="Close modal"
 				>
 					<svg
@@ -361,13 +361,13 @@
 				<div class="space-y-5">
 					<!-- Insurance type selector -->
 					<div>
-						<p class="mb-2 text-sm font-medium text-slate-700">Insurance type</p>
+						<p class="mb-2 text-sm font-medium text-neutral-700">Insurance type</p>
 						{#if prefLoading}
 							<!-- Skeleton pills while saved preference loads -->
 							<div class="flex flex-wrap gap-1.5" aria-hidden="true">
 								{#each [80, 72, 72, 64, 52] as w}
 									<div
-										class="h-7 animate-pulse rounded-full bg-slate-100"
+										class="h-7 animate-pulse rounded-full bg-neutral-100"
 										style="width: {w}px"
 									></div>
 								{/each}
@@ -378,10 +378,10 @@
 									<button
 										onclick={() => selectInsuranceType(opt.value)}
 										aria-pressed={insuranceType === opt.value}
-										class="rounded-full border px-3 py-1.5 text-xs font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-300
+										class="rounded-full border px-3 py-1.5 text-xs font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-300
 											{insuranceType === opt.value
-											? 'border-teal-500 bg-teal-500 text-white'
-											: 'border-slate-200 bg-white text-slate-600 hover:border-teal-200 hover:bg-teal-50 hover:text-teal-700'}"
+											? 'border-primary-500 bg-primary-500 text-white'
+											: 'border-neutral-200 bg-white text-neutral-600 hover:border-primary-200 hover:bg-primary-50 hover:text-primary-700'}"
 									>
 										{opt.label}
 									</button>
@@ -393,11 +393,11 @@
 					<!-- Conditional plan name fields -->
 					{#if prefLoading}
 						<!-- Skeleton input while preference loads -->
-						<div class="h-9 w-full animate-pulse rounded-lg bg-slate-100"></div>
+						<div class="h-9 w-full animate-pulse rounded-lg bg-neutral-100"></div>
 					{:else if insuranceType === 'private'}
 						<div>
 							<label
-								class="mb-1.5 block text-sm font-medium text-slate-700"
+								class="mb-1.5 block text-sm font-medium text-neutral-700"
 								for="cs-insurance-plan"
 							>
 								Your insurance plan
@@ -407,18 +407,18 @@
 								type="text"
 								bind:value={insurancePlanName}
 								placeholder="e.g. Aetna PPO, Blue Cross Blue Shield"
-								class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 placeholder-slate-400 shadow-sm focus:border-teal-400 focus:ring-2 focus:ring-teal-200 focus:outline-none"
+								class="w-full rounded-lg border border-neutral-200 px-3 py-2 text-sm text-neutral-700 placeholder-neutral-400 shadow-sm focus:border-primary-400 focus:ring-2 focus:ring-primary-200 focus:outline-none"
 							/>
 						</div>
 					{:else if insuranceType === 'medicaid'}
 						<div>
 							<label
-								class="mb-1.5 block text-sm font-medium text-slate-700"
+								class="mb-1.5 block text-sm font-medium text-neutral-700"
 								for="cs-medicaid-plan"
 							>
 								Your Medicaid plan name
 							</label>
-							<p class="mb-2 text-xs text-slate-500">
+							<p class="mb-2 text-xs text-neutral-500">
 								This is the name on your Medicaid card or welcome letter — e.g. "UCare", "Hennepin
 								Health", "Blue Plus", "Centene"
 							</p>
@@ -428,13 +428,13 @@
 								bind:value={insurancePlanName}
 								disabled={insurancePlanUnknown}
 								placeholder="e.g. UCare"
-								class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 placeholder-slate-400 shadow-sm focus:border-teal-400 focus:ring-2 focus:ring-teal-200 focus:outline-none disabled:bg-slate-50 disabled:text-slate-400"
+								class="w-full rounded-lg border border-neutral-200 px-3 py-2 text-sm text-neutral-700 placeholder-neutral-400 shadow-sm focus:border-primary-400 focus:ring-2 focus:ring-primary-200 focus:outline-none disabled:bg-neutral-50 disabled:text-neutral-400"
 							/>
-							<label class="mt-2 flex cursor-pointer items-center gap-2 text-sm text-slate-600">
+							<label class="mt-2 flex cursor-pointer items-center gap-2 text-sm text-neutral-600">
 								<input
 									type="checkbox"
 									bind:checked={insurancePlanUnknown}
-									class="rounded border-slate-300 text-teal-500 focus:ring-teal-300"
+									class="rounded border-neutral-300 text-primary-500 focus:ring-primary-300"
 								/>
 								I'm not sure of my specific plan
 							</label>
@@ -442,12 +442,12 @@
 					{:else if insuranceType === 'medicare'}
 						<div>
 							<label
-								class="mb-1.5 block text-sm font-medium text-slate-700"
+								class="mb-1.5 block text-sm font-medium text-neutral-700"
 								for="cs-medicare-plan"
 							>
 								Your Medicare plan
 							</label>
-							<p class="mb-2 text-xs text-slate-500">
+							<p class="mb-2 text-xs text-neutral-500">
 								If you have a Medicare Advantage plan, enter its name. If you have original Medicare
 								(Parts A & B only), leave blank.
 							</p>
@@ -456,13 +456,13 @@
 								type="text"
 								bind:value={insurancePlanName}
 								placeholder="e.g. UnitedHealthcare AARP, Humana Gold"
-								class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 placeholder-slate-400 shadow-sm focus:border-teal-400 focus:ring-2 focus:ring-teal-200 focus:outline-none"
+								class="w-full rounded-lg border border-neutral-200 px-3 py-2 text-sm text-neutral-700 placeholder-neutral-400 shadow-sm focus:border-primary-400 focus:ring-2 focus:ring-primary-200 focus:outline-none"
 							/>
 						</div>
 					{:else if insuranceType === 'other'}
 						<div>
 							<label
-								class="mb-1.5 block text-sm font-medium text-slate-700"
+								class="mb-1.5 block text-sm font-medium text-neutral-700"
 								for="cs-other-insurance"
 							>
 								Your insurance or coverage
@@ -472,24 +472,24 @@
 								type="text"
 								bind:value={insurancePlanName}
 								placeholder="Describe your coverage"
-								class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 placeholder-slate-400 shadow-sm focus:border-teal-400 focus:ring-2 focus:ring-teal-200 focus:outline-none"
+								class="w-full rounded-lg border border-neutral-200 px-3 py-2 text-sm text-neutral-700 placeholder-neutral-400 shadow-sm focus:border-primary-400 focus:ring-2 focus:ring-primary-200 focus:outline-none"
 							/>
 						</div>
 					{/if}
 
 					<!-- Telehealth checkbox -->
-					<label class="flex cursor-pointer items-center gap-2.5 text-sm text-slate-700">
+					<label class="flex cursor-pointer items-center gap-2.5 text-sm text-neutral-700">
 						<input
 							type="checkbox"
 							bind:checked={interestedInTelehealth}
-							class="rounded border-slate-300 text-teal-500 focus:ring-teal-300"
+							class="rounded border-neutral-300 text-primary-500 focus:ring-primary-300"
 						/>
 						I'm interested in telehealth appointments
 					</label>
 
 					<!-- Inline error -->
 					{#if error}
-						<p class="rounded-lg border border-red-100 bg-red-50 px-3 py-2 text-sm text-red-700">
+						<p class="rounded-lg border border-danger-light bg-danger-light px-3 py-2 text-sm text-danger-dark">
 							{error}
 						</p>
 					{/if}
@@ -498,10 +498,10 @@
 					<button
 						onclick={generateScript}
 						disabled={!isFormValid}
-						class="w-full rounded-lg px-4 py-2.5 text-sm font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-300
+						class="w-full rounded-lg px-4 py-2.5 text-sm font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-300
 							{isFormValid
-							? 'bg-slate-900 text-white hover:bg-slate-800'
-							: 'cursor-not-allowed bg-slate-100 text-slate-400'}"
+							? 'bg-primary-500 text-white hover:bg-primary-500'
+							: 'cursor-not-allowed bg-neutral-100 text-neutral-400'}"
 					>
 						Generate My Script
 					</button>
@@ -511,27 +511,27 @@
 			{:else if modalState === 'loading'}
 				<div class="flex flex-col items-center gap-4 py-8">
 					<div
-						class="size-8 animate-spin rounded-full border-2 border-slate-200 border-t-teal-500"
+						class="size-8 animate-spin rounded-full border-2 border-neutral-200 border-t-primary-500"
 					></div>
-					<p class="text-sm text-slate-500">Writing your script…</p>
+					<p class="text-sm text-neutral-500">Writing your script…</p>
 				</div>
 
 			<!-- ── RESULT STATE ──────────────────────────────────────────── -->
 			{:else if modalState === 'result'}
 				<div class="space-y-4">
 					<!-- Script card — warm off-white, generous line height for reading aloud -->
-					<div class="rounded-xl bg-amber-50 px-5 py-4">
-						<p class="text-base leading-relaxed text-slate-800">{generatedScript}</p>
+					<div class="rounded-xl bg-primary-50 px-5 py-4">
+						<p class="text-base leading-relaxed text-neutral-800">{generatedScript}</p>
 					</div>
 
 					<!-- Ready to call row -->
 					{#if provider.phone}
-						<div class="flex items-center gap-2 rounded-lg border border-slate-200 px-4 py-3">
-							<span class="text-slate-400">📞</span>
-							<span class="text-sm text-slate-500">Ready to call?</span>
+						<div class="flex items-center gap-2 rounded-lg border border-neutral-200 px-4 py-3">
+							<span class="text-neutral-400">📞</span>
+							<span class="text-sm text-neutral-500">Ready to call?</span>
 							<a
 								href="tel:{provider.phone}"
-								class="text-sm font-medium text-teal-600 hover:text-teal-800"
+								class="text-sm font-medium text-primary-800 hover:text-primary-900"
 							>
 								{provider.phone}
 							</a>
@@ -540,8 +540,8 @@
 
 					<!-- ── CALL TRACKER ─────────────────────────────────── -->
 					{#if onSave || localIsSaved}
-						<div class="rounded-xl border border-slate-100 bg-slate-50 px-4 py-4">
-							<p class="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-400">
+						<div class="rounded-xl border border-neutral-100 bg-neutral-50 px-4 py-4">
+							<p class="mb-3 text-xs font-semibold uppercase tracking-wide text-neutral-400">
 								Call Tracker
 							</p>
 
@@ -550,11 +550,11 @@
 								<button
 									onclick={handleSaveToList}
 									disabled={trackerSaving}
-									class="flex w-full items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 transition-colors hover:border-teal-300 hover:bg-teal-50 hover:text-teal-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-300 disabled:cursor-not-allowed disabled:opacity-60"
+									class="flex w-full items-center justify-center gap-2 rounded-lg border border-neutral-200 bg-white px-4 py-2.5 text-sm font-medium text-neutral-700 transition-colors hover:border-primary-300 hover:bg-primary-50 hover:text-primary-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-300 disabled:cursor-not-allowed disabled:opacity-60"
 								>
 									{#if trackerSaving}
 										<div
-											class="size-4 animate-spin rounded-full border-2 border-slate-200 border-t-slate-500"
+											class="size-4 animate-spin rounded-full border-2 border-neutral-200 border-t-neutral-500"
 										></div>
 										Saving…
 									{:else}
@@ -574,7 +574,7 @@
 							{:else}
 								<!-- Status selector -->
 								<div class="mb-3">
-									<label for="cs-status" class="mb-1.5 block text-xs font-medium text-slate-500">
+									<label for="cs-status" class="mb-1.5 block text-xs font-medium text-neutral-500">
 										Status
 									</label>
 									<select
@@ -584,7 +584,7 @@
 											handleStatusChange(
 												(e.target as HTMLSelectElement).value as ShortlistStatus
 											)}
-										class="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 shadow-sm focus:border-teal-400 focus:ring-2 focus:ring-teal-200 focus:outline-none"
+										class="w-full rounded-lg border border-neutral-200 bg-white px-3 py-2 text-sm text-neutral-700 shadow-sm focus:border-primary-400 focus:ring-2 focus:ring-primary-200 focus:outline-none"
 									>
 										{#each STATUSES as s (s.value)}
 											<option value={s.value}>{s.label}</option>
@@ -595,13 +595,13 @@
 								<!-- Notes textarea -->
 								<div>
 									<div class="mb-1.5 flex items-center justify-between">
-										<label for="cs-notes" class="text-xs font-medium text-slate-500">
+										<label for="cs-notes" class="text-xs font-medium text-neutral-500">
 											Notes
 										</label>
 										{#if notesSaving}
-											<span class="text-xs text-slate-400">Saving…</span>
+											<span class="text-xs text-neutral-400">Saving…</span>
 										{:else if notesSaved}
-											<span class="text-xs text-teal-600">Saved</span>
+											<span class="text-xs text-primary-600">Saved</span>
 										{/if}
 									</div>
 									<textarea
@@ -610,9 +610,9 @@
 										onblur={handleNotesBlur}
 										placeholder="e.g. Said to call back in March, only takes UCare not Hennepin Health"
 										rows={3}
-										class="w-full resize-none rounded-lg border border-slate-200 px-3 py-2.5 text-sm text-slate-700 placeholder-slate-400 shadow-sm focus:border-teal-400 focus:ring-2 focus:ring-teal-200 focus:outline-none"
+										class="w-full resize-none rounded-lg border border-neutral-200 px-3 py-2.5 text-sm text-neutral-700 placeholder-neutral-400 shadow-sm focus:border-primary-400 focus:ring-2 focus:ring-primary-200 focus:outline-none"
 									></textarea>
-									<p class="mt-1 text-xs text-slate-400">
+									<p class="mt-1 text-xs text-neutral-400">
 										Saved automatically when you click away.
 									</p>
 								</div>
@@ -624,13 +624,13 @@
 					<div class="flex gap-2">
 						<button
 							onclick={copyToClipboard}
-							class="flex-1 rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-slate-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-300"
+							class="flex-1 rounded-lg bg-primary-500 px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-primary-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-300"
 						>
 							{copied ? 'Copied!' : 'Copy to Clipboard'}
 						</button>
 						<button
 							onclick={generateAgain}
-							class="flex-1 rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 transition-colors hover:border-slate-300 hover:bg-slate-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-300"
+							class="flex-1 rounded-lg border border-neutral-200 bg-white px-4 py-2.5 text-sm font-medium text-neutral-700 transition-colors hover:border-neutral-300 hover:bg-neutral-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-300"
 						>
 							Generate Again
 						</button>

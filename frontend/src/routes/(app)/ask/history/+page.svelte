@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { apiClient } from '$lib/api/client';
+	import { ErrorBanner } from '$lib/components/shared';
 	import type { Conversation } from '$lib/types';
 	import type { ApiError } from '$lib/types/api';
 
@@ -146,27 +147,18 @@
 	}
 </script>
 
-<div class="min-h-screen bg-slate-50 px-4 py-8 sm:px-6 lg:px-8">
+<div class="min-h-screen bg-neutral-50 px-4 py-8 sm:px-6 lg:px-8">
 	<div class="mx-auto max-w-4xl">
 		<!-- Header -->
 		<div class="mb-8">
-			<h1 class="text-3xl font-bold text-slate-900">Conversation History</h1>
-			<p class="mt-2 text-slate-600">View and manage your Ask Meno conversations</p>
+			<h1 class="text-3xl font-bold text-neutral-800">Conversation History</h1>
+			<p class="mt-2 text-neutral-600">View and manage your Ask Meno conversations</p>
 		</div>
 
 		<!-- Error Message -->
 		{#if error}
-			<div class="mb-6 rounded-lg border border-red-200 bg-red-50 p-4">
-				<p class="text-sm text-red-800">{error}</p>
-				<button
-					onclick={() => {
-						error = null;
-						fetchConversations();
-					}}
-					class="mt-3 text-sm font-medium text-red-700 hover:text-red-600"
-				>
-					Try again
-				</button>
+			<div class="mb-6">
+				<ErrorBanner message={error} onRetry={() => { error = null; fetchConversations(); }} />
 			</div>
 		{/if}
 
@@ -174,21 +166,21 @@
 		{#if loading}
 			<div class="space-y-3">
 				{#each { length: 3 } as _}
-					<div class="animate-pulse rounded-lg border border-slate-200 bg-white p-4">
-						<div class="h-4 w-3/4 rounded bg-slate-200"></div>
-						<div class="mt-3 h-3 w-1/2 rounded bg-slate-100"></div>
+					<div class="animate-pulse rounded-lg border border-neutral-200 bg-white p-4">
+						<div class="h-4 w-3/4 rounded bg-neutral-200"></div>
+						<div class="mt-3 h-3 w-1/2 rounded bg-neutral-100"></div>
 					</div>
 				{/each}
 			</div>
 		{:else if conversations.length === 0}
 			<!-- Empty State -->
-			<div class="rounded-lg border border-dashed border-slate-300 bg-white px-8 py-16 text-center">
+			<div class="rounded-lg border border-dashed border-neutral-300 bg-white px-8 py-16 text-center">
 				<div class="mb-4 text-4xl">💬</div>
-				<h2 class="text-lg font-semibold text-slate-900">No conversations yet</h2>
-				<p class="mt-2 text-slate-600">Start your first Ask Meno conversation to see it here.</p>
+				<h2 class="text-lg font-semibold text-neutral-800">No conversations yet</h2>
+				<p class="mt-2 text-neutral-600">Start your first Ask Meno conversation to see it here.</p>
 				<a
 					href="/ask"
-					class="mt-6 inline-block rounded-lg bg-teal-600 px-6 py-3 font-medium text-white hover:bg-teal-700 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:ring-offset-2"
+					class="mt-6 inline-block rounded-lg bg-primary-500 px-6 py-3 font-semibold text-white hover:bg-primary-600 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2"
 				>
 					Ask Meno a Question
 				</a>
@@ -197,16 +189,16 @@
 			<!-- Conversation List -->
 			<div class="space-y-3">
 				{#each conversations as conversation (conversation.id)}
-					<div class="flex items-stretch gap-4 rounded-lg border border-slate-200 bg-white hover:border-slate-300 hover:shadow-sm transition-all">
+					<div class="flex items-stretch gap-4 rounded-lg border border-neutral-200 bg-white hover:border-neutral-300 hover:shadow-sm transition-all">
 						<!-- Main Content (clickable for resume) -->
 						<a
 							href="/ask?resume={conversation.id}"
-							class="flex flex-1 flex-col justify-center gap-2 px-4 py-4 text-left hover:text-teal-700"
+							class="flex flex-1 flex-col justify-center gap-2 px-4 py-4 text-left hover:text-primary-700"
 						>
-							<h3 class="font-semibold text-slate-900">
+							<h3 class="font-semibold text-neutral-800">
 								{truncateTitle(conversation.title)}
 							</h3>
-							<div class="flex items-center gap-3 text-sm text-slate-600">
+							<div class="flex items-center gap-3 text-sm text-neutral-600">
 								<span>{formatDate(conversation.created_at)}</span>
 								<span>•</span>
 								<span>{conversation.message_count} message{conversation.message_count !== 1 ? 's' : ''}</span>
@@ -220,7 +212,7 @@
 								<div class="flex gap-2">
 									<button
 										onclick={() => deleteConversation(conversation.id)}
-										class="inline-flex items-center justify-center h-10 w-10 rounded-md bg-red-50 text-red-600 hover:bg-red-100 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2"
+										class="inline-flex items-center justify-center h-10 w-10 rounded-md bg-danger-light text-danger hover:bg-danger hover:text-white focus:outline-none focus:ring-2 focus:ring-danger focus:ring-offset-2"
 										aria-label="Confirm delete"
 										title="Confirm delete"
 									>
@@ -230,7 +222,7 @@
 										onclick={() => {
 											pendingDeleteId = null;
 										}}
-										class="inline-flex items-center justify-center h-10 w-10 rounded-md bg-slate-100 text-slate-600 hover:bg-slate-200 focus:outline-none focus:ring-2 focus:ring-slate-500 focus:ring-offset-2"
+										class="inline-flex items-center justify-center h-10 w-10 rounded-md bg-neutral-100 text-neutral-600 hover:bg-neutral-200 focus:outline-none focus:ring-2 focus:ring-neutral-400 focus:ring-offset-2"
 										aria-label="Cancel"
 										title="Cancel"
 									>
@@ -241,7 +233,7 @@
 								<!-- Delete Button -->
 								<button
 									onclick={() => deleteConversation(conversation.id)}
-									class="inline-flex items-center justify-center h-10 w-10 rounded-md text-slate-400 hover:bg-red-50 hover:text-red-600 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 transition-colors"
+									class="inline-flex items-center justify-center h-10 w-10 rounded-md text-neutral-400 hover:bg-danger-light hover:text-danger focus:outline-none focus:ring-2 focus:ring-danger focus:ring-offset-2 transition-colors"
 									aria-label="Delete conversation"
 									title="Delete conversation"
 								>
@@ -259,7 +251,7 @@
 					<button
 						onclick={loadMore}
 						disabled={loadingMore}
-						class="rounded-lg border border-slate-300 bg-white px-6 py-3 font-medium text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:ring-offset-2"
+						class="rounded-lg border border-neutral-300 bg-white px-6 py-3 font-semibold text-neutral-700 hover:bg-neutral-50 disabled:cursor-not-allowed disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2"
 					>
 						{loadingMore ? 'Loading...' : 'Load More'}
 					</button>
@@ -267,7 +259,7 @@
 			{/if}
 
 			<!-- Pagination Info -->
-			<div class="mt-6 text-center text-sm text-slate-600">
+			<div class="mt-6 text-center text-sm text-neutral-600">
 				Showing {conversations.length} of {total} conversation{total !== 1 ? 's' : ''}
 			</div>
 		{/if}
