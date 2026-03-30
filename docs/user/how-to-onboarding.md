@@ -68,7 +68,7 @@ You'll see a brief confirmation, then Meno will take you to your dashboard autom
 ## Frequently asked questions
 
 **Do I have to complete this before using Meno?**
-Yes — the setup screen runs once, the first time you sign in. It only takes a minute, and Meno needs this information before it can personalise anything for you.
+Yes — the setup screen runs once, the first time you sign in. It only takes a minute, and Meno needs this information before it can personalize anything for you.
 
 **Can I change my journey stage later?**
 Yes. Account settings (coming in a future update) will let you update your profile. For now, choose your best guess — "Not sure" is a perfectly valid answer.

@@ -43,7 +43,7 @@
 		{
 			value: 'unsure',
 			label: "I'm not sure",
-			description: "You can update this any time as things become clearer"
+			description: 'You can update this any time as things become clearer'
 		}
 	];
 
@@ -150,19 +150,33 @@
 		<!-- ================================================================
 		     Journey Stage
 		     ================================================================ -->
+<<<<<<< Updated upstream
 		<section class="mb-8 rounded-lg border border-slate-200 bg-white p-6">
 			<h2 class="mb-1 text-base font-semibold text-slate-900">Journey Stage</h2>
 			<p class="mb-4 text-sm text-slate-600">
 				Where are you in your menopause journey? This helps Meno personalise your experience.
+=======
+		<section class="mb-8 rounded-lg border border-neutral-200 bg-white p-6">
+			<h2 class="mb-1 text-base font-semibold text-neutral-800">Journey Stage</h2>
+			<p class="mb-4 text-sm text-neutral-600">
+				Where are you in your menopause journey? This helps Meno personalize your experience.
+>>>>>>> Stashed changes
 			</p>
 
 			<fieldset class="space-y-2">
 				<legend class="sr-only">Select your journey stage</legend>
 				{#each journeyStages as stage}
 					<label
+<<<<<<< Updated upstream
 						class="flex cursor-pointer items-start gap-3 rounded-md border p-3 transition-colors {settings.journey_stage === stage.value
 							? 'border-slate-700 bg-slate-50'
 							: 'border-slate-200 hover:border-slate-300'}"
+=======
+						class="flex cursor-pointer items-start gap-3 rounded-md border p-3 transition-colors {settings.journey_stage ===
+						stage.value
+							? 'border-neutral-700 bg-neutral-50'
+							: 'border-neutral-200 hover:border-neutral-300'}"
+>>>>>>> Stashed changes
 					>
 						<input
 							type="radio"
@@ -213,9 +227,15 @@
 					aria-checked={settings.period_tracking_enabled}
 					onclick={() => saveCycleTracking(!settings!.period_tracking_enabled)}
 					disabled={cycleSaving}
+<<<<<<< Updated upstream
 					class="relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-slate-500 focus:ring-offset-1 disabled:opacity-50 {settings.period_tracking_enabled
 						? 'bg-slate-800'
 						: 'bg-slate-300'}"
+=======
+					class="relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:ring-2 focus:ring-primary-500 focus:ring-offset-1 focus:outline-none disabled:opacity-50 {settings.period_tracking_enabled
+						? 'bg-primary-500'
+						: 'bg-neutral-300'}"
+>>>>>>> Stashed changes
 					aria-label="Enable cycle tracking"
 				>
 					<span
@@ -250,9 +270,15 @@
 					aria-checked={settings.mht_tracking_enabled}
 					onclick={() => saveMhtTracking(!settings!.mht_tracking_enabled)}
 					disabled={mhtSaving}
+<<<<<<< Updated upstream
 					class="relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-slate-500 focus:ring-offset-1 disabled:opacity-50 {settings.mht_tracking_enabled
 						? 'bg-slate-800'
 						: 'bg-slate-300'}"
+=======
+					class="relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:ring-2 focus:ring-primary-500 focus:ring-offset-1 focus:outline-none disabled:opacity-50 {settings.mht_tracking_enabled
+						? 'bg-primary-500'
+						: 'bg-neutral-300'}"
+>>>>>>> Stashed changes
 					aria-label="Enable MHT tracking"
 				>
 					<span
@@ -281,9 +307,20 @@
 			</p>
 
 			<fieldset class="space-y-2">
+<<<<<<< Updated upstream
 				<legend class="text-sm font-medium text-slate-700 mb-2">Do you have a uterus?</legend>
 
 				<label class="flex cursor-pointer items-center gap-3 rounded-md border p-3 transition-colors {settings.has_uterus === true ? 'border-slate-700 bg-slate-50' : 'border-slate-200 hover:border-slate-300'}">
+=======
+				<legend class="mb-2 text-sm font-medium text-neutral-700">Do you have a uterus?</legend>
+
+				<label
+					class="flex cursor-pointer items-center gap-3 rounded-md border p-3 transition-colors {settings.has_uterus ===
+					true
+						? 'border-neutral-700 bg-neutral-50'
+						: 'border-neutral-200 hover:border-neutral-300'}"
+				>
+>>>>>>> Stashed changes
 					<input
 						type="radio"
 						name="has_uterus"
@@ -296,7 +333,16 @@
 					<span class="text-sm text-slate-900">Yes</span>
 				</label>
 
+<<<<<<< Updated upstream
 				<label class="flex cursor-pointer items-center gap-3 rounded-md border p-3 transition-colors {settings.has_uterus === false ? 'border-slate-700 bg-slate-50' : 'border-slate-200 hover:border-slate-300'}">
+=======
+				<label
+					class="flex cursor-pointer items-center gap-3 rounded-md border p-3 transition-colors {settings.has_uterus ===
+					false
+						? 'border-neutral-700 bg-neutral-50'
+						: 'border-neutral-200 hover:border-neutral-300'}"
+				>
+>>>>>>> Stashed changes
 					<input
 						type="radio"
 						name="has_uterus"
@@ -309,7 +355,16 @@
 					<span class="text-sm text-slate-900">No</span>
 				</label>
 
+<<<<<<< Updated upstream
 				<label class="flex cursor-pointer items-center gap-3 rounded-md border p-3 transition-colors {settings.has_uterus === null ? 'border-slate-700 bg-slate-50' : 'border-slate-200 hover:border-slate-300'}">
+=======
+				<label
+					class="flex cursor-pointer items-center gap-3 rounded-md border p-3 transition-colors {settings.has_uterus ===
+					null
+						? 'border-neutral-700 bg-neutral-50'
+						: 'border-neutral-200 hover:border-neutral-300'}"
+				>
+>>>>>>> Stashed changes
 					<input
 						type="radio"
 						name="has_uterus"
@@ -324,9 +379,15 @@
 			</fieldset>
 
 			{#if settings.has_uterus === false}
+<<<<<<< Updated upstream
 				<p class="mt-3 text-sm text-slate-600">
 					Since you don't have a uterus, period tracking has been turned off.
 					You can still turn it on manually using the Cycle Tracking toggle above.
+=======
+				<p class="mt-3 text-sm text-neutral-600">
+					Since you don't have a uterus, period tracking has been turned off. You can still turn it
+					on manually using the Cycle Tracking toggle above.
+>>>>>>> Stashed changes
 				</p>
 			{/if}
 
