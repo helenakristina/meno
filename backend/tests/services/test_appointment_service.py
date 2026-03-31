@@ -81,10 +81,8 @@ def mock_user_repo():
 
 @pytest.fixture
 def mock_llm_service():
-    provider = AsyncMock()
-    provider.chat_completion.return_value = "Generated narrative text."
     svc = MagicMock()
-    svc.provider = provider
+    svc.generate_narrative = AsyncMock(return_value="Generated narrative text.")
     svc.generate_scenario_suggestions = AsyncMock(
         return_value='[{"suggestion": "You can advocate for treatment by citing NAMS guidelines.", "sources": []}]'
     )
@@ -144,12 +142,15 @@ class TestGenerateNarrative:
 
     @pytest.mark.asyncio
     async def test_calls_llm_with_prompts(self, service, mock_llm_service):
+        # CATCHES: appointment.py calling provider directly instead of going through
+        # llm_service.generate_narrative — would bypass the service abstraction layer
         await service.generate_narrative("appt-123", "user-456", days_back=60)
 
-        mock_llm_service.provider.chat_completion.assert_called_once()
-        call_kwargs = mock_llm_service.provider.chat_completion.call_args[1]
-        assert call_kwargs["max_tokens"] == 600
-        assert call_kwargs["temperature"] == 0.3
+        mock_llm_service.generate_narrative.assert_called_once()
+        call_kwargs = mock_llm_service.generate_narrative.call_args[1]
+        assert "logs show" in call_kwargs["system_prompt"].lower()
+        assert "system_prompt" in call_kwargs
+        assert "user_prompt" in call_kwargs
 
     @pytest.mark.asyncio
     async def test_saves_narrative_to_repo(self, service, mock_appointment_repo):
@@ -203,7 +204,9 @@ class TestGenerateNarrative:
     async def test_raises_database_error_when_llm_times_out(
         self, service, mock_llm_service
     ):
-        mock_llm_service.provider.chat_completion.side_effect = TimeoutError()
+        # CATCHES: error handling missing after switching from provider.chat_completion
+        # to llm_service.generate_narrative — TimeoutError would propagate uncaught
+        mock_llm_service.generate_narrative.side_effect = TimeoutError()
 
         with pytest.raises(DatabaseError, match="timed out"):
             await service.generate_narrative("appt-123", "user-456", days_back=60)
@@ -212,7 +215,9 @@ class TestGenerateNarrative:
     async def test_raises_database_error_when_llm_fails(
         self, service, mock_llm_service
     ):
-        mock_llm_service.provider.chat_completion.side_effect = Exception("API error")
+        # CATCHES: generic exceptions from generate_narrative not converted to
+        # DatabaseError — would surface as 500 with internal LLM error details
+        mock_llm_service.generate_narrative.side_effect = Exception("API error")
 
         with pytest.raises(DatabaseError):
             await service.generate_narrative("appt-123", "user-456", days_back=60)

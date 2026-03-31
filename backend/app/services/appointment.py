@@ -27,6 +27,7 @@ from app.repositories.symptoms_repository import SymptomsRepository
 from app.services.medication_base import MedicationServiceBase
 from app.repositories.user_repository import UserRepository
 from app.services.llm import LLMService
+from app.llm.appointment_prompts import NARRATIVE_SYSTEM, build_narrative_user_prompt
 from app.services.pdf import PdfService
 from app.services.storage import StorageService
 from app.utils.prompt_formatting import (
@@ -199,16 +200,26 @@ class AppointmentService:
                 )
 
         # Build prompts
-        system_prompt, user_prompt = self._build_narrative_prompts(
-            context=context,
-            frequency_stats=frequency_stats,
-            cooccurrence_stats=cooccurrence_stats,
+        appt_type_str = context.appointment_type.value.replace("_", " ").title()
+        goal_str = context.goal.value.replace("_", " ")
+        age_str = str(age) if age else "not specified"
+        freq_text = format_frequency_stats_for_prompt(
+            frequency_stats, empty_msg="No symptom data."
+        )
+        coocc_text = format_cooccurrence_stats_for_prompt(cooccurrence_stats)
+        med_section = format_medications_for_prompt(current_medications or [])
+
+        user_prompt = build_narrative_user_prompt(
+            appt_type_str=appt_type_str,
+            goal_str=goal_str,
+            age_str=age_str,
+            journey_stage=journey_stage,
             days_back=days_back,
             start_date=start_date,
             end_date=end_date,
-            journey_stage=journey_stage,
-            age=age,
-            current_medications=current_medications,
+            freq_text=freq_text,
+            coocc_text=coocc_text,
+            med_section=med_section,
         )
 
         # Call LLM
@@ -216,11 +227,9 @@ class AppointmentService:
             "Calling LLM to generate narrative: appointment_id=%s", appointment_id
         )
         try:
-            narrative = await self.llm_service.provider.chat_completion(
-                system_prompt=system_prompt,
+            narrative = await self.llm_service.generate_narrative(
+                system_prompt=NARRATIVE_SYSTEM,
                 user_prompt=user_prompt,
-                max_tokens=600,
-                temperature=0.3,
             )
         except TimeoutError:
             logger.error(
@@ -582,57 +591,6 @@ class AppointmentService:
     # -------------------------------------------------------------------------
     # Private helpers
     # -------------------------------------------------------------------------
-
-    def _build_narrative_prompts(
-        self,
-        context: AppointmentContext,
-        frequency_stats: list,
-        cooccurrence_stats: list,
-        days_back: int,
-        start_date: Any,
-        end_date: Any,
-        journey_stage: str,
-        age: int | None,
-        current_medications: Optional[list] = None,
-    ) -> tuple[str, str]:
-        """Build system and user prompts for narrative LLM call."""
-        goal_str = context.goal.value.replace("_", " ").title()
-        appt_type_str = context.appointment_type.value.replace("_", " ").title()
-        age_str = str(age) if age else "not specified"
-
-        system_prompt = (
-            "You are preparing a clinical summary of symptom tracking data for a healthcare provider "
-            "appointment. Your role is to present objective patterns from personal health tracking — "
-            "not to diagnose, interpret causes, or recommend treatments.\n\n"
-            "Rules:\n"
-            "- Always use 'logs show' or 'data indicates' — never 'you have' or diagnose\n"
-            "- Never suggest a medical condition, cause, or specific treatment\n"
-            "- Frame observations as patterns worth discussing with a provider\n"
-            "- Professional, neutral, clinical tone\n"
-            "- Write 2–3 clear paragraphs suitable for a healthcare conversation\n"
-            "- End by noting these patterns are worth discussing with a provider"
-        )
-
-        freq_text = format_frequency_stats_for_prompt(
-            frequency_stats, empty_msg="No symptom data."
-        )
-        coocc_text = format_cooccurrence_stats_for_prompt(cooccurrence_stats)
-        med_section = format_medications_for_prompt(current_medications or [])
-
-        user_prompt = (
-            f"Write a 2–3 paragraph clinical summary for a healthcare appointment. "
-            f"Patient context: {appt_type_str} appointment, goal is '{goal_str}', "
-            f"age {age_str}, journey stage: {journey_stage}. "
-            f"Symptom tracking covers {days_back} days "
-            f"({start_date.strftime('%B %d, %Y')} to {end_date.strftime('%B %d, %Y')}).\n\n"
-            f"Most frequently logged symptoms:\n{freq_text}\n\n"
-            f"Symptom patterns (co-occurrences):\n{coocc_text}"
-            f"{med_section}\n\n"
-            "Write a clear, objective summary using 'logs show' language throughout. "
-            "No diagnoses. No treatment recommendations."
-        )
-
-        return system_prompt, user_prompt
 
     def _load_scenario_config(self) -> dict:
         """Load scenario config from JSON. Called once in __init__ — failure is immediate."""
