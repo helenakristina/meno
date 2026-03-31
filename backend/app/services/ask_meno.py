@@ -410,33 +410,14 @@ class AskMenoService:
 
             prompts = []
 
-            # Add symptom-specific prompts
+            # Pool all relevant prompts: symptom-specific + general
+            pool = []
             for symptom in symptom_names:
-                if symptom in prompt_config:
-                    symptom_prompts = prompt_config[symptom]
-                    selected_count = min(2, len(symptom_prompts))
-                    selected = random.sample(symptom_prompts, selected_count)
-                    prompts.extend(selected)
+                pool.extend(prompt_config.get(symptom, []))
+            pool.extend(prompt_config.get("general", []))
 
-            # Fill with general prompts if needed
-            if len(prompts) < max_prompts:
-                general = prompt_config.get("general", [])
-                needed = max_prompts - len(prompts)
-                if general:
-                    additional_count = min(needed, len(general))
-                    additional = random.sample(general, additional_count)
-                    prompts.extend(additional)
-
-            # Deduplicate while preserving order, cap at max_prompts
-            seen: set[str] = set()
-            final_prompts = []
-            for prompt in prompts:
-                if prompt not in seen:
-                    final_prompts.append(prompt)
-                    seen.add(prompt)
-                if len(final_prompts) >= max_prompts:
-                    break
-
+            # Randomly pick 6 or max_prompts
+            final_prompts = random.sample(pool, min(max_prompts, len(pool)))
             logger.info(
                 safe_summary(
                     "get suggested prompts", "success", count=len(final_prompts)

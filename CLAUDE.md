@@ -112,6 +112,8 @@ Logging: `ruff` style. Google-style docstrings only when they add info the code 
 
 **All frontend patterns and rules are in `.claude/skills/frontend-development/SKILL.md`.** Consult it before writing any frontend code.
 
+**Frontend design** All design patterns and colors are in `.claude/skills/meno-design-system/SKILL.md`
+
 SvelteKit 2.x + Svelte 5 runes + TypeScript strict. Mobile-first (375px → 768px → 1024px). WCAG 2.1 Level AA. Tailwind utility classes.
 
 **Svelte 5 Conventions (breaking changes from Svelte 4):** Use `$props()` not `export let`. Use `onclick={}` not `on:click={}`. Use `{@render children()}` not `<slot />`. Import from `$app/state` not `$app/stores`.

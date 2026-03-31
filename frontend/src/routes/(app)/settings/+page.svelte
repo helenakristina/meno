@@ -43,7 +43,7 @@
 		{
 			value: 'unsure',
 			label: "I'm not sure",
-			description: "You can update this any time as things become clearer"
+			description: 'You can update this any time as things become clearer'
 		}
 	];
 
@@ -153,14 +153,16 @@
 		<section class="mb-8 rounded-lg border border-neutral-200 bg-white p-6">
 			<h2 class="mb-1 text-base font-semibold text-neutral-800">Journey Stage</h2>
 			<p class="mb-4 text-sm text-neutral-600">
-				Where are you in your menopause journey? This helps Meno personalise your experience.
+				Where are you in your menopause journey? This helps Meno personalize your experience.
+
 			</p>
 
 			<fieldset class="space-y-2">
 				<legend class="sr-only">Select your journey stage</legend>
 				{#each journeyStages as stage}
 					<label
-						class="flex cursor-pointer items-start gap-3 rounded-md border p-3 transition-colors {settings.journey_stage === stage.value
+						class="flex cursor-pointer items-start gap-3 rounded-md border p-3 transition-colors {settings.journey_stage ===
+						stage.value
 							? 'border-neutral-700 bg-neutral-50'
 							: 'border-neutral-200 hover:border-neutral-300'}"
 					>
@@ -213,7 +215,7 @@
 					aria-checked={settings.period_tracking_enabled}
 					onclick={() => saveCycleTracking(!settings!.period_tracking_enabled)}
 					disabled={cycleSaving}
-					class="relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-1 disabled:opacity-50 {settings.period_tracking_enabled
+					class="relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:ring-2 focus:ring-primary-500 focus:ring-offset-1 focus:outline-none disabled:opacity-50 {settings.period_tracking_enabled
 						? 'bg-primary-500'
 						: 'bg-neutral-300'}"
 					aria-label="Enable cycle tracking"
@@ -250,7 +252,7 @@
 					aria-checked={settings.mht_tracking_enabled}
 					onclick={() => saveMhtTracking(!settings!.mht_tracking_enabled)}
 					disabled={mhtSaving}
-					class="relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-1 disabled:opacity-50 {settings.mht_tracking_enabled
+					class="relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:ring-2 focus:ring-primary-500 focus:ring-offset-1 focus:outline-none disabled:opacity-50 {settings.mht_tracking_enabled
 						? 'bg-primary-500'
 						: 'bg-neutral-300'}"
 					aria-label="Enable MHT tracking"
@@ -281,9 +283,14 @@
 			</p>
 
 			<fieldset class="space-y-2">
-				<legend class="text-sm font-medium text-neutral-700 mb-2">Do you have a uterus?</legend>
+				<legend class="mb-2 text-sm font-medium text-neutral-700">Do you have a uterus?</legend>
 
-				<label class="flex cursor-pointer items-center gap-3 rounded-md border p-3 transition-colors {settings.has_uterus === true ? 'border-neutral-700 bg-neutral-50' : 'border-neutral-200 hover:border-neutral-300'}">
+				<label
+					class="flex cursor-pointer items-center gap-3 rounded-md border p-3 transition-colors {settings.has_uterus ===
+					true
+						? 'border-neutral-700 bg-neutral-50'
+						: 'border-neutral-200 hover:border-neutral-300'}"
+				>
 					<input
 						type="radio"
 						name="has_uterus"
@@ -296,7 +303,12 @@
 					<span class="text-sm text-neutral-800">Yes</span>
 				</label>
 
-				<label class="flex cursor-pointer items-center gap-3 rounded-md border p-3 transition-colors {settings.has_uterus === false ? 'border-neutral-700 bg-neutral-50' : 'border-neutral-200 hover:border-neutral-300'}">
+				<label
+					class="flex cursor-pointer items-center gap-3 rounded-md border p-3 transition-colors {settings.has_uterus ===
+					false
+						? 'border-neutral-700 bg-neutral-50'
+						: 'border-neutral-200 hover:border-neutral-300'}"
+				>
 					<input
 						type="radio"
 						name="has_uterus"
@@ -309,7 +321,12 @@
 					<span class="text-sm text-neutral-800">No</span>
 				</label>
 
-				<label class="flex cursor-pointer items-center gap-3 rounded-md border p-3 transition-colors {settings.has_uterus === null ? 'border-neutral-700 bg-neutral-50' : 'border-neutral-200 hover:border-neutral-300'}">
+				<label
+					class="flex cursor-pointer items-center gap-3 rounded-md border p-3 transition-colors {settings.has_uterus ===
+					null
+						? 'border-neutral-700 bg-neutral-50'
+						: 'border-neutral-200 hover:border-neutral-300'}"
+				>
 					<input
 						type="radio"
 						name="has_uterus"
