@@ -411,26 +411,26 @@ No API surface changes in any phase. All four phases are internal refactors — 
 
 ### Phase 3: Stat Formatting
 
-- [ ] `backend/app/utils/prompt_formatting.py` exists with `format_frequency_stats_for_prompt`, `format_cooccurrence_stats_for_prompt`, `format_medications_for_prompt`
-- [ ] `format_cooccurrence_stats_for_prompt(verbose=False)` produces the "and" format (no percentage) used by `generate_provider_questions()`
-- [ ] All three call sites in `appointment.py` and `llm.py` use the shared formatters
-- [ ] No formatting logic duplication remains
-- [ ] Sentinel strings ("No symptom data available.", "No notable co-occurrence patterns.") preserved exactly
-- [ ] All existing tests pass without modification
-- [ ] New unit tests for all three utility functions
+- [x] `backend/app/utils/prompt_formatting.py` exists with `format_frequency_stats_for_prompt`, `format_cooccurrence_stats_for_prompt`, `format_medications_for_prompt`
+- [x] `format_cooccurrence_stats_for_prompt(verbose=False)` produces the "and" format (no percentage) used by `generate_provider_questions()`
+- [x] All three call sites in `appointment.py` and `llm.py` use the shared formatters
+- [x] No formatting logic duplication remains
+- [x] Sentinel strings ("No symptom data available.", "No notable co-occurrence patterns.") preserved exactly
+- [x] All existing tests pass without modification
+- [x] New unit tests for all three utility functions
 
 ### Phase 1: Scenarios
 
-- [ ] `backend/config/scenarios.json` exists with all 9 symptom groups, 3 goal groups, and universal scenarios
-- [ ] `_select_scenarios()` reads from JSON, returns `list[dict]` with `title` and `category`
-- [ ] `_get_scenario_category()` is deleted
-- [ ] All callers of `_select_scenarios()` updated for new return type
-- [ ] Scenario selection logic produces equivalent results for all goal types
-- [ ] Adding a new scenario requires only a JSON edit
-- [ ] `_scenario_config` is lazily cached (no per-request file I/O)
-- [ ] Config load failure raises a descriptive domain error, not a silent empty list
-- [ ] All existing tests pass; tests updated for `list[dict]` return type
-- [ ] New tests for config loading and scenario selection routing
+- [x] `backend/config/scenarios.json` exists with all 10 symptom groups, 3 goal groups, and universal scenarios
+- [x] `_select_scenarios()` reads from JSON, returns `list[dict]` with `title` and `category`
+- [x] `_get_scenario_category()` is deleted
+- [x] All callers of `_select_scenarios()` updated for new return type
+- [x] Scenario selection logic produces equivalent results for all goal types
+- [x] Adding a new scenario requires only a JSON edit
+- [x] `_scenario_config` is lazily cached (no per-request file I/O)
+- [x] Config load failure raises a descriptive domain error, not a silent empty list
+- [x] All existing tests pass; tests updated for `list[dict]` return type
+- [x] New tests for config loading and scenario selection routing
 
 ### Phase 2: Prompts
 
