@@ -66,7 +66,7 @@ async def get_embedding(client: AsyncOpenAI, text: str) -> list[float]:
 
 async def find_useful_chunks(
     prompts: list[str],
-    top_k: int = 50,
+    top_k: int = 20,
     threshold: float = 0.25,
 ) -> set[str]:
     """Run all prompts against pgvector and collect IDs of chunks that score well.
@@ -225,7 +225,7 @@ async def delete_useless_chunks(
 async def main(
     dry_run: bool = True,
     threshold: float = 0.25,
-    top_k: int = 50,
+    top_k: int = 20,
     config_path: str | Path | None = None,
 ):
     if not os.environ.get("OPENAI_API_KEY"):
@@ -283,7 +283,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--top-k",
         type=int,
-        default=50,
+        default=20,
         help="Number of chunks to retrieve per query (default: 20)",
     )
     parser.add_argument(
