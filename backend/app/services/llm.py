@@ -10,6 +10,10 @@ from datetime import date
 
 from app.models.symptoms import SymptomFrequency, SymptomPair
 from app.services.llm_base import LLMProvider
+from app.utils.prompt_formatting import (
+    format_cooccurrence_stats_for_prompt,
+    format_frequency_stats_for_prompt,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -96,25 +100,8 @@ class LLMService:
         """
         start, end = date_range
 
-        freq_lines = [
-            f"- {s.symptom_name} ({s.category}): logged {s.count} time(s)"
-            for s in frequency_stats[:10]
-        ]
-        freq_text = (
-            "\n".join(freq_lines) if freq_lines else "No symptom data available."
-        )
-
-        coocc_lines = [
-            f"- {p.symptom1_name} + {p.symptom2_name}: "
-            f"co-occurred {p.cooccurrence_count} time(s) "
-            f"({round(p.cooccurrence_rate * 100)}% of {p.symptom1_name} logs)"
-            for p in cooccurrence_stats[:5]
-        ]
-        coocc_text = (
-            "\n".join(coocc_lines)
-            if coocc_lines
-            else "No notable co-occurrence patterns."
-        )
+        freq_text = format_frequency_stats_for_prompt(frequency_stats)
+        coocc_text = format_cooccurrence_stats_for_prompt(cooccurrence_stats)
 
         system_prompt = (
             "You are a clinical data summarizer preparing a symptom log report for a "
@@ -182,20 +169,11 @@ class LLMService:
             TimeoutError: If the LLM API times out.
             RuntimeError: If the LLM API returns an error or empty response.
         """
-        freq_lines = [
-            f"- {s.symptom_name}: logged {s.count} time(s)"
-            for s in frequency_stats[:10]
-        ]
-        freq_text = "\n".join(freq_lines) if freq_lines else "No symptom data."
-
-        coocc_lines = [
-            f"- {p.symptom1_name} and {p.symptom2_name} co-occurred {p.cooccurrence_count} time(s)"
-            for p in cooccurrence_stats[:5]
-        ]
-        coocc_text = (
-            "\n".join(coocc_lines)
-            if coocc_lines
-            else "No notable co-occurrence patterns."
+        freq_text = format_frequency_stats_for_prompt(
+            frequency_stats, include_category=False, empty_msg="No symptom data."
+        )
+        coocc_text = format_cooccurrence_stats_for_prompt(
+            cooccurrence_stats, verbose=False
         )
 
         system_prompt = (
