@@ -153,7 +153,7 @@
 		<section class="mb-8 rounded-lg border border-neutral-200 bg-white p-6">
 			<h2 class="mb-1 text-base font-semibold text-neutral-800">Journey Stage</h2>
 			<p class="mb-4 text-sm text-neutral-600">
-				Where are you in your menopause journey? This helps Meno personalise your experience.
+				Where are you in your menopause journey? This helps Meno personalize your experience.
 
 			</p>
 
