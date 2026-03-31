@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { slide } from 'svelte/transition';
 	import { apiClient } from '$lib/api/client';
-	import { SkeletonLoader } from '$lib/components/shared';
+	import { ErrorBanner, SkeletonLoader } from '$lib/components/shared';
 
 	// -------------------------------------------------------------------------
 	// Types
@@ -236,13 +236,13 @@
 	<!-- Header -->
 	<div class="mb-8 flex flex-wrap items-start justify-between gap-4">
 		<div>
-			<h1 class="text-2xl font-bold text-slate-900">Your Symptom History</h1>
-			<p class="mt-1 text-slate-500">{rangeLabels[selectedRange]}, grouped by day</p>
+			<h1 class="text-2xl font-bold text-neutral-800">Your Symptom History</h1>
+			<p class="mt-1 text-neutral-500">{rangeLabels[selectedRange]}, grouped by day</p>
 		</div>
 		<select
 			bind:value={selectedRange}
 			aria-label="Date range"
-			class="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 shadow-sm transition-colors focus:border-teal-400 focus:outline-none focus:ring-2 focus:ring-teal-200"
+			class="rounded-lg border border-neutral-200 bg-white px-3 py-2 text-sm text-neutral-700 shadow-sm transition-colors focus:border-primary-400 focus:outline-none focus:ring-2 focus:ring-primary-200"
 		>
 			<option value="7">Last 7 days</option>
 			<option value="14">Last 14 days</option>
@@ -252,10 +252,10 @@
 
 	<!-- Frequency Chart -->
 	<section
-		class="mb-8 rounded-2xl border border-slate-200 bg-white px-6 py-5 shadow-sm"
+		class="mb-8 rounded-2xl border border-neutral-200 bg-white px-6 py-5 shadow-sm"
 		aria-labelledby="freq-chart-heading"
 	>
-		<h2 id="freq-chart-heading" class="mb-5 text-base font-semibold text-slate-800">
+		<h2 id="freq-chart-heading" class="mb-5 text-base font-semibold text-neutral-800">
 			Most Frequent Symptoms
 		</h2>
 
@@ -264,18 +264,16 @@
 				<SkeletonLoader variant="text" lines={5} height="h-5" />
 			</div>
 		{:else if frequencyError}
-			<div class="rounded-xl border border-red-200 bg-red-50 px-5 py-4 text-sm text-red-700">
-				{frequencyError}
-			</div>
+			<ErrorBanner message={frequencyError} />
 		{:else if topSymptoms.length === 0}
-			<p class="py-6 text-center text-sm text-slate-400">No symptoms logged in this period.</p>
+			<p class="py-6 text-center text-sm text-neutral-400">No symptoms logged in this period.</p>
 		{:else}
 			<ol class="space-y-3" aria-label="Symptom frequency chart">
 				{#each topSymptoms as stat (stat.symptom_id)}
 					<li class="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3" aria-label="{stat.symptom_name}: logged {stat.count} times">
 						<!-- Name: responsive width -->
 						<span
-							class="min-w-0 truncate text-sm font-medium text-slate-700 sm:w-32 sm:shrink-0 sm:text-right"
+							class="min-w-0 truncate text-sm font-medium text-neutral-700 sm:w-32 sm:shrink-0 sm:text-right"
 							title={stat.symptom_name}
 						>
 							{stat.symptom_name}
@@ -283,16 +281,16 @@
 
 						<!-- Bar track + count (flex on mobile, split on desktop) -->
 						<div class="flex items-center gap-3 sm:flex-1">
-							<div class="relative h-5 flex-1 overflow-hidden rounded bg-teal-50">
+							<div class="relative h-5 flex-1 overflow-hidden rounded bg-primary-50">
 								<div
-									class="absolute inset-y-0 left-0 rounded bg-teal-500"
+									class="absolute inset-y-0 left-0 rounded bg-primary-500"
 									style="width: {(stat.count / maxCount) * 100}%"
 									aria-hidden="true"
 								></div>
 							</div>
 
 							<!-- Count -->
-							<span class="w-8 shrink-0 text-right text-sm font-medium tabular-nums text-slate-500">
+							<span class="w-8 shrink-0 text-right text-sm font-medium tabular-nums text-neutral-500">
 								{stat.count}
 							</span>
 						</div>
@@ -304,21 +302,21 @@
 
 	<!-- Co-occurrence Section -->
 	<section
-		class="mb-8 rounded-2xl border border-slate-200 bg-white px-6 py-5 shadow-sm"
+		class="mb-8 rounded-2xl border border-neutral-200 bg-white px-6 py-5 shadow-sm"
 		aria-labelledby="coocc-heading"
 	>
 		<div class="mb-5 flex items-start justify-between gap-2">
 			<div>
-				<h2 id="coocc-heading" class="text-base font-semibold text-slate-800">
+				<h2 id="coocc-heading" class="text-base font-semibold text-neutral-800">
 					Symptoms That Travel Together
 				</h2>
-				<p class="mt-0.5 text-sm text-slate-400">How often symptoms appear together in your logs</p>
+				<p class="mt-0.5 text-sm text-neutral-400">How often symptoms appear together in your logs</p>
 			</div>
 			<!-- Info tooltip -->
 			<button
 				title="When two symptoms appear together often, it's worth noting — it can help you spot triggers and have more informed conversations with your provider."
 				aria-label="About co-occurrence patterns"
-				class="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-slate-200 text-xs text-slate-400 transition-colors hover:border-teal-300 hover:text-teal-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-300"
+				class="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-neutral-200 text-xs text-neutral-400 transition-colors hover:border-primary-300 hover:text-primary-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-300"
 			>
 				?
 			</button>
@@ -329,34 +327,32 @@
 				<SkeletonLoader variant="text" lines={4} height="h-6" />
 			</div>
 		{:else if cooccurrenceError}
-			<div class="rounded-xl border border-red-200 bg-red-50 px-5 py-4 text-sm text-red-700">
-				{cooccurrenceError}
-			</div>
+			<ErrorBanner message={cooccurrenceError} />
 		{:else if topPairs.length === 0}
-			<p class="py-6 text-center text-sm text-slate-400">
+			<p class="py-6 text-center text-sm text-neutral-400">
 				Not enough data yet to identify patterns. Keep logging to see connections.
 			</p>
 		{:else}
-			<ol class="divide-y divide-slate-50" aria-label="Symptom co-occurrence patterns">
+			<ol class="divide-y divide-neutral-100" aria-label="Symptom co-occurrence patterns">
 				{#each topPairs as pair (`${pair.symptom1_id}-${pair.symptom2_id}`)}
 					<li class="flex flex-col gap-3 py-3 first:pt-0 last:pb-0 sm:flex-row sm:items-start sm:justify-between">
 						<!-- Symptom names + subtext -->
 						<div class="min-w-0 flex-1">
 							<div class="flex flex-wrap items-center gap-1.5">
-								<span class="text-sm text-slate-500">When you logged</span>
+								<span class="text-sm text-neutral-500">When you logged</span>
 								<span
-									class="rounded-full border border-teal-100 bg-teal-50 px-2.5 py-0.5 text-sm font-medium text-teal-700"
+									class="rounded-full border border-primary-100 bg-primary-50 px-2.5 py-0.5 text-sm font-medium text-primary-700"
 								>
 									{pair.symptom1_name}
 								</span>
-								<span class="text-sm text-slate-500">, you also logged</span>
+								<span class="text-sm text-neutral-500">, you also logged</span>
 								<span
-									class="rounded-full border border-teal-100 bg-teal-50 px-2.5 py-0.5 text-sm font-medium text-teal-700"
+									class="rounded-full border border-primary-100 bg-primary-50 px-2.5 py-0.5 text-sm font-medium text-primary-700"
 								>
 									{pair.symptom2_name}
 								</span>
 							</div>
-							<p class="mt-1 pl-0.5 text-sm text-slate-400">
+							<p class="mt-1 pl-0.5 text-sm text-neutral-400">
 								({pair.cooccurrence_count}
 								{pair.cooccurrence_count === 1 ? 'time' : 'times'} together out of {pair.total_occurrences_symptom1}
 								{pair.symptom1_name} logs)
@@ -365,7 +361,7 @@
 
 						<!-- Percentage -->
 						<div class="text-left text-sm sm:shrink-0 sm:text-right">
-							<span class="text-lg font-bold tabular-nums text-teal-600">
+							<span class="text-lg font-bold tabular-nums text-primary-600">
 								{Math.round(pair.cooccurrence_rate * 100)}%
 							</span>
 						</div>
@@ -376,7 +372,7 @@
 	</section>
 
 	<!-- Section separator -->
-	<hr class="mb-8 border-slate-100" />
+	<hr class="mb-8 border-neutral-100" />
 
 	<!-- Loading -->
 	{#if loading}
@@ -387,18 +383,16 @@
 
 	<!-- Error -->
 	{:else if error}
-		<div class="rounded-xl border border-red-200 bg-red-50 px-5 py-4 text-sm text-red-700">
-			{error}
-		</div>
+		<ErrorBanner message={error} onRetry={() => fetchAll(selectedRange)} />
 
 	<!-- Empty state -->
 	{:else if dayGroups.length === 0}
-		<div class="rounded-2xl border border-dashed border-slate-300 bg-slate-50 py-16 text-center">
-			<p class="text-slate-500">No symptoms logged in this period.</p>
-			<p class="mt-1 text-sm text-slate-400">Start by logging your symptoms.</p>
+		<div class="rounded-2xl border border-dashed border-neutral-300 bg-neutral-50 py-16 text-center">
+			<p class="text-neutral-500">No symptoms logged in this period.</p>
+			<p class="mt-1 text-sm text-neutral-400">Start by logging your symptoms.</p>
 			<a
 				href="/log"
-				class="mt-5 inline-block rounded-lg bg-slate-900 px-5 py-2.5 text-sm font-medium text-white hover:bg-slate-800"
+				class="mt-5 inline-block rounded-lg bg-primary-500 px-5 py-2.5 text-sm font-semibold text-white hover:bg-primary-600"
 			>
 				Log today's symptoms
 			</a>
@@ -410,12 +404,12 @@
 			{#each dayGroups as group (group.date)}
 				{@const notesExpanded = !!expandedNotes[group.date]}
 				{@const noteCount = group.freeTextEntries.length}
-				<li class="rounded-2xl border border-slate-200 bg-white px-6 py-5 shadow-sm">
+				<li class="rounded-2xl border border-neutral-200 bg-white px-6 py-5 shadow-sm">
 					<!-- Day header -->
 					<div class="mb-3 flex items-baseline justify-between">
-						<h2 class="text-base font-semibold text-slate-800">{group.label}</h2>
+						<h2 class="text-base font-semibold text-neutral-800">{group.label}</h2>
 						{#if group.logCount > 1}
-							<span class="text-xs text-slate-400">{group.logCount} entries</span>
+							<span class="text-xs text-neutral-400">{group.logCount} entries</span>
 						{/if}
 					</div>
 
@@ -424,7 +418,7 @@
 						<div class="flex flex-wrap gap-2" aria-label="Symptoms logged">
 							{#each group.symptoms as symptom (symptom.id)}
 								<span
-									class="rounded-full border border-teal-100 bg-teal-50 px-3 py-1 text-sm font-medium text-teal-700"
+									class="rounded-full border border-primary-100 bg-primary-50 px-3 py-1 text-sm font-medium text-primary-700"
 								>
 									{symptom.name}
 								</span>
@@ -439,24 +433,24 @@
 								onclick={() => toggleNotes(group.date)}
 								aria-expanded={notesExpanded}
 								aria-label="{notesExpanded ? 'Hide' : 'Show'} {noteCount} {noteCount === 1 ? 'note' : 'notes'} from {group.label}"
-								class="flex cursor-pointer items-center gap-1 text-sm text-slate-400 transition-colors hover:text-slate-600 focus:outline-none focus-visible:rounded focus-visible:ring-2 focus-visible:ring-teal-300"
+								class="flex cursor-pointer items-center gap-1 text-sm text-neutral-400 transition-colors hover:text-neutral-600 focus:outline-none focus-visible:rounded focus-visible:ring-2 focus-visible:ring-primary-300"
 							>
 								<span>📝 {noteCount} {noteCount === 1 ? 'note' : 'notes'}</span>
-								<span class="mx-1 text-slate-300">·</span>
-								<span class="text-teal-600 hover:underline">
+								<span class="mx-1 text-neutral-300">·</span>
+								<span class="text-primary-600 hover:underline">
 									{notesExpanded ? 'Hide details' : 'Show details'}
 								</span>
 							</button>
 							{#if notesExpanded}
 								<ul
 									transition:slide={{ duration: 200 }}
-									class="mt-2 space-y-2 border-l-2 border-slate-100 pl-4"
+									class="mt-2 space-y-2 border-l-2 border-neutral-100 pl-4"
 									aria-label="Journal entries"
 								>
 									{#each group.freeTextEntries as entry (entry.logId)}
 										<li class="text-sm">
-											<span class="text-slate-700">"{entry.text}"</span>
-											<span class="ml-2 text-xs text-slate-400">{entry.time}</span>
+											<span class="text-neutral-700">"{entry.text}"</span>
+											<span class="ml-2 text-xs text-neutral-400">{entry.time}</span>
 										</li>
 									{/each}
 								</ul>
@@ -466,7 +460,7 @@
 
 					<!-- Edge case: text-only day with no symptoms -->
 					{#if group.symptoms.length === 0 && noteCount === 0}
-						<p class="text-sm italic text-slate-400">No details recorded</p>
+						<p class="text-sm italic text-neutral-400">No details recorded</p>
 					{/if}
 				</li>
 			{/each}

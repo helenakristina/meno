@@ -138,75 +138,63 @@
 </svelte:head>
 
 <div class="mx-auto max-w-2xl">
-	<h1 class="mb-8 text-2xl font-bold text-slate-900">Settings</h1>
+	<h1 class="mb-8 text-2xl font-bold text-neutral-800">Settings</h1>
 
 	{#if loadError}
-		<div class="rounded-md bg-red-50 p-4 text-sm text-red-700" role="alert">
+		<div class="rounded-md bg-danger-light p-4 text-sm text-danger-dark" role="alert">
 			{loadError}
 		</div>
 	{:else if !settings}
-		<div class="text-slate-600">Loading settings…</div>
+		<div class="text-neutral-600">Loading settings…</div>
 	{:else}
 		<!-- ================================================================
 		     Journey Stage
 		     ================================================================ -->
-<<<<<<< Updated upstream
-		<section class="mb-8 rounded-lg border border-slate-200 bg-white p-6">
-			<h2 class="mb-1 text-base font-semibold text-slate-900">Journey Stage</h2>
-			<p class="mb-4 text-sm text-slate-600">
-				Where are you in your menopause journey? This helps Meno personalise your experience.
-=======
 		<section class="mb-8 rounded-lg border border-neutral-200 bg-white p-6">
 			<h2 class="mb-1 text-base font-semibold text-neutral-800">Journey Stage</h2>
 			<p class="mb-4 text-sm text-neutral-600">
-				Where are you in your menopause journey? This helps Meno personalize your experience.
->>>>>>> Stashed changes
+				Where are you in your menopause journey? This helps Meno personalise your experience.
+
 			</p>
 
 			<fieldset class="space-y-2">
 				<legend class="sr-only">Select your journey stage</legend>
 				{#each journeyStages as stage}
 					<label
-<<<<<<< Updated upstream
-						class="flex cursor-pointer items-start gap-3 rounded-md border p-3 transition-colors {settings.journey_stage === stage.value
-							? 'border-slate-700 bg-slate-50'
-							: 'border-slate-200 hover:border-slate-300'}"
-=======
 						class="flex cursor-pointer items-start gap-3 rounded-md border p-3 transition-colors {settings.journey_stage ===
 						stage.value
 							? 'border-neutral-700 bg-neutral-50'
 							: 'border-neutral-200 hover:border-neutral-300'}"
->>>>>>> Stashed changes
 					>
 						<input
 							type="radio"
 							name="journey_stage"
 							value={stage.value}
 							bind:group={settings.journey_stage}
-							class="mt-0.5 h-4 w-4 accent-slate-800"
+							class="mt-0.5 h-4 w-4 accent-primary-500"
 						/>
 						<div>
-							<div class="text-sm font-medium text-slate-900">{stage.label}</div>
-							<div class="text-xs text-slate-500">{stage.description}</div>
+							<div class="text-sm font-medium text-neutral-800">{stage.label}</div>
+							<div class="text-xs text-neutral-500">{stage.description}</div>
 						</div>
 					</label>
 				{/each}
 			</fieldset>
 
 			{#if journeyError}
-				<p class="mt-3 text-sm text-red-600" role="alert">{journeyError}</p>
+				<p class="mt-3 text-sm text-danger" role="alert">{journeyError}</p>
 			{/if}
 
 			<div class="mt-4 flex items-center gap-3">
 				<button
 					onclick={saveJourneyStage}
 					disabled={journeySaving}
-					class="rounded-md bg-slate-800 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700 disabled:opacity-50"
+					class="rounded-md bg-primary-500 px-4 py-2 text-sm font-medium text-white hover:bg-neutral-700 disabled:opacity-50"
 				>
 					{journeySaving ? 'Saving…' : 'Save'}
 				</button>
 				{#if journeySaved}
-					<span class="text-sm text-green-600">Saved!</span>
+					<span class="text-sm text-success">Saved!</span>
 				{/if}
 			</div>
 		</section>
@@ -214,9 +202,9 @@
 		<!-- ================================================================
 		     Cycle Tracking
 		     ================================================================ -->
-		<section class="mb-8 rounded-lg border border-slate-200 bg-white p-6">
-			<h2 class="mb-1 text-base font-semibold text-slate-900">Cycle Tracking</h2>
-			<p class="mb-4 text-sm text-slate-600">
+		<section class="mb-8 rounded-lg border border-neutral-200 bg-white p-6">
+			<h2 class="mb-1 text-base font-semibold text-neutral-800">Cycle Tracking</h2>
+			<p class="mb-4 text-sm text-neutral-600">
 				Track your periods to help Meno understand your cycle patterns and journey stage over time.
 				You can turn this off at any time.
 			</p>
@@ -227,15 +215,9 @@
 					aria-checked={settings.period_tracking_enabled}
 					onclick={() => saveCycleTracking(!settings!.period_tracking_enabled)}
 					disabled={cycleSaving}
-<<<<<<< Updated upstream
-					class="relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-slate-500 focus:ring-offset-1 disabled:opacity-50 {settings.period_tracking_enabled
-						? 'bg-slate-800'
-						: 'bg-slate-300'}"
-=======
 					class="relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:ring-2 focus:ring-primary-500 focus:ring-offset-1 focus:outline-none disabled:opacity-50 {settings.period_tracking_enabled
 						? 'bg-primary-500'
 						: 'bg-neutral-300'}"
->>>>>>> Stashed changes
 					aria-label="Enable cycle tracking"
 				>
 					<span
@@ -244,22 +226,22 @@
 							: 'translate-x-1'}"
 					></span>
 				</button>
-				<span class="text-sm font-medium text-slate-900">
+				<span class="text-sm font-medium text-neutral-800">
 					{settings.period_tracking_enabled ? 'Enabled' : 'Disabled'}
 				</span>
 			</div>
 
 			{#if cycleError}
-				<p class="mt-2 text-sm text-red-600" role="alert">{cycleError}</p>
+				<p class="mt-2 text-sm text-danger" role="alert">{cycleError}</p>
 			{/if}
 		</section>
 
 		<!-- ================================================================
 		     MHT Tracking
 		     ================================================================ -->
-		<section class="mb-8 rounded-lg border border-slate-200 bg-white p-6">
-			<h2 class="mb-1 text-base font-semibold text-slate-900">MHT Tracking</h2>
-			<p class="mb-4 text-sm text-slate-600">
+		<section class="mb-8 rounded-lg border border-neutral-200 bg-white p-6">
+			<h2 class="mb-1 text-base font-semibold text-neutral-800">MHT Tracking</h2>
+			<p class="mb-4 text-sm text-neutral-600">
 				Track your Menopausal Hormone Therapy (MHT) medications to understand how they affect your
 				symptoms over time. You can turn this off at any time.
 			</p>
@@ -270,15 +252,9 @@
 					aria-checked={settings.mht_tracking_enabled}
 					onclick={() => saveMhtTracking(!settings!.mht_tracking_enabled)}
 					disabled={mhtSaving}
-<<<<<<< Updated upstream
-					class="relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-slate-500 focus:ring-offset-1 disabled:opacity-50 {settings.mht_tracking_enabled
-						? 'bg-slate-800'
-						: 'bg-slate-300'}"
-=======
 					class="relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:ring-2 focus:ring-primary-500 focus:ring-offset-1 focus:outline-none disabled:opacity-50 {settings.mht_tracking_enabled
 						? 'bg-primary-500'
 						: 'bg-neutral-300'}"
->>>>>>> Stashed changes
 					aria-label="Enable MHT tracking"
 				>
 					<span
@@ -287,31 +263,26 @@
 							: 'translate-x-1'}"
 					></span>
 				</button>
-				<span class="text-sm font-medium text-slate-900">
+				<span class="text-sm font-medium text-neutral-800">
 					{settings.mht_tracking_enabled ? 'Enabled' : 'Disabled'}
 				</span>
 			</div>
 
 			{#if mhtError}
-				<p class="mt-2 text-sm text-red-600" role="alert">{mhtError}</p>
+				<p class="mt-2 text-sm text-danger" role="alert">{mhtError}</p>
 			{/if}
 		</section>
 
 		<!-- ================================================================
 		     Anatomy
 		     ================================================================ -->
-		<section class="mb-8 rounded-lg border border-slate-200 bg-white p-6">
-			<h2 class="mb-1 text-base font-semibold text-slate-900">Anatomy</h2>
-			<p class="mb-4 text-sm text-slate-600">
+		<section class="mb-8 rounded-lg border border-neutral-200 bg-white p-6">
+			<h2 class="mb-1 text-base font-semibold text-neutral-800">Anatomy</h2>
+			<p class="mb-4 text-sm text-neutral-600">
 				This information helps us show or hide features that may not apply to you.
 			</p>
 
 			<fieldset class="space-y-2">
-<<<<<<< Updated upstream
-				<legend class="text-sm font-medium text-slate-700 mb-2">Do you have a uterus?</legend>
-
-				<label class="flex cursor-pointer items-center gap-3 rounded-md border p-3 transition-colors {settings.has_uterus === true ? 'border-slate-700 bg-slate-50' : 'border-slate-200 hover:border-slate-300'}">
-=======
 				<legend class="mb-2 text-sm font-medium text-neutral-700">Do you have a uterus?</legend>
 
 				<label
@@ -320,91 +291,76 @@
 						? 'border-neutral-700 bg-neutral-50'
 						: 'border-neutral-200 hover:border-neutral-300'}"
 				>
->>>>>>> Stashed changes
 					<input
 						type="radio"
 						name="has_uterus"
 						value="yes"
 						checked={settings.has_uterus === true}
 						onchange={() => saveHasUterus(true)}
-						class="h-4 w-4 accent-slate-800"
+						class="h-4 w-4 accent-primary-500"
 						disabled={anatomySaving}
 					/>
-					<span class="text-sm text-slate-900">Yes</span>
+					<span class="text-sm text-neutral-800">Yes</span>
 				</label>
 
-<<<<<<< Updated upstream
-				<label class="flex cursor-pointer items-center gap-3 rounded-md border p-3 transition-colors {settings.has_uterus === false ? 'border-slate-700 bg-slate-50' : 'border-slate-200 hover:border-slate-300'}">
-=======
 				<label
 					class="flex cursor-pointer items-center gap-3 rounded-md border p-3 transition-colors {settings.has_uterus ===
 					false
 						? 'border-neutral-700 bg-neutral-50'
 						: 'border-neutral-200 hover:border-neutral-300'}"
 				>
->>>>>>> Stashed changes
 					<input
 						type="radio"
 						name="has_uterus"
 						value="no"
 						checked={settings.has_uterus === false}
 						onchange={() => saveHasUterus(false)}
-						class="h-4 w-4 accent-slate-800"
+						class="h-4 w-4 accent-primary-500"
 						disabled={anatomySaving}
 					/>
-					<span class="text-sm text-slate-900">No</span>
+					<span class="text-sm text-neutral-800">No</span>
 				</label>
 
-<<<<<<< Updated upstream
-				<label class="flex cursor-pointer items-center gap-3 rounded-md border p-3 transition-colors {settings.has_uterus === null ? 'border-slate-700 bg-slate-50' : 'border-slate-200 hover:border-slate-300'}">
-=======
 				<label
 					class="flex cursor-pointer items-center gap-3 rounded-md border p-3 transition-colors {settings.has_uterus ===
 					null
 						? 'border-neutral-700 bg-neutral-50'
 						: 'border-neutral-200 hover:border-neutral-300'}"
 				>
->>>>>>> Stashed changes
 					<input
 						type="radio"
 						name="has_uterus"
 						value="prefer_not"
 						checked={settings.has_uterus === null}
 						onchange={() => saveHasUterus(null)}
-						class="h-4 w-4 accent-slate-800"
+						class="h-4 w-4 accent-primary-500"
 						disabled={anatomySaving}
 					/>
-					<span class="text-sm text-slate-900">Prefer not to say</span>
+					<span class="text-sm text-neutral-800">Prefer not to say</span>
 				</label>
 			</fieldset>
 
 			{#if settings.has_uterus === false}
-<<<<<<< Updated upstream
-				<p class="mt-3 text-sm text-slate-600">
+				<p class="mt-3 text-sm text-neutral-600">
 					Since you don't have a uterus, period tracking has been turned off.
 					You can still turn it on manually using the Cycle Tracking toggle above.
-=======
-				<p class="mt-3 text-sm text-neutral-600">
-					Since you don't have a uterus, period tracking has been turned off. You can still turn it
-					on manually using the Cycle Tracking toggle above.
->>>>>>> Stashed changes
 				</p>
 			{/if}
 
 			{#if anatomyError}
-				<p class="mt-2 text-sm text-red-600" role="alert">{anatomyError}</p>
+				<p class="mt-2 text-sm text-danger" role="alert">{anatomyError}</p>
 			{/if}
 		</section>
 
 		<!-- ================================================================
 		     Account
 		     ================================================================ -->
-		<section class="mb-8 rounded-lg border border-slate-200 bg-white p-6">
-			<h2 class="mb-1 text-base font-semibold text-slate-900">Account</h2>
+		<section class="mb-8 rounded-lg border border-neutral-200 bg-white p-6">
+			<h2 class="mb-1 text-base font-semibold text-neutral-800">Account</h2>
 			<dl class="space-y-3 text-sm">
 				<div class="flex items-center gap-4">
-					<dt class="w-24 text-slate-500">Email</dt>
-					<dd class="text-slate-900">{$authState.user?.email ?? '—'}</dd>
+					<dt class="w-24 text-neutral-500">Email</dt>
+					<dd class="text-neutral-800">{$authState.user?.email ?? '—'}</dd>
 				</div>
 			</dl>
 		</section>

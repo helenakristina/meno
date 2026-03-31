@@ -128,25 +128,25 @@
 
 <article
 	data-provider-id={provider.id}
-	class="rounded-2xl border border-slate-200 bg-white px-6 py-5 shadow-sm transition-shadow hover:shadow-md"
+	class="rounded-2xl border border-neutral-200 bg-white px-6 py-5 shadow-sm transition-shadow hover:shadow-md"
 >
 	<!-- Top row: name/location + badges -->
 	<div class="flex flex-wrap items-start justify-between gap-3">
 		<div class="min-w-0">
-			<h3 class="text-base font-semibold text-slate-900">
+			<h3 class="text-base font-semibold text-neutral-800">
 				{provider.name}{provider.credentials ? `, ${provider.credentials}` : ''}
 			</h3>
 			{#if provider.practice_name}
-				<p class="mt-0.5 text-sm text-slate-500">{provider.practice_name}</p>
+				<p class="mt-0.5 text-sm text-neutral-500">{provider.practice_name}</p>
 			{/if}
-			<p class="mt-1 text-sm text-slate-600">{provider.city}, {provider.state}</p>
+			<p class="mt-1 text-sm text-neutral-600">{provider.city}, {provider.state}</p>
 		</div>
 
 		<!-- Right side: NAMS badge + bookmark -->
 		<div class="flex shrink-0 items-center gap-2">
 			{#if provider.nams_certified}
 				<span
-					class="inline-flex items-center gap-1.5 rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-700"
+					class="inline-flex items-center gap-1.5 rounded-full border border-primary-200 bg-primary-50 px-3 py-1 text-xs font-semibold text-primary-700"
 					title="NAMS Certified Menopause Practitioner"
 				>
 					✦ NAMS Certified
@@ -160,15 +160,15 @@
 					disabled={saveLoading}
 					aria-label={isSaved ? 'Remove from shortlist' : 'Save to shortlist'}
 					title={isSaved ? 'Remove from shortlist' : 'Save to shortlist'}
-					class="flex h-8 w-8 items-center justify-center rounded-full transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-300 disabled:cursor-not-allowed
+					class="flex h-8 w-8 items-center justify-center rounded-full transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-300 disabled:cursor-not-allowed
 						{isSaved
-						? 'text-amber-500 hover:bg-amber-50 hover:text-amber-600'
-						: 'text-slate-300 hover:bg-slate-50 hover:text-slate-500'}"
+						? 'text-warning hover:bg-warning-light hover:text-warning'
+						: 'text-neutral-300 hover:bg-neutral-50 hover:text-neutral-500'}"
 				>
 					{#if saveLoading}
 						<!-- Spinner -->
 						<div
-							class="size-4 animate-spin rounded-full border-2 border-slate-200 border-t-slate-500"
+							class="size-4 animate-spin rounded-full border-2 border-neutral-200 border-t-neutral-500"
 						></div>
 					{:else if isSaved}
 						<!-- Filled bookmark -->
@@ -202,7 +202,7 @@
 	{#if provider.provider_type}
 		<div class="mt-3">
 			<span
-				class="inline-flex items-center rounded-full border border-teal-100 bg-teal-50 px-2.5 py-0.5 text-xs font-medium text-teal-700"
+				class="inline-flex items-center rounded-full border border-primary-100 bg-primary-50 px-2.5 py-0.5 text-xs font-medium text-primary-700"
 			>
 				{formatType(provider.provider_type)}
 			</span>
@@ -212,17 +212,17 @@
 	<!-- Insurance tags -->
 	{#if provider.insurance_accepted.length > 0}
 		<div class="mt-3 flex flex-wrap items-center gap-1.5">
-			<span class="text-xs text-slate-400">Insurance:</span>
+			<span class="text-xs text-neutral-400">Insurance:</span>
 			{#each visibleInsurance as ins (ins)}
 				<span
-					class="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-0.5 text-xs text-slate-600"
+					class="rounded-full border border-neutral-200 bg-neutral-50 px-2.5 py-0.5 text-xs text-neutral-600"
 				>
 					<!-- Insurance names are normalized upstream in backend/app/core/insurance_normalizer.py -->
 					{ins}
 				</span>
 			{/each}
 			{#if extraInsurance > 0}
-				<span class="text-xs text-slate-400">+{extraInsurance} more</span>
+				<span class="text-xs text-neutral-400">+{extraInsurance} more</span>
 			{/if}
 		</div>
 	{/if}
@@ -233,7 +233,7 @@
 			{#if provider.phone}
 				<a
 					href="tel:{provider.phone}"
-					class="flex items-center gap-1.5 text-sm text-teal-600 transition-colors hover:text-teal-800"
+					class="flex items-center gap-1.5 text-sm text-primary-600 transition-colors hover:text-primary-800"
 				>
 					<svg
 						xmlns="http://www.w3.org/2000/svg"
@@ -255,7 +255,7 @@
 					href={provider.website}
 					target="_blank"
 					rel="noopener noreferrer"
-					class="flex items-center gap-1 text-sm text-teal-600 transition-colors hover:text-teal-800"
+					class="flex items-center gap-1 text-sm text-primary-600 transition-colors hover:text-primary-800"
 				>
 					Website
 					<svg
@@ -277,7 +277,7 @@
 		<button
 			data-action="generate-script"
 		onclick={() => (modalOpen = true)}
-			class="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 shadow-sm transition-colors hover:border-teal-300 hover:bg-teal-50 hover:text-teal-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-300"
+			class="rounded-lg border border-neutral-200 bg-white px-3 py-1.5 text-xs font-medium text-neutral-700 shadow-sm transition-colors hover:border-primary-300 hover:bg-primary-50 hover:text-primary-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-300"
 		>
 			Generate Calling Script
 		</button>
@@ -285,7 +285,7 @@
 
 	<!-- Last verified -->
 	{#if provider.last_verified}
-		<p class="mt-3 text-xs text-slate-400">Verified {formatVerified(provider.last_verified)}</p>
+		<p class="mt-3 text-xs text-neutral-400">Verified {formatVerified(provider.last_verified)}</p>
 	{/if}
 </article>
 

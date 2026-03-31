@@ -129,37 +129,37 @@
 
 <div class="mx-auto max-w-xl">
 	<div class="mb-6 flex items-center justify-between">
-		<h1 class="text-2xl font-bold text-slate-900">Cycles</h1>
+		<h1 class="text-2xl font-bold text-neutral-800">Cycles</h1>
 		<button
 			onclick={handleLogToday}
-			class="rounded-lg bg-teal-600 px-4 py-2 text-sm font-medium text-white hover:bg-teal-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-400 focus-visible:ring-offset-1"
+			class="rounded-lg bg-primary-500 px-4 py-2 text-sm font-medium text-white hover:bg-primary-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-400 focus-visible:ring-offset-1"
 		>
 			Log today
 		</button>
 	</div>
 
 	{#if loadError}
-		<div class="rounded-md bg-red-50 p-4 text-sm text-red-700" role="alert">
+		<div class="rounded-md bg-danger-light p-4 text-sm text-danger-dark" role="alert">
 			{loadError}
 		</div>
 	{:else}
 		<!-- Postmenopausal bleeding alert banner -->
 		{#if bleedingAlertActive}
 			<div
-				class="mb-6 rounded-lg border border-amber-200 bg-amber-50 px-4 py-4"
+				class="mb-6 rounded-lg border border-warning bg-warning-light px-4 py-4"
 				role="alert"
 				aria-live="assertive"
 			>
 				<div class="flex items-start justify-between gap-3">
 					<div>
-						<p class="text-sm font-medium text-amber-800">Please contact your doctor</p>
-						<p class="mt-0.5 text-sm text-amber-700">
+						<p class="text-sm font-medium text-warning-dark">Please contact your doctor</p>
+						<p class="mt-0.5 text-sm text-warning">
 							Postmenopausal bleeding should be evaluated by a healthcare provider promptly.
 						</p>
 					</div>
 					<button
 						onclick={() => (bleedingAlertActive = false)}
-						class="shrink-0 rounded-full p-1 text-amber-600 hover:bg-amber-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-400"
+						class="shrink-0 rounded-full p-1 text-warning hover:bg-warning-light focus:outline-none focus-visible:ring-2 focus-visible:ring-warning"
 						aria-label="Dismiss alert"
 					>
 						<svg xmlns="http://www.w3.org/2000/svg" class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -173,14 +173,14 @@
 		<!-- Inference banner -->
 		{#if showInferenceBanner}
 			<div
-				class="mb-6 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-4"
+				class="mb-6 rounded-lg border border-primary-200 bg-primary-50 px-4 py-4"
 				role="status"
 				aria-live="polite"
 			>
-				<p class="text-sm font-medium text-emerald-900">
+				<p class="text-sm font-medium text-primary-800">
 					You haven't logged a period in {cycleAnalysis?.months_since_last_period} months.
 				</p>
-				<p class="mt-0.5 text-sm text-emerald-700">
+				<p class="mt-0.5 text-sm text-primary-700">
 					Would you like to update your journey stage to
 					<strong>{formatStageLabel(cycleAnalysis?.inferred_stage ?? null)}</strong>?
 				</p>
@@ -188,13 +188,13 @@
 					<button
 						onclick={handleUpdateJourneyStage}
 						disabled={updatingStage}
-						class="rounded-md bg-emerald-700 px-3 py-1.5 text-xs font-medium text-white hover:bg-emerald-800 disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400"
+						class="rounded-md bg-primary-500 px-3 py-1.5 text-xs font-medium text-white hover:bg-primary-600 disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-300"
 					>
 						{updatingStage ? 'Updating…' : 'Update'}
 					</button>
 					<button
 						onclick={() => (bannerDismissed = true)}
-						class="rounded-md border border-emerald-300 px-3 py-1.5 text-xs font-medium text-emerald-700 hover:bg-emerald-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400"
+						class="rounded-md border border-primary-200 px-3 py-1.5 text-xs font-medium text-primary-700 hover:bg-primary-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-300"
 					>
 						Dismiss
 					</button>
@@ -203,35 +203,35 @@
 		{/if}
 
 		<!-- Calendar -->
-		<div class="rounded-lg border border-slate-200 bg-white p-4 sm:p-6">
+		<div class="rounded-lg border border-neutral-200 bg-white p-4 sm:p-6">
 			<PeriodCalendar {logs} onDayClick={handleDayClick} />
 		</div>
 
 		<!-- Cycle summary (shown when there's enough data) -->
 		{#if cycleAnalysis?.has_sufficient_data}
-			<div class="mt-6 rounded-lg border border-slate-200 bg-white p-4">
-				<h2 class="mb-3 text-sm font-semibold text-slate-700">Cycle Summary</h2>
+			<div class="mt-6 rounded-lg border border-neutral-200 bg-white p-4">
+				<h2 class="mb-3 text-sm font-semibold text-neutral-700">Cycle Summary</h2>
 				<dl class="grid grid-cols-2 gap-3 sm:grid-cols-3">
 					{#if cycleAnalysis.average_cycle_length != null}
-						<div class="rounded-md bg-slate-50 px-3 py-2">
-							<dt class="text-xs text-slate-500">Avg. cycle</dt>
-							<dd class="mt-0.5 text-sm font-semibold text-slate-900">
+						<div class="rounded-md bg-neutral-50 px-3 py-2">
+							<dt class="text-xs text-neutral-500">Avg. cycle</dt>
+							<dd class="mt-0.5 text-sm font-semibold text-neutral-800">
 								{Math.round(cycleAnalysis.average_cycle_length)} days
 							</dd>
 						</div>
 					{/if}
 					{#if cycleAnalysis.months_since_last_period != null}
-						<div class="rounded-md bg-slate-50 px-3 py-2">
-							<dt class="text-xs text-slate-500">Months since last</dt>
-							<dd class="mt-0.5 text-sm font-semibold text-slate-900">
+						<div class="rounded-md bg-neutral-50 px-3 py-2">
+							<dt class="text-xs text-neutral-500">Months since last</dt>
+							<dd class="mt-0.5 text-sm font-semibold text-neutral-800">
 								{cycleAnalysis.months_since_last_period}
 							</dd>
 						</div>
 					{/if}
 					{#if cycleAnalysis.cycle_variability != null}
-						<div class="rounded-md bg-slate-50 px-3 py-2">
-							<dt class="text-xs text-slate-500">Variability</dt>
-							<dd class="mt-0.5 text-sm font-semibold text-slate-900">
+						<div class="rounded-md bg-neutral-50 px-3 py-2">
+							<dt class="text-xs text-neutral-500">Variability</dt>
+							<dd class="mt-0.5 text-sm font-semibold text-neutral-800">
 								±{Math.round(cycleAnalysis.cycle_variability)} days
 							</dd>
 						</div>

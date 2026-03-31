@@ -56,21 +56,23 @@ Use for: Body text, headings, borders, card backgrounds, disabled states.
 --color-neutral-900: #1c1917    /* High-contrast text (use sparingly) */
 ```
 
-### Accent — Coral (secondary highlights, warmth)
+### Coral (secondary highlights, warmth)
 
 Use for: Period flow indicators, status badges that need warmth, secondary call-to-action, illustration accents.
 
+> **Note:** `bg-coral-*` (numbered) is the Meno coral/orange scale. `bg-accent` (no number) is the shadcn semantic token (blue-gray hover) — these are unrelated.
+
 ```
---color-accent-50:  #fff7ed
---color-accent-100: #ffedd5
---color-accent-200: #fed7aa
---color-accent-300: #fdba74
---color-accent-400: #fb923c    /* DEFAULT — badges, period indicators, warm highlights */
---color-accent-500: #f97316    /* Stronger accent when needed */
---color-accent-600: #ea580c    /* Hover on accent elements */
---color-accent-700: #c2410c
---color-accent-800: #9a3412
---color-accent-900: #7c2d12
+--color-coral-50:  #fff7ed
+--color-coral-100: #ffedd5
+--color-coral-200: #fed7aa
+--color-coral-300: #fdba74
+--color-coral-400: #fb923c    /* DEFAULT — badges, period indicators, warm highlights */
+--color-coral-500: #f97316    /* Stronger coral when needed */
+--color-coral-600: #ea580c    /* Hover on coral elements */
+--color-coral-700: #c2410c
+--color-coral-800: #9a3412
+--color-coral-900: #7c2d12
 ```
 
 ### Semantic Colors (use ONLY for their specific purpose)
@@ -195,15 +197,15 @@ Use Tailwind's default spacing scale. Key values:
 ### Status Badges
 
 - **Booked Appointment:** `bg-primary-100 text-primary-800`
-- **To Call:** `bg-accent-100 text-accent-800`
+- **To Call:** `bg-coral-100 text-coral-800`
 - **Left Voicemail:** `bg-warning-light text-warning-dark`
 - All badges: `px-2.5 py-0.5 rounded-full text-xs font-medium`
 
 ### Navigation
 
 - Background: `bg-white border-b border-neutral-200`
-- Nav text: `text-neutral-600 hover:text-primary-600`
-- Active item: `text-primary-600 font-semibold` with underline or bottom border
+- Nav text: `text-neutral-600 hover:text-primary-800`
+- Active item: `text-primary-800 font-semibold` with underline or bottom border
 - "Meno" wordmark: `text-neutral-800 font-bold`
 
 ### Charts and Data Visualization
@@ -229,11 +231,11 @@ Use Tailwind's default spacing scale. Key values:
 
 1. **NEVER introduce new colors.** All colors must come from the palette defined above.
 2. **NEVER use navy, dark blue, or dark backgrounds for buttons or interactive elements.** The primary teal is the action color.
-3. **NEVER use different link colors on different pages.** Links are always `text-primary-600 hover:text-primary-700`.
+3. **NEVER use different link colors on different pages.** Links are always `text-primary-800 hover:text-primary-900`.
 4. **NEVER use colored card backgrounds** unless it's a semantic callout (warning, info, success).
-5. **NEVER use random accent colors for new features.** If something needs visual distinction, use the accent coral or a different shade of the primary teal.
+5. **NEVER use random accent colors for new features.** If something needs visual distinction, use the coral scale (`coral-*`) or a different shade of the primary teal.
 6. **All status badges follow the badge pattern above.** Do not invent new badge colors.
 7. **Charts and data visualization use the primary teal ramp only.** No rainbow charts.
-8. **The danger/red color is reserved for destructive actions only.** Period logging buttons should use the accent coral, not red.
+8. **The danger/red color is reserved for destructive actions only.** Period logging buttons should use the coral scale (`coral-*`), not red.
 9. **Maintain consistent spacing.** Cards are `p-6`, sections are `py-8` or `py-12`, gaps are `gap-4` or `gap-6`.
 10. **When in doubt, use the primary teal or neutral gray.** The palette is intentionally constrained. Fewer colors = more cohesion.

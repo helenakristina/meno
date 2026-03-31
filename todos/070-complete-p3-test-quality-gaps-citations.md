@@ -41,3 +41,4 @@ Several test quality issues in the new test files introduced by this PR.
 
 - 2026-03-23: Found by python-reviewer and code-simplicity-reviewer in PR #4 review
 - 2026-03-24: Approved during triage session. Status changed pending → ready.
+2026-03-25: Resolved.

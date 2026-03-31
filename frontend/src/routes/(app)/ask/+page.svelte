@@ -210,22 +210,22 @@
 <!-- Outer container fills viewport height -->
 <div class="flex flex-col" style="height: calc(100vh - 7rem);">
 	<!-- Page header -->
-	<div class="flex-shrink-0 border-b border-slate-200 bg-white px-4 py-4 sm:px-6 lg:px-8">
+	<div class="flex-shrink-0 border-b border-neutral-200 bg-white px-4 py-4 sm:px-6 lg:px-8">
 		<div class="flex items-center justify-between">
 			<div>
-				<h1 class="text-2xl font-bold text-slate-900">Ask Meno</h1>
-				<p class="mt-0.5 text-sm text-slate-500">
+				<h1 class="text-2xl font-bold text-neutral-800">Ask Meno</h1>
+				<p class="mt-0.5 text-sm text-neutral-500">
 					Evidence-based information about perimenopause and menopause
 				</p>
 			</div>
 			<a
 				href="/ask/history"
-				class="text-sm font-medium text-teal-600 hover:text-teal-700 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:ring-offset-2 rounded px-2 py-1"
+				class="text-sm font-medium text-primary-800 hover:text-primary-900 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 rounded px-2 py-1"
 			>
 				History
 			</a>
 		</div>
-		<div class="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700">
+		<div class="mt-3 rounded-lg border border-warning bg-warning-light px-3 py-2 text-xs text-warning-dark">
 			Educational information only — not medical advice. Always discuss health decisions with your
 			healthcare provider.
 		</div>
@@ -236,13 +236,13 @@
 		{#if !hasMessages}
 			<!-- Empty state: starter prompts -->
 			<div class="px-4 py-6 sm:px-6 lg:px-8">
-				<p class="mb-4 text-center text-sm text-slate-500">
+				<p class="mb-4 text-center text-sm text-neutral-500">
 					Start with a question, or choose one below:
 				</p>
 				{#if loadingPrompts}
 					<div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
 						{#each Array(6) as _}
-							<div class="rounded-xl border border-slate-200 bg-white px-4 py-3 h-[60px] animate-pulse bg-slate-100" />
+							<div class="rounded-xl border border-neutral-200 bg-neutral-100 px-4 py-3 h-[60px] animate-pulse" />
 						{/each}
 					</div>
 				{:else if suggestedPrompts.length > 0}
@@ -251,7 +251,7 @@
 							<button
 								type="button"
 								onclick={() => selectPrompt(prompt)}
-								class="rounded-xl border border-slate-200 bg-white px-4 py-3 text-left text-sm text-slate-700 shadow-sm transition-colors hover:border-teal-300 hover:bg-teal-50 hover:text-teal-800 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:ring-offset-2 active:bg-teal-100"
+								class="rounded-xl border border-neutral-200 bg-white px-4 py-3 text-left text-sm text-neutral-700 shadow-sm transition-colors hover:border-primary-300 hover:bg-primary-50 hover:text-primary-800 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 active:bg-primary-100"
 							>
 								{prompt}
 							</button>
@@ -264,7 +264,7 @@
 							<button
 								type="button"
 								onclick={() => selectPrompt(prompt)}
-								class="rounded-xl border border-slate-200 bg-white px-4 py-3 text-left text-sm text-slate-700 shadow-sm transition-colors hover:border-teal-300 hover:bg-teal-50 hover:text-teal-800 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:ring-offset-2 active:bg-teal-100"
+								class="rounded-xl border border-neutral-200 bg-white px-4 py-3 text-left text-sm text-neutral-700 shadow-sm transition-colors hover:border-primary-300 hover:bg-primary-50 hover:text-primary-800 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 active:bg-primary-100"
 							>
 								{prompt}
 							</button>
@@ -278,7 +278,7 @@
 				{#each messages as message, i (i)}
 					{#if message.role === 'user'}
 						<div class="flex justify-end">
-							<div class="max-w-[75%] rounded-2xl rounded-tr-sm bg-slate-700 px-4 py-3 text-sm leading-relaxed text-white">
+							<div class="max-w-[75%] rounded-2xl rounded-tr-sm bg-primary-600 px-4 py-3 text-sm leading-relaxed text-white">
 								{message.content}
 							</div>
 						</div>
@@ -286,29 +286,29 @@
 						<div class="flex justify-start">
 							<div class="max-w-[85%] rounded-2xl rounded-tl-sm bg-white px-4 py-3 shadow-sm">
 								<!-- Response text with citations -->
-								<div class="message-content text-sm leading-relaxed text-slate-800">
+								<div class="message-content text-sm leading-relaxed text-neutral-800">
 									{@html renderContent(message.content, message.citations)}
 								</div>
 
 								<!-- Citations list -->
 								{#if message.citations.length > 0}
-									<div class="mt-3 border-t border-slate-100 pt-3">
-										<p class="mb-1.5 text-xs font-semibold uppercase tracking-wide text-slate-400">
+									<div class="mt-3 border-t border-neutral-100 pt-3">
+										<p class="mb-1.5 text-xs font-semibold uppercase tracking-wide text-neutral-400">
 											Sources
 										</p>
 										<ol class="space-y-1">
 											{#each message.citations as citation, j}
-												<li class="text-xs text-slate-500">
-													<span class="font-medium text-slate-600">[{j + 1}]</span>
+												<li class="text-xs text-neutral-500">
+													<span class="font-medium text-neutral-600">[{j + 1}]</span>
 													<a
 														href={citation.url}
 														target="_blank"
 														rel="noopener noreferrer"
-														class="ml-1 text-teal-600 hover:text-teal-800 hover:underline"
+														class="ml-1 text-primary-800 hover:text-primary-900 hover:underline"
 													>
 														{citation.title || citation.url}
 														{#if citation.section}
-															<span class="text-slate-400"> — {citation.section}</span>
+															<span class="text-neutral-400"> — {citation.section}</span>
 														{/if}
 													</a>
 												</li>
@@ -325,7 +325,7 @@
 				{#if isLoading}
 					<div class="flex justify-start">
 						<div
-							class="rounded-2xl rounded-tl-sm bg-white px-4 py-3 text-sm text-slate-400 shadow-sm"
+							class="rounded-2xl rounded-tl-sm bg-white px-4 py-3 text-sm text-neutral-400 shadow-sm"
 							role="status"
 							aria-live="assertive"
 							aria-label="Assistant is thinking"
@@ -340,7 +340,7 @@
 
 	<!-- Error messages -->
 	{#if apiError || $errors.message}
-		<div class="flex-shrink-0 border-t border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 sm:px-6 lg:px-8" role="alert">
+		<div class="flex-shrink-0 border-t border-danger-light bg-danger-light px-4 py-3 text-sm text-danger-dark sm:px-6 lg:px-8" role="alert">
 			{apiError || $errors.message}
 			<button
 				type="button"
@@ -360,7 +360,7 @@
 		method="POST"
 		action="?/chat"
 		use:enhance
-		class="flex-shrink-0 border-t border-slate-200 bg-white px-4 py-4 sm:px-6 lg:px-8"
+		class="flex-shrink-0 border-t border-neutral-200 bg-white px-4 py-4 sm:px-6 lg:px-8"
 		style="box-shadow: 0 -4px 12px rgba(0,0,0,0.05);"
 	>
 		<div class="flex items-end gap-3">
@@ -373,7 +373,7 @@
 				placeholder="Ask a question about perimenopause or menopause…"
 				rows="1"
 				disabled={isLoading}
-				class="flex-1 resize-none rounded-xl border border-slate-200 px-4 py-3 text-sm text-slate-900 placeholder-slate-400 transition-colors focus:border-teal-400 focus:outline-none focus:ring-2 focus:ring-teal-400/20 disabled:opacity-60"
+				class="flex-1 resize-none rounded-xl border border-neutral-200 px-4 py-3 text-sm text-neutral-800 placeholder-neutral-400 transition-colors focus:border-primary-400 focus:outline-none focus:ring-2 focus:ring-primary-400/20 disabled:opacity-60"
 				aria-invalid={apiError || $errors.message ? 'true' : 'false'}
 				aria-describedby={apiError || $errors.message ? 'message-error' : undefined}
 			></textarea>
@@ -381,12 +381,12 @@
 				type="button"
 				onclick={onSubmit}
 				disabled={!canSend}
-				class="flex-shrink-0 rounded-xl bg-teal-600 px-5 py-3 text-sm font-semibold text-white transition-colors hover:bg-teal-700 disabled:cursor-not-allowed disabled:opacity-40"
+				class="flex-shrink-0 rounded-xl bg-primary-500 px-5 py-3 text-sm font-semibold text-white transition-colors hover:bg-primary-600 disabled:cursor-not-allowed disabled:opacity-40"
 			>
 				{isLoading ? 'Sending…' : 'Send'}
 			</button>
 		</div>
-		<p class="mt-2 text-center text-xs text-slate-400">
+		<p class="mt-2 text-center text-xs text-neutral-400">
 			Enter to send &middot; Shift+Enter for new line
 		</p>
 	</form>
@@ -395,12 +395,12 @@
 <style>
 	/* Inline citation superscript links */
 	:global(.citation-ref) {
-		color: #0d9488;
+		color: var(--color-primary-800);
 		font-weight: 500;
 		text-decoration: none;
 	}
 	:global(.citation-ref:hover) {
-		color: #0f766e;
+		color: var(--color-primary-900);
 		text-decoration: underline;
 	}
 
@@ -487,11 +487,11 @@
 	}
 
 	:global(.message-content a) {
-		color: #0d9488;
+		color: var(--color-primary-800);
 		text-decoration: underline;
 	}
 
 	:global(.message-content a:hover) {
-		color: #0f766e;
+		color: var(--color-primary-900);
 	}
 </style>
