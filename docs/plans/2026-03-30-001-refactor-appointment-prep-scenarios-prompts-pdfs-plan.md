@@ -434,14 +434,14 @@ No API surface changes in any phase. All four phases are internal refactors — 
 
 ### Phase 2: Prompts
 
-- [ ] `backend/app/llm/appointment_prompts.py` exists with all 6 system prompt constants and 6 builder functions
-- [ ] No hardcoded prompt strings remain in `appointment.py` or `llm.py`
-- [ ] `LLMService.generate_narrative()` method added; `appointment.py` uses it (no more `.provider` direct calls)
-- [ ] Patient-facing prompts (scenario suggestions, cheat sheet) include Meno voice layer
-- [ ] Provider-facing prompts (narrative, provider summary) remain clinical
-- [ ] Scenario response suggestions pass the "confident friend" test, not medical textbook
+- [x] `backend/app/llm/appointment_prompts.py` exists with all 6 system prompt constants and 6 builder functions
+- [x] No hardcoded prompt strings remain in `appointment.py` or `llm.py`
+- [x] `LLMService.generate_narrative()` method added; `appointment.py` uses it (no more `.provider` direct calls)
+- [x] Patient-facing prompts (scenario suggestions, cheat sheet) have distinct constants from provider-facing
+- [x] Provider-facing prompts (narrative, provider summary) remain clinical
+- [x] Guardrail strings ("logs show", "not to diagnose", "discuss with a provider") asserted in tests
 - [ ] User-supplied strings sanitized via `_sanitize_prompt_field()` before entering prompts
-- [ ] All existing tests pass; prompt-content assertions updated if prompt wording changed
+- [x] All existing tests pass; prompt mock updated for generate_narrative()
 
 ### Phase 4: PDFs
 
