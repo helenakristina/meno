@@ -427,7 +427,7 @@ No API surface changes in any phase. All four phases are internal refactors — 
 - [x] All callers of `_select_scenarios()` updated for new return type
 - [x] Scenario selection logic produces equivalent results for all goal types
 - [x] Adding a new scenario requires only a JSON edit
-- [x] `_scenario_config` is lazily cached (no per-request file I/O)
+- [x] `_scenario_config` loaded in `__init__` (fails at instantiation, not query time)
 - [x] Config load failure raises a descriptive domain error, not a silent empty list
 - [x] All existing tests pass; tests updated for `list[dict]` return type
 - [x] New tests for config loading and scenario selection routing

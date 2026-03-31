@@ -65,6 +65,7 @@ class AppointmentService:
         self.storage_service = storage_service
         self.pdf_service = pdf_service
         self.medication_service = medication_service
+        self._scenario_config = self._load_scenario_config()
 
     # -------------------------------------------------------------------------
     # Step 2: Generate narrative
@@ -634,20 +635,18 @@ class AppointmentService:
         return system_prompt, user_prompt
 
     def _load_scenario_config(self) -> dict:
-        """Load scenario config from JSON. Cached on the instance after first load."""
-        if not hasattr(self, "_scenario_config") or self._scenario_config is None:
-            config_path = (
-                Path(__file__).parent.parent.parent / "config" / "scenarios.json"
-            )
-            try:
-                with config_path.open() as f:
-                    self._scenario_config = json.load(f)
-            except FileNotFoundError as exc:
-                raise RuntimeError(
-                    f"Scenario config not found at {config_path}. "
-                    "Ensure config/scenarios.json is present."
-                ) from exc
-        return self._scenario_config
+        """Load scenario config from JSON. Called once in __init__ — failure is immediate."""
+        config_path = (
+            Path(__file__).parent.parent.parent / "config" / "scenarios.json"
+        )
+        try:
+            with config_path.open() as f:
+                return json.load(f)
+        except FileNotFoundError as exc:
+            raise RuntimeError(
+                f"Scenario config not found at {config_path}. "
+                "Ensure config/scenarios.json is present."
+            ) from exc
 
     def _select_scenarios(
         self, context: AppointmentContext, journey_stage: str
@@ -658,7 +657,7 @@ class AppointmentService:
         When goal is urgent_symptom, matches against keyword groups. Falls back to
         goal-specific scenarios for other goals.
         """
-        config = self._load_scenario_config()
+        config = self._scenario_config
         scenarios: list[dict] = []
         urgent_symptom = context.urgent_symptom
 

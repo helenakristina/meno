@@ -388,8 +388,10 @@ class TestSelectScenarios:
     """
 
     def _make_service(self):
-        """Create service instance without initializing deps."""
-        return AppointmentService.__new__(AppointmentService)
+        """Create service instance without initializing deps, but load scenario config."""
+        svc = AppointmentService.__new__(AppointmentService)
+        svc._scenario_config = svc._load_scenario_config()
+        return svc
 
     def _context(self, goal, dismissed=DismissalExperience.once_or_twice, urgent=None):
         return AppointmentContext(

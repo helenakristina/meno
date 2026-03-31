@@ -16,6 +16,7 @@ from app.models.appointment import (
 from app.services.appointment import AppointmentService
 
 _svc = AppointmentService.__new__(AppointmentService)
+_svc._scenario_config = _svc._load_scenario_config()
 _select_scenarios = _svc._select_scenarios
 
 VALID_CATEGORIES = {
