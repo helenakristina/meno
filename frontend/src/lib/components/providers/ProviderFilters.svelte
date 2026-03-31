@@ -162,7 +162,7 @@
 					<button
 						onmousedown={(e) => e.preventDefault()}
 						onclick={clearInsurance}
-						class="absolute right-2 top-1/2 -translate-y-1/2 rounded p-0.5 text-neutral-400 transition-colors hover:text-neutral-600 focus:outline-none"
+						class="absolute top-1/2 right-2 -translate-y-1/2 rounded p-0.5 text-neutral-400 transition-colors hover:text-neutral-600 focus:outline-none"
 						aria-label="Clear insurance filter"
 					>
 						<svg
@@ -182,7 +182,7 @@
 			<!-- Dropdown -->
 			{#if insuranceOpen}
 				<div
-					class="absolute left-0 top-full z-20 mt-1 max-h-52 w-full overflow-auto rounded-lg border border-neutral-200 bg-white shadow-lg"
+					class="absolute top-full left-0 z-20 mt-1 max-h-52 w-full overflow-auto rounded-lg border border-neutral-200 bg-white shadow-lg"
 				>
 					{#if insuranceLoading}
 						<div class="px-3 py-3 text-sm text-neutral-400">Loading options…</div>
@@ -205,7 +205,9 @@
 
 		<!-- NAMS Only toggle -->
 		<div class="shrink-0">
-			<p class="mb-2 text-xs font-medium tracking-wide text-neutral-500 uppercase">NAMS Certified</p>
+			<p class="mb-2 text-xs font-medium tracking-wide text-neutral-500 uppercase">
+				NAMS Certified
+			</p>
 			<button
 				onclick={handleNamsToggle}
 				role="switch"

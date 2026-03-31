@@ -19,7 +19,7 @@ export interface AuthState {
 const initialState: AuthState = {
 	user: null,
 	isLoading: true, // Start with loading=true until we check session
-	error: null,
+	error: null
 };
 
 // Main auth state store
@@ -42,7 +42,7 @@ async function initializeAuth() {
 			authState.set({
 				user: null,
 				isLoading: false,
-				error: error.message,
+				error: error.message
 			});
 			return;
 		}
@@ -50,13 +50,13 @@ async function initializeAuth() {
 		authState.set({
 			user: data.session?.user ?? null,
 			isLoading: false,
-			error: null,
+			error: null
 		});
 	} catch (error) {
 		authState.set({
 			user: null,
 			isLoading: false,
-			error: error instanceof Error ? error.message : 'Failed to initialize auth',
+			error: error instanceof Error ? error.message : 'Failed to initialize auth'
 		});
 	}
 }
@@ -69,7 +69,7 @@ function setupAuthListener() {
 		authState.set({
 			user: session?.user ?? null,
 			isLoading: false,
-			error: null,
+			error: null
 		});
 	});
 }

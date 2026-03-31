@@ -91,6 +91,7 @@ Women arrive at menopause appointments unprepared, often having forgotten key co
 **Current State:** PDFs are functional and contain correct data, but formatting could be more polished for professional presentation to healthcare providers.
 
 **Files Involved:**
+
 - `backend/app/services/pdf.py` — PDF generation logic
 - `backend/app/services/llm.py` — Content generation for PDFs
 - Frontend: Step 5 component that displays generated PDFs
@@ -156,6 +157,7 @@ Women arrive at menopause appointments unprepared, often having forgotten key co
    - Effort: 1-2 hours (ongoing)
 
 **Definition of Done:**
+
 - [ ] PDFs have professional header with Meno branding
 - [ ] Typography is clear and well-organized (headings, body, emphasis)
 - [ ] Color scheme matches app design (teal accents)
@@ -176,6 +178,7 @@ Women arrive at menopause appointments unprepared, often having forgotten key co
 **Dependencies:** None — can be done independently after V2 ships
 
 **Notes:**
+
 - This is high-visibility to users (PDFs are the final output of Appointment Prep)
 - Consider using a PDF library with better formatting support (ReportLab, WeasyPrint, or similar)
 - May require backend changes to improve PDF generation quality
@@ -183,6 +186,7 @@ Women arrive at menopause appointments unprepared, often having forgotten key co
 - Consider creating PDF templates/styles that can be reused
 
 **Related Issues:**
+
 - Part 4: Error Handling (ensure PDF generation errors are handled gracefully)
 - Part 13: Multi-Step Flows (PDF generation is Step 5 output)
 

@@ -114,7 +114,13 @@
 				.filter((l) => l.free_text_entry)
 				.map((l) => ({ text: l.free_text_entry!, time: formatTime(l.logged_at), logId: l.id }));
 
-			groups.push({ date, label: dayLabel(date), logCount: dayLogs.length, symptoms, freeTextEntries });
+			groups.push({
+				date,
+				label: dayLabel(date),
+				logCount: dayLogs.length,
+				symptoms,
+				freeTextEntries
+			});
 		}
 
 		// Sort newest-first (dates are YYYY-MM-DD so string comparison works)
@@ -242,7 +248,7 @@
 		<select
 			bind:value={selectedRange}
 			aria-label="Date range"
-			class="rounded-lg border border-neutral-200 bg-white px-3 py-2 text-sm text-neutral-700 shadow-sm transition-colors focus:border-primary-400 focus:outline-none focus:ring-2 focus:ring-primary-200"
+			class="rounded-lg border border-neutral-200 bg-white px-3 py-2 text-sm text-neutral-700 shadow-sm transition-colors focus:border-primary-400 focus:ring-2 focus:ring-primary-200 focus:outline-none"
 		>
 			<option value="7">Last 7 days</option>
 			<option value="14">Last 14 days</option>
@@ -270,7 +276,10 @@
 		{:else}
 			<ol class="space-y-3" aria-label="Symptom frequency chart">
 				{#each topSymptoms as stat (stat.symptom_id)}
-					<li class="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3" aria-label="{stat.symptom_name}: logged {stat.count} times">
+					<li
+						class="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3"
+						aria-label="{stat.symptom_name}: logged {stat.count} times"
+					>
 						<!-- Name: responsive width -->
 						<span
 							class="min-w-0 truncate text-sm font-medium text-neutral-700 sm:w-32 sm:shrink-0 sm:text-right"
@@ -290,7 +299,9 @@
 							</div>
 
 							<!-- Count -->
-							<span class="w-8 shrink-0 text-right text-sm font-medium tabular-nums text-neutral-500">
+							<span
+								class="w-8 shrink-0 text-right text-sm font-medium text-neutral-500 tabular-nums"
+							>
 								{stat.count}
 							</span>
 						</div>
@@ -310,7 +321,9 @@
 				<h2 id="coocc-heading" class="text-base font-semibold text-neutral-800">
 					Symptoms That Travel Together
 				</h2>
-				<p class="mt-0.5 text-sm text-neutral-400">How often symptoms appear together in your logs</p>
+				<p class="mt-0.5 text-sm text-neutral-400">
+					How often symptoms appear together in your logs
+				</p>
 			</div>
 			<!-- Info tooltip -->
 			<button
@@ -335,7 +348,9 @@
 		{:else}
 			<ol class="divide-y divide-neutral-100" aria-label="Symptom co-occurrence patterns">
 				{#each topPairs as pair (`${pair.symptom1_id}-${pair.symptom2_id}`)}
-					<li class="flex flex-col gap-3 py-3 first:pt-0 last:pb-0 sm:flex-row sm:items-start sm:justify-between">
+					<li
+						class="flex flex-col gap-3 py-3 first:pt-0 last:pb-0 sm:flex-row sm:items-start sm:justify-between"
+					>
 						<!-- Symptom names + subtext -->
 						<div class="min-w-0 flex-1">
 							<div class="flex flex-wrap items-center gap-1.5">
@@ -361,7 +376,7 @@
 
 						<!-- Percentage -->
 						<div class="text-left text-sm sm:shrink-0 sm:text-right">
-							<span class="text-lg font-bold tabular-nums text-primary-600">
+							<span class="text-lg font-bold text-primary-600 tabular-nums">
 								{Math.round(pair.cooccurrence_rate * 100)}%
 							</span>
 						</div>
@@ -381,13 +396,15 @@
 			<SkeletonLoader variant="card" />
 		</div>
 
-	<!-- Error -->
+		<!-- Error -->
 	{:else if error}
 		<ErrorBanner message={error} onRetry={() => fetchAll(selectedRange)} />
 
-	<!-- Empty state -->
+		<!-- Empty state -->
 	{:else if dayGroups.length === 0}
-		<div class="rounded-2xl border border-dashed border-neutral-300 bg-neutral-50 py-16 text-center">
+		<div
+			class="rounded-2xl border border-dashed border-neutral-300 bg-neutral-50 py-16 text-center"
+		>
 			<p class="text-neutral-500">No symptoms logged in this period.</p>
 			<p class="mt-1 text-sm text-neutral-400">Start by logging your symptoms.</p>
 			<a
@@ -398,7 +415,7 @@
 			</a>
 		</div>
 
-	<!-- History -->
+		<!-- History -->
 	{:else}
 		<ol class="space-y-4">
 			{#each dayGroups as group (group.date)}
@@ -432,7 +449,9 @@
 							<button
 								onclick={() => toggleNotes(group.date)}
 								aria-expanded={notesExpanded}
-								aria-label="{notesExpanded ? 'Hide' : 'Show'} {noteCount} {noteCount === 1 ? 'note' : 'notes'} from {group.label}"
+								aria-label="{notesExpanded ? 'Hide' : 'Show'} {noteCount} {noteCount === 1
+									? 'note'
+									: 'notes'} from {group.label}"
 								class="flex cursor-pointer items-center gap-1 text-sm text-neutral-400 transition-colors hover:text-neutral-600 focus:outline-none focus-visible:rounded focus-visible:ring-2 focus-visible:ring-primary-300"
 							>
 								<span>📝 {noteCount} {noteCount === 1 ? 'note' : 'notes'}</span>
@@ -460,7 +479,7 @@
 
 					<!-- Edge case: text-only day with no symptoms -->
 					{#if group.symptoms.length === 0 && noteCount === 0}
-						<p class="text-sm italic text-neutral-400">No details recorded</p>
+						<p class="text-sm text-neutral-400 italic">No details recorded</p>
 					{/if}
 				</li>
 			{/each}

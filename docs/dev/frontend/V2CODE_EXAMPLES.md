@@ -431,11 +431,13 @@ Bind form inputs directly to `$formData`:
 ```
 
 **Pros:**
+
 - Simple, one source of truth
 - No sync bugs
 - User input always matches submitted data
 
 **Cons:**
+
 - Can't easily clear field after submit (would need to manually reset `$formData`)
 - No local UX state (character count, unsaved indicator)
 
@@ -466,10 +468,12 @@ If you need local state for UX (clearing after submit, character counting, unsav
 ```
 
 **Pros:**
+
 - Can implement UX features (clearing, character count, unsaved indicators)
 - Still maintains sync between input and submitted data
 
 **Cons:**
+
 - More complex, requires explicit sync logic
 - Easier to introduce sync bugs if not careful
 
@@ -3013,6 +3017,7 @@ Svelte transitions animate elements entering (`in:`) and leaving (`out:`) the DO
 - Form state changes
 
 **Do NOT use transitions for:**
+
 - Hover effects (use CSS instead)
 - Loading spinners (use CSS rotation)
 - Animated values (use `$derived` + CSS transitions)
@@ -3095,6 +3100,7 @@ Svelte transitions animate elements entering (`in:`) and leaving (`out:`) the DO
 - **Stagger multiple items:** Add delay on each (e.g., `delay: i * 50`)
 
 **Why these times:**
+
 - < 100ms: Too fast, feels jarring
 - 100-200ms: Snappy, responsive, most common
 - 200-300ms: Smooth, deliberate, for complex animations
@@ -3134,6 +3140,7 @@ Svelte transitions animate elements entering (`in:`) and leaving (`out:`) the DO
 ```
 
 **Key Rules:**
+
 - Dynamic messages: Use `role="alert"` + `aria-live="polite"`
 - Dismiss buttons: Use `aria-label` (always 44×44px minimum)
 - Modals: Auto-focus on open, return focus on close
@@ -3147,15 +3154,15 @@ For consistency across your app, define animation constants:
 // frontend/src/lib/config/animations.ts
 
 export const ANIMATION_DURATION = {
-	quick: 150,    // Dismiss, quick feedback
-	standard: 200, // Cards entering, standard animations
-	slow: 300,     // Reordering, complex movements
+  quick: 150, // Dismiss, quick feedback
+  standard: 200, // Cards entering, standard animations
+  slow: 300, // Reordering, complex movements
 } as const;
 
 export const ANIMATION_EASING = {
-	in: 'cubic-bezier(0.4, 0, 1, 1)',     // Ease in
-	out: 'cubic-bezier(0, 0, 0.2, 1)',    // Ease out
-	inOut: 'cubic-bezier(0.4, 0, 0.2, 1)', // Ease in/out
+  in: "cubic-bezier(0.4, 0, 1, 1)", // Ease in
+  out: "cubic-bezier(0, 0, 0.2, 1)", // Ease out
+  inOut: "cubic-bezier(0.4, 0, 0.2, 1)", // Ease in/out
 } as const;
 ```
 
@@ -3181,6 +3188,7 @@ Then use throughout:
 The symptom logging component uses Svelte transitions effectively and serves as a real-world example of the patterns in this section.
 
 **What it does right:**
+
 - Uses `fly` and `fade` transitions appropriately for entering/exiting UI
 - Short durations (150-200ms) create snappy, responsive feel
 - Cards exit upward when dismissed, chips slide in from left
@@ -3190,6 +3198,7 @@ The symptom logging component uses Svelte transitions effectively and serves as 
 - Full accessibility support (aria-labels, role="alert", aria-live)
 
 **What could be improved (deferred to post-launch polish):**
+
 - Timing is inconsistent (mix of 150ms, 200ms, 300ms) — should use centralized constants
 - Missing `animate:flip` on card grid — when a card is dismissed, others should smoothly reorder
 - No easing curves — all transitions use linear by default, should use cubic-bezier for smoother feel

@@ -2,7 +2,18 @@
 title: "Design system overhaul: 12 PR review fixes (TODOs 072–083)"
 category: ui-bugs
 date: 2026-03-25
-tags: [design-system, wcag, accessibility, security, tailwind, shadcn, css-tokens, xss, api-client]
+tags:
+  [
+    design-system,
+    wcag,
+    accessibility,
+    security,
+    tailwind,
+    shadcn,
+    css-tokens,
+    xss,
+    api-client,
+  ]
 pr: "10"
 branch: feat/frontend-design-system-overhaul
 ---
@@ -24,6 +35,7 @@ they're in completely different hue families.
 **Fix:** Rename the custom coral scale to `coral-*` everywhere.
 
 In `layout.css`:
+
 ```css
 /* Before */
 --color-accent-50: #fff7ed;
@@ -73,12 +85,17 @@ audit before merging. `primary-800` is the safe floor for text on white.
 Necessary for `:global()` styles injected via `{@html}`, but hex bypasses tokens entirely.
 
 **Fix:** Use CSS custom properties instead:
+
 ```css
 /* Before */
-.citation-ref { color: #0d9478; }
+.citation-ref {
+  color: #0d9478;
+}
 
 /* After */
-.citation-ref { color: var(--color-primary-800); }
+.citation-ref {
+  color: var(--color-primary-800);
+}
 ```
 
 **Prevention:** Even in `<style>` blocks, always use `var(--color-*)`. The `@theme inline` block
@@ -101,12 +118,13 @@ don't ship the role.
 
 ---
 
-## 5. Dead CSS token groups (sidebar, chart, bg-*)
+## 5. Dead CSS token groups (sidebar, chart, bg-\*)
 
 **Problem:** `layout.css` contained ~44 lines of shadcn scaffold boilerplate (`--sidebar-*`,
 `--chart-1..5`, `--color-bg-page/card/subtle/overlay`) with zero references in any component.
 
 **Fix:** Delete them. Verify first:
+
 ```bash
 grep -r "sidebar\|chart-[1-5]\|bg-bg-" frontend/src --include="*.svelte" --include="*.ts"
 ```
@@ -123,6 +141,7 @@ manual `fetch()` call. Silently fails on staging/production. CLAUDE.md is explic
 use `apiClient`.
 
 **Fix:**
+
 ```typescript
 // Before
 const response = await fetch(`${API_BASE}/api/users/onboarding`, { ... });
@@ -145,16 +164,33 @@ explicitly does not sanitize and recommends DOMPurify. LLM output can contain ad
 content via prompt injection.
 
 **Fix:**
+
 ```bash
 npm install dompurify @types/dompurify
 ```
 
 ```typescript
-import DOMPurify from 'dompurify';
+import DOMPurify from "dompurify";
 
 const DOMPURIFY_CONFIG = {
-  ALLOWED_TAGS: ['p', 'a', 'strong', 'em', 'ul', 'ol', 'li', 'code', 'pre', 'sup', 'br', 'h1', 'h2', 'h3', 'blockquote'],
-  ALLOWED_ATTR: ['href', 'class', 'target', 'rel', 'data-citation-id']
+  ALLOWED_TAGS: [
+    "p",
+    "a",
+    "strong",
+    "em",
+    "ul",
+    "ol",
+    "li",
+    "code",
+    "pre",
+    "sup",
+    "br",
+    "h1",
+    "h2",
+    "h3",
+    "blockquote",
+  ],
+  ALLOWED_ATTR: ["href", "class", "target", "rel", "data-citation-id"],
 } as Record<string, unknown>; // types/dompurify ESM compat workaround
 
 export function renderMarkdown(content: string): string {
@@ -173,11 +209,13 @@ Apply in `renderMarkdown`, not at the call site — all callers benefit automati
 **Problem:** No length constraint = unbounded LLM input cost + prompt injection amplification.
 
 **Fix:**
+
 ```python
 message: str = Field(description="The user's question", min_length=1, max_length=2000)
 ```
 
 Pydantic returns 422 automatically. Pair with a test:
+
 ```python
 def test_chat_request_rejects_message_over_2000_chars():
     with pytest.raises(ValidationError):
@@ -193,6 +231,7 @@ def test_chat_request_rejects_message_over_2000_chars():
 design token injection and generate cool-gray defaults.
 
 **Fix:**
+
 ```json
 {
   "css": "src/routes/layout.css",
@@ -204,17 +243,17 @@ design token injection and generate cool-gray defaults.
 
 ## Files Changed
 
-| File | Change |
-|------|--------|
-| `layout.css` | Coral rename, dead token removal (44 lines) |
-| `+layout.svelte` (app) | WCAG text colors, ARIA role removal |
-| `ask/+page.svelte` | WCAG text colors, hex → CSS vars in style block |
-| `PeriodCalendar/LogModal.svelte` | accent → coral |
-| `CallingScriptModal/providers` | accent → coral |
-| `SkeletonLoader/LoadingSpinner/ProviderSkeleton` | slate → neutral |
-| `onboarding/+page.svelte` | raw fetch → apiClient |
-| `markdown.ts` | DOMPurify added |
-| `chat.py` | max_length=2000, min_length=1 |
-| `components.json` | CSS path + baseColor |
-| `ErrorBanner.svelte` | New shared component |
-| `+layout.svelte` (root) | Inter font loading via Google Fonts |
+| File                                             | Change                                          |
+| ------------------------------------------------ | ----------------------------------------------- |
+| `layout.css`                                     | Coral rename, dead token removal (44 lines)     |
+| `+layout.svelte` (app)                           | WCAG text colors, ARIA role removal             |
+| `ask/+page.svelte`                               | WCAG text colors, hex → CSS vars in style block |
+| `PeriodCalendar/LogModal.svelte`                 | accent → coral                                  |
+| `CallingScriptModal/providers`                   | accent → coral                                  |
+| `SkeletonLoader/LoadingSpinner/ProviderSkeleton` | slate → neutral                                 |
+| `onboarding/+page.svelte`                        | raw fetch → apiClient                           |
+| `markdown.ts`                                    | DOMPurify added                                 |
+| `chat.py`                                        | max_length=2000, min_length=1                   |
+| `components.json`                                | CSS path + baseColor                            |
+| `ErrorBanner.svelte`                             | New shared component                            |
+| `+layout.svelte` (root)                          | Inter font loading via Google Fonts             |

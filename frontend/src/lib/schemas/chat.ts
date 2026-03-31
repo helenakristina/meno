@@ -12,12 +12,12 @@ import { z } from 'zod';
  * - Conversation ID is optional UUID
  */
 export const chatMessageSchema = z.object({
-  message: z
-    .string()
-    .min(1, 'Message cannot be empty')
-    .max(2000, 'Message must be under 2000 characters')
-    .trim(),
-  conversation_id: z.string().uuid().optional(),
+	message: z
+		.string()
+		.min(1, 'Message cannot be empty')
+		.max(2000, 'Message must be under 2000 characters')
+		.trim(),
+	conversation_id: z.string().uuid().optional()
 });
 
 /**

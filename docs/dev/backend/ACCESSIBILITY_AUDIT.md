@@ -4,6 +4,7 @@
 **Auditor:** Claude Code
 **Methodology:** Code review + structural analysis of SvelteKit components
 **Scope:** All authenticated app pages:
+
 - `/dashboard` - Symptom History
 - `/log` - Log Today's Symptoms
 - `/ask` - Ask Meno (Chat)
@@ -17,12 +18,14 @@
 **Overall Score:** 7.5/10 — Good foundation with room for improvement
 
 The Meno app demonstrates strong accessibility fundamentals:
+
 - ✅ Proper semantic HTML structure
 - ✅ Good ARIA labeling practices
 - ✅ Keyboard navigation support
 - ✅ Focus indicator styling
 
 **Priority improvements needed:**
+
 - 🔴 Color contrast verification across all pages
 - 🟡 Enhanced focus management in custom dropdown
 - 🟡 Loading state announcements for assistive tech
@@ -35,6 +38,7 @@ The Meno app demonstrates strong accessibility fundamentals:
 ### 1. Dashboard (`/dashboard`)
 
 **Strengths:**
+
 - ✅ Proper `<h1>` and `<h2>` hierarchy
 - ✅ Semantic `<section>` elements with `aria-labelledby`
 - ✅ Ordered lists (`<ol>`) for symptom frequency and co-occurrence
@@ -44,22 +48,26 @@ The Meno app demonstrates strong accessibility fundamentals:
 
 **Issues Found:**
 
-| Priority | Issue | Details |
-|----------|-------|---------|
+| Priority  | Issue                   | Details                                                                                                                                                    |
+| --------- | ----------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | 🟡 Medium | Decorative SVG elements | `<div class="... bg-teal-500" aria-hidden="true"></div>` - bar chart background fills are not announced (correct) but no alternative text for chart values |
-| 🟡 Medium | Chart accessibility | Bar chart uses CSS width percentage - screen readers won't see numeric values directly. Consider adding `title` attributes or data-attributes |
-| 🟡 Medium | Notes toggle button | Button at line 434-444 toggles expanded state but aria-expanded set on button with no text label - only emoji "📝" visible |
-| 🟢 Low | Link styling | Empty state CTA link at line 395-400 is properly styled with hover states |
+| 🟡 Medium | Chart accessibility     | Bar chart uses CSS width percentage - screen readers won't see numeric values directly. Consider adding `title` attributes or data-attributes              |
+| 🟡 Medium | Notes toggle button     | Button at line 434-444 toggles expanded state but aria-expanded set on button with no text label - only emoji "📝" visible                                 |
+| 🟢 Low    | Link styling            | Empty state CTA link at line 395-400 is properly styled with hover states                                                                                  |
 
 **Keyboard Navigation:** ✅ All interactive elements (select, buttons) are keyboard accessible via Tab/Enter
 
 **Recommendations:**
+
 ```html
 <!-- Current: Bar value not announced -->
 <span class="... text-sm font-medium text-slate-500">{stat.count}</span>
 
 <!-- Better: Add aria-label to list item -->
-<li class="flex items-center gap-3" aria-label="{stat.symptom_name}: logged {stat.count} times">
+<li
+  class="flex items-center gap-3"
+  aria-label="{stat.symptom_name}: logged {stat.count} times"
+></li>
 ```
 
 ---
@@ -67,6 +75,7 @@ The Meno app demonstrates strong accessibility fundamentals:
 ### 2. Log Symptoms (`/log`)
 
 **Strengths:**
+
 - ✅ Semantic form structure with proper button types
 - ✅ Textarea for free-text input is properly accessible
 - ✅ Symptom selection buttons have clear labels (symptom name is the button text)
@@ -77,17 +86,19 @@ The Meno app demonstrates strong accessibility fundamentals:
 
 **Issues Found:**
 
-| Priority | Issue | Details |
-|----------|-------|---------|
+| Priority  | Issue                     | Details                                                                                                                                 |
+| --------- | ------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
 | 🟡 Medium | Dismiss button visibility | Dismiss button (line 161-182) is opacity-0 until hover - keyboard users can't see if it's available. Should be visible on focus-visible |
-| 🟡 Medium | Remove chip button | Remove buttons on selected symptom chips (line 216-234) lack visible focus indicator on mobile |
-| 🟢 Low | SVG icons | Dismiss and close icons have `aria-hidden="true"` which is correct since aria-label describes them |
+| 🟡 Medium | Remove chip button        | Remove buttons on selected symptom chips (line 216-234) lack visible focus indicator on mobile                                          |
+| 🟢 Low    | SVG icons                 | Dismiss and close icons have `aria-hidden="true"` which is correct since aria-label describes them                                      |
 
 **Keyboard Navigation:** ⚠️ Mostly good, but:
+
 - Dismiss button requires hover to see focus (accessibility issue)
 - Tab order: symptom cards → dismiss button → textarea → submit button ✅
 
 **Recommendations:**
+
 ```svelte
 <!-- Current: Hidden until hover -->
 <button
@@ -107,6 +118,7 @@ The Meno app demonstrates strong accessibility fundamentals:
 ### 3. Ask Meno / Chat (`/ask`)
 
 **Strengths:**
+
 - ✅ Proper page structure with `<h1>` and descriptive text
 - ✅ Disclaimer banner clearly visible at top
 - ✅ Semantic chat structure (user vs assistant messages)
@@ -117,20 +129,22 @@ The Meno app demonstrates strong accessibility fundamentals:
 
 **Issues Found:**
 
-| Priority | Issue | Details |
-|----------|-------|---------|
-| 🔴 High | Citation link rendering | Line 97: Citation links are rendered via `{@html}` without sanitization - potential XSS if URL contains quotes. Need to verify URL escaping. |
-| 🟡 Medium | Loading indicator | "Thinking…" message at line 242 uses `animate-pulse` - no aria-live or role announcement for screen readers |
-| 🟡 Medium | Citation superscript | Citation numbers rendered as `<sup>` may be difficult for some screen readers - test with NVDA/JAWS |
-| 🟡 Medium | Empty state | Empty state starter prompts (line 176-182) are buttons but could have aria-label for screen readers |
-| 🟢 Low | Container sizing | Chat container uses `calc(100vh - 7rem)` height - ensure scrollable on small screens |
+| Priority  | Issue                   | Details                                                                                                                                      |
+| --------- | ----------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| 🔴 High   | Citation link rendering | Line 97: Citation links are rendered via `{@html}` without sanitization - potential XSS if URL contains quotes. Need to verify URL escaping. |
+| 🟡 Medium | Loading indicator       | "Thinking…" message at line 242 uses `animate-pulse` - no aria-live or role announcement for screen readers                                  |
+| 🟡 Medium | Citation superscript    | Citation numbers rendered as `<sup>` may be difficult for some screen readers - test with NVDA/JAWS                                          |
+| 🟡 Medium | Empty state             | Empty state starter prompts (line 176-182) are buttons but could have aria-label for screen readers                                          |
+| 🟢 Low    | Container sizing        | Chat container uses `calc(100vh - 7rem)` height - ensure scrollable on small screens                                                         |
 
 **Keyboard Navigation:** ✅ Good
+
 - Tab through starter prompts
 - Enter in textarea sends message
 - Escape doesn't explicitly close anything (expected behavior)
 
 **Recommendations:**
+
 ```typescript
 // Current: XSS potential
 return `<sup><a href="${url}" target="_blank">${n}</a></sup>`;
@@ -149,6 +163,7 @@ return `<sup><a href="${url}" target="_blank" rel="noopener noreferrer" title="S
 ### 4. Providers / Directory (`/providers`)
 
 **Strengths:**
+
 - ✅ State dropdown has `aria-haspopup="listbox"` and `aria-expanded`
 - ✅ Listbox proper ARIA: `role="listbox"`, `role="option"`, `aria-selected`
 - ✅ Form labels properly associated with inputs (city-input, start-date, etc.)
@@ -159,22 +174,24 @@ return `<sup><a href="${url}" target="_blank" rel="noopener noreferrer" title="S
 
 **Issues Found:**
 
-| Priority | Issue | Details |
-|----------|-------|---------|
-| 🔴 High | Custom dropdown accessibility | State dropdown (line 485-537) is a custom button+listbox - not fully ARIA compliant. Missing `aria-controls` to link button to listbox |
-| 🟡 Medium | Dropdown keyboard navigation | Custom dropdown doesn't handle arrow keys (only click). Should support ↑↓ for navigation, Escape to close |
-| 🟡 Medium | Filters button aria-expanded | Filters toggle button (line 570-586) has `aria-expanded` but should also have `aria-controls` to link to filter section |
-| 🟡 Medium | Results count text | "Showing 1–20 of 100" is in plain text - should use `<strong>` or `<span>` with semantic meaning |
-| 🟡 Medium | Shortlist expandable | "Show all {n}" button doesn't have `aria-controls` linking to entry list |
-| 🟢 Low | Remove button on shortlist | Remove button has `aria-label="Remove from shortlist"` but could be more specific |
+| Priority  | Issue                         | Details                                                                                                                                |
+| --------- | ----------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| 🔴 High   | Custom dropdown accessibility | State dropdown (line 485-537) is a custom button+listbox - not fully ARIA compliant. Missing `aria-controls` to link button to listbox |
+| 🟡 Medium | Dropdown keyboard navigation  | Custom dropdown doesn't handle arrow keys (only click). Should support ↑↓ for navigation, Escape to close                              |
+| 🟡 Medium | Filters button aria-expanded  | Filters toggle button (line 570-586) has `aria-expanded` but should also have `aria-controls` to link to filter section                |
+| 🟡 Medium | Results count text            | "Showing 1–20 of 100" is in plain text - should use `<strong>` or `<span>` with semantic meaning                                       |
+| 🟡 Medium | Shortlist expandable          | "Show all {n}" button doesn't have `aria-controls` linking to entry list                                                               |
+| 🟢 Low    | Remove button on shortlist    | Remove button has `aria-label="Remove from shortlist"` but could be more specific                                                      |
 
 **Keyboard Navigation:** ⚠️ Partial support
+
 - Tab works for most controls
 - State dropdown needs arrow key support
 - Search button: keyboard submit works via Enter ✅
 - Pagination: buttons are keyboard accessible ✅
 
 **Recommendations:**
+
 ```svelte
 <!-- Current: No aria-controls -->
 <button
@@ -222,6 +239,7 @@ function handleDropdownKeydown(e: KeyboardEvent) {
 ### 5. Export Data (`/export`)
 
 **Strengths:**
+
 - ✅ Form structure with proper labels and inputs
 - ✅ Date inputs use native `<input type="date">` - excellent accessibility
 - ✅ Error messages displayed with clear styling
@@ -232,20 +250,22 @@ function handleDropdownKeydown(e: KeyboardEvent) {
 
 **Issues Found:**
 
-| Priority | Issue | Details |
-|----------|-------|---------|
+| Priority  | Issue                   | Details                                                                                                     |
+| --------- | ----------------------- | ----------------------------------------------------------------------------------------------------------- |
 | 🟡 Medium | Error field association | Error messages (line 146-148, 164-166) are displayed below inputs but not associated via `aria-describedby` |
-| 🟡 Medium | Loading spinner | PDF/CSV spinners (line 252-255, 338-341) have `aria-hidden="true"` - loading state should be announced |
-| 🟡 Medium | Disabled button state | Disabled buttons visually show as disabled but could have `aria-disabled` for clarity |
-| 🟢 Low | Link in error message | "Start logging" link in error message (line 226, 312) is accessible ✅ |
+| 🟡 Medium | Loading spinner         | PDF/CSV spinners (line 252-255, 338-341) have `aria-hidden="true"` - loading state should be announced      |
+| 🟡 Medium | Disabled button state   | Disabled buttons visually show as disabled but could have `aria-disabled` for clarity                       |
+| 🟢 Low    | Link in error message   | "Start logging" link in error message (line 226, 312) is accessible ✅                                      |
 
 **Keyboard Navigation:** ✅ Good
+
 - Tab through date inputs
 - Tab to buttons
 - Enter triggers download
 - Buttons properly disabled when form invalid
 
 **Recommendations:**
+
 ```html
 <!-- Current: Error not associated -->
 <input id="start-date" ... />
@@ -275,6 +295,7 @@ function handleDropdownKeydown(e: KeyboardEvent) {
 ## Navigation Bar (`(app)/+layout.svelte`)
 
 **Strengths:**
+
 - ✅ Proper `<nav>` element
 - ✅ Logo link to dashboard (home) is semantic
 - ✅ Navigation links have clear labels
@@ -283,14 +304,15 @@ function handleDropdownKeydown(e: KeyboardEvent) {
 
 **Issues Found:**
 
-| Priority | Issue | Details |
-|----------|-------|---------|
+| Priority  | Issue                 | Details                                                                           |
+| --------- | --------------------- | --------------------------------------------------------------------------------- |
 | 🟡 Medium | Navigation aria-label | `<nav>` element (line 37) lacks `aria-label` to distinguish it from other regions |
-| 🟡 Medium | Current page marking | Active nav link uses class binding but doesn't use `aria-current="page"` |
-| 🟡 Medium | Logout button context | Logout button could have `aria-label="Log out, {email}"` for clarity |
-| 🟢 Low | Logo link text | "Meno" is the link text - clear and accessible |
+| 🟡 Medium | Current page marking  | Active nav link uses class binding but doesn't use `aria-current="page"`          |
+| 🟡 Medium | Logout button context | Logout button could have `aria-label="Log out, {email}"` for clarity              |
+| 🟢 Low    | Logo link text        | "Meno" is the link text - clear and accessible                                    |
 
 **Recommendations:**
+
 ```svelte
 <!-- Current -->
 <nav class="border-b border-slate-200 bg-white">
@@ -319,11 +341,13 @@ function handleDropdownKeydown(e: KeyboardEvent) {
 Based on Tailwind color values in use:
 
 ### Verified Safe (WCAG AA ✅)
+
 - `text-slate-900` (900) on `bg-white` or `bg-slate-50` — ~19:1 contrast ✅
 - `text-teal-600` on `bg-white` — ~6.5:1 contrast ✅
 - `text-slate-700` on `bg-white` — ~13:1 contrast ✅
 
 ### Needs Verification (Potentially Low Contrast ⚠️)
+
 - `text-slate-500` (medium gray) on `bg-white` — ~8:1 (likely OK)
 - `text-slate-400` (light gray) on `bg-slate-50` — ~5:1 (borderline)
 - `text-slate-400` on `bg-white` — ~7:1 (OK)
@@ -331,6 +355,7 @@ Based on Tailwind color values in use:
 - Info/help text using `text-slate-400` or `text-slate-500` — verify
 
 **Recommendation:** Run automated contrast testing:
+
 ```bash
 # Using axe-core or WAVE browser extension
 # Test each page at multiple zoom levels (100%, 200%)
@@ -341,13 +366,13 @@ Based on Tailwind color values in use:
 
 ## Keyboard Navigation Summary
 
-| Page | Tab Order | Enter | Escape | Arrow Keys |
-|------|-----------|-------|--------|-----------|
-| Dashboard | ✅ Select, buttons | ✅ Selects option | N/A | ✅ Select |
-| Log Symptoms | ✅ Cards, buttons, textarea | ✅ Send | ✅ Dismisses | N/A |
-| Ask Meno | ✅ Prompts, textarea, send | ✅ Send | N/A | N/A |
-| Providers | ✅ Dropdown, inputs, buttons | ✅ Search | N/A | ❌ Dropdown not supported |
-| Export | ✅ Date inputs, buttons | ✅ Download | N/A | N/A |
+| Page         | Tab Order                    | Enter             | Escape       | Arrow Keys                |
+| ------------ | ---------------------------- | ----------------- | ------------ | ------------------------- |
+| Dashboard    | ✅ Select, buttons           | ✅ Selects option | N/A          | ✅ Select                 |
+| Log Symptoms | ✅ Cards, buttons, textarea  | ✅ Send           | ✅ Dismisses | N/A                       |
+| Ask Meno     | ✅ Prompts, textarea, send   | ✅ Send           | N/A          | N/A                       |
+| Providers    | ✅ Dropdown, inputs, buttons | ✅ Search         | N/A          | ❌ Dropdown not supported |
+| Export       | ✅ Date inputs, buttons      | ✅ Download       | N/A          | N/A                       |
 
 **Critical Gap:** Providers page custom dropdown doesn't support arrow key navigation ↑↓
 
@@ -356,6 +381,7 @@ Based on Tailwind color values in use:
 ## ARIA Implementation Report
 
 ### Well Implemented ✅
+
 - `aria-label` on buttons and inputs (good coverage)
 - `aria-labelledby` on sections linking to headings
 - `aria-expanded` on toggle buttons
@@ -364,6 +390,7 @@ Based on Tailwind color values in use:
 - `role="listbox"`, `role="option"` for custom dropdowns
 
 ### Areas for Improvement 🟡
+
 - Missing `aria-controls` on button-controlled elements
 - Missing `aria-describedby` for form validation messages
 - Missing `aria-live="polite"` for async updates (chat messages, shortlist saves)
@@ -371,6 +398,7 @@ Based on Tailwind color values in use:
 - Custom dropdown missing arrow key handling
 
 ### Not Needed (Correct)
+
 - No `aria-label` on `<h1>`, `<h2>` (heading structure is enough)
 - No `role="button"` on actual buttons
 - No `aria-hidden` on text content
@@ -557,18 +585,21 @@ Based on your codebase using `$state`, `$derived`, and runes:
 ## Next Steps
 
 ### Immediate (Before V1 Release)
+
 1. [ ] Fix provider dropdown arrow key navigation
 2. [ ] Verify citation link escaping
 3. [ ] Add `aria-describedby` to form validation errors
 4. [ ] Run Lighthouse accessibility audit
 
 ### Short-term (V1.1)
+
 1. [ ] Implement screen reader testing with NVDA/VoiceOver
 2. [ ] Add `aria-live` regions for async content updates
 3. [ ] Enhance loading state announcements
 4. [ ] Color contrast verification and fixes
 
 ### Medium-term (V2)
+
 1. [ ] Custom component library for accessible dropdowns
 2. [ ] Accessibility testing automation in CI/CD
 3. [ ] Mobile/touch accessibility audit

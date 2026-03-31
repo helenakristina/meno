@@ -128,7 +128,7 @@
 					(s) =>
 						s.state.toLowerCase().includes(stateSearchInput.toLowerCase()) ||
 						s.state === stateSearchInput.toUpperCase()
-			  )
+				)
 	);
 
 	// Shortlist entries shown in the section — collapse to 3 unless expanded
@@ -426,28 +426,29 @@
 					}}
 					{@const MAX_INSURANCE = 2}
 					{@const visibleIns = entry.provider.insurance_accepted.slice(0, MAX_INSURANCE)}
-					{@const extraIns = entry.provider.insurance_accepted.length > MAX_INSURANCE
-						? entry.provider.insurance_accepted.length - MAX_INSURANCE
-						: 0}
+					{@const extraIns =
+						entry.provider.insurance_accepted.length > MAX_INSURANCE
+							? entry.provider.insurance_accepted.length - MAX_INSURANCE
+							: 0}
 					<li class="border-b-0">
 						<!-- Compact row (always visible) -->
 						<div class="flex items-center justify-between gap-2 px-6 py-3">
 							<!-- Name, phone, status in a row -->
 							<div class="min-w-0 flex-1">
-								<div class="flex flex-col sm:flex-row sm:items-center sm:gap-4 gap-1">
-									<h4 class="text-sm font-semibold text-neutral-800 truncate">
+								<div class="flex flex-col gap-1 sm:flex-row sm:items-center sm:gap-4">
+									<h4 class="truncate text-sm font-semibold text-neutral-800">
 										{entry.provider.name}
 									</h4>
 									{#if entry.provider.phone}
 										<a
 											href="tel:{entry.provider.phone}"
-											class="text-xs text-primary-600 hover:text-primary-800 font-medium whitespace-nowrap"
+											class="text-xs font-medium whitespace-nowrap text-primary-600 hover:text-primary-800"
 										>
 											{entry.provider.phone}
 										</a>
 									{/if}
 									<span
-										class="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium w-fit {statusCfg.badge}"
+										class="inline-flex w-fit items-center rounded-full px-2 py-0.5 text-xs font-medium {statusCfg.badge}"
 									>
 										{statusCfg.label}
 									</span>
@@ -501,14 +502,16 @@
 
 						<!-- Expandable details -->
 						{#if isExpanded}
-							<div class="border-t border-neutral-100 bg-neutral-50 px-6 py-4 space-y-3">
+							<div class="space-y-3 border-t border-neutral-100 bg-neutral-50 px-6 py-4">
 								<!-- Provider info -->
 								<div>
-									<p class="text-xs font-medium text-neutral-500 mb-1">Provider Details</p>
+									<p class="mb-1 text-xs font-medium text-neutral-500">Provider Details</p>
 									{#if entry.provider.practice_name}
 										<p class="text-xs text-neutral-600">{entry.provider.practice_name}</p>
 									{/if}
-									<p class="text-xs text-neutral-600">{entry.provider.city}, {entry.provider.state}</p>
+									<p class="text-xs text-neutral-600">
+										{entry.provider.city}, {entry.provider.state}
+									</p>
 								</div>
 
 								<!-- Type, NAMS, Website -->
@@ -516,14 +519,14 @@
 									<div class="flex flex-wrap items-center gap-2">
 										{#if entry.provider.provider_type}
 											<span
-												class="inline-flex text-xs font-medium rounded-full border border-primary-100 bg-primary-50 px-2 py-0.5 text-primary-700"
+												class="inline-flex rounded-full border border-primary-100 bg-primary-50 px-2 py-0.5 text-xs font-medium text-primary-700"
 											>
 												{TYPE_LABELS[entry.provider.provider_type] ?? entry.provider.provider_type}
 											</span>
 										{/if}
 										{#if entry.provider.nams_certified}
 											<span
-												class="inline-flex text-xs font-semibold rounded-full border border-primary-200 bg-primary-50 px-2 py-0.5 text-primary-700"
+												class="inline-flex rounded-full border border-primary-200 bg-primary-50 px-2 py-0.5 text-xs font-semibold text-primary-700"
 												title="NAMS Certified Menopause Practitioner"
 											>
 												✦ NAMS
@@ -534,7 +537,7 @@
 												href={entry.provider.website}
 												target="_blank"
 												rel="noopener noreferrer"
-												class="text-xs text-primary-600 hover:text-primary-800 font-medium"
+												class="text-xs font-medium text-primary-600 hover:text-primary-800"
 											>
 												Website ↗
 											</a>
@@ -545,10 +548,12 @@
 								<!-- Insurance -->
 								{#if entry.provider.insurance_accepted.length > 0}
 									<div>
-										<p class="text-xs font-medium text-neutral-500 mb-1">Insurance</p>
+										<p class="mb-1 text-xs font-medium text-neutral-500">Insurance</p>
 										<div class="flex flex-wrap gap-1">
 											{#each visibleIns as ins (ins)}
-												<span class="text-xs rounded border border-neutral-200 bg-white px-1.5 py-0.5 text-neutral-600">
+												<span
+													class="rounded border border-neutral-200 bg-white px-1.5 py-0.5 text-xs text-neutral-600"
+												>
 													{ins}
 												</span>
 											{/each}
@@ -563,13 +568,17 @@
 								<div class="flex gap-2 pt-1">
 									<button
 										onclick={() => {
-											const card = document.querySelector(`[data-provider-id="${entry.provider_id}"]`) as HTMLElement;
+											const card = document.querySelector(
+												`[data-provider-id="${entry.provider_id}"]`
+											) as HTMLElement;
 											if (card) {
-												const btn = card.querySelector('[data-action="generate-script"]') as HTMLButtonElement;
+												const btn = card.querySelector(
+													'[data-action="generate-script"]'
+												) as HTMLButtonElement;
 												btn?.click();
 											}
 										}}
-										class="text-xs font-medium rounded px-2.5 py-1.5 border border-neutral-200 bg-white text-neutral-700 hover:border-primary-300 hover:bg-primary-50 hover:text-primary-700 transition-colors"
+										class="rounded border border-neutral-200 bg-white px-2.5 py-1.5 text-xs font-medium text-neutral-700 transition-colors hover:border-primary-300 hover:bg-primary-50 hover:text-primary-700"
 									>
 										Generate Script
 									</button>
@@ -577,7 +586,7 @@
 										value={entry.status}
 										onchange={(e) =>
 											handleUpdateStatus(entry.provider_id, (e.target as HTMLSelectElement).value)}
-										class="text-xs rounded border border-neutral-200 bg-white px-2 py-1 text-neutral-600 focus:border-primary-400 focus:ring-1 focus:ring-primary-200 focus:outline-none"
+										class="rounded border border-neutral-200 bg-white px-2 py-1 text-xs text-neutral-600 focus:border-primary-400 focus:ring-1 focus:ring-primary-200 focus:outline-none"
 										aria-label="Update call status"
 									>
 										{#each STATUSES as s (s.value)}
@@ -597,7 +606,7 @@
 										}}
 										onblur={() => handleNotesSave(entry.provider_id)}
 										disabled={notesSaving[entry.provider_id]}
-										class="w-full resize-none rounded text-xs border border-neutral-200 bg-white px-2.5 py-2 text-neutral-700 placeholder-neutral-400 focus:border-primary-400 focus:ring-1 focus:ring-primary-200 focus:outline-none disabled:opacity-60"
+										class="w-full resize-none rounded border border-neutral-200 bg-white px-2.5 py-2 text-xs text-neutral-700 placeholder-neutral-400 focus:border-primary-400 focus:ring-1 focus:ring-primary-200 focus:outline-none disabled:opacity-60"
 									></textarea>
 									{#if notesSaved[entry.provider_id]}
 										<span class="absolute right-2 bottom-2 text-xs text-primary-500">Saved</span>
@@ -636,9 +645,9 @@
 					<div
 						class="fixed inset-0 z-10"
 						onclick={() => {
-					stateDropdownOpen = false;
-					stateSearchInput = '';
-				}}
+							stateDropdownOpen = false;
+							stateSearchInput = '';
+						}}
 						role="presentation"
 					></div>
 				{/if}
@@ -646,11 +655,11 @@
 					type="button"
 					id="state-dropdown-button"
 					onclick={() => {
-					stateDropdownOpen = !stateDropdownOpen;
-					if (stateDropdownOpen) {
-						stateSearchInput = '';
-					}
-				}}
+						stateDropdownOpen = !stateDropdownOpen;
+						if (stateDropdownOpen) {
+							stateSearchInput = '';
+						}
+					}}
 					onkeydown={handleStateDropdownKeydown}
 					class="flex w-full items-center justify-between rounded-lg border bg-white px-3 py-3 text-sm shadow-sm transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-300
 						{stateDropdownOpen
@@ -683,51 +692,49 @@
 				{#if stateDropdownOpen}
 					<div
 						id="state-dropdown-list"
-						class="absolute left-0 top-full z-20 mt-1 w-full rounded-lg border border-neutral-200 bg-white shadow-lg"
+						class="absolute top-full left-0 z-20 mt-1 w-full rounded-lg border border-neutral-200 bg-white shadow-lg"
 						role="listbox"
 						aria-label="State"
 					>
 						<div class="border-b border-neutral-100 p-2">
-						<input
-							type="text"
-							placeholder="Type state name or code..."
-							bind:value={stateSearchInput}
-							class="w-full rounded px-2 py-1.5 text-sm border border-neutral-200 focus:border-primary-400 focus:outline-none focus:ring-2 focus:ring-primary-200"
-							aria-label="Search states"
-						/>
-					</div>
-					<ul class="overflow-y-auto py-1" style="max-height: calc(100vh - 250px)">
-						{#if filteredStates.length > 0}
-							{#each filteredStates as s (s.state)}
-							<li role="option" aria-selected={selectedState === s.state}>
-								<button
-									type="button"
-									onclick={() => {
-									selectState(s.state);
-									stateDropdownOpen = false;
-									stateSearchInput = '';
-								}}
-									class="flex w-full items-center justify-between px-3 py-3 text-left text-sm transition-colors
+							<input
+								type="text"
+								placeholder="Type state name or code..."
+								bind:value={stateSearchInput}
+								class="w-full rounded border border-neutral-200 px-2 py-1.5 text-sm focus:border-primary-400 focus:ring-2 focus:ring-primary-200 focus:outline-none"
+								aria-label="Search states"
+							/>
+						</div>
+						<ul class="overflow-y-auto py-1" style="max-height: calc(100vh - 250px)">
+							{#if filteredStates.length > 0}
+								{#each filteredStates as s (s.state)}
+									<li role="option" aria-selected={selectedState === s.state}>
+										<button
+											type="button"
+											onclick={() => {
+												selectState(s.state);
+												stateDropdownOpen = false;
+												stateSearchInput = '';
+											}}
+											class="flex w-full items-center justify-between px-3 py-3 text-left text-sm transition-colors
 										{selectedState === s.state
-										? 'bg-primary-50 font-medium text-primary-700'
-										: 'text-neutral-700 hover:bg-primary-50 hover:text-primary-700'}"
-								>
-									<span>{s.state}</span>
-									<span class="text-xs text-neutral-400">{s.count}</span>
-								</button>
-							</li>
-						{/each}
-						{:else}
-							<li class="px-3 py-4 text-center text-sm text-neutral-400">
-								No states found
-							</li>
-						{/if}
-					</ul>
-				</div>
-			{/if}
-		</div>
+												? 'bg-primary-50 font-medium text-primary-700'
+												: 'text-neutral-700 hover:bg-primary-50 hover:text-primary-700'}"
+										>
+											<span>{s.state}</span>
+											<span class="text-xs text-neutral-400">{s.count}</span>
+										</button>
+									</li>
+								{/each}
+							{:else}
+								<li class="px-3 py-4 text-center text-sm text-neutral-400">No states found</li>
+							{/if}
+						</ul>
+					</div>
+				{/if}
+			</div>
 
-		<!-- City input -->
+			<!-- City input -->
 			<div class="min-w-[180px] flex-1">
 				<label for="city-input" class="mb-1.5 block text-sm font-medium text-neutral-500">
 					City <span class="text-neutral-300">(optional)</span>
@@ -738,7 +745,7 @@
 					placeholder="e.g. Minneapolis"
 					bind:value={city}
 					onkeydown={handleSearchKeydown}
-					class="w-full h-11 rounded-lg border border-neutral-200 bg-white px-3 text-sm text-neutral-700 shadow-sm transition-colors focus:border-primary-400 focus:ring-2 focus:ring-primary-200 focus:outline-none"
+					class="h-11 w-full rounded-lg border border-neutral-200 bg-white px-3 text-sm text-neutral-700 shadow-sm transition-colors focus:border-primary-400 focus:ring-2 focus:ring-primary-200 focus:outline-none"
 				/>
 			</div>
 
@@ -759,7 +766,7 @@
 			<!-- Mobile toggle -->
 			<button
 				onclick={() => (filtersOpen = !filtersOpen)}
-				class="flex w-full items-center justify-between text-sm font-medium text-neutral-700 sm:hidden focus:outline-none"
+				class="flex w-full items-center justify-between text-sm font-medium text-neutral-700 focus:outline-none sm:hidden"
 				aria-expanded={filtersOpen}
 				aria-controls="filters-panel"
 			>
@@ -802,7 +809,9 @@
 			<div
 				class="rounded-2xl border border-dashed border-neutral-300 bg-neutral-50 py-20 text-center"
 			>
-				<div class="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-primary-100 text-2xl">
+				<div
+					class="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-primary-100 text-2xl"
+				>
 					🔍
 				</div>
 				<p class="font-medium text-neutral-700">Find specialists near you</p>
@@ -815,7 +824,9 @@
 			<div
 				class="rounded-2xl border border-dashed border-neutral-300 bg-neutral-50 py-16 text-center"
 			>
-				<div class="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-neutral-200 text-2xl">
+				<div
+					class="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-neutral-200 text-2xl"
+				>
 					🌿
 				</div>
 				<p class="font-medium text-neutral-700">
@@ -878,7 +889,7 @@
 					<button
 						onclick={() => goToPage(currentPage - 1)}
 						disabled={currentPage <= 1}
-						class="rounded-lg border border-neutral-200 bg-white px-3 py-1.5 text-sm text-neutral-600 transition-colors hover:bg-neutral-50 disabled:cursor-not-allowed disabled:opacity-40 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-300"
+						class="rounded-lg border border-neutral-200 bg-white px-3 py-1.5 text-sm text-neutral-600 transition-colors hover:bg-neutral-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-300 disabled:cursor-not-allowed disabled:opacity-40"
 						aria-label="Previous page"
 					>
 						← Prev
@@ -905,7 +916,7 @@
 					<button
 						onclick={() => goToPage(currentPage + 1)}
 						disabled={currentPage >= (results?.total_pages ?? 1)}
-						class="rounded-lg border border-neutral-200 bg-white px-3 py-1.5 text-sm text-neutral-600 transition-colors hover:bg-neutral-50 disabled:cursor-not-allowed disabled:opacity-40 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-300"
+						class="rounded-lg border border-neutral-200 bg-white px-3 py-1.5 text-sm text-neutral-600 transition-colors hover:bg-neutral-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-300 disabled:cursor-not-allowed disabled:opacity-40"
 						aria-label="Next page"
 					>
 						Next →

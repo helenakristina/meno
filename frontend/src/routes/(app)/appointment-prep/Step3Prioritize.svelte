@@ -8,7 +8,7 @@
 		appointmentId,
 		context,
 		onNext,
-		onError,
+		onError
 	}: {
 		appointmentId: string;
 		context: AppointmentContext;
@@ -119,13 +119,14 @@
 				ondrop={(e) => handleDrop(e, i)}
 				ondragend={handleDragEnd}
 				aria-label="Drag to reorder: {concern}"
-				class="flex items-center gap-3 rounded-xl border border-neutral-200 bg-white px-4 py-3 shadow-sm transition-opacity {dragSrcIndex === i
+				class="flex items-center gap-3 rounded-xl border border-neutral-200 bg-white px-4 py-3 shadow-sm transition-opacity {dragSrcIndex ===
+				i
 					? 'opacity-40'
 					: 'opacity-100'}"
 			>
 				<!-- Drag handle -->
 				<span
-					class="cursor-grab select-none text-neutral-400 active:cursor-grabbing"
+					class="cursor-grab text-neutral-400 select-none active:cursor-grabbing"
 					aria-hidden="true"
 				>
 					⠿
@@ -177,7 +178,7 @@
 			bind:value={newConcernText}
 			onkeydown={handleAddKeydown}
 			placeholder="Add a concern…"
-			class="h-11 flex-1 rounded-xl border border-neutral-200 px-4 text-sm text-neutral-800 placeholder-neutral-400 transition-colors focus:border-primary-400 focus:outline-none focus:ring-2 focus:ring-primary-400/20"
+			class="h-11 flex-1 rounded-xl border border-neutral-200 px-4 text-sm text-neutral-800 placeholder-neutral-400 transition-colors focus:border-primary-400 focus:ring-2 focus:ring-primary-400/20 focus:outline-none"
 			aria-label="New concern text"
 		/>
 		<button

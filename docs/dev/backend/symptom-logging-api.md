@@ -4,13 +4,13 @@
 **Phase:** 2 (see [DESIGN.md §14](../DESIGN.md#14-development-phases))
 **Files:**
 
-| File | Purpose |
-|---|---|
-| `backend/app/models/symptoms.py` | Pydantic request/response models |
-| `backend/app/api/routes/symptoms.py` | Route handlers, auth dependency, enrichment helpers |
-| `backend/app/services/symptoms.py` | `validate_symptom_ids` business logic |
-| `backend/app/core/supabase.py` | Async Supabase client singleton |
-| `backend/tests/api/routes/test_symptoms.py` | 27 pytest tests |
+| File                                        | Purpose                                             |
+| ------------------------------------------- | --------------------------------------------------- |
+| `backend/app/models/symptoms.py`            | Pydantic request/response models                    |
+| `backend/app/api/routes/symptoms.py`        | Route handlers, auth dependency, enrichment helpers |
+| `backend/app/services/symptoms.py`          | `validate_symptom_ids` business logic               |
+| `backend/app/core/supabase.py`              | Async Supabase client singleton                     |
+| `backend/tests/api/routes/test_symptoms.py` | 27 pytest tests                                     |
 
 ---
 
@@ -34,12 +34,12 @@ Create a new symptom log entry for the authenticated user.
 }
 ```
 
-| Field | Type | Required | Notes |
-|---|---|---|---|
-| `symptoms` | `string[]` | Conditional | UUIDs from `symptoms_reference.id`. Required when `source` is `"cards"` or `"both"`. Validated against the table on every create. |
-| `source` | `"cards" \| "text" \| "both"` | Yes | How the log was created |
-| `free_text_entry` | `string \| null` | Conditional | Required when `source` is `"text"` or `"both"` |
-| `logged_at` | `datetime \| null` | No | ISO 8601 timestamp; defaults to `NOW()` in Supabase if omitted |
+| Field             | Type                          | Required    | Notes                                                                                                                             |
+| ----------------- | ----------------------------- | ----------- | --------------------------------------------------------------------------------------------------------------------------------- |
+| `symptoms`        | `string[]`                    | Conditional | UUIDs from `symptoms_reference.id`. Required when `source` is `"cards"` or `"both"`. Validated against the table on every create. |
+| `source`          | `"cards" \| "text" \| "both"` | Yes         | How the log was created                                                                                                           |
+| `free_text_entry` | `string \| null`              | Conditional | Required when `source` is `"text"` or `"both"`                                                                                    |
+| `logged_at`       | `datetime \| null`            | No          | ISO 8601 timestamp; defaults to `NOW()` in Supabase if omitted                                                                    |
 
 **Response body (`201`):**
 
@@ -49,8 +49,8 @@ Create a new symptom log entry for the authenticated user.
   "user_id": "uuid",
   "logged_at": "2024-03-15T10:00:00+00:00",
   "symptoms": [
-    {"id": "uuid", "name": "Fatigue", "category": "general"},
-    {"id": "uuid", "name": "Brain fog", "category": "cognitive"}
+    { "id": "uuid", "name": "Fatigue", "category": "general" },
+    { "id": "uuid", "name": "Brain fog", "category": "cognitive" }
   ],
   "free_text_entry": null,
   "source": "cards"
@@ -68,11 +68,11 @@ Retrieve symptom logs for the authenticated user, ordered newest-first.
 
 **Query parameters:**
 
-| Param | Type | Default | Notes |
-|---|---|---|---|
-| `start_date` | `date` | — | ISO 8601 date (`YYYY-MM-DD`). Inclusive, interpreted as `00:00:00 UTC` |
-| `end_date` | `date` | — | ISO 8601 date (`YYYY-MM-DD`). Inclusive, interpreted as `23:59:59 UTC` |
-| `limit` | `int` | `50` | Min `1`, max `100` |
+| Param        | Type   | Default | Notes                                                                  |
+| ------------ | ------ | ------- | ---------------------------------------------------------------------- |
+| `start_date` | `date` | —       | ISO 8601 date (`YYYY-MM-DD`). Inclusive, interpreted as `00:00:00 UTC` |
+| `end_date`   | `date` | —       | ISO 8601 date (`YYYY-MM-DD`). Inclusive, interpreted as `23:59:59 UTC` |
+| `limit`      | `int`  | `50`    | Min `1`, max `100`                                                     |
 
 **Response body (`200`):**
 
@@ -84,8 +84,8 @@ Retrieve symptom logs for the authenticated user, ordered newest-first.
       "user_id": "uuid",
       "logged_at": "2024-03-15T10:00:00+00:00",
       "symptoms": [
-        {"id": "uuid", "name": "Hot flashes", "category": "vasomotor"},
-        {"id": "uuid", "name": "Brain fog", "category": "cognitive"}
+        { "id": "uuid", "name": "Hot flashes", "category": "vasomotor" },
+        { "id": "uuid", "name": "Brain fog", "category": "cognitive" }
       ],
       "free_text_entry": "Felt terrible during meeting",
       "source": "both"
@@ -163,6 +163,7 @@ supabase.auth.get_user(token)   ← network call to Supabase Auth
 The `user_id` in every DB operation is **always** derived from the validated JWT. Callers cannot specify a different `user_id` in the request body — the field is not exposed on the request model. Supabase RLS provides a second enforcement layer at the database level.
 
 **401 cases:**
+
 - Missing `Authorization` header → `"Missing authorization header"`
 - Header present but not `Bearer <token>` format → `"Invalid authorization header format..."`
 - Token invalid or expired (Supabase raises an exception) → `"Invalid or expired token"`
@@ -175,10 +176,10 @@ The `user_id` in every DB operation is **always** derived from the validated JWT
 
 Represents an enriched symptom entry resolved from `symptoms_reference`:
 
-| Field | Type | Notes |
-|---|---|---|
-| `id` | `str` | UUID from `symptoms_reference.id` |
-| `name` | `str` | Human-readable symptom name, e.g. `"Hot flashes"` |
+| Field      | Type  | Notes                                               |
+| ---------- | ----- | --------------------------------------------------- |
+| `id`       | `str` | UUID from `symptoms_reference.id`                   |
+| `name`     | `str` | Human-readable symptom name, e.g. `"Hot flashes"`   |
 | `category` | `str` | Symptom category, e.g. `"vasomotor"`, `"cognitive"` |
 
 If a symptom ID stored in a log is absent from `symptoms_reference` (data integrity anomaly), a fallback `SymptomDetail` is used: `name` equals the raw ID and `category` is `"unknown"`. A `WARNING` is logged.
@@ -187,11 +188,11 @@ If a symptom ID stored in a log is absent from `symptoms_reference` (data integr
 
 Cross-field validation enforced by `@model_validator(mode="after")`:
 
-| `source` | `symptoms` | `free_text_entry` |
-|---|---|---|
-| `"cards"` | must be non-empty | optional |
-| `"text"` | ignored (may be empty) | must be non-empty |
-| `"both"` | must be non-empty | must be non-empty |
+| `source`  | `symptoms`             | `free_text_entry` |
+| --------- | ---------------------- | ----------------- |
+| `"cards"` | must be non-empty      | optional          |
+| `"text"`  | ignored (may be empty) | must be non-empty |
+| `"both"`  | must be non-empty      | must be non-empty |
 
 Violations return `422` with Pydantic's standard error format.
 
@@ -239,6 +240,7 @@ uv run pytest tests/api/routes/test_symptoms.py -v
 **Coverage: 27 tests across two classes**
 
 `TestCreateSymptomLog` (13 tests):
+
 - Happy path for all three `source` values (`cards`, `text`, `both`) — response `symptoms` verified as enriched objects
 - Explicit `logged_at` timestamp accepted
 - 401 for missing header, malformed header, invalid/expired token
@@ -247,6 +249,7 @@ uv run pytest tests/api/routes/test_symptoms.py -v
 - 400 when a subset of symptom IDs are absent (partial failure); missing ID named in error
 
 `TestGetSymptomLogs` (14 tests):
+
 - Happy path with default params; `symptoms` verified as `SymptomDetail` objects
 - Empty result returns `[]` not an error
 - `start_date`, `end_date`, and both filters accepted
@@ -270,18 +273,18 @@ Cleanup always runs in `finally` blocks to prevent override leakage between test
 
 ## Error Handling Reference
 
-| Scenario | Status | Detail |
-|---|---|---|
-| No `Authorization` header | `401` | `"Missing authorization header"` |
-| Header not `Bearer <token>` | `401` | `"Invalid authorization header format..."` |
-| Token invalid / expired | `401` | `"Invalid or expired token"` |
-| Payload validation failure | `422` | Pydantic error detail |
-| `limit` out of range (0 or >100) | `422` | Pydantic error detail |
-| `start_date` / `end_date` not a date | `422` | Pydantic error detail |
-| Any symptom ID not in `symptoms_reference` | `400` | `"Invalid symptom IDs: [...]"` |
-| DB exception querying `symptoms_reference` | `500` | `"Failed to validate symptom IDs"` |
-| DB insert returns no data | `500` | `"Failed to create symptom log"` |
-| DB exception on insert | `500` | `"Failed to create symptom log"` |
-| DB exception on log query | `500` | `"Failed to retrieve symptom logs"` |
+| Scenario                                   | Status | Detail                                     |
+| ------------------------------------------ | ------ | ------------------------------------------ |
+| No `Authorization` header                  | `401`  | `"Missing authorization header"`           |
+| Header not `Bearer <token>`                | `401`  | `"Invalid authorization header format..."` |
+| Token invalid / expired                    | `401`  | `"Invalid or expired token"`               |
+| Payload validation failure                 | `422`  | Pydantic error detail                      |
+| `limit` out of range (0 or >100)           | `422`  | Pydantic error detail                      |
+| `start_date` / `end_date` not a date       | `422`  | Pydantic error detail                      |
+| Any symptom ID not in `symptoms_reference` | `400`  | `"Invalid symptom IDs: [...]"`             |
+| DB exception querying `symptoms_reference` | `500`  | `"Failed to validate symptom IDs"`         |
+| DB insert returns no data                  | `500`  | `"Failed to create symptom log"`           |
+| DB exception on insert                     | `500`  | `"Failed to create symptom log"`           |
+| DB exception on log query                  | `500`  | `"Failed to retrieve symptom logs"`        |
 
 All `500` errors are logged at `ERROR` level with `exc_info=True` for full tracebacks. `401` token failures are logged at `WARNING`.

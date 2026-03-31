@@ -18,20 +18,20 @@ The Appointment Prep flow is a 5-step wizard that helps users prepare for health
 
 ### Files Reviewed
 
-| # | File | Lines | Purpose |
-|---|------|-------|---------|
-| 1 | `+page.svelte` | 201 | Orchestrator / state machine |
-| 2 | `+page.server.ts` | 24 | Server-side form init for Step 1 |
-| 3 | `Step1Context.svelte` | 180 | Step 1: Context questionnaire |
-| 4 | `Step2Narrative.svelte` | 103 | Step 2: AI narrative (editable) |
-| 5 | `Step3Prioritize.svelte` | 205 | Step 3: Drag-and-drop priorities |
-| 6 | `Step4Scenarios.svelte` | 103 | Step 4: AI practice scenarios |
-| 7 | `Step5Generate.svelte` | 141 | Step 5: Document generation |
-| 8 | `$lib/types/appointment.ts` | 119 | Types, enums, label maps, defaults |
-| 9 | `$lib/schemas/appointment.ts` | 21 | Zod validation schemas |
-| 10 | `$lib/types/api.ts` | 355 | API endpoint type mappings |
-| 11 | `__tests__/appointment-prep.test.ts` | 421 | Unit tests |
-| 12 | `history/+page.svelte` | 152 | History page for past preps |
+| #   | File                                 | Lines | Purpose                            |
+| --- | ------------------------------------ | ----- | ---------------------------------- |
+| 1   | `+page.svelte`                       | 201   | Orchestrator / state machine       |
+| 2   | `+page.server.ts`                    | 24    | Server-side form init for Step 1   |
+| 3   | `Step1Context.svelte`                | 180   | Step 1: Context questionnaire      |
+| 4   | `Step2Narrative.svelte`              | 103   | Step 2: AI narrative (editable)    |
+| 5   | `Step3Prioritize.svelte`             | 205   | Step 3: Drag-and-drop priorities   |
+| 6   | `Step4Scenarios.svelte`              | 103   | Step 4: AI practice scenarios      |
+| 7   | `Step5Generate.svelte`               | 141   | Step 5: Document generation        |
+| 8   | `$lib/types/appointment.ts`          | 119   | Types, enums, label maps, defaults |
+| 9   | `$lib/schemas/appointment.ts`        | 21    | Zod validation schemas             |
+| 10  | `$lib/types/api.ts`                  | 355   | API endpoint type mappings         |
+| 11  | `__tests__/appointment-prep.test.ts` | 421   | Unit tests                         |
+| 12  | `history/+page.svelte`               | 152   | History page for past preps        |
 
 **No dedicated stores exist.** All state lives in the page component's `$state` object -- appropriate for a page-scoped wizard flow.
 
@@ -73,14 +73,14 @@ The Appointment Prep flow is a 5-step wizard that helps users prepare for health
 
 ## 3. Pattern Consistency Matrix
 
-| Pattern | Step 1 | Step 2 | Step 3 | Step 4 | Step 5 |
-|---------|--------|--------|--------|--------|--------|
-| API call location | Parent | Self | N/A | Self | Self |
-| Loading state | Parent | Self | N/A | Self | Self |
-| Error reporting | Parent only | Dual (local + parent) | Parent only | Dual (local + parent) | Self only |
-| Data loading trigger | N/A | `$effect` | N/A | `$effect` | User click |
-| Validation | Superforms + Zod | Inline (empty check) | Inline (length check) | None | None |
-| Form library | Superforms | None | None | None | None |
+| Pattern              | Step 1           | Step 2                | Step 3                | Step 4                | Step 5     |
+| -------------------- | ---------------- | --------------------- | --------------------- | --------------------- | ---------- |
+| API call location    | Parent           | Self                  | N/A                   | Self                  | Self       |
+| Loading state        | Parent           | Self                  | N/A                   | Self                  | Self       |
+| Error reporting      | Parent only      | Dual (local + parent) | Parent only           | Dual (local + parent) | Self only  |
+| Data loading trigger | N/A              | `$effect`             | N/A                   | `$effect`             | User click |
+| Validation           | Superforms + Zod | Inline (empty check)  | Inline (length check) | None                  | None       |
+| Form library         | Superforms       | None                  | None                  | None                  | None       |
 
 The inconsistency in API call ownership and error reporting is the most significant pattern divergence.
 
@@ -89,12 +89,15 @@ The inconsistency in API call ownership and error reporting is the most signific
 ## 4. Strengths
 
 ### S1. Clean Component Decomposition
+
 Orchestrator handles state and routing; steps handle UI. Single source of truth for all accumulated data. `startOver()` cleanly resets the entire state object.
 
 ### S2. Svelte 5 Fully Compliant
+
 All files use `$state`, `$derived`, `$props()`, `onclick={}`. No legacy Svelte 4 syntax anywhere.
 
 ### S3. Good Accessibility Foundation
+
 - Progress bar: `role="progressbar"` with `aria-valuenow/min/max`
 - Error banner: `role="alert"`
 - Loading: `role="status"`, `aria-live="polite"`, `aria-busy="true"`
@@ -104,23 +107,27 @@ All files use `$state`, `$derived`, `$props()`, `onclick={}`. No legacy Svelte 4
 - Step 5: `aria-hidden="true"` on decorative checkmark
 
 ### S4. Type Safety Infrastructure
+
 - Enums for appointment types, goals, dismissal states
 - Label maps decouple display strings from enum values
 - `AppointmentPrepState` uses literal union `1 | 2 | 3 | 4 | 5` for step
 - Centralized API endpoint type definitions
 
 ### S5. Responsive Design
+
 - Consistent `max-w-2xl` centering across all steps
 - `px-4 sm:px-6 lg:px-8` responsive padding
 - `flex-col sm:flex-row` for button groups in Step 5
 - Overflow handling on scrollable content
 
 ### S6. DRY Configuration
+
 - `DEFAULT_CONCERNS` per goal eliminates hardcoded values
 - `STEP_TITLES` centralizes step naming
 - Enum iteration via `Object.values()` for radio groups
 
 ### S7. User-Friendly AI Integration
+
 - AI disclaimer on Step 2 ("AI-generated -- review and edit")
 - Editable narrative allows user agency
 - Retry buttons on error states
@@ -164,9 +171,11 @@ Steps 2 and 4 use `$effect(() => { loadData(); })` to trigger API calls on mount
 
 **W10. Fragile `as` type assertions for dynamic API paths.**
 Every API call with a dynamic ID (Steps 2, 3, 4, 5) requires a cast like:
+
 ```typescript
-`/api/appointment-prep/${id}/narrative` as '/api/appointment-prep/{id}/narrative'
+`/api/appointment-prep/${id}/narrative` as "/api/appointment-prep/{id}/narrative";
 ```
+
 If the API type definition path changes, these assertions silently pass with incorrect types. Consider a path builder utility.
 
 **W11. No confirmation before "Start over" in Step 5.**
@@ -218,8 +227,9 @@ Steps 2 and 4 make calls that could take 10-30 seconds. Clicking "Back" during g
 3. **Should all steps use Superforms, or should Step 1 be simplified to match the other steps?** Currently only Step 1 uses Superforms + Zod. The inconsistency adds complexity without clear benefit since the client-side `apiClient.post()` bypasses the server action anyway.
 
 4. **Should the dynamic API path casting be addressed with a path builder?** This would eliminate the fragile `as` assertions across all steps. Example:
+
    ```typescript
-   apiClient.get(apiPath('appointment-prep', id, 'narrative'))
+   apiClient.get(apiPath("appointment-prep", id, "narrative"));
    ```
 
 5. **Is the test file actively run in CI?** If so, the non-existent enum value references (W1) are blocking. If not, should it be added to CI?
@@ -237,21 +247,27 @@ The core architecture is sound. The orchestrator + step component pattern with c
 **Do not rework.** The patterns work. Focus on:
 
 ### Priority 1: Fix broken tests (W1)
+
 Update test enum references to match actual `AppointmentGoal` values. This is likely a 15-minute fix but blocks CI.
 
 ### Priority 2: Fix API type gap (W2)
+
 Add `urgent_symptom` to the API type definition for the context endpoint.
 
 ### Priority 3: Unify error reporting (W4)
+
 Choose one pattern: either steps report errors to the parent (via `onError`) and the parent shows them, OR steps show errors locally. Not both. Recommend: steps show errors locally (they have better context for retry buttons), parent only shows errors for Step 1 (which it handles directly).
 
 ### Priority 4: Fix touch targets (W5)
+
 Change `h-8 w-8` to `h-11 w-11` or `min-h-11 min-w-11` on Step 3 buttons.
 
 ### Priority 5: Consider state persistence (W3)
+
 For V2, add `sessionStorage` persistence of `AppointmentPrepState`. On mount, check for saved state and offer to resume. This is the highest-impact UX improvement.
 
 ### Defer
+
 - Path builder utility (W10) -- address when the API client is next refactored
 - `$effect` to `onMount` (W9) -- low risk, do during any Step 2/4 changes
 - Start-over confirmation (W11) -- add when doing UX polish pass
@@ -279,17 +295,17 @@ For V2, add `sessionStorage` persistence of `AppointmentPrepState`. On mount, ch
 
 ### Comparison to CLAUDE.md Standards
 
-| Standard | Compliance | Notes |
-|----------|-----------|-------|
-| Svelte 5 runes | Full | All files use `$state`, `$derived`, `$props()` |
-| `onclick` not `on:click` | Full | Correct throughout |
-| Touch targets 44px | Partial | Step 3 buttons below minimum |
-| `aria-describedby` on errors | Partial | Step 1 missing associations |
-| `aria-required` on required fields | Missing | Step 1 radio groups |
-| Responsive padding | Full | `px-4 sm:px-6 lg:px-8` throughout |
-| No horizontal scroll | Full | `max-w-2xl` prevents overflow |
-| API client usage | Full | All calls through `apiClient` |
-| Error handling try/catch | Full | All async operations wrapped |
+| Standard                           | Compliance | Notes                                          |
+| ---------------------------------- | ---------- | ---------------------------------------------- |
+| Svelte 5 runes                     | Full       | All files use `$state`, `$derived`, `$props()` |
+| `onclick` not `on:click`           | Full       | Correct throughout                             |
+| Touch targets 44px                 | Partial    | Step 3 buttons below minimum                   |
+| `aria-describedby` on errors       | Partial    | Step 1 missing associations                    |
+| `aria-required` on required fields | Missing    | Step 1 radio groups                            |
+| Responsive padding                 | Full       | `px-4 sm:px-6 lg:px-8` throughout              |
+| No horizontal scroll               | Full       | `max-w-2xl` prevents overflow                  |
+| API client usage                   | Full       | All calls through `apiClient`                  |
+| Error handling try/catch           | Full       | All async operations wrapped                   |
 
 ---
 

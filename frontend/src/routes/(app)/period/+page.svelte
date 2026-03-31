@@ -162,7 +162,14 @@
 						class="shrink-0 rounded-full p-1 text-warning hover:bg-warning-light focus:outline-none focus-visible:ring-2 focus-visible:ring-warning"
 						aria-label="Dismiss alert"
 					>
-						<svg xmlns="http://www.w3.org/2000/svg" class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+						<svg
+							xmlns="http://www.w3.org/2000/svg"
+							class="size-4"
+							viewBox="0 0 24 24"
+							fill="none"
+							stroke="currentColor"
+							stroke-width="2"
+						>
 							<path d="M18 6 6 18M6 6l12 12" />
 						</svg>
 					</button>
@@ -188,7 +195,7 @@
 					<button
 						onclick={handleUpdateJourneyStage}
 						disabled={updatingStage}
-						class="rounded-md bg-primary-500 px-3 py-1.5 text-xs font-medium text-white hover:bg-primary-600 disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-300"
+						class="rounded-md bg-primary-500 px-3 py-1.5 text-xs font-medium text-white hover:bg-primary-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-300 disabled:opacity-50"
 					>
 						{updatingStage ? 'Updating…' : 'Update'}
 					</button>

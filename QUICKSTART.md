@@ -24,6 +24,7 @@ curl -LsSf https://astral.sh/uv/install.sh | sh
 ```
 
 Verify installation:
+
 ```bash
 uv --version
 ```
@@ -45,6 +46,7 @@ uv sync
 ```
 
 This command:
+
 - Creates a virtual environment (`.venv`)
 - Installs all dependencies from `pyproject.toml`
 - Takes ~1-2 minutes on first run
@@ -58,6 +60,7 @@ cp .env.example .env
 ```
 
 Edit `.env` with your actual credentials:
+
 - `SUPABASE_URL` — your Supabase project URL
 - `SUPABASE_SERVICE_KEY` — Supabase service role key (from Settings → API)
 - `OPENAI_API_KEY` — your OpenAI API key (for LLM features)
@@ -72,6 +75,7 @@ uv run uvicorn app.main:app --reload
 ```
 
 You should see:
+
 ```
 INFO:     Uvicorn running on http://127.0.0.1:8000
 INFO:     Application startup complete
@@ -101,6 +105,7 @@ cp .env.example .env
 ```
 
 Edit `.env` with your Supabase credentials:
+
 - `PUBLIC_SUPABASE_URL` — your Supabase project URL
 - `PUBLIC_SUPABASE_ANON_KEY` — Supabase anon key (safe to expose in browser)
 - `VITE_API_BASE_URL` — backend URL (default: `http://localhost:8000`)
@@ -112,6 +117,7 @@ npm run dev
 ```
 
 You should see:
+
 ```
   VITE v... ready in ... ms
 
@@ -171,18 +177,22 @@ npm install package-name
 ## Troubleshooting
 
 **"uv: command not found"**
+
 - Make sure uv is installed: `uv --version`
 - If installed via script, restart your terminal or run `source $HOME/.cargo/env`
 
 **"ModuleNotFoundError" on `uv run uvicorn`**
+
 - Run `uv sync` in the `backend/` directory to install dependencies
 
 **Backend running but frontend can't reach it**
+
 - Check `VITE_API_BASE_URL` in `frontend/.env` (should be `http://localhost:8000`)
 - Check browser console for CORS errors
 - Ensure backend is actually running: http://localhost:8000/docs
 
 **Port already in use**
+
 - Backend: `uv run uvicorn app.main:app --reload --port 8001`
 - Frontend: `npm run dev -- --port 5174`
 

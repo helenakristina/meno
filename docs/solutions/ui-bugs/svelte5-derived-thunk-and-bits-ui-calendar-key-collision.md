@@ -91,11 +91,11 @@ const logByDate = $derived(new Map(logs.map(l => [l.period_start, l])));
 
 ### Svelte 5 `$derived` API Summary
 
-| Form | When to use |
-|---|---|
-| `$derived(expr)` | Single expression — most cases |
-| `$derived.by(() => { ... })` | Block body needed (loops, conditionals) |
-| `$derived(() => { ... })` | **Never** — stores the function itself, not the result |
+| Form                         | When to use                                            |
+| ---------------------------- | ------------------------------------------------------ |
+| `$derived(expr)`             | Single expression — most cases                         |
+| `$derived.by(() => { ... })` | Block body needed (loops, conditionals)                |
+| `$derived(() => { ... })`    | **Never** — stores the function itself, not the result |
 
 ### Prevention
 

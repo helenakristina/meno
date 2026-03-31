@@ -19,6 +19,7 @@ Key guardrail: if a user's journey stage is `post-menopause` and they log any bl
 Users currently have no way to log their period data. Journey stage (`perimenopause` / `menopause` / `post-menopause`) is set once at onboarding and never revisited — even though this is the most important context variable for the LLM. There is no settings page, so users cannot update preferences or correct their profile after onboarding.
 
 Period irregularity is the defining characteristic of perimenopause. Without this data, Meno cannot:
+
 - Accurately infer where a user is in their journey
 - Detect the 12-month no-period milestone (clinical definition of menopause)
 - Give the LLM meaningful cycle context for pattern recognition
@@ -199,6 +200,7 @@ def months_since_date(past_date: date) -> int:
 **1.5 Repository** (`backend/app/repositories/period_repository.py`)
 
 Methods:
+
 - `async create_log(user_id, data: PeriodLogCreate) -> PeriodLogResponse` — fetches previous period to calculate cycle_length server-side; raises `DatabaseError` on failure
 - `async get_logs(user_id, start_date, end_date) -> list[PeriodLogResponse]` — date-range query
 - `async get_latest_log(user_id) -> Optional[PeriodLogResponse]`
@@ -208,6 +210,7 @@ Methods:
 - `async get_cycle_analysis(user_id) -> Optional[CycleAnalysisResponse]`
 
 User repository additions (`backend/app/repositories/user_repository.py`):
+
 - `async get_settings(user_id) -> UserSettingsResponse`
 - `async update_settings(user_id, data: UserSettingsUpdate) -> UserSettingsResponse`
 
@@ -239,6 +242,7 @@ class PeriodServiceBase(ABC):
 **1.7 Service** (`backend/app/services/period.py`)
 
 Key business logic:
+
 - `create_log`: creates log, then recalculates and upserts `cycle_analysis` (average, variability, months since last)
 - `get_analysis`: returns analysis + `has_sufficient_data` flag (≥ 3 cycles = sufficient)
 - `check_postmenopausal_bleeding_alert(journey_stage)`: returns `True` if stage is `post-menopause`
@@ -268,6 +272,7 @@ GET    /api/period/analysis          → get cycle analysis + stage inference
 ```
 
 User settings routes (add to `backend/app/api/routes/users.py`):
+
 ```
 GET    /api/users/settings           → get period_tracking_enabled, has_uterus, journey_stage
 PATCH  /api/users/settings           → update any of the above
@@ -291,6 +296,7 @@ app.include_router(period.router, prefix="/api/period", tags=["period"])
 **2.1 Profile/avatar menu** (`frontend/src/routes/(app)/+layout.svelte`)
 
 Replace the current inline email + logout button with a `ProfileMenu` component:
+
 - Shows user initials in a circular avatar (e.g., "H" from email)
 - Dropdown on click: "Settings" link + "Log out" button
 - Mobile: existing sidebar already has this area — add Settings link above logout
@@ -298,6 +304,7 @@ Replace the current inline email + logout button with a `ProfileMenu` component:
 **2.2 Settings page** (`frontend/src/routes/(app)/settings/+page.svelte`)
 
 Sections:
+
 1. **Journey Stage** — editable select with current value pre-filled; shows plain-language descriptions per stage
 2. **Cycle Tracking** — independent toggle for `period_tracking_enabled`. Any user can turn this off regardless of anatomy — e.g., someone who simply doesn't want to track. If disabled, period nav item hides and `/period` is inaccessible.
 3. **Anatomy** — `has_uterus` radio group ("Yes" / "No" / "Prefer not to say"). This is a _separate, additional_ opt-out: selecting "No" also sets `period_tracking_enabled = false` with explanatory text ("Since you don't have a uterus, period tracking has been turned off"). The standalone Cycle Tracking toggle remains available to users who answered "Yes" or haven't answered.
@@ -340,6 +347,7 @@ npm install @internationalized/date
 Then build a custom `PeriodCalendar.svelte` component using the `bits-ui` `Calendar.Root` primitives directly. This gives full control over each cell's rendering.
 
 **Key technical constraints:**
+
 - All date values must use `@internationalized/date` (`CalendarDate`, `DateValue`) — not native JS `Date`
 - `isPeriodDay(date)` checks against fetched `period_logs` using `date.compare()`
 - Flow level → color mapping:
@@ -351,10 +359,11 @@ Then build a custom `PeriodCalendar.svelte` component using the `bits-ui` `Calen
 **3.2 Period log modal** (`frontend/src/lib/components/period/PeriodLogModal.svelte`)
 
 Progressive disclosure form:
+
 - **Required:** Start date (pre-filled from clicked day)
 - **Optional:** End date, flow level (radio buttons), notes (textarea)
 - On submit: `POST /api/period/logs` (create) or `PATCH /api/period/logs/{id}` (edit)
-- If `journey_stage = 'post-menopause'` AND logging a period: show warning banner inside the modal before the save button: *"Postmenopausal bleeding should be evaluated by a doctor promptly. Please contact your healthcare provider."*
+- If `journey_stage = 'post-menopause'` AND logging a period: show warning banner inside the modal before the save button: _"Postmenopausal bleeding should be evaluated by a doctor promptly. Please contact your healthcare provider."_
   - The alert comes from the API response (`bleeding_alert: true`) OR can be determined client-side from cached settings
   - User is NOT blocked from logging — they can still save
 - Cancel clears the form; clicking outside closes without saving
@@ -362,12 +371,14 @@ Progressive disclosure form:
 **3.3 Period page** (`frontend/src/routes/(app)/period/+page.svelte`)
 
 Layout:
+
 - Month header with prev/next navigation
 - `PeriodCalendar` component with loaded logs for the visible month range
 - "Log today" quick-add button (shortcut to open modal for today)
 - 12-month inference banner (see Phase 4)
 
 Data loading:
+
 - `onMount`: load current + adjacent month's logs from `GET /api/period/logs?start_date=&end_date=`
 - `$effect`: re-fetch when month navigation changes
 - Load cycle analysis from `GET /api/period/analysis` on mount
@@ -417,6 +428,7 @@ Data loading:
 **4.1 Detection logic** (backend, already part of `PeriodService.get_analysis`)
 
 When `months_since_last_period >= 12` and `inferred_stage != 'post-menopause'`:
+
 - Set `inferred_stage = 'menopause'` in `cycle_analysis`
 - This is surfaced in the `GET /api/period/analysis` response as `inferred_stage`
 
@@ -444,6 +456,7 @@ The inference does NOT silently update `users.journey_stage`. The user must conf
 ### Interaction Graph
 
 Logging a period triggers:
+
 1. `POST /api/period/logs` → `PeriodService.create_log()`
 2. → `PeriodRepository.create_log()` (writes `period_logs`, fetches previous log for cycle_length)
 3. → `PeriodService` recalculates cycle analysis (average, variability, months since last)
@@ -452,6 +465,7 @@ Logging a period triggers:
 6. Frontend shows postmenopausal alert if `bleeding_alert = true`
 
 Updating settings (`PATCH /api/users/settings`) with `has_uterus = false`:
+
 - Backend sets `period_tracking_enabled = false` automatically
 - Frontend: next settings page load shows period tracking as disabled
 
@@ -485,6 +499,7 @@ Updating settings (`PATCH /api/users/settings`) with `has_uterus = false`:
 ### Functional Requirements
 
 **Backend:**
+
 - [ ] `period_logs` table created with RLS (`auth.uid() = user_id`)
 - [ ] `cycle_analysis` table created with RLS
 - [ ] `users` table has `period_tracking_enabled` (default `true`) and `has_uterus` (nullable)
@@ -500,6 +515,7 @@ Updating settings (`PATCH /api/users/settings`) with `has_uterus = false`:
 - [ ] `journey_stage` on `users` is updatable via settings endpoint
 
 **Frontend:**
+
 - [x] Profile/avatar menu in top-right of nav with user initials, Settings link, Logout button
 - [x] `/settings` page accessible via profile menu
 - [x] Journey stage editable in settings with current value pre-filled
@@ -528,7 +544,7 @@ Updating settings (`PATCH /api/users/settings`) with `has_uterus = false`:
 
 ### Quality Gates
 
-- [ ] >70% test coverage on `period_repository.py` and `period_service.py`
+- [ ] > 70% test coverage on `period_repository.py` and `period_service.py`
 - [ ] All date math functions in `utils/dates.py` have unit tests
 - [ ] Test naming follows `test_X_when_Y_then_Z`
 - [ ] No `HTTPException` raised in repository or service layers
@@ -581,16 +597,20 @@ erDiagram
 ## Alternative Approaches Considered
 
 ### Calendar component: shadcn-svelte wrapper vs bits-ui primitives
-The shadcn-svelte `<Calendar />` wrapper does not expose the day iteration loop, making custom per-cell highlighting impossible. Using `bits-ui` primitives directly (via `npx shadcn-svelte add calendar` which generates editable source) gives full template control with zero extra dependencies. *(see brainstorm: docs/brainstorms/2026-03-16-period-tracking-brainstorm.md)*
+
+The shadcn-svelte `<Calendar />` wrapper does not expose the day iteration loop, making custom per-cell highlighting impossible. Using `bits-ui` primitives directly (via `npx shadcn-svelte add calendar` which generates editable source) gives full template control with zero extra dependencies. _(see brainstorm: docs/brainstorms/2026-03-16-period-tracking-brainstorm.md)_
 
 ### Period tracking opt-in vs opt-out
-Default `period_tracking_enabled = true` with the feature visible unless turned off. This is the correct default since this is a menopause app where period tracking is core functionality, not peripheral. Users who have had a hysterectomy or otherwise don't need it can disable it. *(see brainstorm)*
+
+Default `period_tracking_enabled = true` with the feature visible unless turned off. This is the correct default since this is a menopause app where period tracking is core functionality, not peripheral. Users who have had a hysterectomy or otherwise don't need it can disable it. _(see brainstorm)_
 
 ### Settings: feature-specific page vs general settings
-A general `/settings` page (not cycle-specific) is the right choice — journey stage, uterus disclosure, and period tracking are all closely related, and general settings creates room for future preferences (notifications, account management, etc.) without a proliferating nav structure. *(see brainstorm)*
+
+A general `/settings` page (not cycle-specific) is the right choice — journey stage, uterus disclosure, and period tracking are all closely related, and general settings creates room for future preferences (notifications, account management, etc.) without a proliferating nav structure. _(see brainstorm)_
 
 ### Journey stage inference: silent update vs consent-gated
-Never silently update `users.journey_stage`. The 12-month milestone is clinically significant and personal — users should confirm it. The inference banner on `/period` gives them agency. *(see brainstorm)*
+
+Never silently update `users.journey_stage`. The 12-month milestone is clinically significant and personal — users should confirm it. The inference banner on `/period` gives them agency. _(see brainstorm)_
 
 ---
 

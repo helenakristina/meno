@@ -23,7 +23,7 @@ JavaScript's `new Date('2026-03-19')` treats a bare ISO date string (no time com
 
 ```javascript
 // In US Eastern (UTC-5):
-new Date('2026-03-19')
+new Date("2026-03-19");
 // → 2026-03-18T19:00:00 local
 // → displays "18 Mar"  ❌
 ```
@@ -56,40 +56,42 @@ Applied the fix to all three medication pages, matching what dashboard/export/pr
 
 Local noon converted through any possible UTC offset (±12h max) always stays within the same calendar day:
 
-| Timezone | UTC offset | `2026-03-19T12:00:00` local = |
-|----------|-----------|-------------------------------|
-| US Eastern | UTC-5 | 7am March 19 ✅ |
-| US Pacific | UTC-8 | 4am March 19 ✅ |
-| Tokyo | UTC+9 | 9pm March 19 ✅ |
-| UTC | UTC+0 | noon March 19 ✅ |
+| Timezone   | UTC offset | `2026-03-19T12:00:00` local = |
+| ---------- | ---------- | ----------------------------- |
+| US Eastern | UTC-5      | 7am March 19 ✅               |
+| US Pacific | UTC-8      | 4am March 19 ✅               |
+| Tokyo      | UTC+9      | 9pm March 19 ✅               |
+| UTC        | UTC+0      | noon March 19 ✅              |
 
 ## Safe vs. Unsafe Date Patterns
 
-| Pattern | Safe? | Notes |
-|---------|-------|-------|
-| `new Date('2026-03-19')` | ❌ | UTC midnight → wrong day in UTC- zones |
-| `new Date('2026-03-19T12:00:00')` | ✅ | Local noon → correct in all zones |
-| `new Date(year, month - 1, day)` | ✅ | Local midnight via constructor → also correct |
-| `new Date().toISOString().split('T')[0]` | ❌ | Returns UTC date, not local date |
-| `today.getFullYear() + '-' + ...` | ✅ | Local date parts → correct |
+| Pattern                                  | Safe? | Notes                                         |
+| ---------------------------------------- | ----- | --------------------------------------------- |
+| `new Date('2026-03-19')`                 | ❌    | UTC midnight → wrong day in UTC- zones        |
+| `new Date('2026-03-19T12:00:00')`        | ✅    | Local noon → correct in all zones             |
+| `new Date(year, month - 1, day)`         | ✅    | Local midnight via constructor → also correct |
+| `new Date().toISOString().split('T')[0]` | ❌    | Returns UTC date, not local date              |
+| `today.getFullYear() + '-' + ...`        | ✅    | Local date parts → correct                    |
 
 ## Prevention
 
 **No shared date utility exists** (`src/lib/utils.ts` only has CSS helpers). Each component implements date handling independently, which is how drift happened.
 
 **Checklist when formatting API dates:**
+
 - [ ] Never pass a bare `YYYY-MM-DD` string directly to `new Date()`
 - [ ] Always append `T12:00:00` when building a `Date` for display
 - [ ] For form defaults ("today"), use local date parts not `toISOString()`
 
 **Pattern for "today" as a date input default:**
+
 ```typescript
 // ✅ Correct — local date
 const today = new Date();
-const startDate = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+const startDate = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
 
 // ❌ Wrong — UTC date
-const startDate = new Date().toISOString().split('T')[0];
+const startDate = new Date().toISOString().split("T")[0];
 ```
 
 ## Related

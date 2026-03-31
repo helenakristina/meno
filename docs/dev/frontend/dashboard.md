@@ -36,24 +36,24 @@ All state is managed with Svelte 5 runes (`$state`, `$derived`). There is no ext
 
 ### Reactive State (`$state`)
 
-| Variable | Type | Initial | Description |
-|---|---|---|---|
-| `loading` | `boolean` | `true` | History section: true while fetch is in-flight |
-| `error` | `string` | `''` | History section: error message; empty = no error shown |
-| `logs` | `Log[]` | `[]` | Raw log array from `/api/symptoms/logs` |
-| `frequencyLoading` | `boolean` | `true` | Chart section: true while fetch is in-flight |
-| `frequencyError` | `string` | `''` | Chart section: error message; empty = no error shown |
-| `frequencyStats` | `SymptomFrequency[]` | `[]` | Raw frequency data from `/api/symptoms/stats/frequency` |
-| `selectedRange` | `string` | `'7'` | Active date range: `'7'`, `'14'`, or `'30'` |
-| `expandedNotes` | `Record<string, boolean>` | `{}` | Maps YYYY-MM-DD date keys to notes-expanded state |
+| Variable           | Type                      | Initial | Description                                             |
+| ------------------ | ------------------------- | ------- | ------------------------------------------------------- |
+| `loading`          | `boolean`                 | `true`  | History section: true while fetch is in-flight          |
+| `error`            | `string`                  | `''`    | History section: error message; empty = no error shown  |
+| `logs`             | `Log[]`                   | `[]`    | Raw log array from `/api/symptoms/logs`                 |
+| `frequencyLoading` | `boolean`                 | `true`  | Chart section: true while fetch is in-flight            |
+| `frequencyError`   | `string`                  | `''`    | Chart section: error message; empty = no error shown    |
+| `frequencyStats`   | `SymptomFrequency[]`      | `[]`    | Raw frequency data from `/api/symptoms/stats/frequency` |
+| `selectedRange`    | `string`                  | `'7'`   | Active date range: `'7'`, `'14'`, or `'30'`             |
+| `expandedNotes`    | `Record<string, boolean>` | `{}`    | Maps YYYY-MM-DD date keys to notes-expanded state       |
 
 ### Derived State (`$derived`)
 
-| Variable | Type | Logic |
-|---|---|---|
-| `dayGroups` | `DayGroup[]` | `groupByDay(logs)` — groups logs by local date, deduplicates symptoms, extracts free-text entries |
-| `topSymptoms` | `SymptomFrequency[]` | `frequencyStats.slice(0, 10)` — caps chart at 10 bars |
-| `maxCount` | `number` | `topSymptoms[0]?.count ?? 1` — denominator for bar widths; `?? 1` prevents division by zero |
+| Variable      | Type                 | Logic                                                                                             |
+| ------------- | -------------------- | ------------------------------------------------------------------------------------------------- |
+| `dayGroups`   | `DayGroup[]`         | `groupByDay(logs)` — groups logs by local date, deduplicates symptoms, extracts free-text entries |
+| `topSymptoms` | `SymptomFrequency[]` | `frequencyStats.slice(0, 10)` — caps chart at 10 bars                                             |
+| `maxCount`    | `number`             | `topSymptoms[0]?.count ?? 1` — denominator for bar widths; `?? 1` prevents division by zero       |
 
 ---
 
@@ -89,14 +89,14 @@ Token is fetched once and shared across both calls, saving one round-trip per ra
 ```typescript
 const startDate = new Date();
 startDate.setDate(startDate.getDate() - (parseInt(range) - 1));
-const startDateStr = startDate.toLocaleDateString('en-CA');
+const startDateStr = startDate.toLocaleDateString("en-CA");
 ```
 
-| `selectedRange` | Days subtracted | Effective window |
-|---|---|---|
-| `'7'` | 6 | Today + 6 prior days |
-| `'14'` | 13 | Today + 13 prior days |
-| `'30'` | 29 | Today + 29 prior days |
+| `selectedRange` | Days subtracted | Effective window      |
+| --------------- | --------------- | --------------------- |
+| `'7'`           | 6               | Today + 6 prior days  |
+| `'14'`          | 13              | Today + 13 prior days |
+| `'30'`          | 29              | Today + 29 prior days |
 
 `en-CA` locale produces `YYYY-MM-DD` reliably across all browsers.
 
@@ -128,21 +128,21 @@ Authorization: Bearer {token}
 
 ### Frequency Chart Section
 
-| State | Condition | What renders |
-|---|---|---|
-| **Loading** | `frequencyLoading === true` | Centered "Loading..." text |
-| **Error** | `frequencyError !== ''` | Red alert box with error message |
-| **Empty** | `topSymptoms.length === 0` | "No symptoms logged in this period." |
-| **Data** | otherwise | Ordered list of up to 10 bars |
+| State       | Condition                   | What renders                         |
+| ----------- | --------------------------- | ------------------------------------ |
+| **Loading** | `frequencyLoading === true` | Centered "Loading..." text           |
+| **Error**   | `frequencyError !== ''`     | Red alert box with error message     |
+| **Empty**   | `topSymptoms.length === 0`  | "No symptoms logged in this period." |
+| **Data**    | otherwise                   | Ordered list of up to 10 bars        |
 
 ### Symptom History Section
 
-| State | Condition | What renders |
-|---|---|---|
-| **Loading** | `loading === true` | Centered "Loading your history..." text |
-| **Error** | `error !== ''` | Red alert box with error message |
-| **Empty** | `dayGroups.length === 0` | Dashed-border empty state with CTA to `/log` |
-| **Data** | otherwise | Ordered list of `DayGroup` cards |
+| State       | Condition                | What renders                                 |
+| ----------- | ------------------------ | -------------------------------------------- |
+| **Loading** | `loading === true`       | Centered "Loading your history..." text      |
+| **Error**   | `error !== ''`           | Red alert box with error message             |
+| **Empty**   | `dayGroups.length === 0` | Dashed-border empty state with CTA to `/log` |
+| **Data**    | otherwise                | Ordered list of `DayGroup` cards             |
 
 ---
 
@@ -186,12 +186,12 @@ Sort: b.date.localeCompare(a.date) — newest-first (YYYY-MM-DD lexicographic or
 
 **dayLabel()** returns smart relative labels:
 
-| Condition | Label |
-|---|---|
-| `dateKey === todayKey` | `"Today"` |
-| `dateKey === yesterdayKey` | `"Yesterday"` |
-| Same year as now | `"March 15"` |
-| Different year | `"March 15, 2023"` |
+| Condition                  | Label              |
+| -------------------------- | ------------------ |
+| `dateKey === todayKey`     | `"Today"`          |
+| `dateKey === yesterdayKey` | `"Yesterday"`      |
+| Same year as now           | `"March 15"`       |
+| Different year             | `"March 15, 2023"` |
 
 DST edge case: dates are parsed at noon local time (`${dateKey}T12:00:00`) to avoid midnight boundary issues.
 
@@ -203,7 +203,7 @@ Free-text notes are collapsible per day, controlled by `expandedNotes[group.date
 
 ```typescript
 function toggleNotes(date: string) {
-    expandedNotes[date] = !expandedNotes[date];
+  expandedNotes[date] = !expandedNotes[date];
 }
 ```
 
@@ -217,39 +217,39 @@ Svelte's `transition:slide={{ duration: 200 }}` animates the notes list open/clo
 
 ```typescript
 interface SymptomDetail {
-    id: string;
-    name: string;
-    category: string;
+  id: string;
+  name: string;
+  category: string;
 }
 
 interface Log {
-    id: string;
-    user_id: string;
-    logged_at: string;          // ISO 8601 timestamp string
-    symptoms: SymptomDetail[];
-    free_text_entry: string | null;
-    source: string;             // 'cards' | 'text' | 'both'
+  id: string;
+  user_id: string;
+  logged_at: string; // ISO 8601 timestamp string
+  symptoms: SymptomDetail[];
+  free_text_entry: string | null;
+  source: string; // 'cards' | 'text' | 'both'
 }
 
 interface SymptomFrequency {
-    symptom_id: string;
-    symptom_name: string;
-    category: string;
-    count: number;              // total occurrences, not unique days
+  symptom_id: string;
+  symptom_name: string;
+  category: string;
+  count: number; // total occurrences, not unique days
 }
 
 interface FreeTextEntry {
-    text: string;
-    time: string;               // formatted, e.g. "2:30 PM"
-    logId: string;
+  text: string;
+  time: string; // formatted, e.g. "2:30 PM"
+  logId: string;
 }
 
 interface DayGroup {
-    date: string;               // YYYY-MM-DD, used as key
-    label: string;              // "Today" | "Yesterday" | "March 15" | …
-    logCount: number;           // total raw logs for this day
-    symptoms: SymptomDetail[];  // deduplicated across all logs
-    freeTextEntries: FreeTextEntry[];
+  date: string; // YYYY-MM-DD, used as key
+  label: string; // "Today" | "Yesterday" | "March 15" | …
+  logCount: number; // total raw logs for this day
+  symptoms: SymptomDetail[]; // deduplicated across all logs
+  freeTextEntries: FreeTextEntry[];
 }
 ```
 
@@ -257,10 +257,10 @@ interface DayGroup {
 
 ## Dependencies
 
-| Import | Source | Purpose |
-|---|---|---|
-| `slide` | `svelte/transition` | Animate notes expand/collapse |
-| `supabase` | `$lib/supabase/client` | Get auth session |
+| Import     | Source                 | Purpose                       |
+| ---------- | ---------------------- | ----------------------------- |
+| `slide`    | `svelte/transition`    | Animate notes expand/collapse |
+| `supabase` | `$lib/supabase/client` | Get auth session              |
 
 No shadcn-svelte components used — all UI is Tailwind utility classes.
 
@@ -299,11 +299,11 @@ No shadcn-svelte components used — all UI is Tailwind utility classes.
 
 ## Error Handling
 
-| Scenario | History section | Chart section |
-|---|---|---|
-| No auth session | `error = 'Please sign in…'` | `frequencyError = 'Please sign in…'` |
-| HTTP error | `error = 'Failed to load… ({status})'` | `frequencyError = 'Failed to load… ({status})'` |
-| Network error (fetch throws) | `error = 'Network error…'` | `frequencyError = 'Network error…'` |
+| Scenario                     | History section                        | Chart section                                   |
+| ---------------------------- | -------------------------------------- | ----------------------------------------------- |
+| No auth session              | `error = 'Please sign in…'`            | `frequencyError = 'Please sign in…'`            |
+| HTTP error                   | `error = 'Failed to load… ({status})'` | `frequencyError = 'Failed to load… ({status})'` |
+| Network error (fetch throws) | `error = 'Network error…'`             | `frequencyError = 'Network error…'`             |
 
 Errors in one section do not affect the other — each has independent try/catch and finally blocks.
 
@@ -312,7 +312,7 @@ Errors in one section do not affect the other — each has independent try/catch
 ## Constants
 
 ```typescript
-const API_BASE = 'http://localhost:8000';
+const API_BASE = "http://localhost:8000";
 ```
 
 Hardcoded for V1 local development. Before production, move to `$env/static/public` (e.g. `PUBLIC_API_URL`).

@@ -19,6 +19,7 @@ Paired with this: a **general settings page** where users can manage account pre
 ## Why This Approach
 
 Period tracking needs to serve two audiences simultaneously:
+
 1. **Users who want simplicity** — just log "my period started today" and move on
 2. **Users who want detail** — log flow levels, spotting days, notes, multi-day cycles
 
@@ -31,27 +32,32 @@ Journey stage (currently set once at onboarding) needs to become a living, updat
 ## Key Decisions
 
 ### 1. Period logging is optional
+
 - Stored as a user preference: `period_tracking_enabled` in the `users` table (or a settings table)
 - Users who opt out never see period-related UI
 - Relevant for: users post-hysterectomy, users on contraception that stops periods, users who find tracking distressing
 
 ### 2. Calendar view as the primary interface
+
 - `/period` route with a month-by-month calendar
 - Days with period logged are highlighted (color-coded by flow level)
 - Click any day to log or edit that day's data
 - Can navigate to past months (retroactive logging)
 
 ### 3. Flexible data entry — progressive disclosure
+
 - **Minimal:** tap a day → "Period started" toggle → save (just records `period_start`)
 - **Optional details:** flow level (spotting / light / medium / heavy), end date, free-text notes
 - Form doesn't require anything beyond start date
 
 ### 4. Postmenopausal bleeding alert
-- If `journey_stage = 'post-menopause'` AND user logs any bleeding → show a clear in-app alert: *"Postmenopausal bleeding should be evaluated by a doctor promptly."*
+
+- If `journey_stage = 'post-menopause'` AND user logs any bleeding → show a clear in-app alert: _"Postmenopausal bleeding should be evaluated by a doctor promptly."_
 - This is a guardrail, not a block — user can still log it
 - Aligns with medical advice boundary policy: we inform, we don't diagnose
 
 ### 5. Journey stage becomes updatable
+
 - Settings page exposes journey stage as an editable field
 - System can also auto-update inferred stage based on cycle data:
   - 12 consecutive months without a logged period → infer transition to menopause
@@ -59,6 +65,7 @@ Journey stage (currently set once at onboarding) needs to become a living, updat
   - User confirms the inference; it doesn't change without consent
 
 ### 6. General settings page (`/settings`)
+
 - **Period tracking:** toggle on/off
 - **Journey stage:** view + edit (with confirmation if changing to post-menopause)
 - **Account:** email, date of birth (view only or editable TBD)
@@ -69,6 +76,7 @@ Journey stage (currently set once at onboarding) needs to become a living, updat
 ## Feature Scope
 
 ### In scope (V1 of this feature)
+
 - `period_logs` table (already designed in DESIGN.md, not yet built)
 - `cycle_analysis` table (already designed in DESIGN.md)
 - `period_tracking_enabled` preference on user record
@@ -80,6 +88,7 @@ Journey stage (currently set once at onboarding) needs to become a living, updat
 - Retroactive logging (past dates)
 
 ### Out of scope (V2+)
+
 - Cycle predictions ("your next period is estimated...")
 - PMS pattern analysis
 - Contraception-aware cycle modeling
@@ -91,6 +100,7 @@ Journey stage (currently set once at onboarding) needs to become a living, updat
 ## Technical Notes
 
 ### Database
+
 - `period_logs` table already modeled in DESIGN.md Section 9:
   - `period_start DATE NOT NULL`, `period_end DATE`, `flow_level TEXT`, `notes TEXT`, `cycle_length INTEGER` (calculated)
 - `cycle_analysis` table also modeled: avg cycle length, variability (std dev), months since last period, inferred stage
@@ -98,6 +108,7 @@ Journey stage (currently set once at onboarding) needs to become a living, updat
 - `journey_stage` on `users` stays as-is but becomes editable via API
 
 ### Backend
+
 - New `period_repository.py` — CRUD for `period_logs` + write `cycle_analysis`
 - New `period_service.py` — cycle length calculation, variability, stage inference logic
 - Date math (cycle length, streak calculation) → `utils/dates.py`
@@ -105,6 +116,7 @@ Journey stage (currently set once at onboarding) needs to become a living, updat
 - Medical alert logic lives in the period service (not the route)
 
 ### Frontend
+
 - Calendar component (no existing one — need to evaluate shadcn-svelte calendar or build custom)
 - `/period` page with month navigation
 - `/settings` page (new navigation item)

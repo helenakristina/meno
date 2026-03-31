@@ -29,7 +29,7 @@
 
 	const form = superForm(data.form, {
 		validators: zod4(chatMessageSchema),
-		delayMs: 200,
+		delayMs: 200
 	});
 
 	const { form: formData, errors, enhance, submitting } = form;
@@ -58,9 +58,7 @@
 
 	async function loadSuggestedPrompts() {
 		try {
-			const response = await apiClient.get<{ prompts: string[] }>(
-				'/api/chat/suggested-prompts'
-			);
+			const response = await apiClient.get<{ prompts: string[] }>('/api/chat/suggested-prompts');
 			suggestedPrompts = response.prompts;
 		} catch (error) {
 			console.error('Failed to load suggested prompts:', error);
@@ -77,15 +75,14 @@
 
 		if (data.resumeId) {
 			try {
-				const response = await apiClient.get(
-					`/api/chat/conversations/${data.resumeId}` as any
-				);
+				const response = await apiClient.get(`/api/chat/conversations/${data.resumeId}` as any);
 				messages = response.messages;
 				conversationId = data.resumeId;
 			} catch (error) {
-				const errorMsg = error instanceof Error && 'detail' in error
-					? (error as ApiError).detail
-					: 'Failed to load conversation history';
+				const errorMsg =
+					error instanceof Error && 'detail' in error
+						? (error as ApiError).detail
+						: 'Failed to load conversation history';
 				apiError = errorMsg;
 				console.error('Failed to load conversation:', error);
 			}
@@ -172,7 +169,7 @@
 		try {
 			const response = await apiClient.post('/api/chat', {
 				message: userMessage,
-				...(conversationId && { conversation_id: conversationId }),
+				...(conversationId && { conversation_id: conversationId })
 			});
 
 			conversationId = response.conversation_id;
@@ -182,11 +179,12 @@
 			];
 			$formData.message = '';
 		} catch (error) {
-			const errorMsg = error instanceof Error && 'detail' in error
-				? (error as ApiError).detail
-				: error instanceof Error
-					? error.message
-					: 'Failed to get response. Please try again.';
+			const errorMsg =
+				error instanceof Error && 'detail' in error
+					? (error as ApiError).detail
+					: error instanceof Error
+						? error.message
+						: 'Failed to get response. Please try again.';
 			apiError = errorMsg;
 			console.error('Chat API error:', error);
 		} finally {
@@ -220,19 +218,26 @@
 			</div>
 			<a
 				href="/ask/history"
-				class="text-sm font-medium text-primary-800 hover:text-primary-900 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 rounded px-2 py-1"
+				class="rounded px-2 py-1 text-sm font-medium text-primary-800 hover:text-primary-900 focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 focus:outline-none"
 			>
 				History
 			</a>
 		</div>
-		<div class="mt-3 rounded-lg border border-warning bg-warning-light px-3 py-2 text-xs text-warning-dark">
+		<div
+			class="mt-3 rounded-lg border border-warning bg-warning-light px-3 py-2 text-xs text-warning-dark"
+		>
 			Educational information only — not medical advice. Always discuss health decisions with your
 			healthcare provider.
 		</div>
 	</div>
 
 	<!-- Messages / empty state -->
-	<div class="flex-1 overflow-y-auto" bind:this={chatContainer} aria-live="polite" aria-label="Chat messages">
+	<div
+		class="flex-1 overflow-y-auto"
+		bind:this={chatContainer}
+		aria-live="polite"
+		aria-label="Chat messages"
+	>
 		{#if !hasMessages}
 			<!-- Empty state: starter prompts -->
 			<div class="px-4 py-6 sm:px-6 lg:px-8">
@@ -242,7 +247,9 @@
 				{#if loadingPrompts}
 					<div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
 						{#each Array(6) as _}
-							<div class="rounded-xl border border-neutral-200 bg-neutral-100 px-4 py-3 h-[60px] animate-pulse" />
+							<div
+								class="h-[60px] animate-pulse rounded-xl border border-neutral-200 bg-neutral-100 px-4 py-3"
+							/>
 						{/each}
 					</div>
 				{:else if suggestedPrompts.length > 0}
@@ -251,7 +258,7 @@
 							<button
 								type="button"
 								onclick={() => selectPrompt(prompt)}
-								class="rounded-xl border border-neutral-200 bg-white px-4 py-3 text-left text-sm text-neutral-700 shadow-sm transition-colors hover:border-primary-300 hover:bg-primary-50 hover:text-primary-800 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 active:bg-primary-100"
+								class="rounded-xl border border-neutral-200 bg-white px-4 py-3 text-left text-sm text-neutral-700 shadow-sm transition-colors hover:border-primary-300 hover:bg-primary-50 hover:text-primary-800 focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 focus:outline-none active:bg-primary-100"
 							>
 								{prompt}
 							</button>
@@ -264,7 +271,7 @@
 							<button
 								type="button"
 								onclick={() => selectPrompt(prompt)}
-								class="rounded-xl border border-neutral-200 bg-white px-4 py-3 text-left text-sm text-neutral-700 shadow-sm transition-colors hover:border-primary-300 hover:bg-primary-50 hover:text-primary-800 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 active:bg-primary-100"
+								class="rounded-xl border border-neutral-200 bg-white px-4 py-3 text-left text-sm text-neutral-700 shadow-sm transition-colors hover:border-primary-300 hover:bg-primary-50 hover:text-primary-800 focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 focus:outline-none active:bg-primary-100"
 							>
 								{prompt}
 							</button>
@@ -278,7 +285,9 @@
 				{#each messages as message, i (i)}
 					{#if message.role === 'user'}
 						<div class="flex justify-end">
-							<div class="max-w-[75%] rounded-2xl rounded-tr-sm bg-primary-600 px-4 py-3 text-sm leading-relaxed text-white">
+							<div
+								class="max-w-[75%] rounded-2xl rounded-tr-sm bg-primary-600 px-4 py-3 text-sm leading-relaxed text-white"
+							>
 								{message.content}
 							</div>
 						</div>
@@ -293,7 +302,9 @@
 								<!-- Citations list -->
 								{#if message.citations.length > 0}
 									<div class="mt-3 border-t border-neutral-100 pt-3">
-										<p class="mb-1.5 text-xs font-semibold uppercase tracking-wide text-neutral-400">
+										<p
+											class="mb-1.5 text-xs font-semibold tracking-wide text-neutral-400 uppercase"
+										>
 											Sources
 										</p>
 										<ol class="space-y-1">
@@ -340,7 +351,10 @@
 
 	<!-- Error messages -->
 	{#if apiError || $errors.message}
-		<div class="flex-shrink-0 border-t border-danger-light bg-danger-light px-4 py-3 text-sm text-danger-dark sm:px-6 lg:px-8" role="alert">
+		<div
+			class="flex-shrink-0 border-t border-danger-light bg-danger-light px-4 py-3 text-sm text-danger-dark sm:px-6 lg:px-8"
+			role="alert"
+		>
 			{apiError || $errors.message}
 			<button
 				type="button"
@@ -373,7 +387,7 @@
 				placeholder="Ask a question about perimenopause or menopause…"
 				rows="1"
 				disabled={isLoading}
-				class="flex-1 resize-none rounded-xl border border-neutral-200 px-4 py-3 text-sm text-neutral-800 placeholder-neutral-400 transition-colors focus:border-primary-400 focus:outline-none focus:ring-2 focus:ring-primary-400/20 disabled:opacity-60"
+				class="flex-1 resize-none rounded-xl border border-neutral-200 px-4 py-3 text-sm text-neutral-800 placeholder-neutral-400 transition-colors focus:border-primary-400 focus:ring-2 focus:ring-primary-400/20 focus:outline-none disabled:opacity-60"
 				aria-invalid={apiError || $errors.message ? 'true' : 'false'}
 				aria-describedby={apiError || $errors.message ? 'message-error' : undefined}
 			></textarea>

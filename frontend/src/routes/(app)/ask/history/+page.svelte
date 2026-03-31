@@ -158,7 +158,13 @@
 		<!-- Error Message -->
 		{#if error}
 			<div class="mb-6">
-				<ErrorBanner message={error} onRetry={() => { error = null; fetchConversations(); }} />
+				<ErrorBanner
+					message={error}
+					onRetry={() => {
+						error = null;
+						fetchConversations();
+					}}
+				/>
 			</div>
 		{/if}
 
@@ -174,13 +180,15 @@
 			</div>
 		{:else if conversations.length === 0}
 			<!-- Empty State -->
-			<div class="rounded-lg border border-dashed border-neutral-300 bg-white px-8 py-16 text-center">
+			<div
+				class="rounded-lg border border-dashed border-neutral-300 bg-white px-8 py-16 text-center"
+			>
 				<div class="mb-4 text-4xl">💬</div>
 				<h2 class="text-lg font-semibold text-neutral-800">No conversations yet</h2>
 				<p class="mt-2 text-neutral-600">Start your first Ask Meno conversation to see it here.</p>
 				<a
 					href="/ask"
-					class="mt-6 inline-block rounded-lg bg-primary-500 px-6 py-3 font-semibold text-white hover:bg-primary-600 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2"
+					class="mt-6 inline-block rounded-lg bg-primary-500 px-6 py-3 font-semibold text-white hover:bg-primary-600 focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 focus:outline-none"
 				>
 					Ask Meno a Question
 				</a>
@@ -189,7 +197,9 @@
 			<!-- Conversation List -->
 			<div class="space-y-3">
 				{#each conversations as conversation (conversation.id)}
-					<div class="flex items-stretch gap-4 rounded-lg border border-neutral-200 bg-white hover:border-neutral-300 hover:shadow-sm transition-all">
+					<div
+						class="flex items-stretch gap-4 rounded-lg border border-neutral-200 bg-white transition-all hover:border-neutral-300 hover:shadow-sm"
+					>
 						<!-- Main Content (clickable for resume) -->
 						<a
 							href="/ask?resume={conversation.id}"
@@ -201,7 +211,11 @@
 							<div class="flex items-center gap-3 text-sm text-neutral-600">
 								<span>{formatDate(conversation.created_at)}</span>
 								<span>•</span>
-								<span>{conversation.message_count} message{conversation.message_count !== 1 ? 's' : ''}</span>
+								<span
+									>{conversation.message_count} message{conversation.message_count !== 1
+										? 's'
+										: ''}</span
+								>
 							</div>
 						</a>
 
@@ -212,7 +226,7 @@
 								<div class="flex gap-2">
 									<button
 										onclick={() => deleteConversation(conversation.id)}
-										class="inline-flex items-center justify-center h-10 w-10 rounded-md bg-danger-light text-danger hover:bg-danger hover:text-white focus:outline-none focus:ring-2 focus:ring-danger focus:ring-offset-2"
+										class="inline-flex h-10 w-10 items-center justify-center rounded-md bg-danger-light text-danger hover:bg-danger hover:text-white focus:ring-2 focus:ring-danger focus:ring-offset-2 focus:outline-none"
 										aria-label="Confirm delete"
 										title="Confirm delete"
 									>
@@ -222,7 +236,7 @@
 										onclick={() => {
 											pendingDeleteId = null;
 										}}
-										class="inline-flex items-center justify-center h-10 w-10 rounded-md bg-neutral-100 text-neutral-600 hover:bg-neutral-200 focus:outline-none focus:ring-2 focus:ring-neutral-400 focus:ring-offset-2"
+										class="inline-flex h-10 w-10 items-center justify-center rounded-md bg-neutral-100 text-neutral-600 hover:bg-neutral-200 focus:ring-2 focus:ring-neutral-400 focus:ring-offset-2 focus:outline-none"
 										aria-label="Cancel"
 										title="Cancel"
 									>
@@ -233,7 +247,7 @@
 								<!-- Delete Button -->
 								<button
 									onclick={() => deleteConversation(conversation.id)}
-									class="inline-flex items-center justify-center h-10 w-10 rounded-md text-neutral-400 hover:bg-danger-light hover:text-danger focus:outline-none focus:ring-2 focus:ring-danger focus:ring-offset-2 transition-colors"
+									class="inline-flex h-10 w-10 items-center justify-center rounded-md text-neutral-400 transition-colors hover:bg-danger-light hover:text-danger focus:ring-2 focus:ring-danger focus:ring-offset-2 focus:outline-none"
 									aria-label="Delete conversation"
 									title="Delete conversation"
 								>
@@ -251,7 +265,7 @@
 					<button
 						onclick={loadMore}
 						disabled={loadingMore}
-						class="rounded-lg border border-neutral-300 bg-white px-6 py-3 font-semibold text-neutral-700 hover:bg-neutral-50 disabled:cursor-not-allowed disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2"
+						class="rounded-lg border border-neutral-300 bg-white px-6 py-3 font-semibold text-neutral-700 hover:bg-neutral-50 focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50"
 					>
 						{loadingMore ? 'Loading...' : 'Load More'}
 					</button>

@@ -19,7 +19,7 @@
 	const sizeClasses = {
 		sm: 'h-4 w-4',
 		md: 'h-6 w-6',
-		lg: 'h-8 w-8',
+		lg: 'h-8 w-8'
 	};
 </script>
 
@@ -28,7 +28,9 @@
 		role="status"
 		aria-live="polite"
 		aria-label={label || 'Loading'}
-		class="animate-spin rounded-full border-2 border-neutral-300 border-t-neutral-600 {sizeClasses[size]}"
+		class="animate-spin rounded-full border-2 border-neutral-300 border-t-neutral-600 {sizeClasses[
+			size
+		]}"
 	></div>
 	{#if label}
 		<span class="text-sm text-neutral-500">{label}</span>

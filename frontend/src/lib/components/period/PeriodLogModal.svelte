@@ -32,7 +32,11 @@
 	let bleedingAlert = $state(false);
 
 	const flowOptions: { value: FlowLevel; label: string; colorClass: string }[] = [
-		{ value: 'spotting', label: 'Spotting', colorClass: 'bg-coral-100 text-coral-800 border-coral-200' },
+		{
+			value: 'spotting',
+			label: 'Spotting',
+			colorClass: 'bg-coral-100 text-coral-800 border-coral-200'
+		},
 		{ value: 'light', label: 'Light', colorClass: 'bg-coral-200 text-coral-800 border-coral-300' },
 		{ value: 'medium', label: 'Medium', colorClass: 'bg-coral-400 text-white border-coral-400' },
 		{ value: 'heavy', label: 'Heavy', colorClass: 'bg-coral-600 text-white border-coral-600' }
@@ -157,7 +161,11 @@
 		first?.focus();
 
 		node.addEventListener('keydown', onKeydown);
-		return { destroy() { node.removeEventListener('keydown', onKeydown); } };
+		return {
+			destroy() {
+				node.removeEventListener('keydown', onKeydown);
+			}
+		};
 	}
 </script>
 
@@ -260,7 +268,7 @@
 								class="rounded-full border px-3 py-1.5 text-xs font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-coral-300
 									{flowLevel === opt.value
 									? opt.colorClass
-									: 'border-neutral-200 bg-white text-neutral-600 hover:border-coral-200 hover:bg-coral-50hover:text-coral-700'}"
+									: 'hover:bg-coral-50hover:text-coral-700 border-neutral-200 bg-white text-neutral-600 hover:border-coral-200'}"
 							>
 								{opt.label}
 							</button>
@@ -285,7 +293,10 @@
 
 				<!-- Error -->
 				{#if error}
-					<p class="rounded-lg border border-danger-light bg-danger-light px-3 py-2 text-sm text-danger-dark" role="alert">
+					<p
+						class="rounded-lg border border-danger-light bg-danger-light px-3 py-2 text-sm text-danger-dark"
+						role="alert"
+					>
 						{error}
 					</p>
 				{/if}

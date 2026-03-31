@@ -19,13 +19,13 @@ Everything downstream depends on this. Until repositories raise domain exception
 
 **Files to modify (in order):**
 
-| File | HTTPException Raises | Key Changes |
-|------|---------------------|-------------|
-| `repositories/symptoms_repository.py` | 6 | Replace with `EntityNotFoundError`, `DatabaseError`, `ValidationError` |
-| `repositories/user_repository.py` | 12 | Replace with `EntityNotFoundError`, `DatabaseError` |
-| `repositories/conversation_repository.py` | 12 | Already has 2 correct; fix remaining 12 |
-| `repositories/providers_repository.py` | 14 | Replace with `EntityNotFoundError`, `DatabaseError`; add `DuplicateEntityError` for shortlist conflicts |
-| `repositories/appointment_repository.py` | 18 | Replace with `EntityNotFoundError`, `DatabaseError` |
+| File                                      | HTTPException Raises | Key Changes                                                                                             |
+| ----------------------------------------- | -------------------- | ------------------------------------------------------------------------------------------------------- |
+| `repositories/symptoms_repository.py`     | 6                    | Replace with `EntityNotFoundError`, `DatabaseError`, `ValidationError`                                  |
+| `repositories/user_repository.py`         | 12                   | Replace with `EntityNotFoundError`, `DatabaseError`                                                     |
+| `repositories/conversation_repository.py` | 12                   | Already has 2 correct; fix remaining 12                                                                 |
+| `repositories/providers_repository.py`    | 14                   | Replace with `EntityNotFoundError`, `DatabaseError`; add `DuplicateEntityError` for shortlist conflicts |
+| `repositories/appointment_repository.py`  | 18                   | Replace with `EntityNotFoundError`, `DatabaseError`                                                     |
 
 **Pattern for each:**
 
@@ -40,6 +40,7 @@ raise EntityNotFoundError("Appointment context not found")
 ```
 
 **Mapping:**
+
 - `404` -> `EntityNotFoundError`
 - `500` -> `DatabaseError`
 - `400` -> `ValidationError`
@@ -82,6 +83,7 @@ class DuplicateEntityError(MenoBaseError):
 ```
 
 Add handler in `main.py`:
+
 ```python
 @app.exception_handler(DuplicateEntityError)
 async def duplicate_entity_handler(request, exc):
@@ -110,21 +112,23 @@ Existing repository tests that assert `HTTPException` raises need updating to as
 
 **Do first - these are the most dangerous:**
 
-| File | Line(s) | Current | Fix |
-|------|---------|---------|-----|
-| `routes/chat.py` | 106, 112, 116-118, 123-126 | `message[:100]` | `safe_len(message)` chars |
-| `routes/chat.py` | 186, 189 | `response_text[:200]` | `safe_len(response_text)` chars |
-| `routes/appointment.py` | 111 | `urgent_symptom` value | Remove or log "has_urgent=True/False" |
-| `routes/appointment.py` | 624-637 | `raw_suggestions[:200]` | `safe_len(raw_suggestions)` chars |
+| File                    | Line(s)                    | Current                 | Fix                                   |
+| ----------------------- | -------------------------- | ----------------------- | ------------------------------------- |
+| `routes/chat.py`        | 106, 112, 116-118, 123-126 | `message[:100]`         | `safe_len(message)` chars             |
+| `routes/chat.py`        | 186, 189                   | `response_text[:200]`   | `safe_len(response_text)` chars       |
+| `routes/appointment.py` | 111                        | `urgent_symptom` value  | Remove or log "has_urgent=True/False" |
+| `routes/appointment.py` | 624-637                    | `raw_suggestions[:200]` | `safe_len(raw_suggestions)` chars     |
 
 ### 2.2 Replace All Plaintext user_id Logging (~50 instances)
 
 Add import to every route file:
+
 ```python
 from app.utils.logging import hash_user_id
 ```
 
 Then find/replace pattern:
+
 ```python
 # BEFORE
 logger.info("... user=%s ...", user_id)
@@ -138,6 +142,7 @@ logger.info("... user=%s ...", hash_user_id(user_id))
 ### 2.3 Remove Email Logging
 
 `routes/users.py` line 102:
+
 ```python
 # BEFORE
 logger.info("User profile created: id=%s email=%s", user_id, email)
@@ -149,6 +154,7 @@ logger.info("User profile created: user=%s", hash_user_id(user_id))
 ### 2.4 Add safe_len() to LLM Call Logging
 
 Any logging near LLM calls should use `safe_len()` for content:
+
 ```python
 logger.debug("LLM call: %d input chars", safe_len(prompt))
 logger.debug("LLM response: %d chars", safe_len(response_text))
@@ -179,23 +185,26 @@ logger.debug("LLM response: %d chars", safe_len(response_text))
 
 **Methods to extract:**
 
-| Method | Source Lines | What It Does |
-|--------|-------------|--------------|
-| `generate_narrative()` | 135-415 | Fetch context + logs, calculate stats, build prompts, call LLM, save |
-| `generate_scenarios()` | ~420-670 | Fetch context + narrative, call LLM for scenarios, parse JSON, save |
-| `select_scenarios()` | 1077-1255 | Business logic for scenario selection based on symptoms |
-| `generate_pdf()` | ~700-950 | Orchestrate PDF content generation (summary, questions, cheatsheet) |
+| Method                 | Source Lines | What It Does                                                         |
+| ---------------------- | ------------ | -------------------------------------------------------------------- |
+| `generate_narrative()` | 135-415      | Fetch context + logs, calculate stats, build prompts, call LLM, save |
+| `generate_scenarios()` | ~420-670     | Fetch context + narrative, call LLM for scenarios, parse JSON, save  |
+| `select_scenarios()`   | 1077-1255    | Business logic for scenario selection based on symptoms              |
+| `generate_pdf()`       | ~700-950     | Orchestrate PDF content generation (summary, questions, cheatsheet)  |
 
 **Move helpers to appropriate locations:**
+
 - `_select_scenarios()`, `_get_scenario_category()` -> `app/services/appointment.py` (business logic)
 - `_inline_md()`, `_markdown_to_pdf()` -> `app/services/pdf.py` (rendering)
 - Prompt assembly -> `app/services/prompt.py` or within `AppointmentService`
 
 **Eliminate direct DB access in routes:**
+
 - `appointment_repo.client.table()` calls (lines 571, 760) -> New repository methods
 - `client.table("symptoms_reference")` (line 250) -> `symptoms_repo.get_reference()`
 
 **Route after refactor:**
+
 ```python
 @router.post("/{appointment_id}/narrative")
 async def generate_appointment_narrative(
@@ -215,13 +224,14 @@ async def generate_appointment_narrative(
 
 **Methods to extract:**
 
-| Method | What It Does |
-|--------|--------------|
-| `ask()` | Orchestrate: RAG retrieval -> prompt assembly -> LLM call -> citation processing -> persistence |
-| `_deduplicate_chunks()` | URL dedup with fragment stripping |
-| `_sanitize_citations()` | Regex-based citation cleanup |
+| Method                  | What It Does                                                                                    |
+| ----------------------- | ----------------------------------------------------------------------------------------------- |
+| `ask()`                 | Orchestrate: RAG retrieval -> prompt assembly -> LLM call -> citation processing -> persistence |
+| `_deduplicate_chunks()` | URL dedup with fragment stripping                                                               |
+| `_sanitize_citations()` | Regex-based citation cleanup                                                                    |
 
 **Fix DI violations:**
+
 - Remove inline `OpenAIProvider(api_key=...)` - use injected `llm_service`
 - Inject `retrieve_relevant_chunks` via DI or pass as dependency to service
 
@@ -232,6 +242,7 @@ async def generate_appointment_narrative(
 **New file:** `app/services/pdf.py`
 
 **Consolidate all PDF rendering:**
+
 - `_build_pdf()` from export.py
 - `_markdown_to_pdf()` / `_inline_md()` from appointment.py
 - Shared styling constants
@@ -243,22 +254,25 @@ async def generate_appointment_narrative(
 **New file:** `app/services/export.py`
 
 **Methods:**
+
 - `export_pdf()` - orchestrate data fetch, stats, LLM calls, PDF build, record export
 - `export_csv()` - orchestrate data fetch, transformation, CSV build, record export
 
 **Move export recording to repository:**
+
 - Direct `client.table("exports").insert()` calls -> `export_repository.record_export()`
 
 ### 3.5 Move Helper Functions to Utils
 
-| Function | Current Location | New Location |
-|----------|-----------------|--------------|
-| `_validate_date_of_birth()` | `routes/users.py` | `app/utils/dates.py` (raise `ValidationError`) |
-| `_log_date()` | `routes/export.py` | `app/utils/dates.py` |
+| Function                    | Current Location   | New Location                                   |
+| --------------------------- | ------------------ | ---------------------------------------------- |
+| `_validate_date_of_birth()` | `routes/users.py`  | `app/utils/dates.py` (raise `ValidationError`) |
+| `_log_date()`               | `routes/export.py` | `app/utils/dates.py`                           |
 
 ### 3.6 Update Dependencies
 
 Add to `app/api/dependencies.py`:
+
 ```python
 def get_appointment_service(...) -> AppointmentService: ...
 def get_ask_meno_service(...) -> AskMenoService: ...
@@ -298,10 +312,12 @@ class LLMProvider(ABC): ...
 ### 4.2 Repository Return Types
 
 Update `user_repository.py` to return Pydantic models:
+
 - `get()` -> return `UserProfile` model
 - `update_profile()` -> return `UserProfile` model
 
 Update `providers_repository.py`:
+
 - `add_to_shortlist()` -> return `ShortlistEntry` model, raise `DuplicateEntityError` for conflicts instead of returning status code
 
 ### 4.3 Minor Route Fixes
@@ -326,12 +342,12 @@ Update `providers_repository.py`:
 
 ## Phase Summary
 
-| Phase | Focus | Effort | Compliance Impact |
-|-------|-------|--------|-------------------|
-| 1. Domain Exceptions | Foundation | 1 session | 52% -> 65% |
-| 2. PII-Safe Logging | Compliance | 1 session | 65% -> 75% |
-| 3. Extract Services | Architecture | 2 sessions | 75% -> 90% |
-| 4. Polish | Cleanup | 0.5 session | 90% -> 95% |
+| Phase                | Focus        | Effort      | Compliance Impact |
+| -------------------- | ------------ | ----------- | ----------------- |
+| 1. Domain Exceptions | Foundation   | 1 session   | 52% -> 65%        |
+| 2. PII-Safe Logging  | Compliance   | 1 session   | 65% -> 75%        |
+| 3. Extract Services  | Architecture | 2 sessions  | 75% -> 90%        |
+| 4. Polish            | Cleanup      | 0.5 session | 90% -> 95%        |
 
 ### Recommended Order
 
@@ -347,12 +363,12 @@ Update `providers_repository.py`:
 
 ## Risk Assessment
 
-| Risk | Mitigation |
-|------|-----------|
-| Domain exception migration breaks existing tests | Update tests in same PR; they assert on exception types |
-| Service extraction introduces bugs | Extract method-by-method with tests; routes call service, verify same behavior |
-| Logging changes miss instances | Use `grep` verification commands listed above |
-| Large PRs are hard to review | Each phase is a separate PR; Phase 3 can be split per service |
+| Risk                                             | Mitigation                                                                     |
+| ------------------------------------------------ | ------------------------------------------------------------------------------ |
+| Domain exception migration breaks existing tests | Update tests in same PR; they assert on exception types                        |
+| Service extraction introduces bugs               | Extract method-by-method with tests; routes call service, verify same behavior |
+| Logging changes miss instances                   | Use `grep` verification commands listed above                                  |
+| Large PRs are hard to review                     | Each phase is a separate PR; Phase 3 can be split per service                  |
 
 ---
 

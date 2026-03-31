@@ -26,6 +26,7 @@ if data.notes is not None:
 ## Root Cause
 
 The pattern `if value is not None: include_field` uses `None` to mean two different things:
+
 - "This field was not in the PATCH body at all" (correct to skip)
 - "This field was explicitly sent as `null` (user wants to clear it)" (must include)
 

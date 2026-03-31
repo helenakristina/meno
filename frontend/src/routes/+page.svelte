@@ -41,17 +41,17 @@
 	></div>
 
 	<div class="relative mx-auto max-w-3xl text-center">
-		<p class="mb-4 text-sm font-medium uppercase tracking-widest text-primary-600">
+		<p class="mb-4 text-sm font-medium tracking-widest text-primary-600 uppercase">
 			Symptom tracking &amp; pattern insight
 		</p>
 
-		<h1 class="text-4xl font-bold leading-tight tracking-tight text-neutral-800 sm:text-5xl">
+		<h1 class="text-4xl leading-tight font-bold tracking-tight text-neutral-800 sm:text-5xl">
 			Understand Your Perimenopause<br class="hidden sm:block" /> and Menopause Symptoms
 		</h1>
 
 		<p class="mx-auto mt-6 max-w-xl text-lg leading-relaxed text-neutral-600">
-			Track symptoms, discover patterns, and prepare for healthcare conversations
-			with evidence-based insights — all in one private, supportive space.
+			Track symptoms, discover patterns, and prepare for healthcare conversations with
+			evidence-based insights — all in one private, supportive space.
 		</p>
 
 		<div class="mt-10 flex flex-wrap items-center justify-center gap-4">
@@ -128,8 +128,8 @@
 				</div>
 				<h3 class="mb-2 font-semibold text-neutral-800">Track Daily Symptoms</h3>
 				<p class="text-sm leading-relaxed text-neutral-500">
-					Simple, intuitive logging. Record how you feel each day and watch your experience
-					take shape over time.
+					Simple, intuitive logging. Record how you feel each day and watch your experience take
+					shape over time.
 				</p>
 			</div>
 
@@ -184,8 +184,8 @@
 				</div>
 				<h3 class="mb-2 font-semibold text-neutral-800">Evidence-Based Information</h3>
 				<p class="text-sm leading-relaxed text-neutral-500">
-					All information sourced from current research and trusted medical organizations,
-					cited throughout. No outdated advice, no guesswork.
+					All information sourced from current research and trusted medical organizations, cited
+					throughout. No outdated advice, no guesswork.
 				</p>
 			</div>
 
@@ -217,8 +217,8 @@
 				</div>
 				<h3 class="mb-2 font-semibold text-neutral-800">Find the Right Provider</h3>
 				<p class="text-sm leading-relaxed text-neutral-500">
-					Connect with healthcare providers who specialize in menopause care and will
-					take your symptoms seriously.
+					Connect with healthcare providers who specialize in menopause care and will take your
+					symptoms seriously.
 				</p>
 			</div>
 		</div>
@@ -302,15 +302,14 @@
      ====================================================================== -->
 <section class="border-t border-neutral-100 bg-neutral-50 px-6 py-16">
 	<div class="mx-auto max-w-2xl text-center">
-		<p class="mb-3 text-xs font-semibold uppercase tracking-widest text-neutral-400">
+		<p class="mb-3 text-xs font-semibold tracking-widest text-neutral-400 uppercase">
 			A note about Meno
 		</p>
 		<p class="text-sm leading-relaxed text-neutral-500">
-			Meno provides educational information and symptom tracking. It is not a medical tool
-			and cannot diagnose conditions or replace the advice of a healthcare provider.
-			All information is sourced from peer-reviewed research and reputable medical
-			organizations. Meno is designed to help you have more informed conversations
-			with your doctor — not to replace them.
+			Meno provides educational information and symptom tracking. It is not a medical tool and
+			cannot diagnose conditions or replace the advice of a healthcare provider. All information is
+			sourced from peer-reviewed research and reputable medical organizations. Meno is designed to
+			help you have more informed conversations with your doctor — not to replace them.
 		</p>
 	</div>
 </section>
