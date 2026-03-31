@@ -11,6 +11,7 @@ Routes become thin wrappers that call one method and return the result.
 import json
 import logging
 from datetime import datetime, timedelta
+from pathlib import Path
 from typing import Any, Optional
 
 from app.exceptions import DatabaseError, EntityNotFoundError
@@ -28,6 +29,11 @@ from app.repositories.user_repository import UserRepository
 from app.services.llm import LLMService
 from app.services.pdf import PdfService
 from app.services.storage import StorageService
+from app.utils.prompt_formatting import (
+    format_cooccurrence_stats_for_prompt,
+    format_frequency_stats_for_prompt,
+    format_medications_for_prompt,
+)
 from app.utils.logging import hash_user_id, safe_len
 from app.utils.stats import calculate_cooccurrence_stats, calculate_frequency_stats
 
@@ -344,11 +350,13 @@ class AppointmentService:
             )
             raise DatabaseError("Failed to parse scenario suggestions from LLM")
 
-        # Build scenario cards
+        # Build scenario cards — scenarios_to_generate is now list[dict] with
+        # "title" and "category" keys (category comes from config/scenarios.json)
         scenario_cards: list[ScenarioCard] = []
-        for idx, (scenario_title, suggestion_data) in enumerate(
+        for idx, (scenario, suggestion_data) in enumerate(
             zip(scenarios_to_generate, suggestions_list)
         ):
+            scenario_title = scenario["title"]
             suggestion_text = (
                 suggestion_data.get("suggestion", "")
                 if isinstance(suggestion_data, dict)
@@ -365,7 +373,7 @@ class AppointmentService:
                     title=scenario_title,
                     situation=f"If your provider says: '{scenario_title}'",
                     suggestion=suggestion_text,
-                    category=self._get_scenario_category(scenario_title),
+                    category=scenario["category"],
                     sources=sources,
                 )
             )
@@ -604,32 +612,11 @@ class AppointmentService:
             "- End by noting these patterns are worth discussing with a provider"
         )
 
-        freq_lines = [
-            f"- {s.symptom_name} ({s.category}): logged {s.count} time(s)"
-            for s in frequency_stats[:10]
-        ]
-        freq_text = "\n".join(freq_lines) if freq_lines else "No symptom data."
-
-        coocc_lines = [
-            f"- {p.symptom1_name} + {p.symptom2_name}: "
-            f"co-occurred {p.cooccurrence_count} time(s) "
-            f"({round(p.cooccurrence_rate * 100)}% of {p.symptom1_name} logs)"
-            for p in cooccurrence_stats[:5]
-        ]
-        coocc_text = (
-            "\n".join(coocc_lines)
-            if coocc_lines
-            else "No notable co-occurrence patterns."
+        freq_text = format_frequency_stats_for_prompt(
+            frequency_stats, empty_msg="No symptom data."
         )
-
-        med_section = ""
-        if current_medications:
-            med_lines = [
-                f"- {m.medication_name} {m.dose} ({m.delivery_method})"
-                + (f", started {m.start_date}" if m.start_date else "")
-                for m in current_medications
-            ]
-            med_section = "\n\nCurrent MHT medications:\n" + "\n".join(med_lines)
+        coocc_text = format_cooccurrence_stats_for_prompt(cooccurrence_stats)
+        med_section = format_medications_for_prompt(current_medications or [])
 
         user_prompt = (
             f"Write a 2–3 paragraph clinical summary for a healthcare appointment. "
@@ -646,16 +633,34 @@ class AppointmentService:
 
         return system_prompt, user_prompt
 
+    def _load_scenario_config(self) -> dict:
+        """Load scenario config from JSON. Cached on the instance after first load."""
+        if not hasattr(self, "_scenario_config") or self._scenario_config is None:
+            config_path = (
+                Path(__file__).parent.parent.parent / "config" / "scenarios.json"
+            )
+            try:
+                with config_path.open() as f:
+                    self._scenario_config = json.load(f)
+            except FileNotFoundError as exc:
+                raise RuntimeError(
+                    f"Scenario config not found at {config_path}. "
+                    "Ensure config/scenarios.json is present."
+                ) from exc
+        return self._scenario_config
+
     def _select_scenarios(
         self, context: AppointmentContext, journey_stage: str
-    ) -> list[str]:
-        """Select 5-7 dismissal scenarios based on appointment context.
+    ) -> list[dict]:
+        """Select 5-7 dismissal scenarios from JSON config based on appointment context.
 
-        When goal is urgent_symptom, selects scenarios specific to that symptom.
-        For other goals, uses goal-specific dismissal scenarios.
+        Returns list[dict] where each dict has "title" (str) and "category" (str).
+        When goal is urgent_symptom, matches against keyword groups. Falls back to
+        goal-specific scenarios for other goals.
         """
+        config = self._load_scenario_config()
+        scenarios: list[dict] = []
         urgent_symptom = context.urgent_symptom
-        scenarios = []
 
         if context.goal.value == "urgent_symptom" and not urgent_symptom:
             urgent_symptom = "perimenopause symptoms"
@@ -665,244 +670,36 @@ class AppointmentService:
             and urgent_symptom
             and urgent_symptom != "perimenopause symptoms"
         ):
-            if (
-                "brain fog" in urgent_symptom.lower()
-                or "cognitive" in urgent_symptom.lower()
-                or "concentration" in urgent_symptom.lower()
-            ):
-                scenarios.extend(
-                    [
-                        "Cognitive symptoms don't respond to hormone therapy",
-                        "Brain fog is just normal aging",
-                        "That's probably anxiety, not hormones",
-                        "You should see a neurologist, not a gynecologist",
-                        "Cognitive decline at your stage is expected",
-                    ]
-                )
-            elif (
-                "hot flash" in urgent_symptom.lower()
-                or "vasomotor" in urgent_symptom.lower()
-            ):
-                scenarios.extend(
-                    [
-                        "Hormone therapy increases breast cancer risk",
-                        "Hot flashes will go away on their own",
-                        "You just need to dress in layers and use a fan",
-                        "Hot flashes aren't a real medical symptom",
-                        "Let's try an antidepressant first",
-                    ]
-                )
-            elif (
-                "sleep" in urgent_symptom.lower()
-                or "insomnia" in urgent_symptom.lower()
-                or "waking" in urgent_symptom.lower()
-            ):
-                scenarios.extend(
-                    [
-                        "Sleep disruption at your age is normal",
-                        "You should see a sleep specialist, not discuss hormones",
-                        "Melatonin or sleep hygiene will fix this",
-                        "Hormone therapy doesn't help sleep",
-                        "Let's try an antidepressant first",
-                    ]
-                )
-            elif "anxiety" in urgent_symptom.lower():
-                scenarios.extend(
-                    [
-                        "That sounds like anxiety disorder, you need a psychiatrist",
-                        "Let's try an antidepressant first",
-                        "Hormone therapy won't help anxiety",
-                        "You're just stressed, try meditation",
-                        "Anxiety medications are better than hormone therapy",
-                    ]
-                )
-            elif (
-                "vaginal" in urgent_symptom.lower()
-                or "dryness" in urgent_symptom.lower()
-                or "sexual" in urgent_symptom.lower()
-            ):
-                scenarios.extend(
-                    [
-                        "Just use lube, that's the standard treatment",
-                        "That's a gynecology issue, not a hormone issue",
-                        "Vaginal issues are normal at this stage",
-                        "You don't need systemic treatment for local symptoms",
-                        "Let's try an antidepressant first",
-                    ]
-                )
-            elif "joint" in urgent_symptom.lower() or "pain" in urgent_symptom.lower():
-                scenarios.extend(
-                    [
-                        "Joint pain isn't related to hormones",
-                        "You should see a rheumatologist",
-                        "That's just arthritis, not perimenopause",
-                        "Exercise will fix this, not hormones",
-                        "Your symptoms aren't severe enough to treat",
-                    ]
-                )
-            elif (
-                "bladder" in urgent_symptom.lower()
-                or "urinary" in urgent_symptom.lower()
-                or "incontinence" in urgent_symptom.lower()
-            ):
-                scenarios.extend(
-                    [
-                        "Bladder issues are gynecological, not hormonal",
-                        "You need pelvic floor physical therapy, not hormones",
-                        "That's normal at your stage, you'll have to manage it",
-                        "Kegel exercises should be enough",
-                        "Hormone therapy doesn't help bladder symptoms",
-                    ]
-                )
-            elif (
-                "mood" in urgent_symptom.lower()
-                or "depression" in urgent_symptom.lower()
-            ):
-                scenarios.extend(
-                    [
-                        "That sounds like depression, you need an antidepressant",
-                        "Hormone therapy isn't approved for mood",
-                        "You should see a psychiatrist",
-                        "Mood changes are psychological, not hormonal",
-                        "Let's try an antidepressant first",
-                    ]
-                )
-            elif (
-                "fatigue" in urgent_symptom.lower() or "tired" in urgent_symptom.lower()
-            ):
-                scenarios.extend(
-                    [
-                        "Fatigue is normal aging, not hormonal",
-                        "You just need better sleep hygiene",
-                        "That sounds like thyroid or anemia, let me check labs",
-                        "Hormone therapy won't fix your energy",
-                        "You should get more exercise",
-                    ]
-                )
-            elif (
-                "skin" in urgent_symptom.lower()
-                or "hair" in urgent_symptom.lower()
-                or "nail" in urgent_symptom.lower()
-            ):
-                scenarios.extend(
-                    [
-                        "Skin changes are cosmetic, not medical",
-                        "You should see a dermatologist",
-                        "That's not related to perimenopause",
-                        "Hair loss is normal aging",
-                        "Hormone therapy doesn't improve skin quality",
-                    ]
-                )
-            else:
-                scenarios.extend(
-                    [
-                        "That symptom isn't really related to perimenopause",
-                        "Your symptoms aren't severe enough to treat",
-                        "Let's wait and see if it gets better",
-                        "That's probably something else, not hormones",
-                    ]
-                )
-            scenarios.extend(
-                [
-                    "Your symptoms will go away on their own",
-                    "You're just stressed or anxious",
-                ]
-            )
+            # Find the first keyword group that matches the symptom text
+            symptom_lower = urgent_symptom.lower()
+            matched = False
+            for group in config["symptom_scenarios"].values():
+                if any(kw in symptom_lower for kw in group["keywords"]):
+                    scenarios.extend(group["dismissals"])
+                    matched = True
+                    break
+
+            if not matched:
+                scenarios.extend(config["urgent_fallback_scenarios"])
+
+            scenarios.extend(config["universal_scenarios"])
         else:
-            if context.goal.value == "explore_hrt":
-                scenarios.extend(
-                    [
-                        "Hormone therapy increases breast cancer risk",
-                        "I don't prescribe that, I give the birth control pill instead",
-                        "Let's try an antidepressant first",
-                    ]
-                )
-            elif context.goal.value == "optimize_current_treatment":
-                scenarios.extend(
-                    [
-                        "Your symptoms aren't severe enough to treat",
-                        "That dose is already too high",
-                        "Let's try lifestyle changes first",
-                    ]
-                )
-            elif context.goal.value == "assess_status":
-                scenarios.extend(
-                    [
-                        "Your symptoms will go away on their own",
-                        "You're just stressed or anxious",
-                    ]
-                )
+            goal_key = context.goal.value
+            scenarios.extend(config["goal_scenarios"].get(goal_key, []))
+            # Note: dismissed_before scenarios removed — "What are the triggers?"
+            # is an open question, not a dismissal scenario (see config/_dismissed_before_removed)
 
-            if context.dismissed_before.value == "multiple_times":
-                scenarios.extend(["What are the triggers?"])
-            elif context.dismissed_before.value == "once_or_twice":
-                scenarios.extend(["What are the triggers?"])
-
-        # Deduplicate and limit to 7
-        scenarios = list(dict.fromkeys(scenarios))[:7]
+        # Deduplicate preserving order, cap at 7
+        seen: set[str] = set()
+        unique: list[dict] = []
+        for s in scenarios:
+            if s["title"] not in seen:
+                unique.append(s)
+                seen.add(s["title"])
 
         logger.info(
             "Selected %d scenarios, has_urgent=%s",
-            len(scenarios),
+            len(unique),
             bool(urgent_symptom),
         )
-        return scenarios
-
-    def _get_scenario_category(self, title: str) -> str:
-        """Determine scenario category from dismissal title for frontend grouping."""
-        title_lower = title.lower()
-
-        if "breast cancer" in title_lower or "hormone therapy increases" in title_lower:
-            return "hrt-safety"
-        elif "antidepressant" in title_lower or "psychiatrist" in title_lower:
-            return "wrong-specialist"
-        elif (
-            "normal" in title_lower
-            or "aging" in title_lower
-            or "expected" in title_lower
-            or "natural" in title_lower
-        ):
-            return "normalization"
-        elif (
-            "specialist" in title_lower
-            or "dermatologist" in title_lower
-            or "rheumatologist" in title_lower
-            or "neurologist" in title_lower
-            or "sleep specialist" in title_lower
-        ):
-            return "specialist-referral"
-        elif (
-            "won't help" in title_lower
-            or "doesn't" in title_lower
-            or "not related" in title_lower
-            or "isn't" in title_lower
-        ):
-            return "dismissal"
-        elif (
-            "lube" in title_lower
-            or "kegel" in title_lower
-            or "lifestyle" in title_lower
-            or "meditation" in title_lower
-            or "hygiene" in title_lower
-            or "dress" in title_lower
-            or "fan" in title_lower
-        ):
-            return "lifestyle-only"
-        elif "go away" in title_lower or "wait" in title_lower:
-            return "wait-and-see"
-        elif (
-            "stressed" in title_lower
-            or "anxious" in title_lower
-            or "psychological" in title_lower
-            or "anxiety" in title_lower
-        ):
-            return "psychology"
-        elif (
-            "severe" in title_lower
-            or "enough" in title_lower
-            or "dose" in title_lower
-            or "high" in title_lower
-        ):
-            return "dismissal"
-        else:
-            return "general"
+        return unique

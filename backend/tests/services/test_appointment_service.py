@@ -380,6 +380,13 @@ class TestGeneratePdf:
 
 
 class TestSelectScenarios:
+    """Tests for _select_scenarios() after JSON-config refactor.
+
+    _select_scenarios() returns list[dict] where each dict has "title" (str)
+    and "category" (str). _get_scenario_category() has been deleted — category
+    comes directly from the JSON config.
+    """
+
     def _make_service(self):
         """Create service instance without initializing deps."""
         return AppointmentService.__new__(AppointmentService)
@@ -392,68 +399,221 @@ class TestSelectScenarios:
             urgent_symptom=urgent,
         )
 
-    def test_explore_hrt_selects_hrt_scenarios(self):
+    def _titles(self, scenarios: list) -> list[str]:
+        """Extract title strings from scenario dicts."""
+        return [s["title"] for s in scenarios]
+
+    # ── Return type contract ─────────────────────────────────────────────────
+
+    def test_returns_list_of_dicts(self):
+        # CATCHES: still returning list[str] after refactor — callers that
+        # unpack s["title"] and s["category"] would crash with TypeError
         svc = self._make_service()
         ctx = self._context(AppointmentGoal.explore_hrt)
         scenarios = svc._select_scenarios(ctx, "perimenopause")
+        assert isinstance(scenarios, list)
+        assert all(isinstance(s, dict) for s in scenarios)
 
-        assert any(
-            "hormone therapy" in s.lower() or "breast cancer" in s.lower()
-            for s in scenarios
-        )
-
-    def test_urgent_hot_flash_selects_vasomotor_scenarios(self):
-        svc = self._make_service()
-        ctx = self._context(AppointmentGoal.urgent_symptom, urgent="hot flashes")
-        scenarios = svc._select_scenarios(ctx, "perimenopause")
-
-        assert any(
-            "hot flash" in s.lower() or "vasomotor" in s.lower() or "layer" in s.lower()
-            for s in scenarios
-        )
-
-    def test_result_is_deduplicated(self):
+    def test_each_dict_has_title_and_category(self):
+        # CATCHES: missing "category" key — generate_scenarios() reads
+        # s["category"] to build ScenarioCard and would raise KeyError
         svc = self._make_service()
         ctx = self._context(AppointmentGoal.explore_hrt)
         scenarios = svc._select_scenarios(ctx, "perimenopause")
-
-        assert len(scenarios) == len(set(scenarios))
+        for s in scenarios:
+            assert "title" in s, f"Missing 'title' key in {s}"
+            assert "category" in s, f"Missing 'category' key in {s}"
+            assert isinstance(s["title"], str)
+            assert isinstance(s["category"], str)
 
     def test_result_has_at_most_7_scenarios(self):
+        # CATCHES: removing the [:7] cap — generate_scenarios() zips the
+        # scenario list with LLM suggestions and must stay within token budget
         svc = self._make_service()
         ctx = self._context(AppointmentGoal.urgent_symptom, urgent="brain fog")
         scenarios = svc._select_scenarios(ctx, "perimenopause")
-
         assert len(scenarios) <= 7
 
-
-# ---------------------------------------------------------------------------
-# _get_scenario_category (private helper)
-# ---------------------------------------------------------------------------
-
-
-class TestGetScenarioCategory:
-    def _make_service(self):
-        return AppointmentService.__new__(AppointmentService)
-
-    def test_hormone_therapy_risk_returns_hrt_safety(self):
+    def test_result_is_deduplicated_by_title(self):
+        # CATCHES: dedup using set() on dicts (unhashable) or not deduplicating
+        # at all — explore_hrt + universal both contain "will go away" strings
         svc = self._make_service()
-        assert (
-            svc._get_scenario_category("Hormone therapy increases breast cancer risk")
-            == "hrt-safety"
+        ctx = self._context(AppointmentGoal.explore_hrt)
+        scenarios = svc._select_scenarios(ctx, "perimenopause")
+        titles = self._titles(scenarios)
+        assert len(titles) == len(set(titles))
+
+    # ── Goal-based routing ───────────────────────────────────────────────────
+
+    def test_explore_hrt_includes_hrt_safety_scenario(self):
+        # CATCHES: wrong goal key lookup — explore_hrt maps to wrong group
+        # and returns unrelated scenarios
+        svc = self._make_service()
+        ctx = self._context(AppointmentGoal.explore_hrt)
+        scenarios = svc._select_scenarios(ctx, "perimenopause")
+        titles = self._titles(scenarios)
+        assert any(
+            "breast cancer" in t.lower() or "hormone therapy increases" in t.lower()
+            for t in titles
         )
 
-    def test_aging_normalization_returns_normalization(self):
+    def test_explore_hrt_scenario_has_hrt_safety_category(self):
+        # CATCHES: assigning wrong category to HRT risk scenario — frontend
+        # groups scenarios by category for display
         svc = self._make_service()
-        assert svc._get_scenario_category("That's just normal aging") == "normalization"
+        ctx = self._context(AppointmentGoal.explore_hrt)
+        scenarios = svc._select_scenarios(ctx, "perimenopause")
+        hrt_risk = next(
+            (s for s in scenarios if "breast cancer" in s["title"].lower()), None
+        )
+        assert hrt_risk is not None
+        assert hrt_risk["category"] == "hrt-safety"
 
-    def test_antidepressant_returns_wrong_specialist(self):
+    def test_optimize_current_treatment_includes_severity_dismissal(self):
+        # CATCHES: optimize_current_treatment mapping to wrong group —
+        # "aren't severe enough" scenario is specific to this goal
         svc = self._make_service()
-        assert (
-            svc._get_scenario_category("Let's try an antidepressant first")
-            == "wrong-specialist"
+        ctx = self._context(AppointmentGoal.optimize_current_treatment)
+        scenarios = svc._select_scenarios(ctx, "perimenopause")
+        titles = self._titles(scenarios)
+        assert any("severe" in t.lower() or "lifestyle" in t.lower() for t in titles)
+
+    def test_assess_status_includes_wait_and_see_scenario(self):
+        # CATCHES: assess_status falling through to empty — goal value typo
+        # or missing key in JSON would return zero scenarios
+        svc = self._make_service()
+        ctx = self._context(AppointmentGoal.assess_status)
+        scenarios = svc._select_scenarios(ctx, "perimenopause")
+        titles = self._titles(scenarios)
+        assert any("go away" in t.lower() or "stressed" in t.lower() for t in titles)
+
+    # ── Urgent-symptom keyword routing ───────────────────────────────────────
+
+    def test_urgent_cognitive_selects_cognitive_scenarios(self):
+        # CATCHES: keyword "brain fog" not matching cognitive group — user
+        # selecting brain fog as urgent symptom gets generic scenarios
+        svc = self._make_service()
+        ctx = self._context(AppointmentGoal.urgent_symptom, urgent="brain fog")
+        scenarios = svc._select_scenarios(ctx, "perimenopause")
+        titles = self._titles(scenarios)
+        assert any("brain fog" in t.lower() or "cognitive" in t.lower() for t in titles)
+
+    def test_urgent_hot_flash_selects_vasomotor_scenarios(self):
+        # CATCHES: vasomotor keyword not matched — hot flash scenarios missing
+        svc = self._make_service()
+        ctx = self._context(AppointmentGoal.urgent_symptom, urgent="hot flashes")
+        scenarios = svc._select_scenarios(ctx, "perimenopause")
+        titles = self._titles(scenarios)
+        assert any(
+            "hot flash" in t.lower() or "layer" in t.lower() or "antidepressant" in t.lower()
+            for t in titles
         )
 
-    def test_unknown_returns_general(self):
+    def test_urgent_sleep_selects_sleep_scenarios(self):
+        # CATCHES: sleep keyword missing from config — insomnia scenarios silently
+        # fall through to generic fallback
         svc = self._make_service()
-        assert svc._get_scenario_category("This is an unknown scenario") == "general"
+        ctx = self._context(AppointmentGoal.urgent_symptom, urgent="insomnia")
+        scenarios = svc._select_scenarios(ctx, "perimenopause")
+        titles = self._titles(scenarios)
+        assert any("sleep" in t.lower() or "melatonin" in t.lower() for t in titles)
+
+    def test_urgent_anxiety_selects_anxiety_scenarios(self):
+        # CATCHES: anxiety keyword match broken — gets generic dismissals
+        svc = self._make_service()
+        ctx = self._context(AppointmentGoal.urgent_symptom, urgent="anxiety")
+        scenarios = svc._select_scenarios(ctx, "perimenopause")
+        titles = self._titles(scenarios)
+        assert any("meditation" in t.lower() or "psychiatrist" in t.lower() for t in titles)
+
+    def test_urgent_vaginal_selects_vaginal_scenarios(self):
+        # CATCHES: vaginal keyword group missing or wrong — patient with vaginal
+        # dryness gets unrelated scenarios
+        svc = self._make_service()
+        ctx = self._context(AppointmentGoal.urgent_symptom, urgent="vaginal dryness")
+        scenarios = svc._select_scenarios(ctx, "perimenopause")
+        titles = self._titles(scenarios)
+        assert any("lube" in t.lower() or "vaginal" in t.lower() for t in titles)
+
+    def test_urgent_joint_pain_selects_joint_scenarios(self):
+        # CATCHES: "pain" keyword not in joint group — user with joint pain
+        # falls through to generic fallback silently
+        svc = self._make_service()
+        ctx = self._context(AppointmentGoal.urgent_symptom, urgent="joint pain")
+        scenarios = svc._select_scenarios(ctx, "perimenopause")
+        titles = self._titles(scenarios)
+        assert any("rheumatologist" in t.lower() or "arthritis" in t.lower() for t in titles)
+
+    def test_urgent_bladder_selects_bladder_scenarios(self):
+        # CATCHES: bladder group missing from JSON entirely — this was the
+        # primary gap in the original PRD spec
+        svc = self._make_service()
+        ctx = self._context(AppointmentGoal.urgent_symptom, urgent="bladder leakage")
+        scenarios = svc._select_scenarios(ctx, "perimenopause")
+        titles = self._titles(scenarios)
+        assert any("kegel" in t.lower() or "pelvic" in t.lower() or "bladder" in t.lower() for t in titles)
+
+    def test_urgent_urinary_keyword_also_matches_bladder_group(self):
+        # CATCHES: only "bladder" keyword in group — "urinary" issues miss the
+        # group and get generic fallback
+        svc = self._make_service()
+        ctx = self._context(AppointmentGoal.urgent_symptom, urgent="urinary incontinence")
+        scenarios = svc._select_scenarios(ctx, "perimenopause")
+        titles = self._titles(scenarios)
+        assert any("kegel" in t.lower() or "pelvic" in t.lower() or "bladder" in t.lower() for t in titles)
+
+    def test_urgent_mood_selects_mood_scenarios(self):
+        # CATCHES: "depression" keyword not matched — mood/depression scenarios
+        # fallthrough to generic
+        svc = self._make_service()
+        ctx = self._context(AppointmentGoal.urgent_symptom, urgent="depression and mood changes")
+        scenarios = svc._select_scenarios(ctx, "perimenopause")
+        titles = self._titles(scenarios)
+        assert any("antidepressant" in t.lower() or "psychological" in t.lower() for t in titles)
+
+    def test_urgent_fatigue_selects_fatigue_scenarios(self):
+        # CATCHES: "tired" keyword not in fatigue group — user reporting
+        # tiredness gets wrong scenarios
+        svc = self._make_service()
+        ctx = self._context(AppointmentGoal.urgent_symptom, urgent="feeling tired all the time")
+        scenarios = svc._select_scenarios(ctx, "perimenopause")
+        titles = self._titles(scenarios)
+        assert any("fatigue" in t.lower() or "thyroid" in t.lower() or "exercise" in t.lower() for t in titles)
+
+    def test_urgent_skin_hair_selects_skin_scenarios(self):
+        # CATCHES: "hair" keyword missing — hair loss symptom falls through
+        # to generic fallback
+        svc = self._make_service()
+        ctx = self._context(AppointmentGoal.urgent_symptom, urgent="hair loss")
+        scenarios = svc._select_scenarios(ctx, "perimenopause")
+        titles = self._titles(scenarios)
+        assert any("dermatologist" in t.lower() or "hair" in t.lower() for t in titles)
+
+    def test_unknown_keyword_uses_fallback_scenarios(self):
+        # CATCHES: no fallback group in JSON — unknown symptom returns empty
+        # list which causes generate_scenarios() to produce 0 cards
+        svc = self._make_service()
+        ctx = self._context(AppointmentGoal.urgent_symptom, urgent="completely unknown symptom xyz")
+        scenarios = svc._select_scenarios(ctx, "perimenopause")
+        assert len(scenarios) > 0
+
+    def test_urgent_path_appends_universal_scenarios(self):
+        # CATCHES: universal scenarios not appended in urgent path — "will go
+        # away on their own" scenario always applies but would be missing
+        svc = self._make_service()
+        ctx = self._context(AppointmentGoal.urgent_symptom, urgent="brain fog")
+        scenarios = svc._select_scenarios(ctx, "perimenopause")
+        titles = self._titles(scenarios)
+        assert any("go away" in t.lower() or "stressed" in t.lower() for t in titles)
+
+    def test_dismissed_before_does_not_affect_scenarios(self):
+        # CATCHES: dismissed_before logic still present after refactor —
+        # "What are the triggers?" is not a dismissal scenario and was removed
+        svc = self._make_service()
+        ctx = self._context(
+            AppointmentGoal.explore_hrt,
+            dismissed=DismissalExperience.multiple_times,
+        )
+        scenarios = svc._select_scenarios(ctx, "perimenopause")
+        titles = self._titles(scenarios)
+        assert not any("triggers" in t.lower() for t in titles)
