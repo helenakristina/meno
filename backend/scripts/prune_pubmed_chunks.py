@@ -8,16 +8,16 @@ Non-PubMed sources (Menopause Wiki, etc.) are never touched.
 
 Usage:
     # Dry run — see what would be deleted without deleting anything
-    python scripts/prune_pubmed_chunks.py --dry-run
+    uv run scripts/prune_pubmed_chunks.py --dry-run
 
     # Actually delete
-    python scripts/prune_pubmed_chunks.py
+    uv run scripts/prune_pubmed_chunks.py
 
     # Custom similarity threshold (default 0.25)
-    python scripts/prune_pubmed_chunks.py --threshold 0.30
+    uv run scripts/prune_pubmed_chunks.py --threshold 0.30
 
     # Custom top-k per query (default 20)
-    python scripts/prune_pubmed_chunks.py --top-k 30
+    uv run scripts/prune_pubmed_chunks.py --top-k 30
 """
 
 import argparse
