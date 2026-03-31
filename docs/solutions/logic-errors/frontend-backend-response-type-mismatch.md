@@ -21,16 +21,16 @@ The medication Impact page crashed on load with `TypeError: Cannot read properti
 
 The `SymptomComparisonResponse` and `ComparisonRow` interfaces in `api.ts` were written before (or without reference to) the actual backend Pydantic models. The divergence was total — every field name or structure was wrong:
 
-| Frontend expected | Backend actually returned | Crash impact |
-|---|---|---|
-| `comparison_rows: ComparisonRow[]` | `rows: ComparisonRow[]` | `data.comparison_rows.length` → undefined `.length` |
-| `before_window: { start, end }` | `before_start`, `before_end` (flat) | Nested access fails |
-| `after_window: { start, end }` | `after_start`, `after_end` (flat) | Nested access fails |
-| `sparse_data: boolean` | `before_is_sparse`, `after_is_sparse` | Wrong field name |
-| `before_frequency: number` | `before_pct: number` | Wrong field name |
-| `after_frequency: number` | `after_pct: number` | Wrong field name |
-| `direction: 'unchanged'` | `direction: 'stable'` | String comparison always false |
-| (missing) | `has_after_data: boolean` | No UI state for "too recent" medications |
+| Frontend expected                  | Backend actually returned             | Crash impact                                        |
+| ---------------------------------- | ------------------------------------- | --------------------------------------------------- |
+| `comparison_rows: ComparisonRow[]` | `rows: ComparisonRow[]`               | `data.comparison_rows.length` → undefined `.length` |
+| `before_window: { start, end }`    | `before_start`, `before_end` (flat)   | Nested access fails                                 |
+| `after_window: { start, end }`     | `after_start`, `after_end` (flat)     | Nested access fails                                 |
+| `sparse_data: boolean`             | `before_is_sparse`, `after_is_sparse` | Wrong field name                                    |
+| `before_frequency: number`         | `before_pct: number`                  | Wrong field name                                    |
+| `after_frequency: number`          | `after_pct: number`                   | Wrong field name                                    |
+| `direction: 'unchanged'`           | `direction: 'stable'`                 | String comparison always false                      |
+| (missing)                          | `has_after_data: boolean`             | No UI state for "too recent" medications            |
 
 The bug was invisible until the page was visited because `as any` casts in the API client bypassed all TypeScript checking.
 
@@ -39,29 +39,31 @@ The bug was invisible until the page was visited because `as any` casts in the A
 Rewrote both interfaces to exactly match the backend Pydantic model field names and types.
 
 **Before (wrong):**
+
 ```typescript
 export interface ComparisonRow {
   symptom_name: string;
   category: string;
-  before_frequency: number;  // ← doesn't exist
-  after_frequency: number;   // ← doesn't exist
-  change_pct: number;        // ← doesn't exist
-  direction: 'improved' | 'worsened' | 'unchanged';  // ← 'unchanged' doesn't exist
+  before_frequency: number; // ← doesn't exist
+  after_frequency: number; // ← doesn't exist
+  change_pct: number; // ← doesn't exist
+  direction: "improved" | "worsened" | "unchanged"; // ← 'unchanged' doesn't exist
 }
 
 export interface SymptomComparisonResponse {
   medication_name: string;
   medication_id: string;
   start_date: string;
-  before_window: { start: string; end: string };  // ← doesn't exist (nested)
-  after_window: { start: string; end: string };   // ← doesn't exist (nested)
-  comparison_rows: ComparisonRow[];               // ← doesn't exist
-  sparse_data: boolean;                           // ← doesn't exist
+  before_window: { start: string; end: string }; // ← doesn't exist (nested)
+  after_window: { start: string; end: string }; // ← doesn't exist (nested)
+  comparison_rows: ComparisonRow[]; // ← doesn't exist
+  sparse_data: boolean; // ← doesn't exist
   has_confounding_changes: boolean;
 }
 ```
 
 **After (correct — matches backend `SymptomComparisonResponse` Pydantic model):**
+
 ```typescript
 export interface ComparisonRow {
   symptom_id: string;
@@ -69,11 +71,11 @@ export interface ComparisonRow {
   category: string;
   before_count: number;
   before_days: number;
-  before_pct: number;   // 0–100
+  before_pct: number; // 0–100
   after_count: number;
   after_days: number;
-  after_pct: number;    // 0–100
-  direction: 'improved' | 'worsened' | 'stable';  // 'stable', not 'unchanged'
+  after_pct: number; // 0–100
+  direction: "improved" | "worsened" | "stable"; // 'stable', not 'unchanged'
 }
 
 export interface SymptomComparisonResponse {
@@ -83,17 +85,17 @@ export interface SymptomComparisonResponse {
   delivery_method: string;
   start_date: string;
   end_date: string | null;
-  before_start: string | null;   // flat, not nested
+  before_start: string | null; // flat, not nested
   before_end: string | null;
   after_start: string | null;
   after_end: string | null;
   window_days: number;
-  has_after_data: boolean;       // new — "too early to compare"
+  has_after_data: boolean; // new — "too early to compare"
   before_log_days: number;
   after_log_days: number;
   before_is_sparse: boolean;
   after_is_sparse: boolean;
-  rows: ComparisonRow[];         // not comparison_rows
+  rows: ComparisonRow[]; // not comparison_rows
   has_confounding_changes: boolean;
 }
 ```
@@ -118,6 +120,7 @@ Types written speculatively (before the backend exists, or without reading the a
    ```
 
 **Quick verification — check a live response shape:**
+
 ```bash
 # Export OpenAPI schema from running backend
 curl http://localhost:8000/openapi.json | \
@@ -125,6 +128,7 @@ curl http://localhost:8000/openapi.json | \
 ```
 
 **PR review checklist item:**
+
 > For any new or changed API endpoint, confirm the TypeScript interface in `api.ts` was derived from the actual Pydantic `response_model=`, not written from memory.
 
 ## Related

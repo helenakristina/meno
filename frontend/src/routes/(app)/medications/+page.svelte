@@ -95,13 +95,13 @@
 								<div class="flex gap-2">
 									<a
 										href="/medications/{med.id}/impact"
-										class="min-h-[44px] flex items-center rounded-md border border-neutral-200 px-3 py-1.5 text-xs font-medium text-neutral-700 hover:border-neutral-300 hover:bg-neutral-50"
+										class="flex min-h-[44px] items-center rounded-md border border-neutral-200 px-3 py-1.5 text-xs font-medium text-neutral-700 hover:border-neutral-300 hover:bg-neutral-50"
 									>
 										Impact
 									</a>
 									<a
 										href="/medications/{med.id}"
-										class="min-h-[44px] flex items-center rounded-md border border-neutral-200 px-3 py-1.5 text-xs font-medium text-neutral-700 hover:border-neutral-300 hover:bg-neutral-50"
+										class="flex min-h-[44px] items-center rounded-md border border-neutral-200 px-3 py-1.5 text-xs font-medium text-neutral-700 hover:border-neutral-300 hover:bg-neutral-50"
 									>
 										View
 									</a>
@@ -132,7 +132,7 @@
 								</div>
 								<a
 									href="/medications/{med.id}"
-									class="min-h-[44px] flex items-center rounded-md border border-neutral-200 px-3 py-1.5 text-xs font-medium text-neutral-700 hover:border-neutral-300 hover:bg-neutral-50"
+									class="flex min-h-[44px] items-center rounded-md border border-neutral-200 px-3 py-1.5 text-xs font-medium text-neutral-700 hover:border-neutral-300 hover:bg-neutral-50"
 								>
 									View
 								</a>

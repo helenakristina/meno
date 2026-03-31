@@ -1298,7 +1298,7 @@ Follow the patterns in CLAUDE.md "Service Layer" section and reference Context7 
 Requirements:
 
 - Use dependency injection with Abstract Base Classes (ABC)
-  - Define dependency as ABC in [service_name]_base.py
+  - Define dependency as ABC in [service_name]\_base.py
   - Implement concrete class inheriting from ABC
   - Inject via FastAPI Depends() in routes
   - See Part 1: Dependency Injection for pattern
@@ -1311,7 +1311,7 @@ Requirements:
 
 Use this structure:
 
-1. Define dependency interface as ABC in [service_name]_base.py
+1. Define dependency interface as ABC in [service_name]\_base.py
 2. Create service class with injected dependency
 3. Implement methods
 4. Create tests with mocked dependency
@@ -1350,6 +1350,7 @@ Data model (from DESIGN.md):
 [Paste relevant schema info]
 
 Pydantic models to use (or create if missing):
+
 - [Entity]Context or similar from app/models/[entity].py
 - See "Repository Return Types: Pydantic Models" subsection for examples
 
@@ -1361,7 +1362,7 @@ Reference:
 - DESIGN.md: Data model and schema information
 - Context7 MCP: For Supabase SDK patterns
 
-Start with the Pydantic model definition, then class definition and __init__, then implement each CRUD method returning typed models.
+Start with the Pydantic model definition, then class definition and **init**, then implement each CRUD method returning typed models.
 ```
 
 ### Prompt for Route Creation
@@ -1494,6 +1495,7 @@ Before committing code, verify:
 ### Why Retry?
 
 External services (OpenAI, Claude, Supabase, etc.) can fail transiently:
+
 - **Rate limits (429)** — common when processing lots of LLM calls
 - **Timeouts** — network latency, service load
 - **Connection errors** — temporary network issues
@@ -1567,15 +1569,15 @@ class OpenAIProvider:
 
 ### Retry Behavior Summary
 
-| Scenario | Behavior |
-|----------|----------|
-| Success on 1st attempt | Return immediately |
-| Timeout on 1st, success on 2nd | Wait 1s, retry, return |
-| Timeout on 1st & 2nd, success on 3rd | Wait 1s, retry, wait 2s, retry, return |
-| Timeout on all 3 attempts | Wait 1s, 2s, 4s, then raise error to caller |
-| 401 Unauthorized | Don't retry, raise immediately |
-| 404 Not Found | Don't retry, raise immediately |
-| Rate limit (429) | Retry with exponential backoff (up to 10s waits) |
+| Scenario                             | Behavior                                         |
+| ------------------------------------ | ------------------------------------------------ |
+| Success on 1st attempt               | Return immediately                               |
+| Timeout on 1st, success on 2nd       | Wait 1s, retry, return                           |
+| Timeout on 1st & 2nd, success on 3rd | Wait 1s, retry, wait 2s, retry, return           |
+| Timeout on all 3 attempts            | Wait 1s, 2s, 4s, then raise error to caller      |
+| 401 Unauthorized                     | Don't retry, raise immediately                   |
+| 404 Not Found                        | Don't retry, raise immediately                   |
+| Rate limit (429)                     | Retry with exponential backoff (up to 10s waits) |
 
 ### Customizing Retry Behavior
 
@@ -1594,12 +1596,14 @@ async def call_fast_api():
 ### When to Add @retry_transient
 
 **YES, add retry:**
+
 - External API calls (OpenAI, Claude, Anthropic, Supabase storage, etc.)
 - Any network-dependent operation
 - LLM provider methods
 - Storage/file upload operations
 
 **NO, don't add retry:**
+
 - Database queries (connection is separate from query)
 - Local function calls
 - Validation logic
@@ -1633,6 +1637,7 @@ async def test_retries_on_timeout():
 ### Implementation Details
 
 See `backend/app/utils/retry.py`:
+
 - `retry_transient()` — Decorator that applies retry logic
 - `is_retryable_exception()` — Determines if exception is transient
 - Automatically logs each retry attempt as warning
@@ -1846,6 +1851,7 @@ def test_calculate_frequency_stats():
 This section shows how a real feature comes together across all layers:
 
 **Files involved:**
+
 - `app/models/appointment.py` — Pydantic models
 - `app/repositories/appointment_repository.py` — Data access
 - `app/services/appointment.py` — Business logic orchestration
@@ -1854,6 +1860,7 @@ This section shows how a real feature comes together across all layers:
 - `backend/tests/services/test_appointment.py` — Unit tests
 
 **Build order:**
+
 1. Models (shapes)
 2. Repositories (data access)
 3. Services (orchestration)
@@ -1862,6 +1869,7 @@ This section shows how a real feature comes together across all layers:
 6. Tests (verification)
 
 **Key patterns demonstrated:**
+
 - Dependency injection (each layer declares its dependencies)
 - Domain exceptions (EntityNotFoundError, DatabaseError)
 - Typed return values (Pydantic models)

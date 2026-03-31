@@ -175,7 +175,7 @@
 									dismissCard(card);
 								}}
 								aria-label="Dismiss {card.name}"
-								class="absolute right-2 top-2 flex h-6 w-6 items-center justify-center rounded-full text-neutral-400 transition-colors hover:bg-neutral-100 hover:text-neutral-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-neutral-300"
+								class="absolute top-2 right-2 flex h-6 w-6 items-center justify-center rounded-full text-neutral-400 transition-colors hover:bg-neutral-100 hover:text-neutral-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-neutral-300"
 							>
 								<svg
 									xmlns="http://www.w3.org/2000/svg"
@@ -222,7 +222,7 @@
 				class="mb-5 rounded-xl border border-primary-100 bg-primary-50/60 p-4"
 				aria-label="Selected symptoms"
 			>
-				<p class="mb-3 text-xs font-semibold uppercase tracking-wide text-primary-600">
+				<p class="mb-3 text-xs font-semibold tracking-wide text-primary-600 uppercase">
 					{selectedSymptoms.length} symptom{selectedSymptoms.length === 1 ? '' : 's'} selected
 				</p>
 				<div class="flex flex-wrap gap-2">
@@ -230,7 +230,7 @@
 						<span
 							in:fly={{ x: -4, duration: 150 }}
 							out:fade={{ duration: 100 }}
-							class="flex items-center gap-1.5 rounded-full bg-primary-100 py-1 pl-3 pr-2 text-sm font-medium text-primary-800"
+							class="flex items-center gap-1.5 rounded-full bg-primary-100 py-1 pr-2 pl-3 text-sm font-medium text-primary-800"
 						>
 							{symptom.name}
 							<button
@@ -266,7 +266,7 @@
 					bind:value={freeText}
 					placeholder="Describe anything else in your own words..."
 					rows="3"
-					class="w-full resize-none rounded-xl border border-neutral-200 bg-white px-4 py-3 text-sm text-neutral-700 shadow-sm transition-colors placeholder:text-neutral-400 focus:border-primary-400 focus:outline-none focus:ring-2 focus:ring-primary-200"
+					class="w-full resize-none rounded-xl border border-neutral-200 bg-white px-4 py-3 text-sm text-neutral-700 shadow-sm transition-colors placeholder:text-neutral-400 focus:border-primary-400 focus:ring-2 focus:ring-primary-200 focus:outline-none"
 				></textarea>
 			</div>
 

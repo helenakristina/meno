@@ -18,6 +18,7 @@ Route-level tests mock the service entirely, so they never exercise the reposito
 ## Solution
 
 Add repository-layer tests that verify:
+
 1. Both `.eq("id", ...)` and `.eq("user_id", ...)` are called during PATCH/DELETE
 2. When the combined filter returns 0 rows (simulating a different user's log), `EntityNotFoundError` is raised
 
@@ -49,6 +50,7 @@ class TestUpdateLogOwnership:
 ## Prevention
 
 For any repository method that modifies or deletes data:
+
 - Add a test that asserts the `user_id` filter is applied (check `chain.eq.call_args_list`)
 - Add a test where the DB returns 0 rows (simulating ownership mismatch) and assert `EntityNotFoundError`
 - Route-level tests alone are insufficient for IDOR coverage — they never reach the DB layer

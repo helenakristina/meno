@@ -39,6 +39,7 @@ The **Most Frequent Symptoms** card shows a horizontal bar chart of your top 10 
 ![Frequency chart](screenshots/12-dashboard-chart.png)
 
 Each row shows:
+
 - The symptom name on the left
 - A teal bar whose length is proportional to how often it appeared — the longest bar is always your most frequent symptom
 - The exact count on the right

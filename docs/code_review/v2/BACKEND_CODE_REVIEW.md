@@ -21,16 +21,16 @@ The infrastructure for doing things right exists (`app/exceptions.py`, `app/util
 
 ## Compliance by Category
 
-| Category | Score | Status |
-|----------|-------|--------|
-| Domain Exceptions | 3% | CRITICAL |
-| PII-Safe Logging | 30% | CRITICAL |
-| Thin Route Handlers | 55% | NEEDS WORK |
-| Repository Return Types | 65% | NEEDS WORK |
-| ABC Interfaces | 80% | MINOR |
-| Dependency Injection | 90% | GOOD |
-| Auth Centralization | 100% | EXCELLENT |
-| Response Models | 95% | EXCELLENT |
+| Category                | Score | Status     |
+| ----------------------- | ----- | ---------- |
+| Domain Exceptions       | 3%    | CRITICAL   |
+| PII-Safe Logging        | 30%   | CRITICAL   |
+| Thin Route Handlers     | 55%   | NEEDS WORK |
+| Repository Return Types | 65%   | NEEDS WORK |
+| ABC Interfaces          | 80%   | MINOR      |
+| Dependency Injection    | 90%   | GOOD       |
+| Auth Centralization     | 100%  | EXCELLENT  |
+| Response Models         | 95%   | EXCELLENT  |
 
 ---
 
@@ -49,15 +49,15 @@ The infrastructure for doing things right exists (`app/exceptions.py`, `app/util
 
 ### File-by-File Violations
 
-| File | HTTPException Raises | Domain Exception Raises |
-|------|---------------------|------------------------|
-| `repositories/symptoms_repository.py` | 6 | 0 |
-| `repositories/appointment_repository.py` | 18 | 0 |
-| `repositories/user_repository.py` | 12 | 0 |
-| `repositories/providers_repository.py` | 14 | 0 |
-| `repositories/conversation_repository.py` | 12 | 2 |
-| `services/symptoms.py` | 2 | 0 |
-| **Total** | **64** | **2** |
+| File                                      | HTTPException Raises | Domain Exception Raises |
+| ----------------------------------------- | -------------------- | ----------------------- |
+| `repositories/symptoms_repository.py`     | 6                    | 0                       |
+| `repositories/appointment_repository.py`  | 18                   | 0                       |
+| `repositories/user_repository.py`         | 12                   | 0                       |
+| `repositories/providers_repository.py`    | 14                   | 0                       |
+| `repositories/conversation_repository.py` | 12                   | 2                       |
+| `services/symptoms.py`                    | 2                    | 0                       |
+| **Total**                                 | **64**               | **2**                   |
 
 ### Impact
 
@@ -98,16 +98,17 @@ raise EntityNotFoundError("Appointment context not found")
 
 #### CRITICAL: Health Data Logged (8 instances)
 
-| File | Line(s) | What's Logged |
-|------|---------|---------------|
-| `routes/chat.py` | 106, 112, 116-118, 123-126 | User message content (`message[:100]`) - may contain health info |
-| `routes/chat.py` | 186, 189 | LLM response content (`response_text[:200]`) |
-| `routes/appointment.py` | 111 | `urgent_symptom` value (health data) |
-| `routes/appointment.py` | 624-637 | LLM response content (`raw_suggestions[:200]`) |
+| File                    | Line(s)                    | What's Logged                                                    |
+| ----------------------- | -------------------------- | ---------------------------------------------------------------- |
+| `routes/chat.py`        | 106, 112, 116-118, 123-126 | User message content (`message[:100]`) - may contain health info |
+| `routes/chat.py`        | 186, 189                   | LLM response content (`response_text[:200]`)                     |
+| `routes/appointment.py` | 111                        | `urgent_symptom` value (health data)                             |
+| `routes/appointment.py` | 624-637                    | LLM response content (`raw_suggestions[:200]`)                   |
 
 #### HIGH: Plaintext User IDs (50+ instances)
 
 Every route file logs raw `user_id` instead of `hash_user_id(user_id)`:
+
 - `routes/users.py` (lines 84, 102, 175-176)
 - `routes/symptoms.py` (lines 172-176, 187-194, 267-273, 293-300)
 - `routes/chat.py` (lines 106, 112, 168, 178, 254, 258, 268, 291)
@@ -117,9 +118,9 @@ Every route file logs raw `user_id` instead of `hash_user_id(user_id)`:
 
 #### HIGH: Email Address Logged (1 instance)
 
-| File | Line | What's Logged |
-|------|------|---------------|
-| `routes/users.py` | 102 | `logger.info("User profile created: id=%s email=%s", user_id, email)` |
+| File              | Line | What's Logged                                                         |
+| ----------------- | ---- | --------------------------------------------------------------------- |
+| `routes/users.py` | 102  | `logger.info("User profile created: id=%s email=%s", user_id, email)` |
 
 ### What's Working
 
@@ -137,20 +138,21 @@ Every route file logs raw `user_id` instead of `hash_user_id(user_id)`:
 
 ### File-by-File Assessment
 
-| Route File | Lines | Thickness | Compliance |
-|------------|-------|-----------|------------|
-| `routes/users.py` | ~180 | Medium | 60% |
-| `routes/symptoms.py` | ~310 | Medium | 70% |
-| `routes/providers.py` | ~360 | Thin | 75% |
-| `routes/chat.py` | ~360 | **Thick** | 40% |
-| `routes/export.py` | ~500 | **Thick** | 45% |
-| `routes/appointment.py` | ~1433 | **Extremely Thick** | 30% |
+| Route File              | Lines | Thickness           | Compliance |
+| ----------------------- | ----- | ------------------- | ---------- |
+| `routes/users.py`       | ~180  | Medium              | 60%        |
+| `routes/symptoms.py`    | ~310  | Medium              | 70%        |
+| `routes/providers.py`   | ~360  | Thin                | 75%        |
+| `routes/chat.py`        | ~360  | **Thick**           | 40%        |
+| `routes/export.py`      | ~500  | **Thick**           | 45%        |
+| `routes/appointment.py` | ~1433 | **Extremely Thick** | 30%        |
 
 ### Worst Offenders
 
 #### `appointment.py` - 1433 lines (30% compliant)
 
 The most severe violation. Contains:
+
 - **280-line** `generate_appointment_narrative` route with prompt engineering, stat calculation, LLM calls, direct DB queries
 - **180-line** `_select_scenarios` helper (pure business logic)
 - **140-line** `_markdown_to_pdf` / `_inline_md` helpers (rendering code)
@@ -161,6 +163,7 @@ The most severe violation. Contains:
 #### `chat.py` - `ask_meno` route (40% compliant)
 
 The main chat route is 140 lines containing:
+
 - RAG retrieval and chunk deduplication (lines 93-154)
 - URL parsing and fragment stripping business logic (lines 131-154)
 - Inline `OpenAIProvider` instantiation bypassing DI (line 163)
@@ -191,12 +194,12 @@ The main chat route is 140 lines containing:
 
 ### Violations
 
-| Repository | Method | Returns |
-|-----------|--------|---------|
-| `user_repository.py` | `get()` | Raw dict |
-| `user_repository.py` | `update_profile()` | Raw dict |
-| `providers_repository.py` | `add_to_shortlist()` | Tuple `(entry, status_code)` - repos shouldn't know about HTTP status codes |
-| `conversation_repository.py` | Some methods | Raw dicts in some cases |
+| Repository                   | Method               | Returns                                                                     |
+| ---------------------------- | -------------------- | --------------------------------------------------------------------------- |
+| `user_repository.py`         | `get()`              | Raw dict                                                                    |
+| `user_repository.py`         | `update_profile()`   | Raw dict                                                                    |
+| `providers_repository.py`    | `add_to_shortlist()` | Tuple `(entry, status_code)` - repos shouldn't know about HTTP status codes |
+| `conversation_repository.py` | Some methods         | Raw dicts in some cases                                                     |
 
 ### What's Working
 
@@ -214,8 +217,8 @@ The main chat route is 140 lines containing:
 
 ### Violation
 
-| File | Issue |
-|------|-------|
+| File                   | Issue                            |
+| ---------------------- | -------------------------------- |
 | `services/llm_base.py` | Uses `Protocol` instead of `ABC` |
 
 All other interfaces use ABC correctly. This is a single-file fix.
@@ -233,12 +236,12 @@ All other interfaces use ABC correctly. This is a single-file fix.
 
 ### Gaps
 
-| Issue | File | Severity |
-|-------|------|----------|
-| `PromptService` used as static method, not injected | `chat.py` line 157 | Medium |
-| `retrieve_relevant_chunks` imported directly, not injected | `chat.py` line 109 | Medium |
-| `OpenAIProvider` instantiated inline, bypassing DI | `chat.py` line 163 | High |
-| Direct `SupabaseClient` in route signatures for ad-hoc queries | `appointment.py`, `export.py` | Medium |
+| Issue                                                          | File                          | Severity |
+| -------------------------------------------------------------- | ----------------------------- | -------- |
+| `PromptService` used as static method, not injected            | `chat.py` line 157            | Medium   |
+| `retrieve_relevant_chunks` imported directly, not injected     | `chat.py` line 109            | Medium   |
+| `OpenAIProvider` instantiated inline, bypassing DI             | `chat.py` line 163            | High     |
+| Direct `SupabaseClient` in route signatures for ad-hoc queries | `appointment.py`, `export.py` | Medium   |
 
 ---
 
@@ -280,6 +283,7 @@ All other interfaces use ABC correctly. This is a single-file fix.
 ### Pure Functions in Route Files
 
 Several route files contain helper functions that belong in `app/utils/` or `app/services/`:
+
 - `users.py`: `_validate_date_of_birth()`
 - `export.py`: `_log_date()`, `_build_pdf()` (200+ lines)
 - `appointment.py`: `_select_scenarios()` (180 lines), `_get_scenario_category()`, `_inline_md()`, `_markdown_to_pdf()` (140 lines)

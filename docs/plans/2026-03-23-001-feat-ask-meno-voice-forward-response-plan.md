@@ -53,6 +53,7 @@ The fallback pipeline (`sanitize_and_renumber → verify_citations → extract`)
 #### Phase 1: Models (`backend/app/models/chat.py`)
 
 **Remove:**
+
 - `StructuredClaim` (lines 8–12)
 - `StructuredSection` (lines 15–19)
 - `StructuredLLMResponse` (lines 22–27) — the old one
@@ -85,13 +86,13 @@ class StructuredLLMResponse(BaseModel):
 
 Replace the current four layer constants (`LAYER_1`, `LAYER_2`, `LAYER_3`, dynamic LAYER_4) with five constants (copy directly from `docs/planning/ask_meno_v2_schema.py`):
 
-| New constant | Replaces | What it adds |
-|---|---|---|
-| `LAYER_1_IDENTITY` | `LAYER_1` | Same identity, slightly expanded |
-| `LAYER_2_VOICE` | *(new)* | Voice rules, before/after examples, anti-patterns |
+| New constant           | Replaces  | What it adds                                                                   |
+| ---------------------- | --------- | ------------------------------------------------------------------------------ |
+| `LAYER_1_IDENTITY`     | `LAYER_1` | Same identity, slightly expanded                                               |
+| `LAYER_2_VOICE`        | _(new)_   | Voice rules, before/after examples, anti-patterns                              |
 | `LAYER_3_SOURCE_RULES` | `LAYER_2` | New JSON schema (`body + source_index` instead of `claims[]`), one-source rule |
-| `LAYER_4_SCOPE` | `LAYER_3` | Same guardrails, cleaned up |
-| *(dynamic Layer 5)* | `LAYER_4` | User context + RAG chunks — assembled by PromptService, unchanged |
+| `LAYER_4_SCOPE`        | `LAYER_3` | Same guardrails, cleaned up                                                    |
+| _(dynamic Layer 5)_    | `LAYER_4` | User context + RAG chunks — assembled by PromptService, unchanged              |
 
 > ⚠️ **Name collision risk:** `LAYER_3` and `LAYER_4` change meaning. `test_chat_guardrails.py` imports the old names directly — these imports will break and must be updated (see Phase 6).
 
@@ -210,6 +211,7 @@ Also update any assertions in those tests that reference layer content by the ol
 #### Phase 7: Frontend (`frontend/src/routes/(app)/ask/+page.svelte`)
 
 The frontend already handles plain text correctly:
+
 - `marked.parse()` on plain text paragraphs → `<p>` tags automatically
 - `[Source N]` → `<sup><a>` superscript replacement is unchanged
 - No markdown to strip (the new prompt enforces no markdown from the LLM)
@@ -365,13 +367,13 @@ def test_voice_examples_in_prompt():
 
 ## Dependencies & Risks
 
-| Risk | Likelihood | Mitigation |
-|---|---|---|
-| LLM ignores one-source-per-section rule and mixes sources | Medium | Verification checklist in LAYER_3_SOURCE_RULES; fallback pipeline catches malformed JSON |
-| LLM returns v1 JSON format after deploy (cached prompt) | Low | v1 validation now fails → fallback gracefully |
-| `test_chat_guardrails.py` import breakage | High (certain) | Fix in Phase 6; it's integration-only, not in unit test suite |
-| Longer paragraphs exceed `max_tokens` | Low | Raising to 2000 tokens provides headroom |
-| Frontend renders heading inline with body (no visual separation) | Medium | Emit `### heading` markdown in Phase 4 so `marked` creates `<h3>` |
+| Risk                                                             | Likelihood     | Mitigation                                                                               |
+| ---------------------------------------------------------------- | -------------- | ---------------------------------------------------------------------------------------- |
+| LLM ignores one-source-per-section rule and mixes sources        | Medium         | Verification checklist in LAYER_3_SOURCE_RULES; fallback pipeline catches malformed JSON |
+| LLM returns v1 JSON format after deploy (cached prompt)          | Low            | v1 validation now fails → fallback gracefully                                            |
+| `test_chat_guardrails.py` import breakage                        | High (certain) | Fix in Phase 6; it's integration-only, not in unit test suite                            |
+| Longer paragraphs exceed `max_tokens`                            | Low            | Raising to 2000 tokens provides headroom                                                 |
+| Frontend renders heading inline with body (no visual separation) | Medium         | Emit `### heading` markdown in Phase 4 so `marked` creates `<h3>`                        |
 
 ## Out of Scope
 

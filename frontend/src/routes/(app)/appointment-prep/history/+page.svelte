@@ -1,7 +1,10 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { apiClient } from '$lib/api/client';
-	import type { AppointmentPrepHistory, AppointmentPrepHistoryResponse } from '$lib/types/appointment';
+	import type {
+		AppointmentPrepHistory,
+		AppointmentPrepHistoryResponse
+	} from '$lib/types/appointment';
 
 	let preps = $state<AppointmentPrepHistory[]>([]);
 	let total = $state(0);
@@ -66,7 +69,9 @@
 	<!-- Header -->
 	<div>
 		<h1 class="text-2xl font-bold text-neutral-800">Your Appointment Preps</h1>
-		<p class="text-neutral-600 mt-1">Access all of your generated appointment preparation documents</p>
+		<p class="mt-1 text-neutral-600">
+			Access all of your generated appointment preparation documents
+		</p>
 	</div>
 
 	<!-- Loading state -->
@@ -76,17 +81,17 @@
 		</div>
 	{:else if error}
 		<!-- Error state -->
-		<div class="rounded-lg bg-danger-light p-4 text-danger-dark border border-danger-light">
+		<div class="rounded-lg border border-danger-light bg-danger-light p-4 text-danger-dark">
 			<p class="font-semibold">Unable to load history</p>
-			<p class="text-sm mt-1">{error}</p>
+			<p class="mt-1 text-sm">{error}</p>
 		</div>
 	{:else if preps.length === 0}
 		<!-- Empty state -->
 		<div class="rounded-lg bg-neutral-50 p-8 text-center">
-			<p class="text-neutral-600 font-medium mb-4">No appointment preps yet.</p>
+			<p class="mb-4 font-medium text-neutral-600">No appointment preps yet.</p>
 			<a
 				href="/appointment-prep"
-				class="inline-block rounded-lg bg-primary-500 px-6 py-2 text-white hover:bg-primary-600 transition-colors"
+				class="inline-block rounded-lg bg-primary-500 px-6 py-2 text-white transition-colors hover:bg-primary-600"
 			>
 				Create your first appointment prep
 			</a>
@@ -95,20 +100,24 @@
 		<!-- History list -->
 		<div class="space-y-3">
 			{#each preps as prep (prep.id)}
-				<div class="rounded-lg border border-neutral-200 p-4 hover:border-neutral-300 transition-colors">
-					<div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-						<div class="flex-1 min-w-0">
-							<p class="font-semibold text-neutral-800">Generated {formatDate(prep.generated_at)}</p>
+				<div
+					class="rounded-lg border border-neutral-200 p-4 transition-colors hover:border-neutral-300"
+				>
+					<div class="flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center">
+						<div class="min-w-0 flex-1">
+							<p class="font-semibold text-neutral-800">
+								Generated {formatDate(prep.generated_at)}
+							</p>
 							<p class="text-sm text-neutral-600">
 								Appointment ID: <code class="font-mono">{prep.appointment_id.slice(0, 8)}...</code>
 							</p>
 						</div>
-						<div class="flex gap-2 w-full sm:w-auto">
+						<div class="flex w-full gap-2 sm:w-auto">
 							<a
 								href={prep.provider_summary_path}
 								target="_blank"
 								rel="noopener noreferrer"
-								class="flex-1 sm:flex-none rounded-lg bg-primary-500 px-4 py-2 text-sm text-white text-center hover:bg-primary-600 transition-colors min-h-10 flex items-center justify-center"
+								class="flex min-h-10 flex-1 items-center justify-center rounded-lg bg-primary-500 px-4 py-2 text-center text-sm text-white transition-colors hover:bg-primary-600 sm:flex-none"
 							>
 								Provider Summary
 							</a>
@@ -116,7 +125,7 @@
 								href={prep.personal_cheatsheet_path}
 								target="_blank"
 								rel="noopener noreferrer"
-								class="flex-1 sm:flex-none rounded-lg bg-primary-500 px-4 py-2 text-sm text-white text-center hover:bg-primary-600 transition-colors min-h-10 flex items-center justify-center"
+								class="flex min-h-10 flex-1 items-center justify-center rounded-lg bg-primary-500 px-4 py-2 text-center text-sm text-white transition-colors hover:bg-primary-600 sm:flex-none"
 							>
 								Cheat Sheet
 							</a>
@@ -127,7 +136,7 @@
 		</div>
 
 		<!-- Pagination info and controls -->
-		<div class="flex flex-col sm:flex-row items-center justify-between gap-4 pt-4">
+		<div class="flex flex-col items-center justify-between gap-4 pt-4 sm:flex-row">
 			<p class="text-sm text-neutral-600">
 				Showing {offset + 1} to {Math.min(offset + limit, total)} of {total} appointment preps
 			</p>
@@ -135,14 +144,14 @@
 				<button
 					onclick={handlePrevPage}
 					disabled={offset === 0}
-					class="rounded-lg border border-neutral-200 px-4 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors min-h-10"
+					class="min-h-10 rounded-lg border border-neutral-200 px-4 py-2 text-sm font-medium text-neutral-700 transition-colors hover:bg-neutral-50 disabled:cursor-not-allowed disabled:opacity-50"
 				>
 					Previous
 				</button>
 				<button
 					onclick={handleNextPage}
 					disabled={offset + limit >= total}
-					class="rounded-lg border border-neutral-200 px-4 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors min-h-10"
+					class="min-h-10 rounded-lg border border-neutral-200 px-4 py-2 text-sm font-medium text-neutral-700 transition-colors hover:bg-neutral-50 disabled:cursor-not-allowed disabled:opacity-50"
 				>
 					Next
 				</button>

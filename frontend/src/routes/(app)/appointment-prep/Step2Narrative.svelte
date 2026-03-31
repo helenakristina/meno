@@ -4,7 +4,7 @@
 
 	let {
 		appointmentId,
-		onNext,
+		onNext
 	}: {
 		appointmentId: string;
 		onNext: (narrative: string) => void;
@@ -50,13 +50,16 @@
 			aria-busy="true"
 			role="status"
 		>
-			<div class="h-8 w-8 animate-spin rounded-full border-4 border-primary-200 border-t-primary-600"></div>
-			<p class="text-sm text-neutral-500" aria-live="polite">
-				Generating your symptom summary…
-			</p>
+			<div
+				class="h-8 w-8 animate-spin rounded-full border-4 border-primary-200 border-t-primary-600"
+			></div>
+			<p class="text-sm text-neutral-500" aria-live="polite">Generating your symptom summary…</p>
 		</div>
 	{:else if loadError}
-		<div class="rounded-xl border border-danger-light bg-danger-light p-4 text-sm text-danger-dark" role="alert">
+		<div
+			class="rounded-xl border border-danger-light bg-danger-light p-4 text-sm text-danger-dark"
+			role="alert"
+		>
 			{loadError}
 			<button
 				type="button"
@@ -67,7 +70,9 @@
 			</button>
 		</div>
 	{:else}
-		<div class="rounded-xl border border-warning bg-warning-light px-4 py-3 text-sm text-warning-dark">
+		<div
+			class="rounded-xl border border-warning bg-warning-light px-4 py-3 text-sm text-warning-dark"
+		>
 			AI-generated summary — review and edit before sharing with your provider.
 		</div>
 
@@ -79,7 +84,7 @@
 				id="narrative"
 				bind:value={narrative}
 				rows="12"
-				class="w-full rounded-xl border border-neutral-200 px-4 py-3 text-sm text-neutral-800 placeholder-neutral-400 transition-colors focus:border-primary-400 focus:outline-none focus:ring-2 focus:ring-primary-400/20"
+				class="w-full rounded-xl border border-neutral-200 px-4 py-3 text-sm text-neutral-800 placeholder-neutral-400 transition-colors focus:border-primary-400 focus:ring-2 focus:ring-primary-400/20 focus:outline-none"
 				aria-describedby="narrative-hint"
 			></textarea>
 			<p id="narrative-hint" class="mt-1 text-xs text-neutral-500">

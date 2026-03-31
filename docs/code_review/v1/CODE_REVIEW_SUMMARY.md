@@ -74,6 +74,7 @@ The chat route (`/api/chat`) is **overloaded with 8+ responsibilities:**
 **For V1:** No changes needed. Code works.
 
 **For V2:** Strongly recommend refactoring BEFORE building new features:
+
 1. Create UserRepository, SymptomsRepository, ConversationRepository
 2. Extract CitationService, PromptService
 3. Thin the route to ~30 lines of orchestration
@@ -87,12 +88,12 @@ The chat route (`/api/chat`) is **overloaded with 8+ responsibilities:**
 
 ### Overview
 
-| Service | Lines | Quality | Testability | Grade |
-|---------|-------|---------|-------------|-------|
-| `stats.py` | 137 | Excellent | 9/10 | 9/10 |
-| `providers.py` | 186 | Excellent | 8/10 | 8/10 |
-| `llm.py` | 225 | Good | 3/10 | 6/10 |
-| `symptoms.py` | 44 | Okay | 4/10 | 4/10 |
+| Service        | Lines | Quality   | Testability | Grade |
+| -------------- | ----- | --------- | ----------- | ----- |
+| `stats.py`     | 137   | Excellent | 9/10        | 9/10  |
+| `providers.py` | 186   | Excellent | 8/10        | 8/10  |
+| `llm.py`       | 225   | Good      | 3/10        | 6/10  |
+| `symptoms.py`  | 44    | Okay      | 4/10        | 4/10  |
 
 ### Service Quality Details
 
@@ -101,6 +102,7 @@ The chat route (`/api/chat`) is **overloaded with 8+ responsibilities:**
 **Purpose:** Calculate symptom frequency and co-occurrence statistics
 
 **Strengths:**
+
 - Pure functions (no side effects, no DB access)
 - Excellent docstrings explaining behavior + edge cases
 - Defensive programming (handles missing IDs gracefully)
@@ -117,6 +119,7 @@ The chat route (`/api/chat`) is **overloaded with 8+ responsibilities:**
 **Purpose:** Transform, filter, paginate, and aggregate provider data
 
 **Strengths:**
+
 - All pure functions (no DB access, no side effects)
 - Smart filtering (two-phase city matching, case-insensitive)
 - Correct pagination (handles edge cases)
@@ -125,6 +128,7 @@ The chat route (`/api/chat`) is **overloaded with 8+ responsibilities:**
 - Sophisticated calling script prompt assembly (varies by insurance type)
 
 **Minor Issues:**
+
 - Some magic numbers (page_size validation not explicit)
 - Insurance enum coupling (could use dict for mapping)
 - No input validation
@@ -138,6 +142,7 @@ The chat route (`/api/chat`) is **overloaded with 8+ responsibilities:**
 **Purpose:** Generate summaries, provider questions, calling scripts via OpenAI
 
 **Strengths:**
+
 - Clear prompt engineering (explicit guardrails, "logs show" language enforced)
 - Good error handling (graceful degradation)
 - Well-documented (docstrings explain intent)
@@ -145,6 +150,7 @@ The chat route (`/api/chat`) is **overloaded with 8+ responsibilities:**
 - Data preparation (transforms structured data to readable text)
 
 **🔴 Critical Issue: Hardcoded Client**
+
 ```python
 def _client() -> AsyncOpenAI:
     return AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
@@ -153,16 +159,18 @@ def _client() -> AsyncOpenAI:
 **Problem:** Can't inject mock client for testing. Creates new instance every call.
 
 **Better approach (for V2):**
+
 ```python
 class LLMService:
     def __init__(self, client: AsyncOpenAI):
         self.client = client
-    
+
     async def generate_symptom_summary(self, ...):
         response = await self.client.chat.completions.create(...)
 ```
 
 **Other Issues:**
+
 - Code duplication (three functions all call `_client().chat.completions.create()`)
 - Async but no parallelization (only async because OpenAI client is async)
 - No input validation
@@ -178,6 +186,7 @@ class LLMService:
 **Problem:** This is a **data access operation**, not a service. Should be in a repository.
 
 **Issues:**
+
 - Mixes data access with validation (should be in SymptomsRepository)
 - Requires AsyncClient parameter (breaks dependency injection)
 - Tight coupling to Supabase
@@ -189,14 +198,14 @@ class LLMService:
 
 ### Missing Services (Should Exist in V2)
 
-| Service | Purpose | Current Location | Priority |
-|---------|---------|------------------|----------|
-| **UserRepository** | Fetch user context, age | Chat route | HIGH |
-| **SymptomsRepository** | Fetch summary, validate IDs | Chat route + symptoms.py | HIGH |
-| **ConversationRepository** | Load/save conversations | Chat route | HIGH |
-| **CitationService** | Handle citations | Chat route | HIGH |
-| **PromptService** | Build prompts | Chat route + system_prompts.py | MEDIUM |
-| **ContextService** | Orchestrate context gathering | Chat route | MEDIUM |
+| Service                    | Purpose                       | Current Location               | Priority |
+| -------------------------- | ----------------------------- | ------------------------------ | -------- |
+| **UserRepository**         | Fetch user context, age       | Chat route                     | HIGH     |
+| **SymptomsRepository**     | Fetch summary, validate IDs   | Chat route + symptoms.py       | HIGH     |
+| **ConversationRepository** | Load/save conversations       | Chat route                     | HIGH     |
+| **CitationService**        | Handle citations              | Chat route                     | HIGH     |
+| **PromptService**          | Build prompts                 | Chat route + system_prompts.py | MEDIUM   |
+| **ContextService**         | Orchestrate context gathering | Chat route                     | MEDIUM   |
 
 ### Service Architecture Recommendation for V2
 
@@ -227,19 +236,20 @@ backend/app/
 
 **Overall: 76% (189 tests)**
 
-| Layer | Coverage | Status |
-|-------|----------|--------|
-| Services (pure functions) | 100% | ✅ Excellent |
-| Routes | 83-87% | ✅ Good |
-| Models | 100% | ✅ Perfect |
-| Core utilities | 91-100% | ✅ Good |
-| RAG retrieval | 16% | ⚠️ Needs work |
-| RAG ingest | 0% | ⚠️ Scraper (low priority) |
-| LLM service | 22% | ⚠️ Testability issue |
+| Layer                     | Coverage | Status                    |
+| ------------------------- | -------- | ------------------------- |
+| Services (pure functions) | 100%     | ✅ Excellent              |
+| Routes                    | 83-87%   | ✅ Good                   |
+| Models                    | 100%     | ✅ Perfect                |
+| Core utilities            | 91-100%  | ✅ Good                   |
+| RAG retrieval             | 16%      | ⚠️ Needs work             |
+| RAG ingest                | 0%       | ⚠️ Scraper (low priority) |
+| LLM service               | 22%      | ⚠️ Testability issue      |
 
 ### Test Coverage by File
 
 **100% Tested (Perfect):**
+
 - `services/stats.py` (39 lines, 10 tests)
 - `services/providers.py` (61 lines, 45+ tests)
 - `core/insurance_normalizer.py` (5 lines, 10 tests)
@@ -247,6 +257,7 @@ backend/app/
 - `models/*` (all models)
 
 **83-89% Tested (Good):**
+
 - `routes/chat.py` (87%, 17 tests)
 - `routes/symptoms.py` (83%, 28 tests)
 - `routes/export.py` (86%, PDF + CSV)
@@ -254,6 +265,7 @@ backend/app/
 - `routes/users.py` (89%)
 
 **Below 50% (Needs Work):**
+
 - `services/llm.py` (22%)
 - `rag/retrieval.py` (16%)
 - `rag/ingest.py` (0%)
@@ -261,6 +273,7 @@ backend/app/
 ### What's Being Tested Well ✅
 
 **Endpoints:**
+
 - Auth enforcement (401 tests)
 - Request validation (422, 400 tests)
 - Happy path + error cases
@@ -269,11 +282,13 @@ backend/app/
 - Filtering
 
 **Services:**
+
 - Pure function tests (no mocks)
 - Edge cases and boundary conditions
 - Missing data handling
 
 **Features:**
+
 - Insurance normalization
 - Medical advice guardrails (7 tests)
 - Citation handling (phantom citations)
@@ -282,18 +297,19 @@ backend/app/
 
 ### What's Missing (The 24%)
 
-| Component | Coverage | Why | Impact |
-|-----------|----------|-----|--------|
-| RAG retrieval | 16% | Vector search + caching | Medium (Ask Meno depends on this) |
-| LLM service | 22% | Hardcoded client | Low (refactor fixes this) |
-| Scraper | 0% | Offline tool | Low (not critical path) |
-| Route edge cases | 13-24% per route | Some error paths untested | Low (main paths covered) |
+| Component        | Coverage         | Why                       | Impact                            |
+| ---------------- | ---------------- | ------------------------- | --------------------------------- |
+| RAG retrieval    | 16%              | Vector search + caching   | Medium (Ask Meno depends on this) |
+| LLM service      | 22%              | Hardcoded client          | Low (refactor fixes this)         |
+| Scraper          | 0%               | Offline tool              | Low (not critical path)           |
+| Route edge cases | 13-24% per route | Some error paths untested | Low (main paths covered)          |
 
 ### Assessment
 
 **Quality: 9/10 — Excellent Test Suite**
 
 You don't have a testing problem. You have:
+
 - ✅ 189 tests total
 - ✅ Good coverage (76%)
 - ✅ Well-organized (by endpoint + test class)
@@ -302,6 +318,7 @@ You don't have a testing problem. You have:
 - ✅ Good error case coverage
 
 **What you could improve (V2):**
+
 1. RAG retrieval testing (mock embeddings + cache)
 2. LLM service testing (requires DI refactor first)
 3. Scraper testing (nice to have)
@@ -315,6 +332,7 @@ You don't have a testing problem. You have:
 ### Current Usage in Backend
 
 **Async correctly used for I/O:**
+
 - All Supabase calls: `await client.from_(...).execute()`
 - All OpenAI calls: `await client.chat.completions.create()`
 - All RAG retrieval: `await retrieve_relevant_chunks()`
@@ -324,18 +342,21 @@ You don't have a testing problem. You have:
 ### Understanding Async in Your Code
 
 **What async/await does:**
+
 - NOT threading (doesn't escape GIL for CPU-bound work)
 - Cooperative concurrency (yields control when hitting `await`)
 - Lets other requests process while waiting for I/O
 - Event loop manages the scheduling
 
 **In your code:**
+
 - Routes are `async` (FastAPI runs them in event loop)
 - All I/O operations awaited (database, LLM calls)
 - Parallel context gathering: user context + symptom summary awaited together
 - No synchronous blocking calls mixed in
 
 **Good practices you're already following:**
+
 - ✅ Type hints on async functions
 - ✅ Proper await usage
 - ✅ Error handling in async context
@@ -346,6 +367,7 @@ You don't have a testing problem. You have:
 ## Claude Migration (OpenAI → Anthropic)
 
 ### Current State
+
 - Using OpenAI `gpt-4o-mini` for cost-effective V1 development
 - API calls in `services/llm.py`
 - Hardcoded client (testability issue)
@@ -370,13 +392,17 @@ After refactoring LLM service with dependency injection:
 ## Privacy & Logging
 
 ### Current Practice
+
 Logging includes real user IDs:
+
 ```python
 logger.info("User action: user=%s", user_id)
 ```
 
 ### Recommendation for V2
+
 Hash user IDs for privacy-conscious logging:
+
 ```python
 from app.core.logging import hash_user_id
 
@@ -384,6 +410,7 @@ logger.info("User action: user=%s", hash_user_id(user_id))
 ```
 
 **Benefits:**
+
 - No real PII in logs
 - Still uniquely identifiable per user
 - GDPR compliant
@@ -446,15 +473,15 @@ logger.info("User action: user=%s", hash_user_id(user_id))
 
 ## Recommendations Priority Matrix
 
-| Item | Impact | Effort | V1 or V2 | Priority |
-|------|--------|--------|----------|----------|
-| Create repositories | HIGH | MEDIUM | V2 | 1 (Do First) |
-| Refactor LLM with DI | HIGH | MEDIUM | V2 | 1 (Do First) |
-| Extract CitationService | MEDIUM | LOW | V2 | 2 |
-| Hash user IDs in logging | MEDIUM | LOW | V2 | 2 |
-| RAG retrieval testing | MEDIUM | MEDIUM | V2 | 3 |
-| Extract PromptService | MEDIUM | LOW | V2 | 3 |
-| Scraper testing | LOW | MEDIUM | V2 | 4 (Nice to have) |
+| Item                     | Impact | Effort | V1 or V2 | Priority         |
+| ------------------------ | ------ | ------ | -------- | ---------------- |
+| Create repositories      | HIGH   | MEDIUM | V2       | 1 (Do First)     |
+| Refactor LLM with DI     | HIGH   | MEDIUM | V2       | 1 (Do First)     |
+| Extract CitationService  | MEDIUM | LOW    | V2       | 2                |
+| Hash user IDs in logging | MEDIUM | LOW    | V2       | 2                |
+| RAG retrieval testing    | MEDIUM | MEDIUM | V2       | 3                |
+| Extract PromptService    | MEDIUM | LOW    | V2       | 3                |
+| Scraper testing          | LOW    | MEDIUM | V2       | 4 (Nice to have) |
 
 ---
 

@@ -2,7 +2,16 @@
 title: SvelteKit Form Combobox with Async Search and Cascading Field Dependencies
 category: ui-bugs
 date: 2026-03-20
-tags: [svelte5, combobox, autocomplete, accessibility, aria, debounce, medication-tracking]
+tags:
+  [
+    svelte5,
+    combobox,
+    autocomplete,
+    accessibility,
+    aria,
+    debounce,
+    medication-tracking,
+  ]
 symptoms:
   - Free-text form fields produce inconsistent, hard-to-compare data across users
   - Backend has curated reference data but frontend doesn't use it
@@ -25,6 +34,7 @@ The Add Medication form used plain text inputs for medication name and dose, pro
 ### 1. Wiring a reference search endpoint to a combobox
 
 Add the interface and endpoint to `api.ts`:
+
 ```typescript
 export interface MedicationReferenceResult {
   id: string;
@@ -45,9 +55,10 @@ export interface MedicationReferenceResult {
 ```
 
 Call with query params (typed client handles URL construction):
+
 ```typescript
-const results = await apiClient.get('/api/medications/reference', {
-  query: searchQuery.trim()
+const results = await apiClient.get("/api/medications/reference", {
+  query: searchQuery.trim(),
 });
 ```
 
@@ -70,8 +81,8 @@ function onSearchInput() {
   searchTimer = setTimeout(async () => {
     isSearching = true;
     try {
-      const results = await apiClient.get('/api/medications/reference', {
-        query: searchQuery.trim()
+      const results = await apiClient.get("/api/medications/reference", {
+        query: searchQuery.trim(),
       });
       searchResults = Array.isArray(results) ? results : [];
       showDropdown = true;
@@ -80,7 +91,7 @@ function onSearchInput() {
     } finally {
       isSearching = false;
     }
-  }, 300);  // 300ms debounce
+  }, 300); // 300ms debounce
 }
 ```
 
@@ -90,28 +101,31 @@ function onSearchInput() {
 // Dose value to submit — different logic for reference vs custom
 const doseValue = $derived(
   selectedMedication
-    ? (selectedDose === 'custom' ? customDose.trim() : selectedDose)
-    : dose.trim()
+    ? selectedDose === "custom"
+      ? customDose.trim()
+      : selectedDose
+    : dose.trim(),
 );
 
 // Delivery methods: filtered to medication's valid forms, or full list
 const availableDeliveryMethods = $derived<readonly string[]>(
   selectedMedication && selectedMedication.common_forms.length > 0
     ? selectedMedication.common_forms
-    : DELIVERY_METHODS
+    : DELIVERY_METHODS,
 );
 ```
 
 Auto-select when only one delivery method is valid:
+
 ```typescript
 function selectMedication(med: MedicationReferenceResult) {
   selectedMedication = med;
   searchQuery = med.brand_name ?? med.generic_name;
   medication_name = searchQuery;
   // Auto-select if only one form (e.g. Climara → patch only)
-  delivery_method = med.common_forms.length === 1 ? med.common_forms[0] : '';
-  selectedDose = '';
-  customDose = '';
+  delivery_method = med.common_forms.length === 1 ? med.common_forms[0] : "";
+  selectedDose = "";
+  customDose = "";
   showDropdown = false;
 }
 ```
@@ -121,6 +135,7 @@ function selectMedication(med: MedicationReferenceResult) {
 **Critical:** Use `onmousedown` on dropdown items, not `onclick`.
 
 **Why:** The sequence of events when a user clicks a dropdown item while the input is focused:
+
 1. `mousedown` fires on the dropdown item ← `onmousedown` handles here ✅
 2. `blur` fires on the input ← `onblur` hides the dropdown
 3. `mouseup` fires
@@ -135,9 +150,12 @@ function selectMedication(med: MedicationReferenceResult) {
 ```
 
 Pair with a delayed `onblur` to give `onmousedown` time to fire:
+
 ```typescript
 function onBlur() {
-  setTimeout(() => { showDropdown = false; }, 150);
+  setTimeout(() => {
+    showDropdown = false;
+  }, 150);
 }
 ```
 
@@ -148,20 +166,20 @@ function onKeyDown(e: KeyboardEvent) {
   if (!showDropdown) return;
   const total = searchResults.length + 1; // +1 for the custom option
 
-  if (e.key === 'ArrowDown') {
+  if (e.key === "ArrowDown") {
     e.preventDefault();
     highlightedIndex = (highlightedIndex + 1) % total;
-  } else if (e.key === 'ArrowUp') {
+  } else if (e.key === "ArrowUp") {
     e.preventDefault();
     highlightedIndex = (highlightedIndex - 1 + total) % total;
-  } else if (e.key === 'Enter' && highlightedIndex >= 0) {
+  } else if (e.key === "Enter" && highlightedIndex >= 0) {
     e.preventDefault();
     if (highlightedIndex < searchResults.length) {
       selectMedication(searchResults[highlightedIndex]);
     } else {
       selectCustom();
     }
-  } else if (e.key === 'Escape') {
+  } else if (e.key === "Escape") {
     showDropdown = false;
     highlightedIndex = -1;
   }

@@ -36,57 +36,57 @@ Work through the codebase in a specific order that minimizes regression risk: fi
 
 This table is the authoritative mapping for the entire overhaul:
 
-| Old class | New class | Notes |
-|-----------|-----------|-------|
-| `bg-slate-50` | `bg-neutral-50` | Page backgrounds, subtle fills |
-| `bg-slate-100` | `bg-neutral-100` | Hover backgrounds, skeleton |
-| `bg-slate-200` | `bg-neutral-200` | Skeleton loaders |
-| `bg-slate-300` | `bg-neutral-300` | Disabled |
-| `bg-slate-400` | `bg-neutral-400` | — |
-| `bg-slate-800` | `bg-primary-600` | **Rule 2 violation** — dark bg buttons |
-| `bg-slate-900` | `bg-primary-500` | **Rule 2 violation** — dark bg CTA |
-| `text-slate-400` | `text-neutral-400` | Secondary/muted text |
-| `text-slate-500` | `text-neutral-500` | Muted body |
-| `text-slate-600` | `text-neutral-600` | Body text |
-| `text-slate-700` | `text-neutral-700` | Strong body |
-| `text-slate-800` | `text-neutral-800` | Headings |
-| `text-slate-900` | `text-neutral-900` | High-contrast (use sparingly) |
-| `border-slate-100` | `border-neutral-100` | — |
-| `border-slate-200` | `border-neutral-200` | Cards, inputs, nav |
-| `border-slate-300` | `border-neutral-300` | Input borders |
-| `bg-teal-50` | `bg-primary-50` | Hover/selected tints |
-| `bg-teal-100` | `bg-primary-100` | Selected chips |
-| `bg-teal-400` | `bg-primary-400` | Secondary elements |
-| `bg-teal-500` | `bg-primary-500` | Progress bars, chart fills |
-| `bg-teal-600` | `bg-primary-500` | Primary buttons (use 500, not 600) |
-| `bg-teal-700` | `bg-primary-600` | Button hover states |
-| `text-teal-600` | `text-primary-600` | Links, active nav |
-| `text-teal-700` | `text-primary-700` | Pressed/hover text |
-| `text-teal-800` | `text-primary-800` | Dark badge text on light teal |
-| `border-teal-100` | `border-primary-100` | — |
-| `border-teal-300` | `border-primary-300` | Hover borders |
-| `border-teal-400` | `border-primary-400` | Focus states |
-| `ring-teal-200` | `ring-primary-200` | — |
-| `ring-teal-300` | `ring-primary-300` | Focus rings |
-| `ring-teal-400` | `ring-primary-400` | — |
-| `ring-teal-500` | `ring-primary-500` | Focus rings |
-| `ring-slate-200` | `ring-neutral-200` | — |
-| `ring-slate-500` | `ring-primary-500` | **Form inputs — wrong ring color** |
-| `bg-emerald-50` | `bg-success-light` | Success state backgrounds |
-| `border-emerald-200` | `border-success-light` | — |
-| `text-emerald-700` | `text-success` | Success text |
-| `text-emerald-800` | `text-success-dark` | — |
-| `bg-green-100` | `bg-primary-100` | Provider booking badge |
-| `text-green-700` | `text-primary-800` | Provider booking badge text |
-| `bg-blue-100` | `bg-accent-100` | Provider `to_call` badge |
-| `text-blue-700` | `text-accent-800` | Provider `to_call` badge text |
-| `bg-amber-50` | `bg-warning-light` | Medical disclaimer, NAMS badge |
-| `bg-amber-100` | `bg-warning-light` | Warning tints |
-| `border-amber-200` | `border-warning` | Warning borders |
-| `text-amber-700` | `text-warning-dark` | Warning text |
-| `text-amber-800` | `text-warning-dark` | — |
+| Old class            | New class              | Notes                                  |
+| -------------------- | ---------------------- | -------------------------------------- |
+| `bg-slate-50`        | `bg-neutral-50`        | Page backgrounds, subtle fills         |
+| `bg-slate-100`       | `bg-neutral-100`       | Hover backgrounds, skeleton            |
+| `bg-slate-200`       | `bg-neutral-200`       | Skeleton loaders                       |
+| `bg-slate-300`       | `bg-neutral-300`       | Disabled                               |
+| `bg-slate-400`       | `bg-neutral-400`       | —                                      |
+| `bg-slate-800`       | `bg-primary-600`       | **Rule 2 violation** — dark bg buttons |
+| `bg-slate-900`       | `bg-primary-500`       | **Rule 2 violation** — dark bg CTA     |
+| `text-slate-400`     | `text-neutral-400`     | Secondary/muted text                   |
+| `text-slate-500`     | `text-neutral-500`     | Muted body                             |
+| `text-slate-600`     | `text-neutral-600`     | Body text                              |
+| `text-slate-700`     | `text-neutral-700`     | Strong body                            |
+| `text-slate-800`     | `text-neutral-800`     | Headings                               |
+| `text-slate-900`     | `text-neutral-900`     | High-contrast (use sparingly)          |
+| `border-slate-100`   | `border-neutral-100`   | —                                      |
+| `border-slate-200`   | `border-neutral-200`   | Cards, inputs, nav                     |
+| `border-slate-300`   | `border-neutral-300`   | Input borders                          |
+| `bg-teal-50`         | `bg-primary-50`        | Hover/selected tints                   |
+| `bg-teal-100`        | `bg-primary-100`       | Selected chips                         |
+| `bg-teal-400`        | `bg-primary-400`       | Secondary elements                     |
+| `bg-teal-500`        | `bg-primary-500`       | Progress bars, chart fills             |
+| `bg-teal-600`        | `bg-primary-500`       | Primary buttons (use 500, not 600)     |
+| `bg-teal-700`        | `bg-primary-600`       | Button hover states                    |
+| `text-teal-600`      | `text-primary-600`     | Links, active nav                      |
+| `text-teal-700`      | `text-primary-700`     | Pressed/hover text                     |
+| `text-teal-800`      | `text-primary-800`     | Dark badge text on light teal          |
+| `border-teal-100`    | `border-primary-100`   | —                                      |
+| `border-teal-300`    | `border-primary-300`   | Hover borders                          |
+| `border-teal-400`    | `border-primary-400`   | Focus states                           |
+| `ring-teal-200`      | `ring-primary-200`     | —                                      |
+| `ring-teal-300`      | `ring-primary-300`     | Focus rings                            |
+| `ring-teal-400`      | `ring-primary-400`     | —                                      |
+| `ring-teal-500`      | `ring-primary-500`     | Focus rings                            |
+| `ring-slate-200`     | `ring-neutral-200`     | —                                      |
+| `ring-slate-500`     | `ring-primary-500`     | **Form inputs — wrong ring color**     |
+| `bg-emerald-50`      | `bg-success-light`     | Success state backgrounds              |
+| `border-emerald-200` | `border-success-light` | —                                      |
+| `text-emerald-700`   | `text-success`         | Success text                           |
+| `text-emerald-800`   | `text-success-dark`    | —                                      |
+| `bg-green-100`       | `bg-primary-100`       | Provider booking badge                 |
+| `text-green-700`     | `text-primary-800`     | Provider booking badge text            |
+| `bg-blue-100`        | `bg-accent-100`        | Provider `to_call` badge               |
+| `text-blue-700`      | `text-accent-800`      | Provider `to_call` badge text          |
+| `bg-amber-50`        | `bg-warning-light`     | Medical disclaimer, NAMS badge         |
+| `bg-amber-100`       | `bg-warning-light`     | Warning tints                          |
+| `border-amber-200`   | `border-warning`       | Warning borders                        |
+| `text-amber-700`     | `text-warning-dark`    | Warning text                           |
+| `text-amber-800`     | `text-warning-dark`    | —                                      |
 
-> **Period calendar (rose-*):** The design skill specifies accent coral for period indicators. The current implementation uses `rose-*` (pink-red family), which is arguably a better UX choice for menstrual flow. **This is a decision point** — see Phase 3e below. Recommend leaving `rose-*` for flow levels but using `accent-*` for non-flow period UI elements (log buttons, calendar header accents).
+> **Period calendar (rose-\*):** The design skill specifies accent coral for period indicators. The current implementation uses `rose-*` (pink-red family), which is arguably a better UX choice for menstrual flow. **This is a decision point** — see Phase 3e below. Recommend leaving `rose-*` for flow levels but using `accent-*` for non-flow period UI elements (log buttons, calendar header accents).
 
 ---
 
@@ -106,8 +106,8 @@ The `--primary` CSS variable in the `:root` block currently maps to `oklch(0.208
 --primary-foreground: oklch(0.984 0.003 247.858);
 
 /* After */
---primary: oklch(0.65 0.15 175);      /* ≈ #14b892 teal */
---primary-foreground: oklch(1 0 0);   /* white */
+--primary: oklch(0.65 0.15 175); /* ≈ #14b892 teal */
+--primary-foreground: oklch(1 0 0); /* white */
 ```
 
 Also update the `.dark` block's `--primary` to an appropriate teal-based value for dark mode consistency.
@@ -119,6 +119,7 @@ Also update the `.dark` block's `--primary` to an appropriate teal-based value f
 **File:** `frontend/src/routes/(app)/+layout.svelte`
 
 Changes:
+
 - Add `<img src={logo} alt="Meno" class="h-8 w-auto" />` to the wordmark area. Import logo: `import logo from '$lib/assets/logo.png'`
 - Wordmark text: `text-slate-900` → `text-neutral-800`
 - Inactive nav links: `text-slate-700 hover:bg-slate-100 hover:text-slate-900` → `text-neutral-600 hover:text-primary-600`
@@ -171,17 +172,27 @@ Work through each page applying the color migration table. Key items per page:
 #### 3e. Providers (`providers/+page.svelte`, `ProviderCard.svelte`, `ProviderFilters.svelte`, `CallingScriptModal.svelte`)
 
 Specific badge fixes in `providers/+page.svelte` STATUS_CONFIG:
+
 ```javascript
 // Before
-to_call:        { badge: 'bg-blue-100 text-blue-700' }
-booking:        { badge: 'bg-green-100 text-green-700' }
+to_call: {
+  badge: "bg-blue-100 text-blue-700";
+}
+booking: {
+  badge: "bg-green-100 text-green-700";
+}
 
 // After
-to_call:        { badge: 'bg-accent-100 text-accent-800' }
-booking:        { badge: 'bg-primary-100 text-primary-800' }
+to_call: {
+  badge: "bg-accent-100 text-accent-800";
+}
+booking: {
+  badge: "bg-primary-100 text-primary-800";
+}
 ```
 
 In `ProviderCard.svelte`:
+
 - NAMS certification badge: `bg-amber-50 border-amber-200 text-amber-700` → `bg-primary-50 border-primary-200 text-primary-700` (amber is warning-only per the skill; a certification badge should use primary teal)
 - Provider type badge: `teal-*` → `primary-*`
 - Insurance tags: `border-slate-200 bg-slate-50 text-slate-600` → neutral equivalents
@@ -199,6 +210,7 @@ All `text-slate-*`, `border-slate-*` → neutral equivalents.
 #### 3g. Medications (`medications/+page.svelte`, `add/`, `[id]/`, `[id]/impact/`)
 
 In `[id]/impact/+page.svelte` — medication impact table:
+
 - Positive change (decrease): `text-success` ✅ (verify — may already be correct)
 - Negative change (increase): `text-danger` ✅ (verify)
 - Neutral: `text-neutral-500`

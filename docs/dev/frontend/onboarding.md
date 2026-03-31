@@ -30,40 +30,40 @@ All state is managed with Svelte 5 runes. There is no external store; all state 
 
 ### Reactive State (`$state`)
 
-| Variable | Type | Description |
-|---|---|---|
-| `dateOfBirth` | `string` | Raw value from the date input (`YYYY-MM-DD`). Empty string until the user enters a value. |
-| `journeyStage` | `JourneyStage \| ''` | Selected radio value. Empty string until the user picks one. |
-| `disclaimerAcknowledged` | `boolean` | Whether the user has ticked the medical disclaimer checkbox. |
-| `loading` | `boolean` | True while the POST is in-flight; disables the submit button. |
-| `error` | `string` | API or network error message shown below the form (empty = no error). |
-| `dobError` | `string` | Client-side validation message shown under the date field (empty = no error). |
-| `success` | `boolean` | True after a successful API response; triggers the success view and auto-redirect. |
-| `checkingAuth` | `boolean` | True during the `onMount` auth + profile check; shows a loading state to prevent flash. |
+| Variable                 | Type                 | Description                                                                               |
+| ------------------------ | -------------------- | ----------------------------------------------------------------------------------------- |
+| `dateOfBirth`            | `string`             | Raw value from the date input (`YYYY-MM-DD`). Empty string until the user enters a value. |
+| `journeyStage`           | `JourneyStage \| ''` | Selected radio value. Empty string until the user picks one.                              |
+| `disclaimerAcknowledged` | `boolean`            | Whether the user has ticked the medical disclaimer checkbox.                              |
+| `loading`                | `boolean`            | True while the POST is in-flight; disables the submit button.                             |
+| `error`                  | `string`             | API or network error message shown below the form (empty = no error).                     |
+| `dobError`               | `string`             | Client-side validation message shown under the date field (empty = no error).             |
+| `success`                | `boolean`            | True after a successful API response; triggers the success view and auto-redirect.        |
+| `checkingAuth`           | `boolean`            | True during the `onMount` auth + profile check; shows a loading state to prevent flash.   |
 
 ### Derived State (`$derived`)
 
-| Variable | Type | Logic |
-|---|---|---|
+| Variable    | Type      | Logic                                                                                                |
+| ----------- | --------- | ---------------------------------------------------------------------------------------------------- |
 | `canSubmit` | `boolean` | `dateOfBirth !== '' && journeyStage !== '' && disclaimerAcknowledged && dobError === '' && !loading` |
 
 ### Constants
 
 ```typescript
-const API_BASE = 'http://localhost:8000'; // Replace with PUBLIC_API_URL env var for production
-const todayStr = new Date().toISOString().split('T')[0]; // YYYY-MM-DD, used as date input max
+const API_BASE = "http://localhost:8000"; // Replace with PUBLIC_API_URL env var for production
+const todayStr = new Date().toISOString().split("T")[0]; // YYYY-MM-DD, used as date input max
 ```
 
 ### TypeScript Types
 
 ```typescript
-type JourneyStage = 'perimenopause' | 'menopause' | 'post-menopause' | 'unsure';
+type JourneyStage = "perimenopause" | "menopause" | "post-menopause" | "unsure";
 
 const stages: { value: JourneyStage; label: string; description: string }[] = [
-    { value: 'perimenopause', label: 'Perimenopause', description: '...' },
-    { value: 'menopause',     label: 'Menopause',     description: '...' },
-    { value: 'post-menopause', label: 'Post-menopause', description: '...' },
-    { value: 'unsure',        label: 'Not sure',      description: '...' },
+  { value: "perimenopause", label: "Perimenopause", description: "..." },
+  { value: "menopause", label: "Menopause", description: "..." },
+  { value: "post-menopause", label: "Post-menopause", description: "..." },
+  { value: "unsure", label: "Not sure", description: "..." },
 ];
 ```
 
@@ -104,7 +104,7 @@ Age is calculated accurately by checking whether the birthday has already occurr
 let age = today.getFullYear() - dob.getFullYear();
 const monthDiff = today.getMonth() - dob.getMonth();
 if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < dob.getDate())) {
-    age--;
+  age--;
 }
 ```
 
@@ -133,11 +133,11 @@ handleSubmit()
 
 The template has three mutually exclusive top-level states:
 
-| State | Condition | What renders |
-|---|---|---|
-| **Checking auth** | `checkingAuth === true` | Full-screen centred "Loading…" text |
-| **Success** | `success === true` | Full-screen emerald checkmark + "You're all set!" + auto-redirect |
-| **Form** | default | Header, disclaimer box, date + journey stage form, submit button |
+| State             | Condition               | What renders                                                      |
+| ----------------- | ----------------------- | ----------------------------------------------------------------- |
+| **Checking auth** | `checkingAuth === true` | Full-screen centred "Loading…" text                               |
+| **Success**       | `success === true`      | Full-screen emerald checkmark + "You're all set!" + auto-redirect |
+| **Form**          | default                 | Header, disclaimer box, date + journey stage form, submit button  |
 
 ---
 
@@ -146,6 +146,7 @@ The template has three mutually exclusive top-level states:
 ### Medical Disclaimer
 
 An amber `bg-amber-50 border-amber-200` info box with:
+
 - An info icon (SVG)
 - The Meno disclaimer text
 - An "I understand" checkbox (`bind:checked={disclaimerAcknowledged}`)
@@ -161,6 +162,7 @@ The checkbox must be ticked before `canSubmit` becomes true. This is enforced cl
 ### Journey Stage
 
 A `<fieldset>` with four full-width radio card `<label>` elements. Each card:
+
 - Wraps a visually-styled `<input type="radio">` with `bind:group={journeyStage}`
 - Highlights with `border-violet-400 bg-violet-50` when selected
 - Displays the stage label + descriptive subtitle
@@ -177,39 +179,39 @@ The entire card area is clickable (the `<label>` wraps the radio input), making 
 
 ## Animations
 
-| Element | Transition | Parameters |
-|---|---|---|
-| Page fade-in (form view) | `in:fade` | `{ duration: 150 }` |
-| Success view | `in:fade` | `{ duration: 200 }` |
-| DOB validation error | `in:fly` | `{ y: -4, duration: 150 }` |
-| API error message | `in:fly` | `{ y: -4, duration: 150 }` |
+| Element                  | Transition | Parameters                 |
+| ------------------------ | ---------- | -------------------------- |
+| Page fade-in (form view) | `in:fade`  | `{ duration: 150 }`        |
+| Success view             | `in:fade`  | `{ duration: 200 }`        |
+| DOB validation error     | `in:fly`   | `{ y: -4, duration: 150 }` |
+| API error message        | `in:fly`   | `{ y: -4, duration: 150 }` |
 
 ---
 
 ## Error Handling
 
-| Scenario | Behaviour |
-|---|---|
-| No session on mount | `goto('/login')` |
-| Profile exists on mount | `goto('/dashboard')` |
+| Scenario                               | Behaviour                                        |
+| -------------------------------------- | ------------------------------------------------ |
+| No session on mount                    | `goto('/login')`                                 |
+| Profile exists on mount                | `goto('/dashboard')`                             |
 | Auth check throws (e.g. invalid token) | `catch` → show form; backend validates on submit |
-| No session token at submit | `error` message → `goto('/login')` |
-| API 409 (duplicate) | `goto('/dashboard')` silently |
-| API 400 (validation) | Show `errorData.detail` inline |
-| API other non-2xx | Show `errorData.detail` or generic fallback |
-| Network error (fetch throws) | Show "Network error…" message |
-| `response.json()` parse fails | `.catch(() => ({}))` prevents secondary error |
+| No session token at submit             | `error` message → `goto('/login')`               |
+| API 409 (duplicate)                    | `goto('/dashboard')` silently                    |
+| API 400 (validation)                   | Show `errorData.detail` inline                   |
+| API other non-2xx                      | Show `errorData.detail` or generic fallback      |
+| Network error (fetch throws)           | Show "Network error…" message                    |
+| `response.json()` parse fails          | `.catch(() => ({}))` prevents secondary error    |
 
 ---
 
 ## Dependencies
 
-| Import | Source | Purpose |
-|---|---|---|
-| `onMount` | `svelte` | Auth check and profile query after mount |
-| `goto` | `$app/navigation` | Programmatic redirects |
-| `fly`, `fade` | `svelte/transition` | Error and state transition animations |
-| `supabase` | `$lib/supabase/client` | Auth session retrieval and profile existence check |
+| Import        | Source                 | Purpose                                            |
+| ------------- | ---------------------- | -------------------------------------------------- |
+| `onMount`     | `svelte`               | Auth check and profile query after mount           |
+| `goto`        | `$app/navigation`      | Programmatic redirects                             |
+| `fly`, `fade` | `svelte/transition`    | Error and state transition animations              |
+| `supabase`    | `$lib/supabase/client` | Auth session retrieval and profile existence check |
 
 No shadcn-svelte components are used — all UI is Tailwind utility classes.
 

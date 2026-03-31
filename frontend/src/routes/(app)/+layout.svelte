@@ -102,61 +102,61 @@
 
 			<!-- Mobile sidebar menu (only rendered when open) -->
 			<div
-				class="fixed left-0 top-0 z-50 h-full w-64 transform bg-white shadow-lg transition-transform duration-300"
+				class="fixed top-0 left-0 z-50 h-full w-64 transform bg-white shadow-lg transition-transform duration-300"
 			>
-			<!-- Close button -->
-			<div class="flex items-center justify-between border-b border-neutral-200 p-4">
-				<a href="/dashboard" class="flex items-center gap-2">
-					<img src={logo} alt="Meno" class="h-8 w-auto" />
-					<span class="text-xl font-bold text-neutral-800">Meno</span>
-				</a>
-				<button
-					onclick={closeMenu}
-					class="text-neutral-500 hover:text-neutral-700"
-					aria-label="Close menu"
-				>
-					<X size={24} />
-				</button>
-			</div>
-
-			<!-- Mobile nav links (stacked) -->
-			<nav class="flex flex-col gap-1 p-4">
-				{#each navLinks as link}
-					<a
-						href={link.href}
-						aria-current={page.url.pathname === link.href ? 'page' : undefined}
-						onclick={closeMenu}
-						class="rounded-md px-4 py-3 text-base font-medium {page.url.pathname === link.href
-							? 'bg-primary-50 text-primary-800 font-semibold'
-							: 'text-neutral-600 hover:bg-neutral-100 hover:text-primary-800'}"
-					>
-						{link.label}
-					</a>
-				{/each}
-			</nav>
-
-			<!-- Mobile user area -->
-			{#if $authState.user}
-				<div class="border-t border-neutral-200 p-4">
-					<div class="mb-3 text-sm text-neutral-600 break-all">{$authState.user.email}</div>
-					<a
-						href="/settings"
-						onclick={closeMenu}
-						class="mb-2 block rounded-md px-3 py-2 text-sm font-medium text-neutral-600 hover:bg-neutral-100"
-					>
-						Settings
+				<!-- Close button -->
+				<div class="flex items-center justify-between border-b border-neutral-200 p-4">
+					<a href="/dashboard" class="flex items-center gap-2">
+						<img src={logo} alt="Meno" class="h-8 w-auto" />
+						<span class="text-xl font-bold text-neutral-800">Meno</span>
 					</a>
 					<button
-						onclick={() => {
-							closeMenu();
-							handleLogout();
-						}}
-						class="w-full rounded-md px-3 py-2 text-left text-sm font-medium text-neutral-600 hover:bg-neutral-100"
+						onclick={closeMenu}
+						class="text-neutral-500 hover:text-neutral-700"
+						aria-label="Close menu"
 					>
-						Log out
+						<X size={24} />
 					</button>
 				</div>
-			{/if}
+
+				<!-- Mobile nav links (stacked) -->
+				<nav class="flex flex-col gap-1 p-4">
+					{#each navLinks as link}
+						<a
+							href={link.href}
+							aria-current={page.url.pathname === link.href ? 'page' : undefined}
+							onclick={closeMenu}
+							class="rounded-md px-4 py-3 text-base font-medium {page.url.pathname === link.href
+								? 'bg-primary-50 font-semibold text-primary-800'
+								: 'text-neutral-600 hover:bg-neutral-100 hover:text-primary-800'}"
+						>
+							{link.label}
+						</a>
+					{/each}
+				</nav>
+
+				<!-- Mobile user area -->
+				{#if $authState.user}
+					<div class="border-t border-neutral-200 p-4">
+						<div class="mb-3 text-sm break-all text-neutral-600">{$authState.user.email}</div>
+						<a
+							href="/settings"
+							onclick={closeMenu}
+							class="mb-2 block rounded-md px-3 py-2 text-sm font-medium text-neutral-600 hover:bg-neutral-100"
+						>
+							Settings
+						</a>
+						<button
+							onclick={() => {
+								closeMenu();
+								handleLogout();
+							}}
+							class="w-full rounded-md px-3 py-2 text-left text-sm font-medium text-neutral-600 hover:bg-neutral-100"
+						>
+							Log out
+						</button>
+					</div>
+				{/if}
 			</div>
 		{/if}
 
@@ -177,7 +177,7 @@
 									href={link.href}
 									aria-current={page.url.pathname === link.href ? 'page' : undefined}
 									class="rounded-md px-3 py-2 text-sm font-medium {page.url.pathname === link.href
-										? 'text-primary-800 font-semibold'
+										? 'font-semibold text-primary-800'
 										: 'text-neutral-600 hover:text-primary-800'}"
 								>
 									{link.label}
@@ -191,7 +191,7 @@
 						<!-- Mobile hamburger button (hidden on md and up) -->
 						<button
 							onclick={() => (mobileMenuOpen = !mobileMenuOpen)}
-							class="flex h-11 w-11 items-center justify-center rounded md:hidden text-neutral-500 hover:text-neutral-700"
+							class="flex h-11 w-11 items-center justify-center rounded text-neutral-500 hover:text-neutral-700 md:hidden"
 							aria-label="Toggle menu"
 							aria-expanded={mobileMenuOpen}
 						>
@@ -205,7 +205,7 @@
 									e.stopPropagation();
 									profileMenuOpen = !profileMenuOpen;
 								}}
-								class="flex h-9 w-9 items-center justify-center rounded-full bg-primary-500 text-sm font-semibold text-white hover:bg-primary-600 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-1"
+								class="flex h-9 w-9 items-center justify-center rounded-full bg-primary-500 text-sm font-semibold text-white hover:bg-primary-600 focus:ring-2 focus:ring-primary-500 focus:ring-offset-1 focus:outline-none"
 								aria-label="User menu"
 								aria-expanded={profileMenuOpen}
 							>
@@ -214,10 +214,12 @@
 
 							{#if profileMenuOpen}
 								<div
-									class="absolute right-0 top-11 z-50 min-w-48 rounded-md border border-neutral-200 bg-white py-1 shadow-lg"
+									class="absolute top-11 right-0 z-50 min-w-48 rounded-md border border-neutral-200 bg-white py-1 shadow-lg"
 								>
 									{#if $authState.user}
-										<div class="border-b border-neutral-100 px-4 py-2 text-xs text-neutral-500 truncate max-w-xs">
+										<div
+											class="max-w-xs truncate border-b border-neutral-100 px-4 py-2 text-xs text-neutral-500"
+										>
 											{$authState.user.email}
 										</div>
 									{/if}
@@ -245,7 +247,10 @@
 			</div>
 		</nav>
 
-		<main class="w-full max-w-full overflow-hidden px-4 py-6 sm:px-6 lg:px-8" aria-label="Main content">
+		<main
+			class="w-full max-w-full overflow-hidden px-4 py-6 sm:px-6 lg:px-8"
+			aria-label="Main content"
+		>
 			{@render children()}
 		</main>
 	</div>

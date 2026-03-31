@@ -27,7 +27,7 @@
 		{
 			value: 'unsure',
 			label: 'Not sure',
-			description: "Not sure where I am in the process"
+			description: 'Not sure where I am in the process'
 		}
 	];
 
@@ -177,13 +177,12 @@
 {:else}
 	<div class="min-h-screen bg-neutral-50 px-4 py-12" in:fade={{ duration: 150 }}>
 		<div class="mx-auto max-w-lg">
-
 			<!-- Header -->
 			<div class="mb-8 text-center">
 				<h1 class="text-3xl font-bold text-neutral-800">Welcome to Meno</h1>
 				<p class="mt-2 text-neutral-500">
-					Meno helps you track perimenopause and menopause symptoms, understand patterns,
-					and prepare for healthcare conversations.
+					Meno helps you track perimenopause and menopause symptoms, understand patterns, and
+					prepare for healthcare conversations.
 				</p>
 				<p class="mt-5 text-lg font-medium text-neutral-700">Tell us a bit about yourself</p>
 			</div>
@@ -207,10 +206,9 @@
 						/>
 					</svg>
 					<p class="text-sm leading-relaxed text-warning-dark">
-						Meno provides educational information and symptom tracking. It is not a medical tool
-						and cannot diagnose conditions, recommend treatments, or replace the advice of a
-						healthcare provider. Please discuss your symptoms and any treatment decisions with
-						your doctor.
+						Meno provides educational information and symptom tracking. It is not a medical tool and
+						cannot diagnose conditions, recommend treatments, or replace the advice of a healthcare
+						provider. Please discuss your symptoms and any treatment decisions with your doctor.
 					</p>
 				</div>
 				<label class="mt-4 flex cursor-pointer items-center gap-3">
@@ -244,17 +242,13 @@
 							onblur={validateDob}
 							max={todayStr}
 							required
-							class="w-full rounded-lg border px-3 py-2.5 text-sm text-neutral-800 transition-colors focus:outline-none focus:ring-2
+							class="w-full rounded-lg border px-3 py-2.5 text-sm text-neutral-800 transition-colors focus:ring-2 focus:outline-none
 								{dobError
 								? 'border-danger-light focus:border-danger focus:ring-danger-light'
 								: 'border-neutral-300 focus:border-primary-500 focus:ring-primary-200'}"
 						/>
 						{#if dobError}
-							<p
-								class="mt-1.5 text-sm text-danger"
-								in:fly={{ y: -4, duration: 150 }}
-								role="alert"
-							>
+							<p class="mt-1.5 text-sm text-danger" in:fly={{ y: -4, duration: 150 }} role="alert">
 								{dobError}
 							</p>
 						{:else}

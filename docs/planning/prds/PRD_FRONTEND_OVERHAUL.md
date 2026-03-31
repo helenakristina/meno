@@ -17,6 +17,7 @@ Systematically update every frontend component and page to use the design tokens
 ### In Scope
 
 **Navigation bar:**
+
 - Replace the plain text "Meno" wordmark with the logo image located at `frontend/src/lib/assets/logo.png`
 - Logo height should be approximately 32-36px, maintaining aspect ratio
 - Display the logo alongside the text "Meno" or standalone — whichever looks cleaner at that size
@@ -24,11 +25,13 @@ Systematically update every frontend component and page to use the design tokens
 - Remove any navy or dark background colors from the nav
 
 **Favicon:**
+
 - Generate a favicon from the logo image (32x32 .ico or .png)
 - Generate an Apple touch icon (180x180)
 - Add both to the appropriate location in the Next.js/SvelteKit project and reference in the HTML head
 
 **Buttons — global:**
+
 - Primary buttons: `bg-primary-500 text-white hover:bg-primary-600 rounded-md px-4 py-2 font-semibold text-sm`
 - Secondary buttons: `border border-neutral-300 text-neutral-700 hover:bg-neutral-50 rounded-md px-4 py-2 font-semibold text-sm`
 - Danger buttons (delete/remove only): `bg-danger text-white hover:bg-danger-dark`
@@ -37,50 +40,60 @@ Systematically update every frontend component and page to use the design tokens
 - The "Log period" button on the Cycles page should use primary teal, not the current red
 
 **Cards — global:**
+
 - Standardize to: `bg-white border border-neutral-200 rounded-lg p-6`
 - Interactive cards get: `hover:border-primary-300 hover:shadow-sm transition-all`
 - Remove any colored card backgrounds unless they are semantic callouts (warning, info)
 
 **Status badges (Providers page):**
+
 - "Booked Appointment": `bg-primary-100 text-primary-800`
 - "To Call": `bg-accent-100 text-accent-800`
 - "Left Voicemail": `bg-warning-light text-warning-dark`
 - All badges: `px-2.5 py-0.5 rounded-full text-xs font-medium`
 
 **Charts and data visualization (Dashboard):**
+
 - Symptom frequency bars: use `primary-400` or `primary-500` consistently
 - Remove any off-palette chart colors
 
 **Links — global:**
+
 - All links: `text-primary-600 hover:text-primary-700`
 - No blue links, no navy links, no inconsistent link colors between pages
 
 **Forms — global:**
+
 - Input borders: `border-neutral-300 focus:border-primary-500 focus:ring-primary-500`
 - Labels: `text-neutral-700 font-medium text-sm`
 - Placeholder text: `text-neutral-400`
 
 **Medical disclaimer banner (Ask Meno):**
+
 - `bg-warning-light border border-warning text-warning-dark text-sm`
 
 **Text colors — global:**
+
 - Page headings: `text-neutral-800 font-bold`
 - Body text: `text-neutral-600`
 - Secondary/muted text: `text-neutral-400` or `text-neutral-500`
 - Remove any hardcoded gray values that don't match the warm neutral palette
 
 **Symptom logging cards:**
+
 - Selected state should use `border-primary-500 bg-primary-50`
 - Unselected state: `border-neutral-200 bg-white`
 - Dismiss X button: `text-neutral-400 hover:text-neutral-600`
 
 **Medication impact table:**
+
 - Positive changes (decrease in symptom): `text-success`
 - Negative changes (increase in symptom): `text-danger`
 - Neutral/no change: `text-neutral-500`
 - These semantic colors are correct to use here — this is their intended purpose
 
 ### Out of Scope
+
 - Content changes (copy, headings, descriptions)
 - Layout restructuring (page structure, component hierarchy)
 - New features or functionality
@@ -90,16 +103,21 @@ Systematically update every frontend component and page to use the design tokens
 ## Implementation Approach
 
 ### Step 1: Design tokens file
+
 Create a CSS custom properties file or Tailwind config extension that defines all the design tokens from the skill. This becomes the single source of truth.
 
 ### Step 2: Global styles
+
 Update any global CSS to use the new tokens. Set base text color, link color, and background.
 
 ### Step 3: Shared components
+
 Update shared components first — Navbar, Footer, Button (if componentized), Card, Badge. These cascade to every page.
 
 ### Step 4: Page by page
+
 Work through each page systematically:
+
 1. Dashboard
 2. Log Symptoms
 3. Ask Meno
@@ -110,6 +128,7 @@ Work through each page systematically:
 8. Medications
 
 ### Step 5: Favicon
+
 Generate and install the favicon and Apple touch icon.
 
 ## Key Constraint

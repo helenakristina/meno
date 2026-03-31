@@ -6,5 +6,5 @@
  */
 
 export async function load() {
-  return {};
+	return {};
 }

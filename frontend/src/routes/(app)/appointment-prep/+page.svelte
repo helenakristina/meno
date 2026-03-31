@@ -1,6 +1,10 @@
 <script lang="ts">
 	import { apiClient } from '$lib/api/client';
-	import type { AppointmentContext, ScenarioCard, AppointmentPrepState } from '$lib/types/appointment';
+	import type {
+		AppointmentContext,
+		ScenarioCard,
+		AppointmentPrepState
+	} from '$lib/types/appointment';
 	import { STEP_TITLES } from '$lib/types/appointment';
 	import type { ApiError } from '$lib/types';
 	import Step1Context from './Step1Context.svelte';
@@ -23,7 +27,7 @@
 		scenarios: [],
 		isLoading: false,
 		error: null,
-		currentStep: 1,
+		currentStep: 1
 	});
 
 	let savedStateExists = $state(false);
@@ -66,7 +70,7 @@
 				appointment_type: context.appointment_type,
 				goal: context.goal,
 				dismissed_before: context.dismissed_before,
-				urgent_symptom: context.urgent_symptom || null,
+				urgent_symptom: context.urgent_symptom || null
 			});
 			state.appointmentId = res.appointment_id;
 			state.context = context;
@@ -116,7 +120,7 @@
 			scenarios: [],
 			isLoading: false,
 			error: null,
-			currentStep: 1,
+			currentStep: 1
 		};
 		sessionStorage.removeItem('appointmentPrepState');
 	}
@@ -202,7 +206,8 @@
 					<div>
 						<h3 class="font-semibold text-primary-900">Resume Previous Session?</h3>
 						<p class="mt-1 text-sm text-primary-700">
-							We found your previous appointment prep session at Step {state.currentStep}. You can continue where you left off or start fresh.
+							We found your previous appointment prep session at Step {state.currentStep}. You can
+							continue where you left off or start fresh.
 						</p>
 					</div>
 					<div class="flex flex-shrink-0 gap-2">
@@ -232,10 +237,7 @@
 		{#if state.currentStep === 1}
 			<Step1Context data={data.form} onNext={handleStep1} />
 		{:else if state.currentStep === 2 && state.appointmentId}
-			<Step2Narrative
-				appointmentId={state.appointmentId}
-				onNext={handleStep2}
-			/>
+			<Step2Narrative appointmentId={state.appointmentId} onNext={handleStep2} />
 		{:else if state.currentStep === 3 && state.appointmentId && state.context}
 			<Step3Prioritize
 				appointmentId={state.appointmentId}
@@ -244,10 +246,7 @@
 				onError={handleStepError}
 			/>
 		{:else if state.currentStep === 4 && state.appointmentId}
-			<Step4Scenarios
-				appointmentId={state.appointmentId}
-				onNext={handleStep4}
-			/>
+			<Step4Scenarios appointmentId={state.appointmentId} onNext={handleStep4} />
 		{:else if state.currentStep === 5 && state.appointmentId}
 			<Step5Generate
 				appointmentId={state.appointmentId}

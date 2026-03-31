@@ -13,6 +13,7 @@ review_agents:
 Meno is a FastAPI + SvelteKit health app for perimenopause/menopause navigation.
 
 **Key conventions:**
+
 - Backend: Routes → Services → Repositories (strict layering). No HTTPException in services/repos — use domain exceptions from app.exceptions. ABC pattern for service interfaces. Pydantic v2 models. PII-safe logging (never log health data, use hash_user_id()).
 - Frontend: Svelte 5 runes ($state, $derived, $props, onMount). All API calls via apiClient (never raw fetch). Mobile-first, WCAG 2.1 AA.
 - Test naming: test_X_when_Y_then_Z. Mock Supabase via fixtures/supabase.py helpers.

@@ -339,21 +339,21 @@ These are features designed but not built, planned for after V1 launch:
 ✅ Service layer (clean separation, testable)  
 ✅ API client wrapper (consistent error handling)  
 ✅ RLS enforcement (tested, working)  
-✅ Guardrails (tested against boundary cases)  
+✅ Guardrails (tested against boundary cases)
 
 ### What We're Validating
 
 ⏳ Legal review (awaiting attorney feedback)  
 ⏳ Monetization plan (awaiting job + API cost decision)  
 ⏳ Security audit (on hold until legal review)  
-⏳ User testing (awaiting launch clearance)  
+⏳ User testing (awaiting launch clearance)
 
 ### What Could Break
 
 🔴 OpenAI API goes down → graceful degradation implemented, will surface to users  
 🔴 RAG database slow → may impact Ask Meno latency, monitoring needed  
 🔴 Supabase RLS misconfiguration → would be caught by tests  
-🔴 LLM ignores system prompt → extremely unlikely, guardrails tested  
+🔴 LLM ignores system prompt → extremely unlikely, guardrails tested
 
 ---
 

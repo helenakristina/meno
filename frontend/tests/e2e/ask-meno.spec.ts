@@ -35,7 +35,10 @@ test.describe('Ask Meno Chat', () => {
 		await page.waitForLoadState('networkidle');
 
 		// Click first prompt button (assumes pattern exists)
-		const firstPromptButton = page.locator('button').filter({ hasText: /What|How|When/ }).first();
+		const firstPromptButton = page
+			.locator('button')
+			.filter({ hasText: /What|How|When/ })
+			.first();
 
 		// Check if clicking populates textarea
 		const textarea = page.locator('textarea');

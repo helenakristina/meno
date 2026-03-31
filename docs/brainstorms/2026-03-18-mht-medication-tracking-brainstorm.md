@@ -35,6 +35,7 @@ The core medication tracking feature is already substantial (2 new tables, 8 end
 ### 2. Before/after comparison: Always show, note sparse data
 
 No minimum day threshold before offering the comparison view. Reasons:
+
 - Users with short "before" windows aren't at fault — they may have just started using Meno before starting a medication
 - Some MHT effects are rapid (hot flashes can change within hours of starting estrogen) — gating the view on 14 days would hide exactly this kind of early signal
 - The comparison is framed as "data to bring to your provider," not a statistical study — sparse data with a clear note is more honest than a hard gate
@@ -44,6 +45,7 @@ No minimum day threshold before offering the comparison view. Reasons:
 ### 3. Ramp-up exclusion: Skip
 
 The after window starts from day 1 of the medication, not day 14. Reasons:
+
 - Some effects appear very quickly; a 14-day exclusion would hide fast-acting responses
 - The before/after view is not a clinical measurement — the disclaimer already covers the "correlation ≠ causation" nuance
 - Excluding the first 14 days creates a confusing UX ("why does my after window start 2 weeks after I started?")
@@ -53,19 +55,20 @@ The after window starts from day 1 of the medication, not day 14. Reasons:
 
 ## Resolved Open Questions
 
-| Question | Decision |
-|---|---|
-| Minimum days for before/after? | No minimum — always show, note sparse data |
-| Ramp-up exclusion period? | None — after window starts day 1 |
-| Patch replacement tracking? | Option A — skip for V1 |
-| Reference table maintenance? | Manual process for now — noted as future consideration |
-| Promoting user-created meds to shared? | Admin workflow deferred — low priority |
+| Question                               | Decision                                               |
+| -------------------------------------- | ------------------------------------------------------ |
+| Minimum days for before/after?         | No minimum — always show, note sparse data             |
+| Ramp-up exclusion period?              | None — after window starts day 1                       |
+| Patch replacement tracking?            | Option A — skip for V1                                 |
+| Reference table maintenance?           | Manual process for now — noted as future consideration |
+| Promoting user-created meds to shared? | Admin workflow deferred — low priority                 |
 
 ---
 
 ## Scope Summary
 
 **In scope for V1:**
+
 - `medications_reference` table with system seed data (estrogen, progesterone, combination, testosterone)
 - `user_medications` table (timeline model, `previous_entry_id` chaining)
 - `mht_tracking_enabled` boolean on users table
@@ -81,6 +84,7 @@ The after window starts from day 1 of the medication, not day 14. Reasons:
 - `symptom_summary_cache` invalidation on medication add/change/stop
 
 **Explicitly out of scope for V1:**
+
 - Patch replacement reminders
 - Non-MHT medication tracking
 - Hormone panel / lab value logging

@@ -34,12 +34,12 @@ Click the **Date of Birth** field and enter your date of birth. Meno uses this t
 
 Select the option that best describes where you are right now:
 
-| Option | What it means |
-|---|---|
-| **Perimenopause** | You're experiencing changes but still having periods, even if they're irregular |
-| **Menopause** | You haven't had a period for 12 or more consecutive months |
-| **Post-menopause** | You're beyond that 12-month mark |
-| **Not sure** | You're not sure where you are in the process |
+| Option             | What it means                                                                   |
+| ------------------ | ------------------------------------------------------------------------------- |
+| **Perimenopause**  | You're experiencing changes but still having periods, even if they're irregular |
+| **Menopause**      | You haven't had a period for 12 or more consecutive months                      |
+| **Post-menopause** | You're beyond that 12-month mark                                                |
+| **Not sure**       | You're not sure where you are in the process                                    |
 
 Don't worry about picking the "right" answer — this just helps Meno show you relevant information to start with, and you can update it later.
 

@@ -96,7 +96,11 @@ async function request(
 			body: body !== undefined ? JSON.stringify(body) : undefined
 		});
 	} catch (e) {
-		throw new ApiError(0, 'NETWORK_ERROR', 'Network error. Please check your connection and try again.');
+		throw new ApiError(
+			0,
+			'NETWORK_ERROR',
+			'Network error. Please check your connection and try again.'
+		);
 	}
 
 	return handleResponse(response, responseType);
@@ -113,7 +117,10 @@ export const apiClient = {
 		params?: Record<string, string | number | boolean | undefined>,
 		options?: RequestOptions
 	): Promise<ApiResponse<T>> {
-		return request('GET', path, { params: params as Record<string, string | number | boolean>, responseType: options?.responseType });
+		return request('GET', path, {
+			params: params as Record<string, string | number | boolean>,
+			responseType: options?.responseType
+		});
 	},
 
 	/**
@@ -154,10 +161,7 @@ export const apiClient = {
 	/**
 	 * DELETE request
 	 */
-	delete<T extends ApiMethod>(
-		path: T,
-		options?: RequestOptions
-	): Promise<ApiResponse<T>> {
+	delete<T extends ApiMethod>(path: T, options?: RequestOptions): Promise<ApiResponse<T>> {
 		return request('DELETE', path, { responseType: options?.responseType });
 	}
 };

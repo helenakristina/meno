@@ -34,11 +34,7 @@
 
 	// The dose value to submit
 	const doseValue = $derived(
-		selectedMedication
-			? useCustomDose
-				? customDose.trim()
-				: selectedDose
-			: dose.trim()
+		selectedMedication ? (useCustomDose ? customDose.trim() : selectedDose) : dose.trim()
 	);
 
 	// Delivery method filtered to the reference medication's forms (or full list)
@@ -243,11 +239,11 @@
 					required
 					autocomplete="off"
 					placeholder="Search medications (e.g. Estradiol, Climara)"
-					class="w-full rounded-lg border border-neutral-300 px-3 py-2.5 text-sm text-neutral-800 placeholder:text-neutral-400 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-200"
+					class="w-full rounded-lg border border-neutral-300 px-3 py-2.5 text-sm text-neutral-800 placeholder:text-neutral-400 focus:border-primary-500 focus:ring-2 focus:ring-primary-200 focus:outline-none"
 				/>
 				{#if isSearching}
 					<span
-						class="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-neutral-400"
+						class="absolute top-1/2 right-3 -translate-y-1/2 text-xs text-neutral-400"
 						aria-live="polite"
 					>
 						Searching…
@@ -266,7 +262,8 @@
 								id="med-option-{i}"
 								role="option"
 								aria-selected={highlightedIndex === i}
-								class="cursor-pointer px-3 py-2.5 text-sm hover:bg-neutral-50 {highlightedIndex === i
+								class="cursor-pointer px-3 py-2.5 text-sm hover:bg-neutral-50 {highlightedIndex ===
+								i
 									? 'bg-neutral-50'
 									: ''}"
 								onmousedown={() => selectMedication(med)}
@@ -317,7 +314,7 @@
 					id="dose"
 					bind:value={selectedDose}
 					required
-					class="w-full rounded-lg border border-neutral-300 px-3 py-2.5 text-sm text-neutral-800 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-200"
+					class="w-full rounded-lg border border-neutral-300 px-3 py-2.5 text-sm text-neutral-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-200 focus:outline-none"
 				>
 					<option value="" disabled>Select a dose</option>
 					{#each selectedMedication.common_doses as d}
@@ -331,7 +328,7 @@
 						type="text"
 						bind:value={customDose}
 						placeholder="Enter dose (e.g. 0.075mg)"
-						class="mt-2 w-full rounded-lg border border-neutral-300 px-3 py-2.5 text-sm text-neutral-800 placeholder:text-neutral-400 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-200"
+						class="mt-2 w-full rounded-lg border border-neutral-300 px-3 py-2.5 text-sm text-neutral-800 placeholder:text-neutral-400 focus:border-primary-500 focus:ring-2 focus:ring-primary-200 focus:outline-none"
 					/>
 				{/if}
 			{:else}
@@ -341,7 +338,7 @@
 					bind:value={dose}
 					required
 					placeholder="e.g. 50mcg, 1mg, 0.05%"
-					class="w-full rounded-lg border border-neutral-300 px-3 py-2.5 text-sm text-neutral-800 placeholder:text-neutral-400 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-200"
+					class="w-full rounded-lg border border-neutral-300 px-3 py-2.5 text-sm text-neutral-800 placeholder:text-neutral-400 focus:border-primary-500 focus:ring-2 focus:ring-primary-200 focus:outline-none"
 				/>
 			{/if}
 		</div>
@@ -355,7 +352,7 @@
 				id="delivery_method"
 				bind:value={delivery_method}
 				required
-				class="w-full rounded-lg border border-neutral-300 px-3 py-2.5 text-sm text-neutral-800 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-200"
+				class="w-full rounded-lg border border-neutral-300 px-3 py-2.5 text-sm text-neutral-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-200 focus:outline-none"
 			>
 				<option value="" disabled>Select a delivery method</option>
 				{#each availableDeliveryMethods as method}
@@ -374,7 +371,7 @@
 				type="text"
 				bind:value={frequency}
 				placeholder="e.g. once weekly, daily, twice a week"
-				class="w-full rounded-lg border border-neutral-300 px-3 py-2.5 text-sm text-neutral-800 placeholder:text-neutral-400 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-200"
+				class="w-full rounded-lg border border-neutral-300 px-3 py-2.5 text-sm text-neutral-800 placeholder:text-neutral-400 focus:border-primary-500 focus:ring-2 focus:ring-primary-200 focus:outline-none"
 			/>
 		</div>
 
@@ -388,7 +385,7 @@
 				type="date"
 				bind:value={start_date}
 				required
-				class="w-full rounded-lg border border-neutral-300 px-3 py-2.5 text-sm text-neutral-800 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-200"
+				class="w-full rounded-lg border border-neutral-300 px-3 py-2.5 text-sm text-neutral-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-200 focus:outline-none"
 			/>
 		</div>
 
@@ -402,7 +399,7 @@
 				bind:value={notes}
 				rows="3"
 				placeholder="Any additional notes about this medication…"
-				class="w-full resize-none rounded-lg border border-neutral-300 px-3 py-2.5 text-sm text-neutral-800 placeholder:text-neutral-400 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-200"
+				class="w-full resize-none rounded-lg border border-neutral-300 px-3 py-2.5 text-sm text-neutral-800 placeholder:text-neutral-400 focus:border-primary-500 focus:ring-2 focus:ring-primary-200 focus:outline-none"
 			></textarea>
 		</div>
 

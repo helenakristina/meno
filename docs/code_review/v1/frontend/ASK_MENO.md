@@ -76,6 +76,7 @@
    - Proper ARIA labels
 
 5. **Keyboard Handling**
+
    ```typescript
    function handleKeydown(e: KeyboardEvent) {
      if (e.key === "Enter" && !e.shiftKey) {

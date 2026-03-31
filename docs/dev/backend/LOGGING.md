@@ -50,6 +50,7 @@ Logging PII in a health app violates:
 ### Ethical Responsibility
 
 Users entrust us with sensitive health information. They expect:
+
 - Their data stays private
 - Debug logs won't expose their conditions
 - Logs can't be exploited if there's a breach
@@ -57,6 +58,7 @@ Users entrust us with sensitive health information. They expect:
 ### Technical Reality
 
 **Logs are not private.** They're often:
+
 - Stored in centralized systems (Datadog, CloudWatch, etc.)
 - Accessible to multiple team members and services
 - Retained for weeks, months, or years
@@ -144,6 +146,7 @@ logger.info("Cached result for: %s", hash_user_id(same_user_id))
 ```
 
 **Benefits:**
+
 - Logs are consistent per user (good for grouping)
 - Can't identify users from logs (safe)
 - Can't reverse-engineer user IDs (hashing is one-way)
@@ -247,6 +250,7 @@ class SymptomRepository:
 ```
 
 **Key points:**
+
 - Log the hashed user ID, not the plaintext ID
 - Log the count, not the content
 - Log the operation and status
@@ -282,6 +286,7 @@ class AppointmentPrepService:
 ```
 
 **Key points:**
+
 - Log the operation name and hashed user ID
 - Log counts and metadata, not content
 - Log operation duration but not prompt/response content
@@ -327,6 +332,7 @@ class OpenAIProvider(LLMProvider):
 ```
 
 **Key points:**
+
 - Log input/output sizes, not content
 - Never log prompts or responses
 - Log error type, not error message (which might contain input data)
@@ -361,6 +367,7 @@ async def create_log(
 ```
 
 **Key points:**
+
 - Log the user (hashed) and operation
 - Never log the request payload
 - Log success with the resource ID
@@ -436,14 +443,14 @@ grep -r "logger.debug.*data\|logger.info.*user_id\|logger.debug.*prompt" backend
 
 ## Reference: All Utilities
 
-| Function | Purpose | Returns |
-|----------|---------|---------|
-| `hash_user_id(uid)` | Hash user ID for safe logging | `"user_a3f2b1cd"` |
-| `hash_appointment_id(aid)` | Hash appointment ID | `"appt_c8d4e2f1"` |
-| `safe_len(data)` | Get length without exposing content | `int` |
-| `safe_type(data)` | Get type name | `"dict"`, `"list"`, etc. |
-| `safe_keys(dict)` | Get dict keys | `"id, created_at, user_id"` |
-| `safe_summary(op, status, count, duration)` | Create summary message | `"operation: status (count items, 123ms)"` |
+| Function                                    | Purpose                             | Returns                                    |
+| ------------------------------------------- | ----------------------------------- | ------------------------------------------ |
+| `hash_user_id(uid)`                         | Hash user ID for safe logging       | `"user_a3f2b1cd"`                          |
+| `hash_appointment_id(aid)`                  | Hash appointment ID                 | `"appt_c8d4e2f1"`                          |
+| `safe_len(data)`                            | Get length without exposing content | `int`                                      |
+| `safe_type(data)`                           | Get type name                       | `"dict"`, `"list"`, etc.                   |
+| `safe_keys(dict)`                           | Get dict keys                       | `"id, created_at, user_id"`                |
+| `safe_summary(op, status, count, duration)` | Create summary message              | `"operation: status (count items, 123ms)"` |
 
 All in `app.utils.logging`. Import and use freely.
 

@@ -5,7 +5,7 @@
 
 	let {
 		appointmentId,
-		onNext,
+		onNext
 	}: {
 		appointmentId: string;
 		onNext: (scenarios: ScenarioCard[]) => void;
@@ -50,13 +50,18 @@
 			aria-busy="true"
 			role="status"
 		>
-			<div class="h-8 w-8 animate-spin rounded-full border-4 border-primary-200 border-t-primary-600"></div>
+			<div
+				class="h-8 w-8 animate-spin rounded-full border-4 border-primary-200 border-t-primary-600"
+			></div>
 			<p class="text-sm text-neutral-500" aria-live="polite">
 				Generating practice scenarios… this may take a moment.
 			</p>
 		</div>
 	{:else if loadError}
-		<div class="rounded-xl border border-danger-light bg-danger-light p-4 text-sm text-danger-dark" role="alert">
+		<div
+			class="rounded-xl border border-danger-light bg-danger-light p-4 text-sm text-danger-dark"
+			role="alert"
+		>
 			{loadError}
 			<button
 				type="button"
@@ -75,7 +80,7 @@
 			{#each scenarios as card (card.id)}
 				<div class="rounded-xl border border-neutral-200 bg-white p-5 shadow-sm">
 					<h3 class="font-semibold text-neutral-800">{card.title}</h3>
-					<p class="mt-1 text-sm italic text-neutral-500">{card.situation}</p>
+					<p class="mt-1 text-sm text-neutral-500 italic">{card.situation}</p>
 					<div class="mt-3 rounded-lg bg-primary-50 p-3">
 						<p class="text-sm text-primary-800">{card.suggestion}</p>
 					</div>

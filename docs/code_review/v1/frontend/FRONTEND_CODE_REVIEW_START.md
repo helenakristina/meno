@@ -12,12 +12,14 @@
 The Meno frontend has a **clean, well-organized structure** with good patterns for API integration, auth handling, and component composition. You're using modern TypeScript and Svelte 5 (Runes syntax), which shows current best practices. The main opportunities are **type safety improvements** and **component organization as complexity grows**.
 
 **Key Strengths:**
+
 - ✅ Proper auth handling (Supabase integration)
 - ✅ Centralized API client with TypeScript
 - ✅ Component-based UI library (shadcn/ui style)
 - ✅ Clean route structure (group-based organization)
 
 **Opportunities:**
+
 - 🟡 Minimal type definitions (app.d.ts is sparse)
 - 🟡 No form validation library (building forms from scratch)
 - 🟡 No error boundaries or loading states pattern
@@ -44,12 +46,14 @@ frontend/src
 ```
 
 **What's Good:**
+
 - Route groups organize concerns (auth routes separate from app routes)
 - UI components in dedicated folder (easy to find)
 - Stores for state management
 - API client as a service layer
 
 **What Could Improve:**
+
 - No `types/` folder (type definitions scattered or inline)
 - No `hooks/` folder usage visible
 - No `middleware/` or `guards/` for route protection
@@ -62,15 +66,16 @@ frontend/src
 ### Current State: 6/10
 
 **app.d.ts is Mostly Empty:**
+
 ```typescript
 declare global {
-namespace App {
-// interface Error {}
-// interface Locals {}
-// interface PageData {}
-// interface PageState {}
-// interface Platform {}
-    }
+  namespace App {
+    // interface Error {}
+    // interface Locals {}
+    // interface PageData {}
+    // interface PageState {}
+    // interface Platform {}
+  }
 }
 ```
 
@@ -79,6 +84,7 @@ This is a blank slate. You're not using SvelteKit's type system yet.
 **What's Missing:**
 
 1. **App.Error** — Error handling type
+
 ```typescript
 declare global {
   namespace App {
@@ -91,6 +97,7 @@ declare global {
 ```
 
 2. **App.Locals** — Server-side data (if using SSR)
+
 ```typescript
 interface Locals {
   user?: {
@@ -101,6 +108,7 @@ interface Locals {
 ```
 
 3. **App.PageData** — Type for all page data
+
 ```typescript
 interface PageData {
   user?: User;
@@ -111,6 +119,7 @@ interface PageData {
 ### API Client Type Safety: 8/10
 
 **Good:**
+
 ```typescript
 // Generic types for all methods
 async get<T = unknown>(path: string, ...): Promise<T>
@@ -118,21 +127,23 @@ async post<T = unknown>(path: string, ...): Promise<T>
 ```
 
 This is solid. You can do:
+
 ```typescript
-const data = await apiClient.get<ChatMessage[]>('/api/messages');
+const data = await apiClient.get<ChatMessage[]>("/api/messages");
 // data is typed as ChatMessage[]
 ```
 
 **Could Improve:**
+
 ```typescript
 // No type definitions for API endpoints
 // Could create:
 interface ApiEndpoints {
-  '/api/chat': {
+  "/api/chat": {
     request: ChatRequest;
     response: ChatResponse;
   };
-  '/api/symptoms': {
+  "/api/symptoms": {
     request: SymptomLog;
     response: SymptomFrequency[];
   };
@@ -142,8 +153,8 @@ interface ApiEndpoints {
 // Then use:
 async function getChat<T extends keyof ApiEndpoints>(
   path: T,
-  body?: ApiEndpoints[T]['request']
-): Promise<ApiEndpoints[T]['response']> {
+  body?: ApiEndpoints[T]["request"],
+): Promise<ApiEndpoints[T]["response"]> {
   return apiClient.post(path, body);
 }
 ```
@@ -153,14 +164,16 @@ This would give you **compile-time safety** on API calls.
 ### Auth Store Type Safety: 8/10
 
 **Good:**
+
 ```typescript
-import type { User } from '@supabase/supabase-js';
+import type { User } from "@supabase/supabase-js";
 export const user = writable<User | null>(null);
 ```
 
 Properly typed. You can do:
+
 ```typescript
-user.subscribe(u => {
+user.subscribe((u) => {
   if (u) {
     console.log(u.email); // ✅ TypeScript knows email exists
   }
@@ -168,9 +181,11 @@ user.subscribe(u => {
 ```
 
 **Could Improve:**
+
 - No loading state (is auth checking?)
 - No error state (what if login fails?)
 - Better to have:
+
 ```typescript
 export const authState = writable<{
   user: User | null;
@@ -192,23 +207,27 @@ export const authState = writable<{
 **Strengths:**
 
 1. **Clean, Functional API:**
+
 ```typescript
-await apiClient.get<T>('/api/symptoms');
-await apiClient.post<T>('/api/chat', { message: '...' });
+await apiClient.get<T>("/api/symptoms");
+await apiClient.post<T>("/api/chat", { message: "..." });
 ```
 
 2. **Proper Auth Handling:**
+
 ```typescript
 async function getToken(): Promise<string> {
   const { data } = await supabase.auth.getSession();
   const token = data.session?.access_token;
-  if (!token) throw new Error('Not authenticated');
+  if (!token) throw new Error("Not authenticated");
   return token;
 }
 ```
+
 Every request automatically includes auth token. ✅
 
 3. **Error Handling:**
+
 ```typescript
 try {
   const body = await response.json();
@@ -218,12 +237,15 @@ try {
 }
 throw new Error(detail);
 ```
+
 Graceful fallback. ✅
 
 4. **Type-Safe Methods:**
+
 ```typescript
 get<T = unknown>(path: string, params?: ..., options?: ...): Promise<T>
 ```
+
 Generic typing on all methods. ✅
 
 ### Minor Issues:
@@ -232,29 +254,31 @@ Generic typing on all methods. ✅
    - No logging/metrics
    - No retry logic
    - No request tracking
-   
+
    Could add:
+
    ```typescript
    async function request(...) {
      logger.debug(`${method} ${path}`);
      const start = performance.now();
-     
+
      const response = await fetch(...);
-     
+
      const duration = performance.now() - start;
      logger.info(`${method} ${path}: ${duration}ms`);
-     
+
      return handleResponse(response, responseType);
    }
    ```
 
 2. **No Timeout Handling**
+
    ```typescript
    const controller = new AbortController();
    const timeout = setTimeout(() => controller.abort(), 5000);
-   
+
    try {
-     const response = await fetch(url, { 
+     const response = await fetch(url, {
        signal: controller.signal,
        ...
      });
@@ -264,10 +288,11 @@ Generic typing on all methods. ✅
    ```
 
 3. **No Type for Params**
+
    ```typescript
    // Currently:
    params?: Record<string, string | number | boolean>
-   
+
    // Could be:
    type QueryParams = Record<string, string | number | boolean | undefined>;
    ```
@@ -281,6 +306,7 @@ Generic typing on all methods. ✅
 **Good:**
 
 1. **Initialization on App Load:**
+
 ```typescript
 supabase.auth.getSession().then(({ data: { session } }) => {
   user.set(session?.user ?? null);
@@ -288,6 +314,7 @@ supabase.auth.getSession().then(({ data: { session } }) => {
 ```
 
 2. **Real-time Auth Changes:**
+
 ```typescript
 supabase.auth.onAuthStateChange((event, session) => {
   user.set(session?.user ?? null);
@@ -315,6 +342,7 @@ Both patterns ensure auth state stays in sync. ✅
 ### State Management: 5/10
 
 **Current:**
+
 - Only `user` store
 - No app-wide state (loading, errors, notifications)
 - Each page manages its own state
@@ -324,7 +352,7 @@ Both patterns ensure auth state stays in sync. ✅
 ```typescript
 // lib/stores/app.ts
 
-import { writable, derived } from 'svelte/store';
+import { writable, derived } from "svelte/store";
 
 // Global app state
 export const appState = writable({
@@ -341,8 +369,10 @@ export const userData = writable({
 });
 
 // Derived store (auto-updates when dependencies change)
-export const hasData = derived(userData, $userData => 
-  $userData.symptoms.length > 0 || $userData.medications.length > 0
+export const hasData = derived(
+  userData,
+  ($userData) =>
+    $userData.symptoms.length > 0 || $userData.medications.length > 0,
 );
 ```
 
@@ -355,24 +385,31 @@ export const hasData = derived(userData, $userData =>
 **Good:**
 
 ```typescript
-import { createClient } from '@supabase/supabase-js';
-import { PUBLIC_SUPABASE_URL, PUBLIC_SUPABASE_ANON_KEY } from '$env/static/public';
+import { createClient } from "@supabase/supabase-js";
+import {
+  PUBLIC_SUPABASE_URL,
+  PUBLIC_SUPABASE_ANON_KEY,
+} from "$env/static/public";
 
-export const supabase = createClient(PUBLIC_SUPABASE_URL, PUBLIC_SUPABASE_ANON_KEY);
+export const supabase = createClient(
+  PUBLIC_SUPABASE_URL,
+  PUBLIC_SUPABASE_ANON_KEY,
+);
 ```
 
 - Uses environment variables correctly
-- PUBLIC_ prefix means it's client-safe (no secrets)
+- PUBLIC\_ prefix means it's client-safe (no secrets)
 - Singleton pattern (imported everywhere)
 
 **Could Improve:**
 
 1. **No Type Definitions for Tables**
+
    ```typescript
    // Currently:
-   const data = await supabase.from('symptoms').select();
+   const data = await supabase.from("symptoms").select();
    // data is any — no type safety
-   
+
    // Should be:
    export type Database = {
      public: {
@@ -384,19 +421,19 @@ export const supabase = createClient(PUBLIC_SUPABASE_URL, PUBLIC_SUPABASE_ANON_K
              symptoms: string[];
              logged_at: string;
            };
-           Insert: Omit<Row, 'id'>;
+           Insert: Omit<Row, "id">;
            Update: Partial<Insert>;
          };
          // ... all other tables
        };
      };
    };
-   
+
    // Then:
    const { data } = await supabase
-     .from('symptoms')
+     .from("symptoms")
      .select()
-     .returns<Database['public']['Tables']['symptoms']['Row'][]>();
+     .returns<Database["public"]["Tables"]["symptoms"]["Row"][]>();
    // data is now typed!
    ```
 
@@ -413,11 +450,13 @@ export const supabase = createClient(PUBLIC_SUPABASE_URL, PUBLIC_SUPABASE_ANON_K
 Based on the file list, you're using `shadcn/ui` style components (card, button, input, select, textarea, label, separator).
 
 **What's Good:**
+
 - Composable components (card-header, card-content, etc.)
 - Index files for clean imports (`import Card from '$lib/components/ui/card'`)
 - Consistent naming
 
 **Questions to Review:**
+
 - Are components typed? (Props with TypeScript interfaces?)
 - Is styling consistent? (Tailwind? CSS modules?)
 - Are form components wrapped with validation?
@@ -442,11 +481,13 @@ routes/
 ```
 
 **What's Good:**
+
 - Route groups separate concerns
 - Likely has auth guards on (app) routes
 - Layout nesting for consistent UI
 
 **Would Need to See:**
+
 - Do (app) routes have auth guards? (checking user is logged in?)
 - How are errors handled? (404, 500, etc.)
 - Are there loading states while fetching data?
@@ -458,6 +499,7 @@ routes/
 **Question:** What's in `svelte.config.js` and `tsconfig.json`?
 
 Key things to check:
+
 ```typescript
 // tsconfig.json should have:
 {
@@ -525,15 +567,15 @@ Key things to check:
 
 ## Summary: Frontend vs Backend Type Safety
 
-| Aspect | Backend (Python) | Frontend (TypeScript) | Status |
-|--------|------------------|----------------------|--------|
-| **Core Language Types** | ✅ Type hints | ✅ TypeScript | Good |
-| **API Types** | ✅ Pydantic models | 🟡 Generic<T> only | Could improve |
-| **Database Types** | ✅ Type hints | 🟡 No Supabase types | Could improve |
-| **State Types** | ✅ DataClasses | 🟡 Minimal store types | Could improve |
-| **Form Validation** | ✅ Pydantic | ❌ None | Needs work |
-| **Error Handling** | ✅ HTTPException | 🟡 Try/catch only | Could improve |
-| **Testing** | ✅ 189 tests, 76% coverage | ❓ Unknown | Need to check |
+| Aspect                  | Backend (Python)           | Frontend (TypeScript)  | Status        |
+| ----------------------- | -------------------------- | ---------------------- | ------------- |
+| **Core Language Types** | ✅ Type hints              | ✅ TypeScript          | Good          |
+| **API Types**           | ✅ Pydantic models         | 🟡 Generic<T> only     | Could improve |
+| **Database Types**      | ✅ Type hints              | 🟡 No Supabase types   | Could improve |
+| **State Types**         | ✅ DataClasses             | 🟡 Minimal store types | Could improve |
+| **Form Validation**     | ✅ Pydantic                | ❌ None                | Needs work    |
+| **Error Handling**      | ✅ HTTPException           | 🟡 Try/catch only      | Could improve |
+| **Testing**             | ✅ 189 tests, 76% coverage | ❓ Unknown             | Need to check |
 
 ---
 
@@ -554,17 +596,20 @@ Key things to check:
 ## Next Steps
 
 **Option A: Go Deeper on Specific Areas**
+
 - Deep dive into a specific route/component
 - Understand current patterns
 - Plan improvements for V2
 
 **Option B: Quick Wins First**
+
 - Strengthen app.d.ts (1 hour)
 - Add API endpoint types (2 hours)
 - Improve auth store (1 hour)
 - See immediate TypeScript improvements
 
 **Option C: See the Code**
+
 - Review actual component code (button.svelte, dashboard, etc.)
 - Understand Svelte patterns
 - Identify refactoring needs

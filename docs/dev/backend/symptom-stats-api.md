@@ -80,11 +80,11 @@ Co-occurrence is calculated from `symptom1`'s perspective: `cooccurrence_rate = 
 
 ### Query Parameters
 
-| Parameter       | Type   | Required | Default     | Description                                                    |
-| --------------- | ------ | -------- | ----------- | -------------------------------------------------------------- |
-| `start_date`    | `date` | No       | 30 days ago | Start of range, inclusive (ISO 8601 UTC)                       |
-| `end_date`      | `date` | No       | Today       | End of range, inclusive (ISO 8601 UTC)                         |
-| `min_threshold` | `int`  | No       | `2`         | Exclude pairs that appear together fewer than this many times  |
+| Parameter       | Type   | Required | Default     | Description                                                   |
+| --------------- | ------ | -------- | ----------- | ------------------------------------------------------------- |
+| `start_date`    | `date` | No       | 30 days ago | Start of range, inclusive (ISO 8601 UTC)                      |
+| `end_date`      | `date` | No       | Today       | End of range, inclusive (ISO 8601 UTC)                        |
+| `min_threshold` | `int`  | No       | `2`         | Exclude pairs that appear together fewer than this many times |
 
 `min_threshold` must be ≥ 1 (422 if zero or negative).
 

@@ -2,7 +2,15 @@
 title: "Ask Meno v2: Code Review Learnings (Security, Architecture, Testing)"
 category: security-issues
 date: 2026-03-24
-tags: [pii-logging, prompt-injection, llm-architecture, testing, pgvector, citations]
+tags:
+  [
+    pii-logging,
+    prompt-injection,
+    llm-architecture,
+    testing,
+    pgvector,
+    citations,
+  ]
 todos_resolved: [060, 061, 062, 063, 065, 066, 067, 068, 069, 070, 071]
 ---
 
@@ -165,7 +173,7 @@ class ResponseSection(BaseModel):
     source_index: int | None = None
 ```
 
-**Rule:** Schema regression tests should pass *by design*, not by the accident
+**Rule:** Schema regression tests should pass _by design_, not by the accident
 of a currently-missing required field. `extra="forbid"` makes schema evolution
 explicit and safe.
 

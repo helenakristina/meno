@@ -41,7 +41,9 @@ class ChatMessage(BaseModel):
 
 
 class ChatRequest(BaseModel):
-    message: str = Field(description="The user's question", min_length=1, max_length=2000)
+    message: str = Field(
+        description="The user's question", min_length=1, max_length=2000
+    )
     conversation_id: UUID | None = Field(
         default=None,
         description="Existing conversation UUID to append to; omit to start a new conversation",

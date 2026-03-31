@@ -53,6 +53,7 @@ if self.period_repo is not None:
 ```
 
 **Key details:**
+
 - `return_exceptions=True` means exceptions from either coroutine are returned as values instead of raised — the outer `try/except` is a last-resort safety net only
 - `isinstance(result, Exception)` is the idiomatic check; avoids the result being silently treated as data
 - The outer `except Exception: pass` handles the rare case where `gather` itself fails (not individual coroutines)
@@ -60,11 +61,13 @@ if self.period_repo is not None:
 ## When to Apply This Pattern
 
 Use `asyncio.gather(..., return_exceptions=True)` when:
+
 1. Two or more DB/API calls are **independent** (neither result depends on the other)
 2. The data is **supplementary** — the feature still works if one or both fail
 3. You want **graceful degradation** without a try/except per call
 
 Do NOT use `return_exceptions=True` when:
+
 - A failure in either call should abort the whole operation (use plain `asyncio.gather` instead and let it raise)
 - The calls are sequential by nature (B depends on A's result)
 

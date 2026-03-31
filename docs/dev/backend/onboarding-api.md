@@ -18,10 +18,10 @@ The email is sourced from `auth.users` via the service role key — it is never 
 
 **Headers**
 
-| Header | Required | Description |
-|---|---|---|
-| `Authorization` | Yes | `Bearer <supabase-jwt>` |
-| `Content-Type` | Yes | `application/json` |
+| Header          | Required | Description             |
+| --------------- | -------- | ----------------------- |
+| `Authorization` | Yes      | `Bearer <supabase-jwt>` |
+| `Content-Type`  | Yes      | `application/json`      |
 
 **Body**
 
@@ -32,10 +32,10 @@ The email is sourced from `auth.users` via the service role key — it is never 
 }
 ```
 
-| Field | Type | Required | Description |
-|---|---|---|---|
-| `date_of_birth` | `date` (ISO 8601) | Yes | Must be in the past; user must be ≥ 18 years old |
-| `journey_stage` | `string` | Yes | One of: `perimenopause`, `menopause`, `post-menopause`, `unsure` |
+| Field           | Type              | Required | Description                                                      |
+| --------------- | ----------------- | -------- | ---------------------------------------------------------------- |
+| `date_of_birth` | `date` (ISO 8601) | Yes      | Must be in the past; user must be ≥ 18 years old                 |
+| `journey_stage` | `string`          | Yes      | One of: `perimenopause`, `menopause`, `post-menopause`, `unsure` |
 
 ---
 
@@ -58,14 +58,14 @@ The email is sourced from `auth.users` via the service role key — it is never 
 
 ## Error Responses
 
-| Status | When |
-|---|---|
-| `400 Bad Request` | `date_of_birth` is today or in the future |
-| `400 Bad Request` | User is under 18 years old |
-| `401 Unauthorized` | Missing, malformed, or expired JWT |
-| `409 Conflict` | Profile already exists for this user |
-| `422 Unprocessable Entity` | Required field missing or `journey_stage` is not a valid value |
-| `500 Internal Server Error` | Database insert or auth lookup failed |
+| Status                      | When                                                           |
+| --------------------------- | -------------------------------------------------------------- |
+| `400 Bad Request`           | `date_of_birth` is today or in the future                      |
+| `400 Bad Request`           | User is under 18 years old                                     |
+| `401 Unauthorized`          | Missing, malformed, or expired JWT                             |
+| `409 Conflict`              | Profile already exists for this user                           |
+| `422 Unprocessable Entity`  | Required field missing or `journey_stage` is not a valid value |
+| `500 Internal Server Error` | Database insert or auth lookup failed                          |
 
 ---
 
@@ -80,8 +80,8 @@ The email is sourced from `auth.users` via the service role key — it is never 
 
 ## Files
 
-| Path | Description |
-|---|---|
-| `backend/app/models/users.py` | `OnboardingRequest` and `UserResponse` Pydantic models |
-| `backend/app/api/routes/users.py` | Route handler and auth dependency |
-| `backend/tests/api/routes/test_users.py` | Unit tests (all Supabase calls mocked) |
+| Path                                     | Description                                            |
+| ---------------------------------------- | ------------------------------------------------------ |
+| `backend/app/models/users.py`            | `OnboardingRequest` and `UserResponse` Pydantic models |
+| `backend/app/api/routes/users.py`        | Route handler and auth dependency                      |
+| `backend/tests/api/routes/test_users.py` | Unit tests (all Supabase calls mocked)                 |

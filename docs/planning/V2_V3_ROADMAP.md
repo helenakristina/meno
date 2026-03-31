@@ -11,6 +11,7 @@
 ### V2.0: Core Features (Foundation)
 
 **Completed:**
+
 - ✅ Database schema and migrations
 - ✅ Authentication (Supabase)
 - ✅ Symptom logging API
@@ -23,6 +24,7 @@
 - ✅ RAG document storage and retrieval framework
 
 **Current Focus:**
+
 - Repository Pydantic model pattern (documentation + new code standard)
 - Completion of all CRUD repositories
 
@@ -35,11 +37,13 @@
 **Status:** In progress (V2 new code uses models, legacy code to be refactored)
 
 **Pattern:**
+
 - Each repository method returns a Pydantic model (UserContext, AppointmentContext, etc.)
 - Models are defined in app/models/ and imported by repositories
 - Services receive typed objects with autocomplete and type checking
 
 **Benefits:**
+
 - Type safety across all layers
 - IDE autocomplete and type checking
 - Self-documenting code (model = schema)
@@ -47,6 +51,7 @@
 - Claude Code generates correct implementations
 
 **Implementation:**
+
 - [x] Document pattern in CLAUDE.md and V2CODE_EXAMPLES.md
 - [ ] Create Pydantic models for key entities:
   - [ ] UserContext (journey_stage, age)
@@ -79,6 +84,7 @@
 **Critical Issue:** Current logging in LLM providers and some services logs prompt content, symptom descriptions, and user-generated data. This violates HIPAA and GDPR.
 
 **Pattern:**
+
 - Use `hash_user_id()` for user IDs (never plaintext)
 - Use `safe_len()` for data sizes (never log content)
 - Never log symptom descriptions, medical data, prompts, or user-generated content
@@ -86,6 +92,7 @@
 - See `app/utils/logging.py` for utilities
 
 **Implementation:**
+
 - [x] Create logging utilities (`app/utils/logging.py`)
 - [x] Document patterns in CLAUDE.md
 - [ ] Audit existing code for dangerous logging patterns:
@@ -104,6 +111,7 @@
 **New Code Requirement:** All new code MUST use safe logging utilities (enforced in code review).
 
 **Legal/Ethical Notes:**
+
 - Logging PII violates HIPAA (US), GDPR (EU), and state health privacy laws
 - Even "debug" logs can be accessed via log aggregation, monitoring systems, or backups
 - Treat all logs as potentially readable by others
@@ -117,12 +125,14 @@
 **Status:** In progress (V2 new code uses ABC, legacy code to be refactored)
 
 **Pattern:**
+
 - All dependencies defined as ABC in `[service_name]_base.py`
 - Concrete implementations inherit from ABC explicitly
 - All abstract methods implemented (marked with `@abstractmethod`)
 - Injected via FastAPI Depends() in routes
 
 **Implementation:**
+
 - [x] Document ABC pattern in CLAUDE.md and V2CODE_EXAMPLES.md
 - [ ] Audit existing repositories for ABC usage:
   - [ ] UserRepository — define ABC, verify inheritance
@@ -147,6 +157,7 @@
 **New Code Requirement:** All new repositories and services MUST use ABC (enforced in code review).
 
 **Why ABC Over Protocol:**
+
 - Explicit inheritance contract catches missing implementations at type-check time
 - isinstance() checks work (useful for debugging)
 - Clear intent: "this is a required interface"
@@ -161,16 +172,19 @@
 **Status:** Planned for post-launch (after legal review with health tech attorney).
 
 **Why this matters:**
+
 - Username/password has known security/UX issues (forgotten passwords, reuse across sites)
 - Magic links (email-based) are more secure and frictionless for health apps
 - Passkeys (biometric) provide optional enhanced security
 - Supabase has native support for both
 
 **Current state:**
+
 - Username/password authentication
 - E2E tests use `.env.test` with credentials (see docs/dev/frontend/V2CODE_EXAMPLES.md Part 7.2)
 
 **Migration plan:**
+
 1. Legal review: Confirm compliance with HIPAA/privacy requirements (TBD - depends on deployment timeline)
 2. Design: Plan user flow for magic link signup/login
 3. Backend: Update Supabase auth configuration
@@ -185,26 +199,26 @@ When migrating, update `beforeEach` in tests:
 ```typescript
 // CURRENT (username/password)
 test.beforeEach(async ({ page }) => {
-  const username = process.env.TEST_USERNAME || 'testuser@example.com';
-  const password = process.env.TEST_PASSWORD || 'test_password_123';
+  const username = process.env.TEST_USERNAME || "testuser@example.com";
+  const password = process.env.TEST_PASSWORD || "test_password_123";
 
   await page.fill('input[type="email"]', username);
   await page.fill('input[type="password"]', password);
   await page.click('button[type="submit"]');
-  await page.waitForURL('/dashboard');
+  await page.waitForURL("/dashboard");
 });
 
 // FUTURE (magic links - session seeding)
 test.beforeEach(async ({ page }) => {
-  await page.goto('/');
+  await page.goto("/");
   await page.evaluate(async () => {
-    const { supabase } = await import('$lib/supabase/client');
+    const { supabase } = await import("$lib/supabase/client");
     await supabase.auth.setSession({
       access_token: process.env.TEST_ACCESS_TOKEN!,
       refresh_token: process.env.TEST_REFRESH_TOKEN!,
     });
   });
-  await page.goto('/dashboard');
+  await page.goto("/dashboard");
 });
 ```
 
@@ -214,6 +228,7 @@ test.beforeEach(async ({ page }) => {
 **Timeline:** Post-V2 launch, after attorney consultation
 
 **Documentation to update:**
+
 - [ ] Frontend E2E test docs (Part 7 of V2CODE_EXAMPLES.md)
 - [ ] Login flow documentation
 - [ ] User onboarding guides
@@ -246,6 +261,7 @@ test.beforeEach(async ({ page }) => {
 **Status:** Issues identified (see APPOINTMENT_PREP_REVIEW.md). Fixes for Priorities 1-5 completed. Deferred improvements below.
 
 **Priority 1-5 Completed:**
+
 - ✅ Fixed broken test enum references (W36/W42)
 - ✅ Added urgent_symptom to API type definition (W41)
 - ✅ Unified error reporting pattern (W15/W24)
@@ -253,6 +269,7 @@ test.beforeEach(async ({ page }) => {
 - ✅ Added sessionStorage state persistence (W2)
 
 **Deferred Improvements (V2.1 or later):**
+
 - [ ] W9: Replace `$effect` with `onMount` in Steps 2 and 4 for semantic clarity
 - [ ] W10: Add path builder utility to eliminate dynamic API path casting (`as` assertions)
 - [ ] W11: Add confirmation dialog before "Start over" in Step 5
@@ -317,6 +334,7 @@ test.beforeEach(async ({ page }) => {
 **Timeline:** V2.1 or later
 
 **Checklist:**
+
 - [ ] Create `frontend/src/lib/config/animations.ts` with ANIMATION_DURATION and ANIMATION_EASING
 - [ ] Update all timings in log/+page.svelte to use constants
 - [ ] Add `animate:flip` to card grid and selected symptoms list
@@ -368,6 +386,7 @@ test.beforeEach(async ({ page }) => {
 ### V3.0: Refactoring & Architecture (Ongoing from V2.1)
 
 **Code Quality Initiative**
+
 - Repository Pydantic model pattern (continuation from V2.1)
 - Service layer consolidation
 - API endpoint optimization
@@ -400,17 +419,20 @@ test.beforeEach(async ({ page }) => {
 ## Technical Debt & Maintenance
 
 ### High Priority
+
 - [ ] Repository refactoring to Pydantic models (V2.1)
 - [ ] Streaming response implementation (V2.1)
 - [ ] Full test coverage for critical paths
 
 ### Medium Priority
+
 - [ ] API rate limiting and throttling
 - [ ] Caching strategy refinement
 - [ ] Database query optimization
 - [ ] Frontend performance optimization
 
 ### Low Priority (Post-Launch)
+
 - [ ] Migration from OpenAI to Claude API (if scaling warrants)
 - [ ] Advanced RAG tuning (hybrid search, re-ranking)
 - [ ] Custom embedding model training
@@ -437,18 +459,21 @@ test.beforeEach(async ({ page }) => {
 ## Key Decisions & Rationale
 
 ### Pydantic Models for Repositories (V2.1)
+
 - **Decision:** All repositories return typed Pydantic models instead of raw dicts
 - **Rationale:** Type safety, IDE support, self-documenting code, easier Claude Code generation
 - **Impact:** No breaking changes (internal refactor), immediate code quality improvement
 - **Timeline:** Refactor during V2.1 (1-2 sprints)
 
 ### Streaming Responses (V2.1)
+
 - **Decision:** Implement response streaming for LLM-generated content
 - **Rationale:** Reduce user wait time (currently 10-20s for narrative/scenarios), improve UX
 - **Impact:** Frontend needs stream handling, backend chunks responses
 - **Timeline:** Post-core-feature-completion (V2.1)
 
 ### LLM Provider Strategy (Ongoing)
+
 - **Development:** OpenAI (gpt-4o-mini) for cost-effectiveness
 - **Production:** Claude (claude-sonnet-4) for better reasoning and safety alignment
 - **Migration:** Straightforward (swap provider wrapper + environment variables)
@@ -472,4 +497,3 @@ test.beforeEach(async ({ page }) => {
 2. Should we prioritize streaming (UX) or advanced analytics (features) first?
 3. What's the target for user testing — how many beta users?
 4. Should cycle tracking or medication tracking come first in V2.2?
-

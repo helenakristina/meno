@@ -2,7 +2,8 @@
 title: Feature flag bypassed when service injects repository from another domain directly
 category: architecture-issues
 date: 2026-03-18
-tags: [feature-flag, dependency-injection, service-layer, architecture, medications]
+tags:
+  [feature-flag, dependency-injection, service-layer, architecture, medications]
 modules: [medications, appointment, export, services]
 problem_type: architecture-issue
 ---

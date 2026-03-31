@@ -22,11 +22,11 @@
 	// Determine height based on variant
 	const heightClass = $derived(
 		height ||
-		{
-			text: 'h-4',
-			title: 'h-6',
-			card: 'h-32',
-		}[variant]
+			{
+				text: 'h-4',
+				title: 'h-6',
+				card: 'h-32'
+			}[variant]
 	);
 </script>
 
@@ -44,7 +44,9 @@
 		{:else}
 			<!-- Text/title skeleton -->
 			<div
-				class="animate-pulse rounded {heightClass} {variant === 'title' ? 'bg-neutral-200' : 'bg-neutral-100'}"
+				class="animate-pulse rounded {heightClass} {variant === 'title'
+					? 'bg-neutral-200'
+					: 'bg-neutral-100'}"
 			></div>
 		{/if}
 	{/each}

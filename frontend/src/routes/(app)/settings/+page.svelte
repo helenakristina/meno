@@ -154,7 +154,6 @@
 			<h2 class="mb-1 text-base font-semibold text-neutral-800">Journey Stage</h2>
 			<p class="mb-4 text-sm text-neutral-600">
 				Where are you in your menopause journey? This helps Meno personalize your experience.
-
 			</p>
 
 			<fieldset class="space-y-2">
@@ -342,8 +341,8 @@
 
 			{#if settings.has_uterus === false}
 				<p class="mt-3 text-sm text-neutral-600">
-					Since you don't have a uterus, period tracking has been turned off.
-					You can still turn it on manually using the Cycle Tracking toggle above.
+					Since you don't have a uterus, period tracking has been turned off. You can still turn it
+					on manually using the Cycle Tracking toggle above.
 				</p>
 			{/if}
 
