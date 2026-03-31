@@ -9,14 +9,14 @@
 		DismissalExperience,
 		APPOINTMENT_TYPE_LABELS,
 		APPOINTMENT_GOAL_LABELS,
-		DISMISSAL_EXPERIENCE_LABELS,
+		DISMISSAL_EXPERIENCE_LABELS
 	} from '$lib/types/appointment';
 	import type { AppointmentContext } from '$lib/types/appointment';
 	import type { AppointmentContextForm } from '$lib/schemas/appointment';
 
 	let {
 		data,
-		onNext,
+		onNext
 	}: {
 		data: SuperValidated<AppointmentContextForm>;
 		onNext: (context: AppointmentContext) => void;
@@ -24,7 +24,7 @@
 
 	const form = superForm(data, {
 		validators: zod4(contextSchema),
-		delayMs: 200,
+		delayMs: 200
 	});
 
 	const { form: formData, errors } = form;
@@ -34,9 +34,7 @@
 	let canSubmit = $derived(() => {
 		const hasRequired =
 			!!$formData.appointment_type && !!$formData.goal && !!$formData.dismissed_before;
-		const urgentSymptomValid = showUrgentSymptomField
-			? !!$formData.urgent_symptom?.trim()
-			: true;
+		const urgentSymptomValid = showUrgentSymptomField ? !!$formData.urgent_symptom?.trim() : true;
 		return hasRequired && urgentSymptomValid;
 	});
 
@@ -46,7 +44,7 @@
 			appointment_type: $formData.appointment_type as AppointmentType,
 			goal: $formData.goal as AppointmentGoal,
 			dismissed_before: $formData.dismissed_before as DismissalExperience,
-			urgent_symptom: $formData.urgent_symptom || null,
+			urgent_symptom: $formData.urgent_symptom || null
 		});
 	}
 </script>
@@ -61,7 +59,8 @@
 		<div class="mt-3 space-y-3">
 			{#each Object.values(AppointmentType) as value}
 				<label
-					class="flex cursor-pointer items-center gap-3 rounded-xl border p-4 transition-colors {$formData.appointment_type === value
+					class="flex cursor-pointer items-center gap-3 rounded-xl border p-4 transition-colors {$formData.appointment_type ===
+					value
 						? 'border-primary-400 bg-primary-50'
 						: 'border-neutral-200 bg-white hover:border-neutral-300'}"
 				>
@@ -92,17 +91,12 @@
 		<div class="mt-3 space-y-3">
 			{#each Object.values(AppointmentGoal) as value}
 				<label
-					class="flex cursor-pointer items-center gap-3 rounded-xl border p-4 transition-colors {$formData.goal === value
+					class="flex cursor-pointer items-center gap-3 rounded-xl border p-4 transition-colors {$formData.goal ===
+					value
 						? 'border-primary-400 bg-primary-50'
 						: 'border-neutral-200 bg-white hover:border-neutral-300'}"
 				>
-					<input
-						type="radio"
-						name="goal"
-						{value}
-						bind:group={$formData.goal}
-						class="h-4 w-4"
-					/>
+					<input type="radio" name="goal" {value} bind:group={$formData.goal} class="h-4 w-4" />
 					<span class="text-sm font-medium text-neutral-700">{APPOINTMENT_GOAL_LABELS[value]}</span>
 				</label>
 			{/each}
@@ -123,7 +117,8 @@
 		<div class="mt-3 space-y-3">
 			{#each Object.values(DismissalExperience) as value}
 				<label
-					class="flex cursor-pointer items-center gap-3 rounded-xl border p-4 transition-colors {$formData.dismissed_before === value
+					class="flex cursor-pointer items-center gap-3 rounded-xl border p-4 transition-colors {$formData.dismissed_before ===
+					value
 						? 'border-primary-400 bg-primary-50'
 						: 'border-neutral-200 bg-white hover:border-neutral-300'}"
 				>
@@ -148,9 +143,7 @@
 	<!-- CONDITIONAL: Urgent Symptom Text Field -->
 	{#if showUrgentSymptomField}
 		<fieldset class="rounded-xl border border-warning bg-warning-light p-4">
-			<legend class="font-semibold text-warning-dark">
-				Which symptom is most urgent?
-			</legend>
+			<legend class="font-semibold text-warning-dark"> Which symptom is most urgent? </legend>
 			<p class="mt-1 text-sm text-warning-dark">
 				This helps us tailor your preparation materials to your most pressing concern.
 			</p>
@@ -159,7 +152,7 @@
 				name="urgent_symptom"
 				placeholder="e.g., sleep disruption, hot flashes, anxiety, cognitive difficulties"
 				bind:value={$formData.urgent_symptom}
-				class="mt-3 w-full rounded-lg border border-warning px-3 py-2 text-neutral-800 focus:border-warning-dark focus:outline-none focus:ring-2 focus:ring-warning-light"
+				class="mt-3 w-full rounded-lg border border-warning px-3 py-2 text-neutral-800 focus:border-warning-dark focus:ring-2 focus:ring-warning-light focus:outline-none"
 				aria-invalid={showUrgentSymptomField && !$formData.urgent_symptom?.trim()}
 			/>
 			{#if $errors.urgent_symptom}

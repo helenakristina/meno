@@ -49,8 +49,8 @@
 
 	const canSave = $derived(
 		editStartDate !== (medication?.start_date ?? '') ||
-		editNotes !== (medication?.notes ?? '') ||
-		editEndDate !== (medication?.end_date ?? '')
+			editNotes !== (medication?.notes ?? '') ||
+			editEndDate !== (medication?.end_date ?? '')
 	);
 
 	const canChangeDose = $derived(newDose.trim().length > 0 && newDeliveryMethod.length > 0);
@@ -91,11 +91,16 @@
 		saveSuccess = false;
 
 		try {
-			const updated = await apiClient.put(`/api/medications/${id}` as any, {
-				...(editStartDate !== (medication?.start_date ?? '') ? { start_date: editStartDate } : {}),
-				notes: editNotes.trim() || null,
-				end_date: editEndDate || null
-			} as any);
+			const updated = await apiClient.put(
+				`/api/medications/${id}` as any,
+				{
+					...(editStartDate !== (medication?.start_date ?? '')
+						? { start_date: editStartDate }
+						: {}),
+					notes: editNotes.trim() || null,
+					end_date: editEndDate || null
+				} as any
+			);
 			medication = updated;
 			editStartDate = updated.start_date ?? '';
 			editNotes = updated.notes ?? '';
@@ -117,11 +122,14 @@
 		doseChangeSuccess = false;
 
 		try {
-			const updated = await apiClient.post(`/api/medications/${id}/change` as any, {
-				new_dose: newDose.trim(),
-				new_delivery_method: newDeliveryMethod,
-				effective_date: effectiveDate
-			} as any);
+			const updated = await apiClient.post(
+				`/api/medications/${id}/change` as any,
+				{
+					new_dose: newDose.trim(),
+					new_delivery_method: newDeliveryMethod,
+					effective_date: effectiveDate
+				} as any
+			);
 			medication = updated;
 			newDose = '';
 			doseChangeSuccess = true;
@@ -148,7 +156,8 @@
 			await apiClient.delete(`/api/medications/${id}` as any);
 			goto('/medications');
 		} catch (e) {
-			deleteError = e instanceof Error ? e.message : 'Failed to delete medication. Please try again.';
+			deleteError =
+				e instanceof Error ? e.message : 'Failed to delete medication. Please try again.';
 			deleting = false;
 			confirmDelete = false;
 		}
@@ -193,9 +202,9 @@
 			<div>
 				<h1 class="text-2xl font-bold text-neutral-800">{medication.medication_name}</h1>
 				<p class="mt-1 text-sm text-neutral-500">
-					{medication.dose} · {formatDeliveryMethod(medication.delivery_method)}{medication.frequency
-						? ` · ${medication.frequency.replace(/_/g, ' ')}`
-						: ''}
+					{medication.dose} · {formatDeliveryMethod(
+						medication.delivery_method
+					)}{medication.frequency ? ` · ${medication.frequency.replace(/_/g, ' ')}` : ''}
 				</p>
 				<p class="mt-0.5 text-xs text-neutral-400">Started {formatDate(medication.start_date)}</p>
 				{#if medication.end_date}
@@ -235,7 +244,7 @@
 						id="edit_start_date"
 						type="date"
 						bind:value={editStartDate}
-						class="w-full rounded-lg border border-neutral-300 px-3 py-2.5 text-sm text-neutral-800 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-200"
+						class="w-full rounded-lg border border-neutral-300 px-3 py-2.5 text-sm text-neutral-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-200 focus:outline-none"
 					/>
 				</div>
 
@@ -249,7 +258,7 @@
 						bind:value={editNotes}
 						rows="3"
 						placeholder="Any notes about this medication…"
-						class="w-full resize-none rounded-lg border border-neutral-300 px-3 py-2.5 text-sm text-neutral-800 placeholder:text-neutral-400 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-200"
+						class="w-full resize-none rounded-lg border border-neutral-300 px-3 py-2.5 text-sm text-neutral-800 placeholder:text-neutral-400 focus:border-primary-500 focus:ring-2 focus:ring-primary-200 focus:outline-none"
 					></textarea>
 				</div>
 
@@ -264,7 +273,7 @@
 						id="end_date"
 						type="date"
 						bind:value={editEndDate}
-						class="w-full rounded-lg border border-neutral-300 px-3 py-2.5 text-sm text-neutral-800 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-200"
+						class="w-full rounded-lg border border-neutral-300 px-3 py-2.5 text-sm text-neutral-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-200 focus:outline-none"
 					/>
 					{#if editEndDate}
 						<button
@@ -319,7 +328,7 @@
 							type="text"
 							bind:value={newDose}
 							placeholder="e.g. 75mcg, 2mg"
-							class="w-full rounded-lg border border-neutral-300 px-3 py-2.5 text-sm text-neutral-800 placeholder:text-neutral-400 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-200"
+							class="w-full rounded-lg border border-neutral-300 px-3 py-2.5 text-sm text-neutral-800 placeholder:text-neutral-400 focus:border-primary-500 focus:ring-2 focus:ring-primary-200 focus:outline-none"
 						/>
 					</div>
 
@@ -333,7 +342,7 @@
 						<select
 							id="new_delivery_method"
 							bind:value={newDeliveryMethod}
-							class="w-full rounded-lg border border-neutral-300 px-3 py-2.5 text-sm text-neutral-800 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-200"
+							class="w-full rounded-lg border border-neutral-300 px-3 py-2.5 text-sm text-neutral-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-200 focus:outline-none"
 						>
 							{#each DELIVERY_METHODS as method}
 								<option value={method}>{formatDeliveryMethod(method)}</option>
@@ -349,7 +358,7 @@
 							id="effective_date"
 							type="date"
 							bind:value={effectiveDate}
-							class="w-full rounded-lg border border-neutral-300 px-3 py-2.5 text-sm text-neutral-800 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-200"
+							class="w-full rounded-lg border border-neutral-300 px-3 py-2.5 text-sm text-neutral-800 focus:border-primary-500 focus:ring-2 focus:ring-primary-200 focus:outline-none"
 						/>
 					</div>
 

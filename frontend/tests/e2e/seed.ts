@@ -24,21 +24,21 @@ export async function seedTestData(page: Page, authToken: string): Promise<void>
 		'3fa85f64-5717-4562-b3fc-2c963f66afac',
 		'3fa85f64-5717-4562-b3fc-2c963f66afad',
 		'3fa85f64-5717-4562-b3fc-2c963f66afae',
-		'3fa85f64-5717-4562-b3fc-2c963f66afaf',
+		'3fa85f64-5717-4562-b3fc-2c963f66afaf'
 	];
 
 	// Symptom notes to vary entries
 	const notes = [
 		'Woke up at 3am soaked in sweat',
-		'Couldn\'t focus at work today',
+		"Couldn't focus at work today",
 		'Felt unusually irritable this afternoon',
 		'Had trouble falling asleep',
 		'Achy joints, especially knees',
-		'Memory wasn\'t great today',
+		"Memory wasn't great today",
 		'Multiple hot flashes throughout the day',
 		'Felt anxious without clear reason',
 		'Very tired despite good sleep',
-		'Recurring headache in the afternoon',
+		'Recurring headache in the afternoon'
 	];
 
 	try {
@@ -71,8 +71,7 @@ export async function seedTestData(page: Page, authToken: string): Promise<void>
 				const selectedSymptoms: string[] = [];
 
 				for (let j = 0; j < symptomCount; j++) {
-					const symptom =
-						commonSymptomIds[Math.floor(Math.random() * commonSymptomIds.length)];
+					const symptom = commonSymptomIds[Math.floor(Math.random() * commonSymptomIds.length)];
 					if (!selectedSymptoms.includes(symptom)) {
 						selectedSymptoms.push(symptom);
 					}
@@ -87,7 +86,7 @@ export async function seedTestData(page: Page, authToken: string): Promise<void>
 					symptoms: selectedSymptoms,
 					free_text_entry: note,
 					source: note ? 'both' : 'cards',
-					logged_at: logDate.toISOString(),
+					logged_at: logDate.toISOString()
 				};
 
 				try {
@@ -95,9 +94,9 @@ export async function seedTestData(page: Page, authToken: string): Promise<void>
 						method: 'POST',
 						headers: {
 							'Content-Type': 'application/json',
-							Authorization: `Bearer ${authToken}`,
+							Authorization: `Bearer ${authToken}`
 						},
-						body: JSON.stringify(logPayload),
+						body: JSON.stringify(logPayload)
 					});
 
 					if (!res.ok) {

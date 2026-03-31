@@ -104,13 +104,17 @@
 		{#if data.before_start && data.after_start}
 			<div class="mb-6 grid grid-cols-2 gap-3">
 				<div class="rounded-lg border border-neutral-200 bg-white p-3">
-					<div class="mb-1 text-xs font-semibold uppercase tracking-wide text-neutral-400">Before</div>
+					<div class="mb-1 text-xs font-semibold tracking-wide text-neutral-400 uppercase">
+						Before
+					</div>
 					<div class="text-xs text-neutral-600">
 						{formatDate(data.before_start)} – {formatDate(data.before_end)}
 					</div>
 				</div>
 				<div class="rounded-lg border border-neutral-200 bg-white p-3">
-					<div class="mb-1 text-xs font-semibold uppercase tracking-wide text-neutral-400">After</div>
+					<div class="mb-1 text-xs font-semibold tracking-wide text-neutral-400 uppercase">
+						After
+					</div>
 					<div class="text-xs text-neutral-600">
 						{formatDate(data.after_start)} – {formatDate(data.after_end)}
 					</div>
@@ -124,8 +128,8 @@
 				class="mb-4 rounded-md border border-warning bg-warning-light p-3 text-sm text-warning-dark"
 				role="note"
 			>
-				<span class="font-medium">No data after start date yet.</span> Keep logging symptoms to see
-				how this medication affects you over time.
+				<span class="font-medium">No data after start date yet.</span> Keep logging symptoms to see how
+				this medication affects you over time.
 			</div>
 		{/if}
 
@@ -162,7 +166,7 @@
 			<div class="overflow-hidden rounded-lg border border-neutral-200 bg-white">
 				<!-- Column headers -->
 				<div
-					class="grid grid-cols-[1fr_auto_auto_auto] gap-x-4 border-b border-neutral-200 px-4 py-2.5 text-xs font-semibold uppercase tracking-wide text-neutral-400"
+					class="grid grid-cols-[1fr_auto_auto_auto] gap-x-4 border-b border-neutral-200 px-4 py-2.5 text-xs font-semibold tracking-wide text-neutral-400 uppercase"
 				>
 					<div>Symptom</div>
 					<div class="text-right">Before</div>
@@ -182,8 +186,10 @@
 							<div class="text-right text-sm text-neutral-600">{Math.round(row.after_pct)}%</div>
 							<div class="text-right">
 								<span
-									class="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium {directionClasses(row)}"
-									aria-label="{directionLabel(row)}"
+									class="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium {directionClasses(
+										row
+									)}"
+									aria-label={directionLabel(row)}
 								>
 									<span aria-hidden="true">{directionIcon(row)}</span>
 									{formatPct(row.after_pct - row.before_pct)}

@@ -276,7 +276,7 @@
 
 		<button
 			data-action="generate-script"
-		onclick={() => (modalOpen = true)}
+			onclick={() => (modalOpen = true)}
 			class="rounded-lg border border-neutral-200 bg-white px-3 py-1.5 text-xs font-medium text-neutral-700 shadow-sm transition-colors hover:border-primary-300 hover:bg-primary-50 hover:text-primary-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-300"
 		>
 			Generate Calling Script

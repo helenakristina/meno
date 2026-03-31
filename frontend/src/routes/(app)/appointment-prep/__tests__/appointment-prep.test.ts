@@ -7,7 +7,7 @@ import {
 	STEP_TITLES,
 	APPOINTMENT_TYPE_LABELS,
 	APPOINTMENT_GOAL_LABELS,
-	DISMISSAL_EXPERIENCE_LABELS,
+	DISMISSAL_EXPERIENCE_LABELS
 } from '$lib/types/appointment';
 import type { AppointmentPrepState, ScenarioCard } from '$lib/types/appointment';
 import { contextSchema, prioritizeSchema } from '$lib/schemas/appointment';
@@ -22,7 +22,7 @@ describe('Appointment Prep — Context schema (Step 1)', () => {
 		const result = contextSchema.safeParse({
 			appointment_type: AppointmentType.new_provider,
 			goal: AppointmentGoal.explore_hrt,
-			dismissed_before: DismissalExperience.once_or_twice,
+			dismissed_before: DismissalExperience.once_or_twice
 		});
 		expect(result.success).toBe(true);
 	});
@@ -30,7 +30,7 @@ describe('Appointment Prep — Context schema (Step 1)', () => {
 	it('rejects missing appointment_type', () => {
 		const result = contextSchema.safeParse({
 			goal: AppointmentGoal.assess_status,
-			dismissed_before: DismissalExperience.no,
+			dismissed_before: DismissalExperience.no
 		});
 		expect(result.success).toBe(false);
 	});
@@ -38,7 +38,7 @@ describe('Appointment Prep — Context schema (Step 1)', () => {
 	it('rejects missing goal', () => {
 		const result = contextSchema.safeParse({
 			appointment_type: AppointmentType.established_relationship,
-			dismissed_before: DismissalExperience.no,
+			dismissed_before: DismissalExperience.no
 		});
 		expect(result.success).toBe(false);
 	});
@@ -46,7 +46,7 @@ describe('Appointment Prep — Context schema (Step 1)', () => {
 	it('rejects missing dismissed_before', () => {
 		const result = contextSchema.safeParse({
 			appointment_type: AppointmentType.new_provider,
-			goal: AppointmentGoal.optimize_current_treatment,
+			goal: AppointmentGoal.optimize_current_treatment
 		});
 		expect(result.success).toBe(false);
 	});
@@ -55,7 +55,7 @@ describe('Appointment Prep — Context schema (Step 1)', () => {
 		const result = contextSchema.safeParse({
 			appointment_type: 'unknown_type',
 			goal: AppointmentGoal.explore_hrt,
-			dismissed_before: DismissalExperience.no,
+			dismissed_before: DismissalExperience.no
 		});
 		expect(result.success).toBe(false);
 	});
@@ -65,7 +65,7 @@ describe('Appointment Prep — Context schema (Step 1)', () => {
 			const result = contextSchema.safeParse({
 				appointment_type: type,
 				goal: AppointmentGoal.assess_status,
-				dismissed_before: DismissalExperience.no,
+				dismissed_before: DismissalExperience.no
 			});
 			expect(result.success).toBe(true);
 		}
@@ -76,7 +76,7 @@ describe('Appointment Prep — Context schema (Step 1)', () => {
 			const result = contextSchema.safeParse({
 				appointment_type: AppointmentType.new_provider,
 				goal,
-				dismissed_before: DismissalExperience.no,
+				dismissed_before: DismissalExperience.no
 			});
 			expect(result.success).toBe(true);
 		}
@@ -87,7 +87,7 @@ describe('Appointment Prep — Context schema (Step 1)', () => {
 			const result = contextSchema.safeParse({
 				appointment_type: AppointmentType.new_provider,
 				goal: AppointmentGoal.explore_hrt,
-				dismissed_before: dismissed,
+				dismissed_before: dismissed
 			});
 			expect(result.success).toBe(true);
 		}
@@ -97,7 +97,7 @@ describe('Appointment Prep — Context schema (Step 1)', () => {
 describe('Appointment Prep — Prioritize schema (Step 3)', () => {
 	it('accepts non-empty concerns list', () => {
 		const result = prioritizeSchema.safeParse({
-			concerns: ['Discuss hormone therapy options', 'Understand risks'],
+			concerns: ['Discuss hormone therapy options', 'Understand risks']
 		});
 		expect(result.success).toBe(true);
 	});
@@ -181,7 +181,7 @@ describe('Appointment Prep — State management', () => {
 			scenarios: [],
 			isLoading: false,
 			error: null,
-			currentStep: 1,
+			currentStep: 1
 		};
 		expect(state.currentStep).toBe(1);
 		expect(state.appointmentId).toBeNull();
@@ -197,7 +197,7 @@ describe('Appointment Prep — State management', () => {
 			scenarios: [],
 			isLoading: false,
 			error: null,
-			currentStep: 1,
+			currentStep: 1
 		};
 
 		// Simulate Step 1 completion
@@ -207,9 +207,9 @@ describe('Appointment Prep — State management', () => {
 			context: {
 				appointment_type: AppointmentType.new_provider,
 				goal: AppointmentGoal.explore_hrt,
-				dismissed_before: DismissalExperience.once_or_twice,
+				dismissed_before: DismissalExperience.once_or_twice
 			},
-			currentStep: 2 as const,
+			currentStep: 2 as const
 		};
 		expect(updated.currentStep).toBe(2);
 		expect(updated.appointmentId).toBe('appt-123');
@@ -223,14 +223,14 @@ describe('Appointment Prep — State management', () => {
 			context: {
 				appointment_type: AppointmentType.new_provider,
 				goal: AppointmentGoal.explore_hrt,
-				dismissed_before: DismissalExperience.no,
+				dismissed_before: DismissalExperience.no
 			},
 			narrative,
 			concerns: [],
 			scenarios: [],
 			isLoading: false,
 			error: null,
-			currentStep: 3,
+			currentStep: 3
 		};
 		expect(state.narrative).toBe(narrative);
 		expect(state.currentStep).toBe(3);
@@ -243,14 +243,14 @@ describe('Appointment Prep — State management', () => {
 			context: {
 				appointment_type: AppointmentType.new_provider,
 				goal: AppointmentGoal.explore_hrt,
-				dismissed_before: DismissalExperience.no,
+				dismissed_before: DismissalExperience.no
 			},
 			narrative: 'Some narrative',
 			concerns,
 			scenarios: [],
 			isLoading: false,
 			error: null,
-			currentStep: 4,
+			currentStep: 4
 		};
 		expect(state.concerns).toEqual(concerns);
 		expect(state.currentStep).toBe(4);
@@ -263,22 +263,22 @@ describe('Appointment Prep — State management', () => {
 				title: 'Provider dismisses concerns',
 				situation: 'If your provider says...',
 				suggestion: 'You could respond by...',
-				category: 'dismissal',
-			},
+				category: 'dismissal'
+			}
 		];
 		const state: AppointmentPrepState = {
 			appointmentId: 'appt-123',
 			context: {
 				appointment_type: AppointmentType.new_provider,
 				goal: AppointmentGoal.explore_hrt,
-				dismissed_before: DismissalExperience.no,
+				dismissed_before: DismissalExperience.no
 			},
 			narrative: 'Some narrative',
 			concerns: ['Discuss HRT'],
 			scenarios,
 			isLoading: false,
 			error: null,
-			currentStep: 5,
+			currentStep: 5
 		};
 		expect(state.scenarios).toHaveLength(1);
 		expect(state.scenarios[0].id).toBe('scenario-1');
@@ -294,7 +294,7 @@ describe('Appointment Prep — State management', () => {
 			scenarios: [],
 			isLoading: false,
 			error: null,
-			currentStep: 1,
+			currentStep: 1
 		};
 		expect(resetState.currentStep).toBe(1);
 		expect(resetState.appointmentId).toBeNull();
@@ -379,7 +379,7 @@ describe('Appointment Prep — Error handling', () => {
 
 	it('clears error on dismiss', () => {
 		const state: Partial<AppointmentPrepState> = {
-			error: 'Some error',
+			error: 'Some error'
 		};
 		state.error = null;
 		expect(state.error).toBeNull();
@@ -388,7 +388,7 @@ describe('Appointment Prep — Error handling', () => {
 	it('extracts detail from ApiError', () => {
 		const apiError = {
 			detail: 'Appointment not found',
-			status: 404,
+			status: 404
 		};
 		const msg = 'detail' in apiError ? apiError.detail : 'Unknown error';
 		expect(msg).toBe('Appointment not found');
@@ -411,7 +411,7 @@ describe('Appointment Prep — Progress indicator', () => {
 			{ step: 2, expected: 40 },
 			{ step: 3, expected: 60 },
 			{ step: 4, expected: 80 },
-			{ step: 5, expected: 100 },
+			{ step: 5, expected: 100 }
 		];
 		for (const { step, expected } of cases) {
 			const percent = (step / 5) * 100;

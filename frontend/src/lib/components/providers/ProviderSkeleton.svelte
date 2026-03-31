@@ -20,7 +20,10 @@
 
 <div class="space-y-4">
 	{#each [1, 2, 3] as _}
-		<div class="animate-pulse rounded-2xl border border-neutral-200 bg-white px-6 py-5 shadow-sm" aria-hidden="true">
+		<div
+			class="animate-pulse rounded-2xl border border-neutral-200 bg-white px-6 py-5 shadow-sm"
+			aria-hidden="true"
+		>
 			<!-- Name + NAMS badge row -->
 			<div class="mb-3 flex items-start justify-between gap-3">
 				<div class="space-y-2">

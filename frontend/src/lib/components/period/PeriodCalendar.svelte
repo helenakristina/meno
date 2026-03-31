@@ -1,11 +1,6 @@
 <script lang="ts">
 	import { Calendar } from 'bits-ui';
-	import {
-		getLocalTimeZone,
-		today,
-		type DateValue,
-		CalendarDate
-	} from '@internationalized/date';
+	import { getLocalTimeZone, today, type DateValue, CalendarDate } from '@internationalized/date';
 
 	type FlowLevel = 'spotting' | 'light' | 'medium' | 'heavy';
 
@@ -60,22 +55,23 @@
 
 	function flowColorClass(flowLevel: FlowLevel | null): string {
 		switch (flowLevel) {
-			case 'spotting': return 'bg-coral-100 text-coral-900';
-			case 'light': return 'bg-coral-200 text-coral-900';
-			case 'medium': return 'bg-coral-400 text-white';
-			case 'heavy': return 'bg-coral-600 text-white';
-			default: return 'bg-coral-300 text-white';
+			case 'spotting':
+				return 'bg-coral-100 text-coral-900';
+			case 'light':
+				return 'bg-coral-200 text-coral-900';
+			case 'medium':
+				return 'bg-coral-400 text-white';
+			case 'heavy':
+				return 'bg-coral-600 text-white';
+			default:
+				return 'bg-coral-300 text-white';
 		}
 	}
 
 	const todayValue = today(getLocalTimeZone());
 </script>
 
-<Calendar.Root
-	type="single"
-	bind:placeholder={currentMonth}
-	class="w-full"
->
+<Calendar.Root type="single" bind:placeholder={currentMonth} class="w-full">
 	{#snippet children({ months, weekdays })}
 		<Calendar.Header class="mb-4 flex items-center justify-between">
 			<Calendar.PrevButton
@@ -109,19 +105,17 @@
 
 				<Calendar.GridBody>
 					{#each month.weeks as weekDates, i (i)}
-						<Calendar.GridRow class="flex mt-1">
+						<Calendar.GridRow class="mt-1 flex">
 							{#each weekDates as date, d (d)}
 								{@const log = getLogForDate(date)}
 								{@const isRangeDay = isPeriodRangeDay(date)}
 								{@const isToday = date.compare(todayValue) === 0}
-								<Calendar.Cell
-									{date}
-									month={month.value}
-									class="relative flex-1 p-0 text-center"
-								>
+								<Calendar.Cell {date} month={month.value} class="relative flex-1 p-0 text-center">
 									<!-- Period range background stripe (days between start and end) -->
 									{#if isRangeDay}
-										<div class="absolute inset-y-0 inset-x-0 bg-coral-100 rounded-none pointer-events-none"></div>
+										<div
+											class="pointer-events-none absolute inset-x-0 inset-y-0 rounded-none bg-coral-100"
+										></div>
 									{/if}
 
 									<Calendar.Day
@@ -129,9 +123,9 @@
 											{log ? flowColorClass(log.flow_level) : ''}
 											{!log && !isRangeDay ? 'text-neutral-700 hover:bg-neutral-100' : ''}
 											{!log && isRangeDay ? 'text-coral-700 hover:bg-coral-200' : ''}
-											data-[outside-month]:opacity-30
-											data-[outside-month]:pointer-events-none
-											focus:outline-none focus:ring-2 focus:ring-coral-400 focus:ring-offset-1"
+											focus:ring-2
+											focus:ring-coral-400
+											focus:ring-offset-1 focus:outline-none data-[outside-month]:pointer-events-none data-[outside-month]:opacity-30"
 										onclick={() => onDayClick(date, log)}
 									>
 										<span>{date.day}</span>
@@ -156,7 +150,7 @@
 <!-- Legend -->
 <div class="mt-4 flex flex-wrap items-center gap-3 text-xs text-neutral-500">
 	<span class="flex items-center gap-1.5">
-		<span class="inline-block h-3 w-3 rounded-full bg-coral-100 border border-coral-200"></span>
+		<span class="inline-block h-3 w-3 rounded-full border border-coral-200 bg-coral-100"></span>
 		Spotting
 	</span>
 	<span class="flex items-center gap-1.5">

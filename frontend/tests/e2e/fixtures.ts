@@ -10,7 +10,7 @@ export const viewports = [
 	{ name: 'mobile', width: 375, height: 667 },
 	{ name: 'mobile-landscape', width: 667, height: 375 },
 	{ name: 'tablet', width: 768, height: 1024 },
-	{ name: 'desktop', width: 1440, height: 900 },
+	{ name: 'desktop', width: 1440, height: 900 }
 ];
 
 export const test = base.extend<TestContext>({
@@ -80,7 +80,7 @@ export const test = base.extend<TestContext>({
 		};
 
 		await use(captureScreenshots);
-	},
+	}
 });
 
 export { expect } from '@playwright/test';

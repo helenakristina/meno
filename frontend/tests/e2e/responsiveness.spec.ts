@@ -23,7 +23,7 @@ test.describe('Responsiveness Audit', () => {
 		{ path: '/log', name: 'Log Symptoms' },
 		{ path: '/ask', name: 'Ask Meno' },
 		{ path: '/providers', name: 'Providers' },
-		{ path: '/export', name: 'Export' },
+		{ path: '/export', name: 'Export' }
 	];
 
 	test('Login and seed data', async ({ page, loginIfNeeded }) => {
@@ -48,7 +48,7 @@ test.describe('Responsiveness Audit', () => {
 			test(`${pageConfig.name} - Responsive at ${viewport.name} (${viewport.width}×${viewport.height})`, async ({
 				page,
 				takeResponsiveScreenshots,
-				loginIfNeeded,
+				loginIfNeeded
 			}) => {
 				const issues: ResponsivenessIssue[] = [];
 
@@ -68,25 +68,18 @@ test.describe('Responsiveness Audit', () => {
 
 					// 1. Check for horizontal overflow
 					const hasHorizontalScroll = await page.evaluate(() => {
-						return (
-							document.documentElement.scrollWidth >
-							document.documentElement.clientWidth
-						);
+						return document.documentElement.scrollWidth > document.documentElement.clientWidth;
 					});
 
 					if (hasHorizontalScroll) {
-						const scrollWidth = await page.evaluate(
-							() => document.documentElement.scrollWidth
-						);
-						const clientWidth = await page.evaluate(
-							() => document.documentElement.clientWidth
-						);
+						const scrollWidth = await page.evaluate(() => document.documentElement.scrollWidth);
+						const clientWidth = await page.evaluate(() => document.documentElement.clientWidth);
 
 						issues.push({
 							severity: 'critical',
 							title: 'Horizontal Overflow Detected',
 							description: `Page content extends beyond viewport width`,
-							measurement: `scrollWidth: ${scrollWidth}px, viewport: ${viewport.width}px`,
+							measurement: `scrollWidth: ${scrollWidth}px, viewport: ${viewport.width}px`
 						});
 					}
 
@@ -110,7 +103,7 @@ test.describe('Responsiveness Audit', () => {
 									issues.push({
 										selector: el.className || el.tagName,
 										height: Math.round(rect.height),
-										width: Math.round(rect.width),
+										width: Math.round(rect.width)
 									});
 								}
 							}
@@ -127,10 +120,8 @@ test.describe('Responsiveness Audit', () => {
 								'Some interactive elements are smaller than the recommended 44×44px minimum',
 							measurement: smallTouchTargets
 								.slice(0, 3)
-								.map(
-									(t) => `${t.selector}: ${t.width}×${t.height}px`
-								)
-								.join(', '),
+								.map((t) => `${t.selector}: ${t.width}×${t.height}px`)
+								.join(', ')
 						});
 					}
 
@@ -145,7 +136,9 @@ test.describe('Responsiveness Audit', () => {
 								// Check if element extends beyond right edge
 								if (rect.right > vpWidth + 5) {
 									// 5px tolerance for rounding
-									issues.push(`${el.tagName} extends ${Math.round(rect.right - vpWidth)}px beyond viewport`);
+									issues.push(
+										`${el.tagName} extends ${Math.round(rect.right - vpWidth)}px beyond viewport`
+									);
 								}
 								// Check if element is off-screen to the left
 								if (rect.left < -5) {
@@ -162,7 +155,7 @@ test.describe('Responsiveness Audit', () => {
 							severity: 'critical',
 							title: `${offScreenElements.length} Off-Screen Elements`,
 							description: 'Some interactive elements are positioned off-screen',
-							measurement: offScreenElements.slice(0, 2).join('; '),
+							measurement: offScreenElements.slice(0, 2).join('; ')
 						});
 					}
 
@@ -180,9 +173,7 @@ test.describe('Responsiveness Audit', () => {
 									const fontSize = parseFloat(style.fontSize);
 
 									if (fontSize < 14 && el.textContent?.trim()) {
-										issues.push(
-											`${el.tagName}: ${fontSize.toFixed(1)}px`
-										);
+										issues.push(`${el.tagName}: ${fontSize.toFixed(1)}px`);
 									}
 								});
 
@@ -194,7 +185,7 @@ test.describe('Responsiveness Audit', () => {
 								severity: 'medium',
 								title: 'Small Font Sizes on Mobile',
 								description: 'Some text elements are smaller than recommended 14px minimum',
-								measurement: `${smallText.length} elements < 14px`,
+								measurement: `${smallText.length} elements < 14px`
 							});
 						}
 					}
@@ -209,18 +200,13 @@ test.describe('Responsiveness Audit', () => {
 
 						allElements.forEach((el) => {
 							const style = window.getComputedStyle(el);
-							if (
-								style.overflow === 'hidden' &&
-								el.scrollHeight > el.clientHeight
-							) {
+							if (style.overflow === 'hidden' && el.scrollHeight > el.clientHeight) {
 								overflowCount++;
 							}
 						});
 
 						if (overflowCount > 5) {
-							issues.push(
-								`${overflowCount} elements with hidden overflow and cut-off content`
-							);
+							issues.push(`${overflowCount} elements with hidden overflow and cut-off content`);
 						}
 
 						return issues;
@@ -231,7 +217,7 @@ test.describe('Responsiveness Audit', () => {
 							severity: 'low',
 							title: 'Potential Content Clipping',
 							description: 'Some elements may have content clipped by overflow:hidden',
-							measurement: layoutIssues[0],
+							measurement: layoutIssues[0]
 						});
 					}
 
@@ -243,7 +229,7 @@ test.describe('Responsiveness Audit', () => {
 						page: pageConfig.name,
 						viewport: viewport.name,
 						issues,
-						passed: issues.filter((i) => i.severity === 'critical').length === 0,
+						passed: issues.filter((i) => i.severity === 'critical').length === 0
 					});
 
 					// Assert no critical issues
@@ -262,10 +248,10 @@ test.describe('Responsiveness Audit', () => {
 							{
 								severity: 'critical',
 								title: 'Test Error',
-								description: String(error),
-							},
+								description: String(error)
+							}
 						],
-						passed: false,
+						passed: false
 					});
 					throw error;
 				}
@@ -275,7 +261,9 @@ test.describe('Responsiveness Audit', () => {
 
 	test.afterAll(async () => {
 		// Generate report only after all tests complete
-		console.log(`\n📊 Generating responsiveness audit report from ${testResults.length} test results...`);
+		console.log(
+			`\n📊 Generating responsiveness audit report from ${testResults.length} test results...`
+		);
 		await generateResponsivenessReport(testResults);
 	});
 });
@@ -285,21 +273,15 @@ async function generateResponsivenessReport(results: TestResult[]): Promise<void
 	const path = await import('path');
 
 	const criticalCount = results.reduce(
-		(sum, r) =>
-			sum +
-			r.issues.filter((i) => i.severity === 'critical').length,
+		(sum, r) => sum + r.issues.filter((i) => i.severity === 'critical').length,
 		0
 	);
 	const mediumCount = results.reduce(
-		(sum, r) =>
-			sum +
-			r.issues.filter((i) => i.severity === 'medium').length,
+		(sum, r) => sum + r.issues.filter((i) => i.severity === 'medium').length,
 		0
 	);
 	const lowCount = results.reduce(
-		(sum, r) =>
-			sum +
-			r.issues.filter((i) => i.severity === 'low').length,
+		(sum, r) => sum + r.issues.filter((i) => i.severity === 'low').length,
 		0
 	);
 
@@ -366,10 +348,7 @@ ${Object.entries(
 			const screenshotPath = path.join(screenshotDir, `${viewport.name}.png`);
 			try {
 				await fs.stat(screenshotPath);
-				const relPath = path.relative(
-					path.join(process.cwd(), '..', '..', 'docs'),
-					screenshotPath
-				);
+				const relPath = path.relative(path.join(process.cwd(), '..', '..', 'docs'), screenshotPath);
 				summary += `\n- **${viewport.name}** (${viewport.width}×${viewport.height})\n  ![${viewport.name}](${relPath})\n`;
 			} catch {
 				// Screenshot doesn't exist yet
@@ -380,24 +359,17 @@ ${Object.entries(
 		if (pageIssues.length > 0) {
 			summary += `\n**Issues Found:**\n`;
 
-			const byViewport = pageResults.reduce(
-				(acc: Record<string, ResponsivenessIssue[]>, r) => {
-					acc[r.viewport] = r.issues;
-					return acc;
-				},
-				{}
-			);
+			const byViewport = pageResults.reduce((acc: Record<string, ResponsivenessIssue[]>, r) => {
+				acc[r.viewport] = r.issues;
+				return acc;
+			}, {});
 
 			for (const [viewport, issues] of Object.entries(byViewport)) {
 				if (issues.length > 0) {
 					summary += `\n#### ${viewport}\n`;
 					for (const issue of issues) {
 						const emoji =
-							issue.severity === 'critical'
-								? '🔴'
-								: issue.severity === 'medium'
-									? '🟡'
-									: '🟢';
+							issue.severity === 'critical' ? '🔴' : issue.severity === 'medium' ? '🟡' : '🟢';
 						summary += `\n${emoji} **${issue.title}**\n`;
 						summary += `   ${issue.description}\n`;
 						if (issue.measurement) {
@@ -431,18 +403,16 @@ ${Object.entries(
 	} else {
 		for (const [title, issues] of issuesByType.entries()) {
 			const emoji =
-				issues[0].severity === 'critical'
-					? '🔴'
-					: issues[0].severity === 'medium'
-						? '🟡'
-						: '🟢';
+				issues[0].severity === 'critical' ? '🔴' : issues[0].severity === 'medium' ? '🟡' : '🟢';
 			summary += `\n### ${emoji} ${title}\n`;
 			summary += `**Severity:** ${issues[0].severity}\n\n`;
-			summary += `Found in ${new Set(
-				results
-					.filter((r) => r.issues.some((i) => i.title === title))
-					.map((r) => `${r.page} (${r.viewport})`)
-			).size} locations\n`;
+			summary += `Found in ${
+				new Set(
+					results
+						.filter((r) => r.issues.some((i) => i.title === title))
+						.map((r) => `${r.page} (${r.viewport})`)
+				).size
+			} locations\n`;
 		}
 	}
 

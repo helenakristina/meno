@@ -54,7 +54,13 @@
 		</div>
 
 		<div class="rounded-lg border border-neutral-200 bg-white p-8 shadow-sm">
-			<form class="space-y-4" onsubmit={(e) => { e.preventDefault(); handleLogin(); }}>
+			<form
+				class="space-y-4"
+				onsubmit={(e) => {
+					e.preventDefault();
+					handleLogin();
+				}}
+			>
 				<div>
 					<label for="email" class="mb-1 block text-sm font-medium text-neutral-700"> Email </label>
 					<input
@@ -83,7 +89,9 @@
 				</div>
 
 				{#if error}
-					<div class="rounded-md border border-danger-light bg-danger-light px-4 py-3 text-sm text-danger-dark">
+					<div
+						class="rounded-md border border-danger-light bg-danger-light px-4 py-3 text-sm text-danger-dark"
+					>
 						{error}
 					</div>
 				{/if}

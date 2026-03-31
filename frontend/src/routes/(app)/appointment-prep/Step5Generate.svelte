@@ -5,7 +5,7 @@
 	let {
 		appointmentId,
 		onStartOver,
-		onError,
+		onError
 	}: {
 		appointmentId: string;
 		onStartOver: () => void;
@@ -131,7 +131,7 @@
 			</button>
 			<a
 				href="/appointment-prep/history"
-				class="flex-1 rounded-xl border border-neutral-200 py-3 text-sm font-medium text-neutral-600 transition-colors hover:bg-neutral-50 text-center"
+				class="flex-1 rounded-xl border border-neutral-200 py-3 text-center text-sm font-medium text-neutral-600 transition-colors hover:bg-neutral-50"
 			>
 				View all my preps
 			</a>

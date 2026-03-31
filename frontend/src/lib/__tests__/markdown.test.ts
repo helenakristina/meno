@@ -98,7 +98,8 @@ describe('sanitizeMarkdownHtml', () => {
 	});
 
 	it('handles multiple links', () => {
-		const html = '<a href="https://example1.com">Link 1</a> and <a href="https://example2.com">Link 2</a>';
+		const html =
+			'<a href="https://example1.com">Link 1</a> and <a href="https://example2.com">Link 2</a>';
 		const result = sanitizeMarkdownHtml(html);
 		const linkCount = (result.match(/target="_blank"/g) || []).length;
 		expect(linkCount).toBe(2);

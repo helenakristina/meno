@@ -165,7 +165,7 @@ describe('Ask Meno - Chat Functionality', () => {
 				'When should I see a doctor?'
 			];
 			expect(starterPrompts.length).toBeGreaterThan(0);
-			expect(starterPrompts.every(p => p.length > 0)).toBe(true);
+			expect(starterPrompts.every((p) => p.length > 0)).toBe(true);
 		});
 
 		it('starter prompts are clickable without auto-sending', () => {

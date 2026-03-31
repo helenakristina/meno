@@ -26,7 +26,7 @@ export interface AppState {
 const initialState: AppState = {
 	isLoading: 0,
 	error: null,
-	notification: null,
+	notification: null
 };
 
 // Main app state store
@@ -43,14 +43,12 @@ const createAppStore = () => {
 		setError: (message: string, autoDismissMs = 5000) => {
 			update((state) => ({
 				...state,
-				error: message,
+				error: message
 			}));
 
 			if (autoDismissMs > 0) {
 				setTimeout(() => {
-					update((state) =>
-						state.error === message ? { ...state, error: null } : state
-					);
+					update((state) => (state.error === message ? { ...state, error: null } : state));
 				}, autoDismissMs);
 			}
 		},
@@ -61,7 +59,7 @@ const createAppStore = () => {
 		clearError: () => {
 			update((state) => ({
 				...state,
-				error: null,
+				error: null
 			}));
 		},
 
@@ -69,7 +67,11 @@ const createAppStore = () => {
 		 * Show a temporary notification
 		 * Automatically dismisses after duration
 		 */
-		showNotification: (message: string, type: 'success' | 'info' = 'success', durationMs = 3000) => {
+		showNotification: (
+			message: string,
+			type: 'success' | 'info' = 'success',
+			durationMs = 3000
+		) => {
 			const id = `notif-${Date.now()}`;
 			update((state) => ({
 				...state,
@@ -77,8 +79,8 @@ const createAppStore = () => {
 					id,
 					type,
 					message,
-					dismissible: true,
-				},
+					dismissible: true
+				}
 			}));
 
 			if (durationMs > 0) {
@@ -96,7 +98,7 @@ const createAppStore = () => {
 		clearNotification: () => {
 			update((state) => ({
 				...state,
-				notification: null,
+				notification: null
 			}));
 		},
 
@@ -106,7 +108,7 @@ const createAppStore = () => {
 		startLoading: () => {
 			update((state) => ({
 				...state,
-				isLoading: state.isLoading + 1,
+				isLoading: state.isLoading + 1
 			}));
 		},
 
@@ -116,7 +118,7 @@ const createAppStore = () => {
 		stopLoading: () => {
 			update((state) => ({
 				...state,
-				isLoading: Math.max(0, state.isLoading - 1),
+				isLoading: Math.max(0, state.isLoading - 1)
 			}));
 		},
 
@@ -125,7 +127,7 @@ const createAppStore = () => {
 		 */
 		reset: () => {
 			set(initialState);
-		},
+		}
 	};
 };
 

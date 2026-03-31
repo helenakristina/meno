@@ -489,7 +489,9 @@
 
 					<!-- Inline error -->
 					{#if error}
-						<p class="rounded-lg border border-danger-light bg-danger-light px-3 py-2 text-sm text-danger-dark">
+						<p
+							class="rounded-lg border border-danger-light bg-danger-light px-3 py-2 text-sm text-danger-dark"
+						>
 							{error}
 						</p>
 					{/if}
@@ -507,7 +509,7 @@
 					</button>
 				</div>
 
-			<!-- ── LOADING STATE ─────────────────────────────────────────── -->
+				<!-- ── LOADING STATE ─────────────────────────────────────────── -->
 			{:else if modalState === 'loading'}
 				<div class="flex flex-col items-center gap-4 py-8">
 					<div
@@ -516,7 +518,7 @@
 					<p class="text-sm text-neutral-500">Writing your script…</p>
 				</div>
 
-			<!-- ── RESULT STATE ──────────────────────────────────────────── -->
+				<!-- ── RESULT STATE ──────────────────────────────────────────── -->
 			{:else if modalState === 'result'}
 				<div class="space-y-4">
 					<!-- Script card — warm off-white, generous line height for reading aloud -->
@@ -541,7 +543,7 @@
 					<!-- ── CALL TRACKER ─────────────────────────────────── -->
 					{#if onSave || localIsSaved}
 						<div class="rounded-xl border border-neutral-100 bg-neutral-50 px-4 py-4">
-							<p class="mb-3 text-xs font-semibold uppercase tracking-wide text-neutral-400">
+							<p class="mb-3 text-xs font-semibold tracking-wide text-neutral-400 uppercase">
 								Call Tracker
 							</p>
 
@@ -581,9 +583,7 @@
 										id="cs-status"
 										value={localStatus}
 										onchange={(e) =>
-											handleStatusChange(
-												(e.target as HTMLSelectElement).value as ShortlistStatus
-											)}
+											handleStatusChange((e.target as HTMLSelectElement).value as ShortlistStatus)}
 										class="w-full rounded-lg border border-neutral-200 bg-white px-3 py-2 text-sm text-neutral-700 shadow-sm focus:border-primary-400 focus:ring-2 focus:ring-primary-200 focus:outline-none"
 									>
 										{#each STATUSES as s (s.value)}
