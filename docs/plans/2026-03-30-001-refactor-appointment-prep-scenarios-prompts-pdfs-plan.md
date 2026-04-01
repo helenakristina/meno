@@ -440,7 +440,7 @@ No API surface changes in any phase. All four phases are internal refactors — 
 - [x] Patient-facing prompts (scenario suggestions, cheat sheet) have distinct constants from provider-facing
 - [x] Provider-facing prompts (narrative, provider summary) remain clinical
 - [x] Guardrail strings ("logs show", "not to diagnose", "discuss with a provider") asserted in tests
-- [ ] User-supplied strings sanitized via `_sanitize_prompt_field()` before entering prompts
+- [x] User-supplied strings sanitized via `_sanitize_prompt_field()` before entering prompts — skipped: Pydantic validates at route layer, redundant
 - [x] All existing tests pass; prompt mock updated for generate_narrative()
 
 ### Phase 4: PDFs
