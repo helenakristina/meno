@@ -22,6 +22,7 @@ from app.models.appointment import (
     AppointmentPrepScenariosResponse,
     ScenarioCard,
 )
+from app.models.symptoms import SymptomFrequency, SymptomPair
 from app.repositories.appointment_repository import AppointmentRepository
 from app.repositories.symptoms_repository import SymptomsRepository
 from app.services.medication_base import MedicationServiceBase
@@ -252,8 +253,42 @@ class AppointmentService:
             len(narrative),
         )
 
-        # Save to database
+        # Save narrative to database
         await self.appointment_repo.save_narrative(appointment_id, user_id, narrative)
+
+        # Save frequency stats so Step 5 can reuse them without re-querying logs
+        freq_stats_json = [
+            {
+                "symptom_id": s.symptom_id,
+                "symptom_name": s.symptom_name,
+                "category": s.category,
+                "count": s.count,
+            }
+            for s in frequency_stats
+        ]
+        coocc_stats_json = [
+            {
+                "symptom1_id": p.symptom1_id,
+                "symptom1_name": p.symptom1_name,
+                "symptom2_id": p.symptom2_id,
+                "symptom2_name": p.symptom2_name,
+                "cooccurrence_count": p.cooccurrence_count,
+                "cooccurrence_rate": p.cooccurrence_rate,
+                "total_occurrences_symptom1": p.total_occurrences_symptom1,
+            }
+            for p in cooccurrence_stats
+        ]
+        try:
+            await self.appointment_repo.save_frequency_stats(
+                appointment_id, user_id, freq_stats_json, coocc_stats_json
+            )
+        except Exception as exc:
+            # Non-critical — PDF generation degrades to empty table rather than failing
+            logger.warning(
+                "Failed to save frequency stats: appointment_id=%s error=%s",
+                appointment_id,
+                exc,
+            )
 
         return AppointmentPrepNarrativeResponse(
             appointment_id=appointment_id,
@@ -458,6 +493,8 @@ class AppointmentService:
         narrative = appointment_data.get("narrative", "No narrative available.")
         concerns = appointment_data.get("concerns", [])
         scenarios_data = appointment_data.get("scenarios", [])
+        frequency_stats_data = appointment_data.get("frequency_stats") or []
+        cooccurrence_stats_data = appointment_data.get("cooccurrence_stats") or []
 
         # Fetch user context
         try:
@@ -482,10 +519,21 @@ class AppointmentService:
         elif isinstance(scenarios_data, dict):
             scenarios_for_pdf = [scenarios_data]
 
-        # Generate provider summary via LLM
+        # Deserialize saved frequency stats (empty list degrades gracefully in PDF)
+        frequency_stats: list[SymptomFrequency] = []
+        cooccurrence_stats: list[SymptomPair] = []
         try:
-            provider_summary_md = await self.llm_service.generate_pdf_content(
-                content_type="provider_summary",
+            frequency_stats = [SymptomFrequency(**s) for s in frequency_stats_data]
+            cooccurrence_stats = [SymptomPair(**p) for p in cooccurrence_stats_data]
+        except Exception as exc:
+            logger.warning(
+                "Failed to deserialize frequency stats, PDF will have empty table: %s",
+                exc,
+            )
+
+        # Generate provider summary via LLM (structured JSON → ProviderSummaryResponse)
+        try:
+            provider_summary_content = await self.llm_service.generate_provider_summary_content(
                 narrative=narrative_text,
                 concerns=concerns_list,
                 appointment_type=context.appointment_type.value,
@@ -507,10 +555,9 @@ class AppointmentService:
             )
             raise DatabaseError(f"Failed to generate provider summary: {exc}") from exc
 
-        # Generate personal cheat sheet via LLM
+        # Generate personal cheat sheet via LLM (structured JSON → CheatsheetResponse)
         try:
-            cheatsheet_md = await self.llm_service.generate_pdf_content(
-                content_type="personal_cheatsheet",
+            cheatsheet_content = await self.llm_service.generate_cheatsheet_content(
                 narrative=narrative_text,
                 concerns=concerns_list,
                 appointment_type=context.appointment_type.value,
@@ -533,16 +580,22 @@ class AppointmentService:
             )
             raise DatabaseError(f"Failed to generate cheat sheet: {exc}") from exc
 
-        # Convert markdown to PDFs
+        # Build structured PDFs
         try:
-            provider_summary_pdf = self.pdf_service.markdown_to_pdf(
-                provider_summary_md, title="Provider Summary"
+            provider_summary_pdf = self.pdf_service.build_provider_summary_pdf(
+                content=provider_summary_content,
+                frequency_stats=frequency_stats,
+                cooccurrence_stats=cooccurrence_stats,
+                concerns=concerns_list,
             )
-            cheatsheet_pdf = self.pdf_service.markdown_to_pdf(
-                cheatsheet_md, title="Personal Cheat Sheet"
+            cheatsheet_pdf = self.pdf_service.build_cheatsheet_pdf(
+                content=cheatsheet_content,
+                concerns=concerns_list,
+                scenarios=scenarios_for_pdf,
+                frequency_stats=frequency_stats,
             )
         except Exception as exc:
-            logger.error("Failed to convert markdown to PDF: %s", exc, exc_info=True)
+            logger.error("Failed to build PDFs: %s", exc, exc_info=True)
             raise DatabaseError(f"Failed to generate PDF: {exc}") from exc
 
         # Upload to Supabase Storage

@@ -16,10 +16,10 @@ and a builder function for the dynamic user prompt:
      → generate_scenario_suggestions() in llm.py (Step 4)
 
   5. PROVIDER_SUMMARY / build_provider_summary_user_prompt
-     → generate_pdf_content("provider_summary") in llm.py (Step 5)
+     → generate_provider_summary_content() in llm.py (Step 5)
 
   6. CHEATSHEET / build_cheatsheet_user_prompt
-     → generate_pdf_content("personal_cheatsheet") in llm.py (Step 5)
+     → generate_cheatsheet_content() in llm.py (Step 5)
 """
 
 from datetime import date
@@ -229,14 +229,16 @@ def build_provider_summary_user_prompt(
     age_str: str,
     urgent_symptom: str | None = None,
 ) -> str:
-    """Build user prompt for provider summary PDF generation (Step 5)."""
+    """Build user prompt for provider summary PDF generation (Step 5).
+
+    Requests structured JSON output matching ProviderSummaryResponse.
+    """
     urgent_concern = urgent_symptom if urgent_symptom else "not provided"
-    urgent_lead = f"Patient's urgent concern: {urgent_symptom}. " if urgent_symptom else ""
     return (
-        f"Write a clinical summary for a healthcare provider seeing this patient.\n"
-        f"This provider will read this in 2 minutes. Make it scannable and useful.\n\n"
-        f"CRITICAL: Only describe what's in the data below. Do NOT invent symptoms, frequencies, or connections.\n"
-        f"This is NOT a recommendation document—just describe the picture and let the provider decide.\n\n"
+        f"Write a clinical appointment summary for a healthcare provider.\n"
+        f"The provider will read this in 2 minutes — be specific, scannable, useful.\n\n"
+        f"CRITICAL: Only describe what's in the data below. Do NOT invent symptoms, "
+        f"frequencies, or connections. No recommendations. No speculation.\n\n"
         f"Patient Data:\n"
         f"- Age: {age_str}\n"
         f"- Appointment Type: {appointment_type.replace('_', ' ')}\n"
@@ -244,15 +246,12 @@ def build_provider_summary_user_prompt(
         f"- Urgent Concern: {urgent_concern}\n"
         f"- Narrative Summary: {narrative}\n"
         f"- Concerns List: {concerns_text if concerns_text else 'None provided'}\n\n"
-        f"{urgent_lead}\n\n"
-        f"Structure:\n\n"
-        f"1. OPENING (2-3 sentences) - Who, why, urgent concern\n"
-        f"2. SYMPTOM PICTURE (3-4 sentences) - What she's experiencing (from narrative only)\n"
-        f"3. KEY PATTERNS (2-3 sentences, ONLY if narrative mentions them)\n"
-        f"4. PRIORITIZED CONCERNS (bulleted, exactly as provided)\n"
-        f"5. CLOSING (1-2 sentences) - What patient is seeking\n\n"
-        f"Tone: Conversational clinical. Specific numbers. No recommendations. No speculation.\n"
-        f"Length: 1-2 pages maximum, scannable."
+        f"Return ONLY a valid JSON object with exactly these four fields:\n"
+        f'{{"opening": "2-3 sentence intro: who, why here, urgent concern if any", '
+        f'"symptom_picture": "3-4 sentences describing what she experiences (from narrative only)", '
+        f'"key_patterns": "2-3 sentences on co-occurring patterns if present, else empty string", '
+        f'"closing": "1-2 sentences on what the patient is seeking from this appointment"}}\n\n'
+        f"No markdown. No explanation. No extra fields. Valid JSON only."
     )
 
 
@@ -265,49 +264,35 @@ def build_cheatsheet_user_prompt(
     urgent_symptom: str | None = None,
     scenarios: list[dict] | None = None,
 ) -> str:
-    """Build user prompt for personal cheatsheet PDF generation (Step 5)."""
+    """Build user prompt for personal cheatsheet PDF generation (Step 5).
+
+    Requests structured JSON output matching CheatsheetResponse.
+    Only generates opening_statement and question_groups — the PDF builder
+    renders concerns, frequency stats, scenarios, and what-to-bring sections.
+    """
     urgent_concern = urgent_symptom if urgent_symptom else "not provided"
-    urgent_emphasis = (
-        f"\nURGENT SYMPTOM: {urgent_symptom}\n"
-        f"This is your primary concern for this appointment. Make sure it's the focus of your conversation."
-        if urgent_symptom
-        else ""
-    )
-
-    sideways_section = ""
-    if scenarios:
-        sideways_section = "5. 'IF THINGS GO SIDEWAYS'\n\n"
-        for scenario in scenarios[:5]:
-            title = scenario.get("title", "")
-            suggestion = scenario.get("suggestion", "")
-            sideways_section += f'- **If they say:** "{title}"\n  **You can say:** {suggestion}\n\n'
-
     return (
-        f"Write a personal preparation document for a patient's healthcare appointment.\n"
-        f"This is HER working document—concise, actionable, no fluff.\n\n"
+        f"Write a personal appointment preparation document for a patient.\n"
+        f"This is her working document — concise, actionable, no fluff.\n\n"
         f"CRITICAL: Only use information provided below. Do NOT invent or assume content.\n"
-        f"Do NOT suggest treatments or medications. Do NOT add context that wasn't provided.\n\n"
+        f"Do NOT suggest treatments or medications.\n\n"
         f"Patient Data:\n"
         f"- Age: {age_str}\n"
         f"- Appointment Type: {appointment_type.replace('_', ' ')}\n"
         f"- Primary Goal: {goal.replace('_', ' ')}\n"
         f"- Urgent Concern: {urgent_concern}\n"
         f"- Prioritized Concerns: {concerns_text}\n"
-        f"- Narrative Summary: {narrative}\n"
-        f"{urgent_emphasis}\n\n"
-        f"{sideways_section}"
-        f"Structure:\n\n"
-        f"1. OPENING STATEMENT (2-3 sentences) - Age, stage, urgent symptom, goal\n"
-        f"2. SYMPTOMS RANKED BY IMPACT - urgent symptom first (if provided), then prioritized concerns\n"
-        f"3. KEY CONCERNS (bulleted, from provided list only)\n"
-        f"4. QUESTIONS TO ASK (grouped by topic, open-ended)\n"
-        f"5. 'IF THINGS GO SIDEWAYS' - Use ONLY the dismissal scenarios provided above\n"
-        f"6. WHAT TO BRING - symptom log, current medications, medical history, recent labs\n\n"
-        f"CRITICAL RULES:\n"
-        f"- Only reference symptoms/concerns that are in the data\n"
-        f"- Do NOT suggest treatments\n"
-        f"- Do NOT add emotional language or encouragement\n"
-        f"- For 'If Things Go Sideways': Use EXACT dismissals and responses from above\n\n"
-        f"Tone: Professional, concise, working document. No motivation speeches.\n"
-        f"Length: 2-3 pages maximum."
+        f"- Narrative Summary: {narrative}\n\n"
+        f"Return ONLY a valid JSON object with exactly these fields:\n"
+        f'{{"opening_statement": "2-3 sentences: age, perimenopause/menopause stage, '
+        f'urgent concern if any, primary goal for today", '
+        f'"question_groups": ['
+        f'{{"topic": "topic name", "questions": ["open-ended question 1", "open-ended question 2"]}}'
+        f']}}\n\n'
+        f"Rules for question_groups:\n"
+        f"- Group 3-6 questions under 2-4 topic headings relevant to the patient's concerns\n"
+        f"- Questions must be open-ended information-gathering, not treatment requests\n"
+        f"- Start with 'Could you help me understand', 'What might explain', or similar\n"
+        f"- No specific medication names. No diagnosis requests.\n\n"
+        f"No markdown. No explanation. No extra fields. Valid JSON only."
     )

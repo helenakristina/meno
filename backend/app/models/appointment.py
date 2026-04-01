@@ -10,7 +10,7 @@ This includes models for:
 from datetime import datetime
 from enum import Enum
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class AppointmentType(str, Enum):
@@ -364,6 +364,48 @@ class AppointmentPrepHistoryResponse(BaseModel):
     personal_cheatsheet_path: str = Field(
         description="Signed URL to personal cheat sheet PDF"
     )
+
+
+# ---------------------------------------------------------------------------
+# Phase 4: Structured LLM response models for PDF generation
+# ---------------------------------------------------------------------------
+
+
+class ProviderSummaryResponse(BaseModel):
+    """LLM JSON response for the provider-facing appointment summary PDF.
+
+    extra="ignore" lets unexpected LLM fields pass silently.
+    Missing required fields raise ValidationError — the caller converts this
+    to DatabaseError so the user can retry (hard-fail, no degraded PDF).
+    """
+
+    model_config = ConfigDict(extra="ignore")
+
+    opening: str
+    symptom_picture: str
+    key_patterns: str = ""
+    closing: str
+
+
+class QuestionGroup(BaseModel):
+    """A topic-grouped set of provider questions for the cheatsheet."""
+
+    model_config = ConfigDict(extra="ignore")
+
+    topic: str
+    questions: list[str]
+
+
+class CheatsheetResponse(BaseModel):
+    """LLM JSON response for the patient-facing cheatsheet PDF.
+
+    extra="ignore" for the same reason as ProviderSummaryResponse.
+    """
+
+    model_config = ConfigDict(extra="ignore")
+
+    opening_statement: str
+    question_groups: list[QuestionGroup] = []
 
 
 class AppointmentPrepHistoryListResponse(BaseModel):

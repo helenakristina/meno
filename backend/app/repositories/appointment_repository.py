@@ -501,6 +501,64 @@ class AppointmentRepository:
             )
             raise DatabaseError(f"Failed to save PDF metadata: {exc}") from exc
 
+    async def save_frequency_stats(
+        self,
+        appointment_id: str,
+        user_id: str,
+        frequency_stats: list[dict],
+        cooccurrence_stats: list[dict],
+    ) -> None:
+        """Save serialized frequency and co-occurrence stats to the appointment context.
+
+        Stored as JSONB so Step 5 can retrieve pre-computed stats without re-querying
+        symptom logs (which may be sparse or deleted by then).
+
+        Args:
+            appointment_id: ID of the appointment context.
+            user_id: ID of the user (for ownership verification).
+            frequency_stats: Serialized list of SymptomFrequency dicts.
+            cooccurrence_stats: Serialized list of SymptomPair dicts.
+
+        Raises:
+            EntityNotFoundError: If the appointment context doesn't exist.
+            DatabaseError: If the database update fails.
+        """
+        try:
+            response = (
+                await self.client.table("appointment_prep_contexts")
+                .update(
+                    {
+                        "frequency_stats": frequency_stats,
+                        "cooccurrence_stats": cooccurrence_stats,
+                    }
+                )
+                .eq("id", appointment_id)
+                .eq("user_id", user_id)
+                .execute()
+            )
+        except Exception as exc:
+            logger.error(
+                "DB update failed saving frequency stats for appointment %s: %s",
+                appointment_id,
+                exc,
+                exc_info=True,
+            )
+            raise DatabaseError(f"Failed to save frequency stats: {exc}") from exc
+
+        if (
+            not response.data
+            or not isinstance(response.data, list)
+            or len(response.data) == 0
+        ):
+            raise EntityNotFoundError("Appointment context not found")
+
+        logger.info(
+            "Frequency stats saved: appointment_id=%s freq=%d coocc=%d",
+            appointment_id,
+            len(frequency_stats),
+            len(cooccurrence_stats),
+        )
+
     async def get_symptom_reference(self, symptom_ids: list[str]) -> dict[str, dict]:
         """Fetch symptom reference data for a set of IDs.
 
@@ -595,7 +653,7 @@ class AppointmentRepository:
         try:
             response = (
                 await self.client.table("appointment_prep_contexts")
-                .select("narrative, concerns, scenarios")
+                .select("narrative, concerns, scenarios, frequency_stats, cooccurrence_stats")
                 .eq("id", appointment_id)
                 .eq("user_id", user_id)
                 .execute()

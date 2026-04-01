@@ -17,7 +17,10 @@ from app.models.appointment import (
     AppointmentPrepNarrativeResponse,
     AppointmentPrepScenariosResponse,
     AppointmentType,
+    CheatsheetResponse,
     DismissalExperience,
+    ProviderSummaryResponse,
+    QuestionGroup,
 )
 from app.services.appointment import AppointmentService
 
@@ -42,6 +45,7 @@ def mock_appointment_repo(context):
     mock = AsyncMock()
     mock.get_context.return_value = context
     mock.save_narrative.return_value = None
+    mock.save_frequency_stats.return_value = None
     mock.save_scenarios.return_value = None
     mock.get_symptom_reference.return_value = {
         "sym-1": {"name": "Hot flashes", "category": "vasomotor"},
@@ -52,6 +56,8 @@ def mock_appointment_repo(context):
         "narrative": "Logs show frequent hot flashes and night sweats.",
         "concerns": ["Discuss HRT options"],
         "scenarios": [{"id": "scenario-1", "title": "HRT risk", "suggestion": "..."}],
+        "frequency_stats": [],
+        "cooccurrence_stats": [],
     }
     mock.save_pdf_metadata.return_value = None
     return mock
@@ -86,8 +92,21 @@ def mock_llm_service():
     svc.generate_scenario_suggestions = AsyncMock(
         return_value='[{"suggestion": "You can advocate for treatment by citing NAMS guidelines.", "sources": []}]'
     )
-    svc.generate_pdf_content = AsyncMock(
-        return_value="## Provider Summary\n\nKey findings."
+    svc.generate_provider_summary_content = AsyncMock(
+        return_value=ProviderSummaryResponse(
+            opening="Patient presents for discussion.",
+            symptom_picture="Logs show hot flashes.",
+            key_patterns="Hot flashes co-occur with night sweats.",
+            closing="Patient seeks treatment options.",
+        )
+    )
+    svc.generate_cheatsheet_content = AsyncMock(
+        return_value=CheatsheetResponse(
+            opening_statement="I am 48 and experiencing hot flashes.",
+            question_groups=[
+                QuestionGroup(topic="Hot flashes", questions=["Could you help me understand..."])
+            ],
+        )
     )
     return svc
 
@@ -102,7 +121,8 @@ def mock_storage_service():
 @pytest.fixture
 def mock_pdf_service():
     mock = MagicMock()
-    mock.markdown_to_pdf.return_value = b"%PDF-mock"
+    mock.build_provider_summary_pdf.return_value = b"%PDF-provider"
+    mock.build_cheatsheet_pdf.return_value = b"%PDF-cheatsheet"
     return mock
 
 
@@ -322,15 +342,12 @@ class TestGeneratePdf:
 
     @pytest.mark.asyncio
     async def test_generates_two_llm_documents(self, service, mock_llm_service):
+        # CATCHES: generate_pdf using old generate_pdf_content instead of the two
+        # new structured methods — would produce markdown PDFs not structured ones
         await service.generate_pdf("appt-123", "user-456")
 
-        assert mock_llm_service.generate_pdf_content.call_count == 2
-        call_types = [
-            c[1]["content_type"]
-            for c in mock_llm_service.generate_pdf_content.call_args_list
-        ]
-        assert "provider_summary" in call_types
-        assert "personal_cheatsheet" in call_types
+        mock_llm_service.generate_provider_summary_content.assert_called_once()
+        mock_llm_service.generate_cheatsheet_content.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_saves_pdf_metadata(self, service, mock_appointment_repo):
@@ -364,7 +381,9 @@ class TestGeneratePdf:
     async def test_raises_database_error_when_llm_times_out(
         self, service, mock_llm_service
     ):
-        mock_llm_service.generate_pdf_content.side_effect = TimeoutError()
+        # CATCHES: TimeoutError from generate_provider_summary_content not converted
+        # to DatabaseError — would surface as unhandled 500
+        mock_llm_service.generate_provider_summary_content.side_effect = TimeoutError()
 
         with pytest.raises(DatabaseError, match="timed out"):
             await service.generate_pdf("appt-123", "user-456")

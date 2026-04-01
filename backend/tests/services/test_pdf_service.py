@@ -4,6 +4,8 @@ from datetime import date
 
 import pytest
 
+from app.models.appointment import CheatsheetResponse, ProviderSummaryResponse, QuestionGroup
+from app.models.symptoms import SymptomFrequency, SymptomPair
 from app.services.pdf import PdfService
 
 
@@ -188,5 +190,178 @@ class TestBuildExportPdf:
             frequency_stats=[],
             cooccurrence_pairs=[],
             provider_questions=[],
+        )
+        assert result[:4] == b"%PDF"
+
+
+# ---------------------------------------------------------------------------
+# build_provider_summary_pdf (Phase 4)
+# ---------------------------------------------------------------------------
+
+
+def _freq(name, cat, count):
+    return SymptomFrequency(symptom_id="s1", symptom_name=name, category=cat, count=count)
+
+
+def _pair(s1, s2, count, rate):
+    return SymptomPair(
+        symptom1_id="s1", symptom1_name=s1,
+        symptom2_id="s2", symptom2_name=s2,
+        cooccurrence_count=count, cooccurrence_rate=rate,
+        total_occurrences_symptom1=count + 2,
+    )
+
+
+def _provider_content(**overrides):
+    defaults = dict(
+        opening="Patient is 52 presenting with hot flashes.",
+        symptom_picture="Logs show 12 hot flash episodes.",
+        key_patterns="Hot flashes co-occur with night sweats.",
+        closing="Patient seeks discussion of treatment options.",
+    )
+    return ProviderSummaryResponse(**{**defaults, **overrides})
+
+
+def _cheatsheet_content(**overrides):
+    defaults = dict(
+        opening_statement="I am 52 in late perimenopause.",
+        question_groups=[
+            QuestionGroup(topic="Hot flashes", questions=["Could you help me understand..."])
+        ],
+    )
+    return CheatsheetResponse(**{**defaults, **overrides})
+
+
+class TestBuildProviderSummaryPdf:
+    def test_returns_bytes(self, svc):
+        # CATCHES: method not implemented — appointment Step 5 would crash calling
+        # a method that doesn't exist on PdfService
+        result = svc.build_provider_summary_pdf(
+            content=_provider_content(),
+            frequency_stats=[],
+            cooccurrence_stats=[],
+            concerns=["Understand options"],
+        )
+        assert isinstance(result, bytes)
+
+    def test_starts_with_pdf_magic_bytes(self, svc):
+        # CATCHES: reportlab build fails silently — bytes returned but not a valid
+        # PDF, causing Supabase upload to produce a corrupt file
+        result = svc.build_provider_summary_pdf(
+            content=_provider_content(),
+            frequency_stats=[],
+            cooccurrence_stats=[],
+            concerns=[],
+        )
+        assert result[:4] == b"%PDF"
+
+    def test_renders_with_frequency_table(self, svc):
+        # CATCHES: frequency_stats parameter ignored — provider summary PDF would
+        # have no symptom data table, making it useless for the provider
+        result = svc.build_provider_summary_pdf(
+            content=_provider_content(),
+            frequency_stats=[_freq("Hot flashes", "vasomotor", 15)],
+            cooccurrence_stats=[],
+            concerns=["Discuss treatment"],
+        )
+        assert result[:4] == b"%PDF"
+
+    def test_renders_with_cooccurrence_table(self, svc):
+        # CATCHES: cooccurrence_stats parameter ignored — co-occurrence table absent
+        # from provider summary, losing a key clinical pattern indicator
+        result = svc.build_provider_summary_pdf(
+            content=_provider_content(),
+            frequency_stats=[_freq("Hot flashes", "vasomotor", 12)],
+            cooccurrence_stats=[_pair("Hot flashes", "Night sweats", 8, 0.8)],
+            concerns=["Discuss HRT"],
+        )
+        assert result[:4] == b"%PDF"
+
+    def test_renders_with_empty_key_patterns(self, svc):
+        # CATCHES: empty key_patterns crashes the PDF builder — LLM sometimes
+        # omits this section when no clear patterns exist
+        result = svc.build_provider_summary_pdf(
+            content=_provider_content(key_patterns=""),
+            frequency_stats=[],
+            cooccurrence_stats=[],
+            concerns=[],
+        )
+        assert result[:4] == b"%PDF"
+
+    def test_no_user_name_in_content(self, svc):
+        # CATCHES: user name interpolated into PDF — privacy requirement that no
+        # personal identifiers appear in generated PDFs
+        content = _provider_content(
+            opening="The patient is presenting today.",
+            symptom_picture="Logs show symptoms.",
+            closing="Seeking discussion.",
+        )
+        result = svc.build_provider_summary_pdf(
+            content=content,
+            frequency_stats=[],
+            cooccurrence_stats=[],
+            concerns=[],
+        )
+        # PDF bytes don't contain literal user-identifying strings passed from service
+        assert b"Sarah Smith" not in result
+        assert b"user-456" not in result
+
+
+class TestBuildCheatsheetPdf:
+    def test_returns_bytes(self, svc):
+        # CATCHES: method not implemented — appointment Step 5 would crash on
+        # build_cheatsheet_pdf which doesn't exist on PdfService yet
+        result = svc.build_cheatsheet_pdf(
+            content=_cheatsheet_content(),
+            concerns=["Understand options"],
+            scenarios=[],
+            frequency_stats=[],
+        )
+        assert isinstance(result, bytes)
+
+    def test_starts_with_pdf_magic_bytes(self, svc):
+        # CATCHES: reportlab build error returns empty bytes — cheatsheet upload
+        # would store a corrupt file the user cannot open
+        result = svc.build_cheatsheet_pdf(
+            content=_cheatsheet_content(),
+            concerns=[],
+            scenarios=[],
+            frequency_stats=[],
+        )
+        assert result[:4] == b"%PDF"
+
+    def test_renders_with_scenarios(self, svc):
+        # CATCHES: scenarios parameter ignored — "If Things Go Sideways" section
+        # would be missing even when Step 4 produced scenario cards
+        scenarios = [
+            {"title": "Let's try lifestyle changes first", "suggestion": "I hear you, but..."}
+        ]
+        result = svc.build_cheatsheet_pdf(
+            content=_cheatsheet_content(),
+            concerns=["Discuss HRT"],
+            scenarios=scenarios,
+            frequency_stats=[],
+        )
+        assert result[:4] == b"%PDF"
+
+    def test_renders_with_frequency_stats(self, svc):
+        # CATCHES: frequency_stats ignored — symptoms ranked by impact section
+        # would be empty, removing the key talking-point summary
+        result = svc.build_cheatsheet_pdf(
+            content=_cheatsheet_content(),
+            concerns=["Get a plan"],
+            scenarios=[],
+            frequency_stats=[_freq("Hot flashes", "vasomotor", 12)],
+        )
+        assert result[:4] == b"%PDF"
+
+    def test_renders_empty_scenarios(self, svc):
+        # CATCHES: scenarios=[] crashes the PDF builder — appointment prep is valid
+        # without going through Step 4 (user skips scenario practice)
+        result = svc.build_cheatsheet_pdf(
+            content=_cheatsheet_content(),
+            concerns=["Ask about HRT"],
+            scenarios=[],
+            frequency_stats=[],
         )
         assert result[:4] == b"%PDF"

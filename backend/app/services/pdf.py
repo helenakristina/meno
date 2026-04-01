@@ -27,20 +27,21 @@ from reportlab.platypus import (
     TableStyle,
 )
 
+from app.models.appointment import CheatsheetResponse, ProviderSummaryResponse
 from app.models.symptoms import SymptomFrequency, SymptomPair
 
 logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
-# Color palette — clinical, professional, neutral
+# Color palette — Meno design system
 # ---------------------------------------------------------------------------
 
-_NEUTRAL_DARK = colors.HexColor("#2D3748")
-_NEUTRAL_LIGHT = colors.HexColor("#718096")
-_ACCENT = colors.HexColor("#2B6CB0")
-_HEADER_BG = colors.HexColor("#F7FAFC")
-_BORDER = colors.HexColor("#CBD5E0")
-_ALT_ROW = colors.HexColor("#EDF2F7")
+_NEUTRAL_DARK = colors.HexColor("#292524")   # neutral-800
+_NEUTRAL_LIGHT = colors.HexColor("#78716c")  # neutral-500
+_ACCENT = colors.HexColor("#0d9478")         # primary-600 (Meno teal)
+_HEADER_BG = colors.HexColor("#f0fdf9")      # primary-50
+_BORDER = colors.HexColor("#d6d3d1")         # neutral-300
+_ALT_ROW = colors.HexColor("#f5f5f4")        # neutral-100
 
 
 class PdfService:
@@ -414,6 +415,399 @@ class PdfService:
                 "<b>Disclaimer:</b> This report is generated from personal symptom logs "
                 "and is not a medical document. The information presented reflects logged "
                 "data only and does not constitute a medical diagnosis, clinical assessment, "
+                "or treatment recommendation. Please discuss all health concerns with your "
+                "qualified healthcare provider.",
+                disclaimer_style,
+            )
+        )
+
+        def _page_footer(canvas, doc):  # noqa: ANN001
+            canvas.saveState()
+            canvas.setFont("Helvetica", 7)
+            canvas.setFillColor(_NEUTRAL_LIGHT)
+            canvas.drawRightString(
+                letter[0] - 0.9 * inch,
+                0.45 * inch,
+                f"Page {canvas.getPageNumber()}",
+            )
+            canvas.restoreState()
+
+        doc.build(story, onFirstPage=_page_footer, onLaterPages=_page_footer)
+        return buffer.getvalue()
+
+    def build_provider_summary_pdf(
+        self,
+        content: ProviderSummaryResponse,
+        frequency_stats: list[SymptomFrequency],
+        cooccurrence_stats: list[SymptomPair],
+        concerns: list[str],
+    ) -> bytes:
+        """Build a clinical provider-facing appointment summary PDF.
+
+        Args:
+            content: Structured LLM response with opening, symptom_picture,
+                     key_patterns, and closing prose sections.
+            frequency_stats: Symptom frequency data to render as a table.
+            cooccurrence_stats: Co-occurring symptom pairs to render as a table.
+            concerns: Patient's prioritized concerns list.
+
+        Returns:
+            PDF file content as bytes.
+        """
+        buffer = BytesIO()
+        doc = SimpleDocTemplate(
+            buffer,
+            pagesize=letter,
+            rightMargin=0.9 * inch,
+            leftMargin=0.9 * inch,
+            topMargin=0.9 * inch,
+            bottomMargin=1.0 * inch,
+        )
+
+        base = getSampleStyleSheet()
+
+        title_style = ParagraphStyle(
+            "PSTitle",
+            parent=base["Title"],
+            fontSize=20,
+            textColor=_NEUTRAL_DARK,
+            fontName="Helvetica-Bold",
+            spaceAfter=4,
+            alignment=TA_LEFT,
+        )
+        meta_style = ParagraphStyle(
+            "PSMeta",
+            parent=base["Normal"],
+            fontSize=9,
+            textColor=_NEUTRAL_LIGHT,
+            fontName="Helvetica",
+            spaceAfter=2,
+        )
+        heading_style = ParagraphStyle(
+            "PSHeading",
+            parent=base["Heading2"],
+            fontSize=12,
+            textColor=_ACCENT,
+            fontName="Helvetica-Bold",
+            spaceBefore=14,
+            spaceAfter=6,
+        )
+        body_style = ParagraphStyle(
+            "PSBody",
+            parent=base["Normal"],
+            fontSize=9.5,
+            textColor=_NEUTRAL_DARK,
+            fontName="Helvetica",
+            leading=14,
+            spaceAfter=6,
+        )
+        concern_style = ParagraphStyle(
+            "PSConcern",
+            parent=body_style,
+            leftIndent=14,
+            spaceAfter=4,
+        )
+        disclaimer_style = ParagraphStyle(
+            "PSDisclaimer",
+            parent=base["Normal"],
+            fontSize=7.5,
+            textColor=_NEUTRAL_LIGHT,
+            fontName="Helvetica",
+            leading=11,
+        )
+
+        story = []
+
+        # --- Header ---
+        story.append(Paragraph("Appointment Summary", title_style))
+        story.append(
+            Paragraph(
+                f"Generated: {datetime.now(tz=timezone.utc).strftime('%B %d, %Y')}",
+                meta_style,
+            )
+        )
+        story.append(Spacer(1, 6))
+        story.append(HRFlowable(width="100%", thickness=1, color=_BORDER, spaceAfter=8))
+
+        # --- Opening ---
+        story.append(Paragraph("Overview", heading_style))
+        story.append(Paragraph(content.opening, body_style))
+
+        # --- Symptom Picture ---
+        story.append(Paragraph("Symptom Picture", heading_style))
+        story.append(Paragraph(content.symptom_picture, body_style))
+
+        # --- Key Patterns (optional) ---
+        if content.key_patterns:
+            story.append(Paragraph("Key Patterns", heading_style))
+            story.append(Paragraph(content.key_patterns, body_style))
+
+        # --- Symptom Frequency Table ---
+        if frequency_stats:
+            story.append(Paragraph("Symptom Frequency", heading_style))
+            freq_data = [["Symptom", "Category", "Times Logged"]]
+            for s in frequency_stats[:10]:
+                freq_data.append(
+                    [s.symptom_name, s.category.replace("_", " ").title(), str(s.count)]
+                )
+            col_widths = [3.0 * inch, 2.2 * inch, 1.1 * inch]
+            freq_table = Table(freq_data, colWidths=col_widths)
+            ts = [
+                ("BACKGROUND", (0, 0), (-1, 0), _HEADER_BG),
+                ("TEXTCOLOR", (0, 0), (-1, 0), _NEUTRAL_DARK),
+                ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+                ("FONTSIZE", (0, 0), (-1, -1), 9),
+                ("GRID", (0, 0), (-1, -1), 0.5, _BORDER),
+                ("TOPPADDING", (0, 0), (-1, -1), 5),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 5),
+                ("LEFTPADDING", (0, 0), (-1, -1), 8),
+                ("RIGHTPADDING", (0, 0), (-1, -1), 8),
+                ("ALIGN", (2, 0), (2, -1), "CENTER"),
+            ]
+            for i in range(1, len(freq_data)):
+                ts.append(
+                    ("BACKGROUND", (0, i), (-1, i), colors.white if i % 2 else _ALT_ROW)
+                )
+            freq_table.setStyle(TableStyle(ts))
+            story.append(freq_table)
+
+        # --- Co-occurrence Table ---
+        if cooccurrence_stats:
+            story.append(Paragraph("Co-occurring Symptoms", heading_style))
+            coocc_data = [["Symptom Pair", "Together", "Rate"]]
+            for p in cooccurrence_stats[:5]:
+                pair = f"{p.symptom1_name} + {p.symptom2_name}"
+                rate = f"{round(p.cooccurrence_rate * 100)}%"
+                coocc_data.append([pair, str(p.cooccurrence_count), rate])
+            coocc_col_widths = [3.5 * inch, 1.1 * inch, 1.7 * inch]
+            coocc_table = Table(coocc_data, colWidths=coocc_col_widths)
+            coocc_ts = [
+                ("BACKGROUND", (0, 0), (-1, 0), _HEADER_BG),
+                ("TEXTCOLOR", (0, 0), (-1, 0), _NEUTRAL_DARK),
+                ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+                ("FONTSIZE", (0, 0), (-1, -1), 9),
+                ("GRID", (0, 0), (-1, -1), 0.5, _BORDER),
+                ("TOPPADDING", (0, 0), (-1, -1), 5),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 5),
+                ("LEFTPADDING", (0, 0), (-1, -1), 8),
+                ("RIGHTPADDING", (0, 0), (-1, -1), 8),
+                ("ALIGN", (1, 0), (-1, -1), "CENTER"),
+            ]
+            for i in range(1, len(coocc_data)):
+                coocc_ts.append(
+                    (
+                        "BACKGROUND",
+                        (0, i),
+                        (-1, i),
+                        colors.white if i % 2 else _ALT_ROW,
+                    )
+                )
+            coocc_table.setStyle(TableStyle(coocc_ts))
+            story.append(coocc_table)
+
+        # --- Concerns ---
+        if concerns:
+            story.append(Paragraph("Patient's Prioritized Concerns", heading_style))
+            for i, c in enumerate(concerns, 1):
+                story.append(Paragraph(f"{i}. {c}", concern_style))
+
+        # --- Closing ---
+        story.append(Paragraph("Next Steps", heading_style))
+        story.append(Paragraph(content.closing, body_style))
+
+        story.append(Spacer(1, 14))
+        story.append(
+            HRFlowable(width="100%", thickness=0.5, color=_BORDER, spaceAfter=6)
+        )
+        story.append(
+            Paragraph(
+                "<b>Disclaimer:</b> This document is generated from personal symptom logs "
+                "and is not a medical document. It does not constitute a clinical assessment "
+                "or treatment recommendation. Please discuss all health concerns with your "
+                "qualified healthcare provider.",
+                disclaimer_style,
+            )
+        )
+
+        def _page_footer(canvas, doc):  # noqa: ANN001
+            canvas.saveState()
+            canvas.setFont("Helvetica", 7)
+            canvas.setFillColor(_NEUTRAL_LIGHT)
+            canvas.drawRightString(
+                letter[0] - 0.9 * inch,
+                0.45 * inch,
+                f"Page {canvas.getPageNumber()}",
+            )
+            canvas.restoreState()
+
+        doc.build(story, onFirstPage=_page_footer, onLaterPages=_page_footer)
+        return buffer.getvalue()
+
+    def build_cheatsheet_pdf(
+        self,
+        content: CheatsheetResponse,
+        concerns: list[str],
+        scenarios: list[dict],
+        frequency_stats: list[SymptomFrequency],
+    ) -> bytes:
+        """Build a patient-facing appointment cheat sheet PDF.
+
+        Args:
+            content: Structured LLM response with opening_statement and
+                     question_groups (topic + questions per group).
+            concerns: Patient's prioritized concerns list.
+            scenarios: Scenario cards from Step 4 (each has 'title' and 'suggestion').
+            frequency_stats: Symptom frequency data for the top symptoms section.
+
+        Returns:
+            PDF file content as bytes.
+        """
+        buffer = BytesIO()
+        doc = SimpleDocTemplate(
+            buffer,
+            pagesize=letter,
+            rightMargin=0.9 * inch,
+            leftMargin=0.9 * inch,
+            topMargin=0.9 * inch,
+            bottomMargin=1.0 * inch,
+        )
+
+        base = getSampleStyleSheet()
+
+        title_style = ParagraphStyle(
+            "CSTitle",
+            parent=base["Title"],
+            fontSize=20,
+            textColor=_NEUTRAL_DARK,
+            fontName="Helvetica-Bold",
+            spaceAfter=4,
+            alignment=TA_LEFT,
+        )
+        meta_style = ParagraphStyle(
+            "CSMeta",
+            parent=base["Normal"],
+            fontSize=9,
+            textColor=_NEUTRAL_LIGHT,
+            fontName="Helvetica",
+            spaceAfter=2,
+        )
+        heading_style = ParagraphStyle(
+            "CSHeading",
+            parent=base["Heading2"],
+            fontSize=12,
+            textColor=_ACCENT,
+            fontName="Helvetica-Bold",
+            spaceBefore=14,
+            spaceAfter=6,
+        )
+        subheading_style = ParagraphStyle(
+            "CSSubheading",
+            parent=base["Heading3"],
+            fontSize=10,
+            textColor=_NEUTRAL_DARK,
+            fontName="Helvetica-Bold",
+            spaceBefore=8,
+            spaceAfter=4,
+        )
+        body_style = ParagraphStyle(
+            "CSBody",
+            parent=base["Normal"],
+            fontSize=9.5,
+            textColor=_NEUTRAL_DARK,
+            fontName="Helvetica",
+            leading=14,
+            spaceAfter=6,
+        )
+        item_style = ParagraphStyle(
+            "CSItem",
+            parent=body_style,
+            leftIndent=14,
+            spaceAfter=4,
+        )
+        disclaimer_style = ParagraphStyle(
+            "CSDisclaimer",
+            parent=base["Normal"],
+            fontSize=7.5,
+            textColor=_NEUTRAL_LIGHT,
+            fontName="Helvetica",
+            leading=11,
+        )
+
+        story = []
+
+        # --- Header ---
+        story.append(Paragraph("My Appointment Cheat Sheet", title_style))
+        story.append(
+            Paragraph(
+                f"Generated: {datetime.now(tz=timezone.utc).strftime('%B %d, %Y')}",
+                meta_style,
+            )
+        )
+        story.append(Spacer(1, 6))
+        story.append(HRFlowable(width="100%", thickness=1, color=_BORDER, spaceAfter=8))
+
+        # --- Opening Statement ---
+        story.append(Paragraph("My Opening Statement", heading_style))
+        story.append(Paragraph(content.opening_statement, body_style))
+
+        # --- Top Symptoms ---
+        if frequency_stats:
+            story.append(Paragraph("My Most Frequent Symptoms", heading_style))
+            for i, s in enumerate(frequency_stats[:5], 1):
+                cat = s.category.replace("_", " ").title()
+                story.append(
+                    Paragraph(f"{i}. {s.symptom_name} ({cat}) — {s.count}x", item_style)
+                )
+
+        # --- Prioritized Concerns ---
+        if concerns:
+            story.append(Paragraph("What I Most Want to Address", heading_style))
+            for i, c in enumerate(concerns, 1):
+                story.append(Paragraph(f"{i}. {c}", item_style))
+
+        # --- Questions by Topic Group ---
+        if content.question_groups:
+            story.append(Paragraph("Questions I Want to Ask", heading_style))
+            for group in content.question_groups:
+                story.append(Paragraph(group.topic, subheading_style))
+                for q in group.questions:
+                    story.append(Paragraph(f"• {q}", item_style))
+
+        # --- If Things Go Sideways (scenarios) ---
+        if scenarios:
+            story.append(Paragraph("If Things Go Sideways", heading_style))
+            story.append(
+                Paragraph(
+                    "If my provider dismisses my concerns, here's what I can say:",
+                    body_style,
+                )
+            )
+            for s in scenarios:
+                title = s.get("title", "")
+                suggestion = s.get("suggestion", "")
+                if title:
+                    story.append(Paragraph(title, subheading_style))
+                if suggestion:
+                    story.append(Paragraph(suggestion, item_style))
+
+        # --- What to Bring (static) ---
+        story.append(Paragraph("What to Bring", heading_style))
+        for item in [
+            "This cheat sheet",
+            "A list of all current medications and supplements",
+            "Any recent lab results or test reports",
+            "A notebook or your phone to take notes",
+        ]:
+            story.append(Paragraph(f"• {item}", item_style))
+
+        story.append(Spacer(1, 14))
+        story.append(
+            HRFlowable(width="100%", thickness=0.5, color=_BORDER, spaceAfter=6)
+        )
+        story.append(
+            Paragraph(
+                "<b>Disclaimer:</b> This document is generated from personal symptom logs "
+                "and is not a medical document. It does not constitute a clinical assessment "
                 "or treatment recommendation. Please discuss all health concerns with your "
                 "qualified healthcare provider.",
                 disclaimer_style,

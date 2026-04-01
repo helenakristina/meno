@@ -5,8 +5,11 @@ All prompts use "logs show" language and never diagnose, prescribe, or recommend
 specific treatments. See CLAUDE.md for the LLM provider migration strategy.
 """
 
+import json
 import logging
 from datetime import date
+
+from pydantic import ValidationError
 
 from app.llm.appointment_prompts import (
     CHEATSHEET_SYSTEM,
@@ -20,6 +23,8 @@ from app.llm.appointment_prompts import (
     build_scenario_suggestions_user_prompt,
     build_symptom_summary_user_prompt,
 )
+from app.exceptions import DatabaseError
+from app.models.appointment import CheatsheetResponse, ProviderSummaryResponse
 from app.models.symptoms import SymptomFrequency, SymptomPair
 from app.services.llm_base import LLMProvider
 from app.utils.prompt_formatting import (
@@ -311,9 +316,77 @@ class LLMService:
         logger.info("Scenario suggestions generated: %d characters", len(raw))
         return raw
 
-    async def generate_pdf_content(
+    async def generate_provider_summary_content(
         self,
-        content_type: str,
+        narrative: str,
+        concerns: list[str],
+        appointment_type: str,
+        goal: str,
+        user_age: int | None,
+        urgent_symptom: str | None = None,
+    ) -> ProviderSummaryResponse:
+        """Generate structured content for the provider-facing appointment summary PDF.
+
+        Calls the LLM with JSON mode, parses the response into a ProviderSummaryResponse.
+        Hard-fails on parse errors — a partial or empty clinical summary is worse than none.
+
+        Args:
+            narrative: LLM-generated narrative from Step 2.
+            concerns: User's prioritized concerns from Step 3.
+            appointment_type: Type of appointment (new_provider or established_relationship).
+            goal: Appointment goal (assess_status, explore_hrt, etc.).
+            user_age: User's age in years (optional).
+            urgent_symptom: Specific urgent symptom if goal is "urgent_symptom" (optional).
+
+        Returns:
+            ProviderSummaryResponse with opening, symptom_picture, key_patterns, closing.
+
+        Raises:
+            DatabaseError: If LLM response cannot be parsed into the expected structure.
+            TimeoutError: If the LLM API times out.
+            RuntimeError: If the LLM API returns an error or empty response.
+        """
+        concerns_text = "\n".join([f"- {c}" for c in concerns])
+        age_str = str(user_age) if user_age else "not specified"
+
+        user_prompt = build_provider_summary_user_prompt(
+            narrative=narrative,
+            concerns_text=concerns_text,
+            appointment_type=appointment_type,
+            goal=goal,
+            age_str=age_str,
+            urgent_symptom=urgent_symptom,
+        )
+
+        logger.info(
+            "Generating provider summary content: age=%s goal=%s",
+            age_str,
+            goal,
+        )
+
+        raw = await self.provider.chat_completion(
+            system_prompt=PROVIDER_SUMMARY_SYSTEM,
+            user_prompt=user_prompt,
+            max_tokens=1000,
+            temperature=0.4,
+            response_format="json",
+        )
+
+        try:
+            content = ProviderSummaryResponse(**json.loads(raw))
+        except (json.JSONDecodeError, ValidationError) as exc:
+            logger.error(
+                "Failed to parse provider summary LLM response: %s", exc, exc_info=True
+            )
+            raise DatabaseError(
+                f"Failed to parse provider summary from LLM: {exc}"
+            ) from exc
+
+        logger.info("Provider summary content generated")
+        return content
+
+    async def generate_cheatsheet_content(
+        self,
         narrative: str,
         concerns: list[str],
         appointment_type: str,
@@ -321,71 +394,65 @@ class LLMService:
         user_age: int | None,
         urgent_symptom: str | None = None,
         scenarios: list[dict] | None = None,
-    ) -> str:
-        """Generate markdown content for PDF outputs.
+    ) -> CheatsheetResponse:
+        """Generate structured content for the patient-facing cheatsheet PDF.
 
-        Produces either a provider-facing summary or personal cheat sheet.
-        Both are clinically-grounded, specific to the patient's situation,
-        and free of platitudes or generic templates.
+        Calls the LLM with JSON mode, parses the response into a CheatsheetResponse.
+        Hard-fails on parse errors — a partial cheatsheet misleads more than it helps.
 
         Args:
-            content_type: "provider_summary" or "personal_cheatsheet".
-            narrative: The LLM-generated narrative from Step 2.
+            narrative: LLM-generated narrative from Step 2.
             concerns: User's prioritized concerns from Step 3.
             appointment_type: Type of appointment (new_provider or established_relationship).
             goal: Appointment goal (assess_status, explore_hrt, etc.).
             user_age: User's age in years (optional).
-            urgent_symptom: If goal is "urgent_symptom", the specific symptom user selected (optional).
-            scenarios: List of scenario cards from Step 4 (optional, used for personal_cheatsheet).
-                      Each dict should have: {"title": str, "suggestion": str, "sources": list[str]}.
+            urgent_symptom: Specific urgent symptom if goal is "urgent_symptom" (optional).
+            scenarios: Scenario cards from Step 4 (optional context for question generation).
 
         Returns:
-            Markdown string suitable for PDF conversion.
+            CheatsheetResponse with opening_statement and question_groups.
 
         Raises:
+            DatabaseError: If LLM response cannot be parsed into the expected structure.
             TimeoutError: If the LLM API times out.
             RuntimeError: If the LLM API returns an error or empty response.
         """
         concerns_text = "\n".join([f"- {c}" for c in concerns])
         age_str = str(user_age) if user_age else "not specified"
 
-        if content_type == "provider_summary":
-            system_prompt = PROVIDER_SUMMARY_SYSTEM
-            user_prompt = build_provider_summary_user_prompt(
-                narrative=narrative,
-                concerns_text=concerns_text,
-                appointment_type=appointment_type,
-                goal=goal,
-                age_str=age_str,
-                urgent_symptom=urgent_symptom,
-            )
-        else:  # personal_cheatsheet
-            system_prompt = CHEATSHEET_SYSTEM
-            user_prompt = build_cheatsheet_user_prompt(
-                narrative=narrative,
-                concerns_text=concerns_text,
-                appointment_type=appointment_type,
-                goal=goal,
-                age_str=age_str,
-                urgent_symptom=urgent_symptom,
-                scenarios=scenarios,
-            )
+        user_prompt = build_cheatsheet_user_prompt(
+            narrative=narrative,
+            concerns_text=concerns_text,
+            appointment_type=appointment_type,
+            goal=goal,
+            age_str=age_str,
+            urgent_symptom=urgent_symptom,
+            scenarios=scenarios,
+        )
 
         logger.info(
-            "Generating PDF content: type=%s age=%s goal=%s",
-            content_type,
+            "Generating cheatsheet content: age=%s goal=%s",
             age_str,
             goal,
         )
 
-        content = await self.provider.chat_completion(
-            system_prompt=system_prompt,
+        raw = await self.provider.chat_completion(
+            system_prompt=CHEATSHEET_SYSTEM,
             user_prompt=user_prompt,
-            max_tokens=1500,
-            temperature=0.5,
+            max_tokens=1200,
+            temperature=0.4,
+            response_format="json",
         )
 
-        logger.info(
-            "PDF content generated: type=%s length=%d", content_type, len(content)
-        )
+        try:
+            content = CheatsheetResponse(**json.loads(raw))
+        except (json.JSONDecodeError, ValidationError) as exc:
+            logger.error(
+                "Failed to parse cheatsheet LLM response: %s", exc, exc_info=True
+            )
+            raise DatabaseError(
+                f"Failed to parse cheatsheet from LLM: {exc}"
+            ) from exc
+
+        logger.info("Cheatsheet content generated")
         return content
