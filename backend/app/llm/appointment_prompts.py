@@ -22,26 +22,9 @@ and a builder function for the dynamic user prompt:
      → generate_cheatsheet_content() in llm.py (Step 5)
 """
 
-import re
 from datetime import date
 
-
-def _sanitize_prompt_input(text: str | None, max_length: int = 2000) -> str:
-    """Sanitize user input before including in LLM prompts.
-
-    Strips newlines, removes potential prompt injection markers,
-    and limits length to prevent prompt flooding.
-    """
-    if not text:
-        return "not provided"
-    text = text[:max_length]
-    # Remove potential prompt injection markers (case-insensitive)
-    text = re.sub(r"(?i)(system:|user:|assistant:)", "", text)
-    # Strip XML-like tags
-    text = re.sub(r"<[^>]+>", "", text)
-    # Strip newlines (per Ask Meno v2 learnings)
-    text = text.replace("\n", " ").replace("\r", " ")
-    return text.strip()
+from app.utils.sanitize import sanitize_prompt_input
 
 
 # ---------------------------------------------------------------------------
@@ -196,7 +179,7 @@ def build_provider_questions_user_prompt(
 ) -> str:
     """Build user prompt for provider question generation."""
     # Sanitize user-generated content to prevent prompt injection
-    sanitized_context = _sanitize_prompt_input(user_context) if user_context else ""
+    sanitized_context = sanitize_prompt_input(user_context) if user_context else ""
     context_section = (
         f"\nAdditional context: {sanitized_context}"
         if sanitized_context != "not provided"
@@ -224,7 +207,7 @@ def build_scenario_suggestions_user_prompt(
 ) -> str:
     """Build user prompt for scenario suggestion generation (Step 4)."""
     # Sanitize user-generated content to prevent prompt injection
-    sanitized_concerns = _sanitize_prompt_input(concerns_text)
+    sanitized_concerns = sanitize_prompt_input(concerns_text)
     return (
         f"A woman (age {age_str}) is preparing for a healthcare appointment. "
         f"She may encounter these dismissals specific to her situation:\n\n"
@@ -261,9 +244,9 @@ def build_provider_summary_user_prompt(
     Requests structured JSON output matching ProviderSummaryResponse.
     """
     # Sanitize user-generated content to prevent prompt injection
-    sanitized_narrative = _sanitize_prompt_input(narrative)
-    sanitized_concerns = _sanitize_prompt_input(concerns_text)
-    sanitized_urgent = _sanitize_prompt_input(urgent_symptom)
+    sanitized_narrative = sanitize_prompt_input(narrative)
+    sanitized_concerns = sanitize_prompt_input(concerns_text)
+    sanitized_urgent = sanitize_prompt_input(urgent_symptom)
     urgent_concern = sanitized_urgent
     return (
         f"Write a clinical appointment summary for a healthcare provider.\n"
@@ -302,9 +285,9 @@ def build_cheatsheet_user_prompt(
     renders concerns, frequency stats, scenarios, and what-to-bring sections.
     """
     # Sanitize user-generated content to prevent prompt injection
-    sanitized_narrative = _sanitize_prompt_input(narrative)
-    sanitized_concerns = _sanitize_prompt_input(concerns_text)
-    sanitized_urgent = _sanitize_prompt_input(urgent_symptom)
+    sanitized_narrative = sanitize_prompt_input(narrative)
+    sanitized_concerns = sanitize_prompt_input(concerns_text)
+    sanitized_urgent = sanitize_prompt_input(urgent_symptom)
     urgent_concern = sanitized_urgent
     return (
         f"Write a personal appointment preparation document for a patient.\n"

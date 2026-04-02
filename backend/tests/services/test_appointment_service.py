@@ -9,6 +9,7 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 
 from app.exceptions import DatabaseError, EntityNotFoundError
+from app.utils.sanitize import sanitize_urgent_symptom
 from app.models.appointment import (
     AppointmentContext,
     AppointmentGoal,
@@ -704,21 +705,21 @@ class TestSelectScenarios:
     def test_sanitize_urgent_symptom_returns_none_for_empty_input(self):
         # CATCHES: None or empty string not handled — would cause downstream errors
         svc = self._make_service()
-        assert svc._sanitize_urgent_symptom(None) is None
-        assert svc._sanitize_urgent_symptom("") is None
-        assert svc._sanitize_urgent_symptom("   ") is None
+        assert sanitize_urgent_symptom(None) is None
+        assert sanitize_urgent_symptom("") is None
+        assert sanitize_urgent_symptom("   ") is None
 
     def test_sanitize_urgent_symptom_limits_length(self):
         # CATCHES: no length limit — potential DoS with extremely long strings
         svc = self._make_service()
         long_symptom = "a" * 500
-        result = svc._sanitize_urgent_symptom(long_symptom)
+        result = sanitize_urgent_symptom(long_symptom)
         assert len(result) <= 200
 
     def test_sanitize_urgent_symptom_removes_special_characters(self):
         # CATCHES: injection risk — special characters like < > & should be stripped
         svc = self._make_service()
-        result = svc._sanitize_urgent_symptom("brain fog <script>alert('xss')</script>")
+        result = sanitize_urgent_symptom("brain fog <script>alert('xss')</script>")
         assert "<" not in result
         assert ">" not in result
         assert "'" not in result  # Single quotes removed
@@ -727,13 +728,13 @@ class TestSelectScenarios:
     def test_sanitize_urgent_symptom_allows_valid_characters(self):
         # CATCHES: overly aggressive sanitization breaking valid input
         svc = self._make_service()
-        result = svc._sanitize_urgent_symptom("Hot flashes (night sweats), fatigue.")
+        result = sanitize_urgent_symptom("Hot flashes (night sweats), fatigue.")
         assert result == "Hot flashes (night sweats), fatigue."
 
     def test_sanitize_urgent_symptom_strips_whitespace(self):
         # CATCHES: leading/trailing whitespace not trimmed — affects matching
         svc = self._make_service()
-        result = svc._sanitize_urgent_symptom("  brain fog  ")
+        result = sanitize_urgent_symptom("  brain fog  ")
         assert result == "brain fog"
 
     def test_urgent_symptom_sanitized_before_use_in_select_scenarios(self):

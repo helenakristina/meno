@@ -11,7 +11,6 @@ Routes become thin wrappers that call one method and return the result.
 import asyncio
 import json
 import logging
-import re
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Optional
@@ -28,6 +27,7 @@ from app.models.symptoms import SymptomFrequency, SymptomPair
 from app.repositories.appointment_repository import AppointmentRepository
 from app.repositories.symptoms_repository import SymptomsRepository
 from app.services.medication_base import MedicationServiceBase
+from app.utils.sanitize import sanitize_urgent_symptom
 from app.repositories.user_repository import UserRepository
 from app.services.llm import LLMService
 from app.llm.appointment_prompts import NARRATIVE_SYSTEM, build_narrative_user_prompt
@@ -630,24 +630,6 @@ class AppointmentService:
                 "Ensure config/scenarios.json is present."
             ) from exc
 
-    def _sanitize_urgent_symptom(self, symptom: str | None) -> str | None:
-        """Sanitize urgent_symptom input to prevent injection and DoS.
-
-        Args:
-            symptom: Raw user-provided urgent symptom string.
-
-        Returns:
-            Sanitized string or None if input is empty/None.
-        """
-        if not symptom:
-            return None
-        # Limit length to prevent DoS (generous limit for multi-word symptoms)
-        symptom = symptom[:200]
-        # Allow alphanumeric, spaces, and common punctuation (parentheses, commas, periods, hyphens)
-        symptom = re.sub(r"[^\w\s\-(),.]", "", symptom)
-        symptom = symptom.strip()
-        return symptom if symptom else None
-
     def _select_scenarios(
         self, context: AppointmentContext, journey_stage: str
     ) -> list[dict]:
@@ -659,7 +641,7 @@ class AppointmentService:
         """
         config = self._scenario_config
         scenarios: list[dict] = []
-        urgent_symptom = self._sanitize_urgent_symptom(context.urgent_symptom)
+        urgent_symptom = sanitize_urgent_symptom(context.urgent_symptom)
 
         if context.goal.value == "urgent_symptom" and not urgent_symptom:
             urgent_symptom = "perimenopause symptoms"
