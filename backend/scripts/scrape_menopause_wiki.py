@@ -19,7 +19,6 @@ import argparse
 import asyncio
 import json
 import logging
-import re
 import sys
 import time
 from pathlib import Path
@@ -148,7 +147,7 @@ def split_page_into_sections(
     """
     content = soup.select_one("#content")
     if not content:
-        print(f"  ✗ No #content element found — page structure may have changed")
+        print("  ✗ No #content element found — page structure may have changed")
         return []
 
     h1 = content.select_one("h1")

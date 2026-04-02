@@ -73,7 +73,9 @@ class TestSelectScenarios:
     def test_assess_status_goal_scenarios(self):
         # CATCHES: assess_status scenarios silently empty — common deflections
         # ("go away on their own") would be absent for initial-assessment appointments
-        scenarios = _select_scenarios(_ctx(AppointmentGoal.assess_status), "preparation")
+        scenarios = _select_scenarios(
+            _ctx(AppointmentGoal.assess_status), "preparation"
+        )
         titles = _titles(scenarios)
         assert "Your symptoms will go away on their own" in titles
         assert "You're just stressed or anxious" in titles
@@ -95,13 +97,18 @@ class TestSelectScenarios:
             AppointmentGoal.assess_status,
         ]:
             scenarios = _select_scenarios(_ctx(goal), "exploration")
-            assert len(scenarios) <= 7, f"Too many scenarios for {goal}: {len(scenarios)}"
+            assert len(scenarios) <= 7, (
+                f"Too many scenarios for {goal}: {len(scenarios)}"
+            )
 
     def test_dismissed_before_does_not_add_trigger_question(self):
         # CATCHES: dismissed_before logic left in code — "What are the triggers?"
         # is not a dismissal scenario and was intentionally removed
         scenarios = _select_scenarios(
-            _ctx(AppointmentGoal.explore_hrt, dismissed=DismissalExperience.multiple_times),
+            _ctx(
+                AppointmentGoal.explore_hrt,
+                dismissed=DismissalExperience.multiple_times,
+            ),
             "transition",
         )
         titles = _titles(scenarios)

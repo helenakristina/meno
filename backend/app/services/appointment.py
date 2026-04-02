@@ -8,11 +8,13 @@ Handles Steps 2, 4, and 5 of the Appointment Prep Flow:
 Routes become thin wrappers that call one method and return the result.
 """
 
+import asyncio
 import json
 import logging
+import re
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Any, Optional
+from typing import Optional
 
 from app.exceptions import DatabaseError, EntityNotFoundError
 from app.models.appointment import (
@@ -257,27 +259,8 @@ class AppointmentService:
         await self.appointment_repo.save_narrative(appointment_id, user_id, narrative)
 
         # Save frequency stats so Step 5 can reuse them without re-querying logs
-        freq_stats_json = [
-            {
-                "symptom_id": s.symptom_id,
-                "symptom_name": s.symptom_name,
-                "category": s.category,
-                "count": s.count,
-            }
-            for s in frequency_stats
-        ]
-        coocc_stats_json = [
-            {
-                "symptom1_id": p.symptom1_id,
-                "symptom1_name": p.symptom1_name,
-                "symptom2_id": p.symptom2_id,
-                "symptom2_name": p.symptom2_name,
-                "cooccurrence_count": p.cooccurrence_count,
-                "cooccurrence_rate": p.cooccurrence_rate,
-                "total_occurrences_symptom1": p.total_occurrences_symptom1,
-            }
-            for p in cooccurrence_stats
-        ]
+        freq_stats_json = [s.model_dump() for s in frequency_stats]
+        coocc_stats_json = [p.model_dump() for p in cooccurrence_stats]
         try:
             await self.appointment_repo.save_frequency_stats(
                 appointment_id, user_id, freq_stats_json, coocc_stats_json
@@ -531,54 +514,44 @@ class AppointmentService:
                 exc,
             )
 
-        # Generate provider summary via LLM (structured JSON → ProviderSummaryResponse)
-        try:
-            provider_summary_content = await self.llm_service.generate_provider_summary_content(
-                narrative=narrative_text,
-                concerns=concerns_list,
-                appointment_type=context.appointment_type.value,
-                goal=context.goal.value,
-                user_age=age,
-                urgent_symptom=context.urgent_symptom,
-            )
-        except TimeoutError:
-            logger.error(
-                "LLM timed out for provider summary: appointment_id=%s", appointment_id
-            )
-            raise DatabaseError("LLM request timed out generating provider summary")
-        except Exception as exc:
-            logger.error(
-                "LLM failed for provider summary: appointment_id=%s error=%s",
-                appointment_id,
-                exc,
-                exc_info=True,
-            )
-            raise DatabaseError(f"Failed to generate provider summary: {exc}") from exc
+        # Generate provider summary and cheat sheet in parallel via LLM
+        provider_task = self.llm_service.generate_provider_summary_content(
+            narrative=narrative_text,
+            concerns=concerns_list,
+            appointment_type=context.appointment_type.value,
+            goal=context.goal.value,
+            user_age=age,
+            urgent_symptom=context.urgent_symptom,
+        )
 
-        # Generate personal cheat sheet via LLM (structured JSON → CheatsheetResponse)
+        cheatsheet_task = self.llm_service.generate_cheatsheet_content(
+            narrative=narrative_text,
+            concerns=concerns_list,
+            appointment_type=context.appointment_type.value,
+            goal=context.goal.value,
+            user_age=age,
+            urgent_symptom=context.urgent_symptom,
+            scenarios=scenarios_for_pdf,
+        )
+
         try:
-            cheatsheet_content = await self.llm_service.generate_cheatsheet_content(
-                narrative=narrative_text,
-                concerns=concerns_list,
-                appointment_type=context.appointment_type.value,
-                goal=context.goal.value,
-                user_age=age,
-                urgent_symptom=context.urgent_symptom,
-                scenarios=scenarios_for_pdf,
+            provider_summary_content, cheatsheet_content = await asyncio.gather(
+                provider_task, cheatsheet_task
             )
         except TimeoutError:
             logger.error(
-                "LLM timed out for cheat sheet: appointment_id=%s", appointment_id
+                "LLM timed out during PDF content generation: appointment_id=%s",
+                appointment_id,
             )
-            raise DatabaseError("LLM request timed out generating cheat sheet")
+            raise DatabaseError("LLM request timed out generating PDF content")
         except Exception as exc:
             logger.error(
-                "LLM failed for cheat sheet: appointment_id=%s error=%s",
+                "LLM failed during PDF content generation: appointment_id=%s error=%s",
                 appointment_id,
                 exc,
                 exc_info=True,
             )
-            raise DatabaseError(f"Failed to generate cheat sheet: {exc}") from exc
+            raise DatabaseError(f"Failed to generate PDF content: {exc}") from exc
 
         # Build structured PDFs
         try:
@@ -647,9 +620,7 @@ class AppointmentService:
 
     def _load_scenario_config(self) -> dict:
         """Load scenario config from JSON. Called once in __init__ — failure is immediate."""
-        config_path = (
-            Path(__file__).parent.parent.parent / "config" / "scenarios.json"
-        )
+        config_path = Path(__file__).parent.parent.parent / "config" / "scenarios.json"
         try:
             with config_path.open() as f:
                 return json.load(f)
@@ -658,6 +629,24 @@ class AppointmentService:
                 f"Scenario config not found at {config_path}. "
                 "Ensure config/scenarios.json is present."
             ) from exc
+
+    def _sanitize_urgent_symptom(self, symptom: str | None) -> str | None:
+        """Sanitize urgent_symptom input to prevent injection and DoS.
+
+        Args:
+            symptom: Raw user-provided urgent symptom string.
+
+        Returns:
+            Sanitized string or None if input is empty/None.
+        """
+        if not symptom:
+            return None
+        # Limit length to prevent DoS (generous limit for multi-word symptoms)
+        symptom = symptom[:200]
+        # Allow alphanumeric, spaces, and common punctuation (parentheses, commas, periods, hyphens)
+        symptom = re.sub(r"[^\w\s\-(),.]", "", symptom)
+        symptom = symptom.strip()
+        return symptom if symptom else None
 
     def _select_scenarios(
         self, context: AppointmentContext, journey_stage: str
@@ -670,7 +659,7 @@ class AppointmentService:
         """
         config = self._scenario_config
         scenarios: list[dict] = []
-        urgent_symptom = context.urgent_symptom
+        urgent_symptom = self._sanitize_urgent_symptom(context.urgent_symptom)
 
         if context.goal.value == "urgent_symptom" and not urgent_symptom:
             urgent_symptom = "perimenopause symptoms"

@@ -4,7 +4,11 @@ from datetime import date
 
 import pytest
 
-from app.models.appointment import CheatsheetResponse, ProviderSummaryResponse, QuestionGroup
+from app.models.appointment import (
+    CheatsheetResponse,
+    ProviderSummaryResponse,
+    QuestionGroup,
+)
 from app.models.symptoms import SymptomFrequency, SymptomPair
 from app.services.pdf import PdfService
 
@@ -200,14 +204,19 @@ class TestBuildExportPdf:
 
 
 def _freq(name, cat, count):
-    return SymptomFrequency(symptom_id="s1", symptom_name=name, category=cat, count=count)
+    return SymptomFrequency(
+        symptom_id="s1", symptom_name=name, category=cat, count=count
+    )
 
 
 def _pair(s1, s2, count, rate):
     return SymptomPair(
-        symptom1_id="s1", symptom1_name=s1,
-        symptom2_id="s2", symptom2_name=s2,
-        cooccurrence_count=count, cooccurrence_rate=rate,
+        symptom1_id="s1",
+        symptom1_name=s1,
+        symptom2_id="s2",
+        symptom2_name=s2,
+        cooccurrence_count=count,
+        cooccurrence_rate=rate,
         total_occurrences_symptom1=count + 2,
     )
 
@@ -226,7 +235,9 @@ def _cheatsheet_content(**overrides):
     defaults = dict(
         opening_statement="I am 52 in late perimenopause.",
         question_groups=[
-            QuestionGroup(topic="Hot flashes", questions=["Could you help me understand..."])
+            QuestionGroup(
+                topic="Hot flashes", questions=["Could you help me understand..."]
+            )
         ],
     )
     return CheatsheetResponse(**{**defaults, **overrides})
@@ -334,7 +345,10 @@ class TestBuildCheatsheetPdf:
         # CATCHES: scenarios parameter ignored — "If Things Go Sideways" section
         # would be missing even when Step 4 produced scenario cards
         scenarios = [
-            {"title": "Let's try lifestyle changes first", "suggestion": "I hear you, but..."}
+            {
+                "title": "Let's try lifestyle changes first",
+                "suggestion": "I hear you, but...",
+            }
         ]
         result = svc.build_cheatsheet_pdf(
             content=_cheatsheet_content(),

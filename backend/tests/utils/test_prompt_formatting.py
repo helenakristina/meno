@@ -31,9 +31,7 @@ def make_freq(name: str, category: str, count: int) -> SymptomFrequency:
     )
 
 
-def make_pair(
-    name1: str, name2: str, count: int, rate: float
-) -> SymptomPair:
+def make_pair(name1: str, name2: str, count: int, rate: float) -> SymptomPair:
     return SymptomPair(
         symptom1_id="id-1",
         symptom1_name=name1,
@@ -196,7 +194,7 @@ class TestFormatCooccurrenceStatsForPrompt:
     def test_max_items_caps_output(self):
         # CATCHES: ignoring max_items and returning all pairs — prompts would
         # grow beyond token budgets if many co-occurring pairs are present
-        pairs = [make_pair(f"S{i}", f"S{i+1}", i + 1, 0.5) for i in range(8)]
+        pairs = [make_pair(f"S{i}", f"S{i + 1}", i + 1, 0.5) for i in range(8)]
         result = format_cooccurrence_stats_for_prompt(pairs, max_items=3)
         lines = [line for line in result.split("\n") if line.strip()]
         assert len(lines) == 3
@@ -204,7 +202,7 @@ class TestFormatCooccurrenceStatsForPrompt:
     def test_default_max_is_five(self):
         # CATCHES: default cap being too large — prevents prompt bloat when
         # logs contain many symptom pairs
-        pairs = [make_pair(f"S{i}", f"S{i+1}", i + 1, 0.5) for i in range(8)]
+        pairs = [make_pair(f"S{i}", f"S{i + 1}", i + 1, 0.5) for i in range(8)]
         result = format_cooccurrence_stats_for_prompt(pairs)
         lines = [line for line in result.split("\n") if line.strip()]
         assert len(lines) == 5

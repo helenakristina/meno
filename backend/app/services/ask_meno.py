@@ -22,7 +22,6 @@ if TYPE_CHECKING:
 from urllib.parse import urlparse
 from uuid import UUID
 
-from pydantic import ValidationError
 
 from app.exceptions import DatabaseError
 from app.models.chat import (
@@ -407,8 +406,6 @@ class AskMenoService:
             )
 
             prompt_config = self._load_prompt_config()
-
-            prompts = []
 
             # Pool all relevant prompts: symptom-specific + general
             pool = []

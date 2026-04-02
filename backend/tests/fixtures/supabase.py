@@ -7,7 +7,7 @@ This module provides helpers that are resilient to query chain changes.
 
 import pytest
 from unittest.mock import AsyncMock, MagicMock
-from typing import Any, Optional
+from typing import Optional
 
 
 def setup_supabase_response(

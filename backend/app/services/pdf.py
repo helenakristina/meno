@@ -36,12 +36,155 @@ logger = logging.getLogger(__name__)
 # Color palette — Meno design system
 # ---------------------------------------------------------------------------
 
-_NEUTRAL_DARK = colors.HexColor("#292524")   # neutral-800
+_NEUTRAL_DARK = colors.HexColor("#292524")  # neutral-800
 _NEUTRAL_LIGHT = colors.HexColor("#78716c")  # neutral-500
-_ACCENT = colors.HexColor("#0d9478")         # primary-600 (Meno teal)
-_HEADER_BG = colors.HexColor("#f0fdf9")      # primary-50
-_BORDER = colors.HexColor("#d6d3d1")         # neutral-300
-_ALT_ROW = colors.HexColor("#f5f5f4")        # neutral-100
+_ACCENT = colors.HexColor("#0d9478")  # primary-600 (Meno teal)
+_HEADER_BG = colors.HexColor("#f0fdf9")  # primary-50
+_BORDER = colors.HexColor("#d6d3d1")  # neutral-300
+_ALT_ROW = colors.HexColor("#f5f5f4")  # neutral-100
+
+
+# ---------------------------------------------------------------------------
+# Shared PDF helpers — extracted from build_*_pdf methods
+# ---------------------------------------------------------------------------
+
+
+def _page_footer(canvas, doc):  # noqa: ANN001
+    """Render page number in footer (used by all table-based PDFs).
+
+    Args:
+        canvas: ReportLab canvas object.
+        doc: SimpleDocTemplate document object.
+    """
+    canvas.saveState()
+    canvas.setFont("Helvetica", 7)
+    canvas.setFillColor(_NEUTRAL_LIGHT)
+    canvas.drawRightString(
+        letter[0] - 0.9 * inch,
+        0.45 * inch,
+        f"Page {canvas.getPageNumber()}",
+    )
+    canvas.restoreState()
+
+
+def _create_base_styles(prefix: str) -> dict:
+    """Create common reportlab styles with prefixed names.
+
+    Args:
+        prefix: Style name prefix (e.g., "PS" for ProviderSummary, "CS" for Cheatsheet).
+
+    Returns:
+        Dict mapping style keys to ParagraphStyle objects.
+    """
+    base = getSampleStyleSheet()
+
+    return {
+        "title": ParagraphStyle(
+            f"{prefix}Title",
+            parent=base["Title"],
+            fontSize=20,
+            textColor=_NEUTRAL_DARK,
+            fontName="Helvetica-Bold",
+            spaceAfter=4,
+            alignment=TA_LEFT,
+        ),
+        "meta": ParagraphStyle(
+            f"{prefix}Meta",
+            parent=base["Normal"],
+            fontSize=9,
+            textColor=_NEUTRAL_LIGHT,
+            fontName="Helvetica",
+            spaceAfter=2,
+        ),
+        "heading": ParagraphStyle(
+            f"{prefix}Heading",
+            parent=base["Heading2"],
+            fontSize=12,
+            textColor=_ACCENT,
+            fontName="Helvetica-Bold",
+            spaceBefore=14,
+            spaceAfter=6,
+        ),
+        "body": ParagraphStyle(
+            f"{prefix}Body",
+            parent=base["Normal"],
+            fontSize=9.5,
+            textColor=_NEUTRAL_DARK,
+            fontName="Helvetica",
+            leading=14,
+            spaceAfter=6,
+        ),
+        "disclaimer": ParagraphStyle(
+            f"{prefix}Disclaimer",
+            parent=base["Normal"],
+            fontSize=7.5,
+            textColor=_NEUTRAL_LIGHT,
+            fontName="Helvetica",
+            leading=11,
+        ),
+    }
+
+
+def _build_table_style(data_rows: int, align_col: int | None = None) -> list:
+    """Build table style list with header background, grid, padding, and alternating rows.
+
+    Args:
+        data_rows: Number of data rows (excluding header) for alternating background.
+        align_col: Optional column index to center-align (None skips alignment).
+
+    Returns:
+        List of TableStyle tuples.
+    """
+    style = [
+        ("BACKGROUND", (0, 0), (-1, 0), _HEADER_BG),
+        ("TEXTCOLOR", (0, 0), (-1, 0), _NEUTRAL_DARK),
+        ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+        ("FONTSIZE", (0, 0), (-1, -1), 9),
+        ("GRID", (0, 0), (-1, -1), 0.5, _BORDER),
+        ("TOPPADDING", (0, 0), (-1, -1), 5),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 5),
+        ("LEFTPADDING", (0, 0), (-1, -1), 8),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 8),
+    ]
+
+    if align_col is not None:
+        style.append(("ALIGN", (align_col, 0), (align_col, -1), "CENTER"))
+
+    for i in range(1, data_rows + 1):
+        style.append(
+            ("BACKGROUND", (0, i), (-1, i), colors.white if i % 2 else _ALT_ROW)
+        )
+
+    return style
+
+
+def _build_pdf(story: list, footer_func=None) -> bytes:
+    """Build and render PDF from story (list of flowables).
+
+    Args:
+        story: List of reportlab Flowable objects to render.
+        footer_func: Optional footer function (signature: (canvas, doc) -> None).
+            If provided, used for both first and later pages.
+
+    Returns:
+        PDF file content as bytes.
+    """
+    buffer = BytesIO()
+    doc = SimpleDocTemplate(
+        buffer,
+        pagesize=letter,
+        rightMargin=0.9 * inch,
+        leftMargin=0.9 * inch,
+        topMargin=0.9 * inch,
+        bottomMargin=1.0 * inch,
+    )
+
+    if footer_func:
+        doc.build(story, onFirstPage=footer_func, onLaterPages=footer_func)
+    else:
+        doc.build(story)
+
+    return buffer.getvalue()
 
 
 class PdfService:
@@ -201,66 +344,18 @@ class PdfService:
         Returns:
             PDF file content as bytes.
         """
-        buffer = BytesIO()
-        doc = SimpleDocTemplate(
-            buffer,
-            pagesize=letter,
-            rightMargin=0.9 * inch,
-            leftMargin=0.9 * inch,
-            topMargin=0.9 * inch,
-            bottomMargin=1.0 * inch,
-        )
+        styles = _create_base_styles("Meno")
+        title_style = styles["title"]
+        meta_style = styles["meta"]
+        heading_style = styles["heading"]
+        body_style = styles["body"]
+        disclaimer_style = styles["disclaimer"]
 
-        base = getSampleStyleSheet()
-
-        title_style = ParagraphStyle(
-            "MenoTitle",
-            parent=base["Title"],
-            fontSize=20,
-            textColor=_NEUTRAL_DARK,
-            fontName="Helvetica-Bold",
-            spaceAfter=4,
-            alignment=TA_LEFT,
-        )
-        meta_style = ParagraphStyle(
-            "MenoMeta",
-            parent=base["Normal"],
-            fontSize=9,
-            textColor=_NEUTRAL_LIGHT,
-            fontName="Helvetica",
-            spaceAfter=2,
-        )
-        heading_style = ParagraphStyle(
-            "MenoHeading",
-            parent=base["Heading2"],
-            fontSize=12,
-            textColor=_ACCENT,
-            fontName="Helvetica-Bold",
-            spaceBefore=14,
-            spaceAfter=6,
-        )
-        body_style = ParagraphStyle(
-            "MenoBody",
-            parent=base["Normal"],
-            fontSize=9.5,
-            textColor=_NEUTRAL_DARK,
-            fontName="Helvetica",
-            leading=14,
-            spaceAfter=6,
-        )
         question_style = ParagraphStyle(
             "MenoQuestion",
             parent=body_style,
             leftIndent=14,
             spaceAfter=4,
-        )
-        disclaimer_style = ParagraphStyle(
-            "MenoDisclaimer",
-            parent=base["Normal"],
-            fontSize=7.5,
-            textColor=_NEUTRAL_LIGHT,
-            fontName="Helvetica",
-            leading=11,
         )
 
         story = []
@@ -303,23 +398,9 @@ class PdfService:
 
         col_widths = [3.0 * inch, 2.2 * inch, 1.1 * inch]
         freq_table = Table(freq_data, colWidths=col_widths)
-        ts = [
-            ("BACKGROUND", (0, 0), (-1, 0), _HEADER_BG),
-            ("TEXTCOLOR", (0, 0), (-1, 0), _NEUTRAL_DARK),
-            ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
-            ("FONTSIZE", (0, 0), (-1, -1), 9),
-            ("GRID", (0, 0), (-1, -1), 0.5, _BORDER),
-            ("TOPPADDING", (0, 0), (-1, -1), 5),
-            ("BOTTOMPADDING", (0, 0), (-1, -1), 5),
-            ("LEFTPADDING", (0, 0), (-1, -1), 8),
-            ("RIGHTPADDING", (0, 0), (-1, -1), 8),
-            ("ALIGN", (2, 0), (2, -1), "CENTER"),
-        ]
-        for i in range(1, len(freq_data)):
-            ts.append(
-                ("BACKGROUND", (0, i), (-1, i), colors.white if i % 2 else _ALT_ROW)
-            )
-        freq_table.setStyle(TableStyle(ts))
+        freq_table.setStyle(
+            TableStyle(_build_table_style(len(freq_data) - 1, align_col=2))
+        )
         story.append(freq_table)
 
         # --- Section 3: Co-occurrence Highlights ---
@@ -339,27 +420,8 @@ class PdfService:
 
             coocc_col_widths = [3.5 * inch, 1.1 * inch, 1.7 * inch]
             coocc_table = Table(coocc_data, colWidths=coocc_col_widths)
-            coocc_ts = [
-                ("BACKGROUND", (0, 0), (-1, 0), _HEADER_BG),
-                ("TEXTCOLOR", (0, 0), (-1, 0), _NEUTRAL_DARK),
-                ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
-                ("FONTSIZE", (0, 0), (-1, -1), 9),
-                ("GRID", (0, 0), (-1, -1), 0.5, _BORDER),
-                ("TOPPADDING", (0, 0), (-1, -1), 5),
-                ("BOTTOMPADDING", (0, 0), (-1, -1), 5),
-                ("LEFTPADDING", (0, 0), (-1, -1), 8),
-                ("RIGHTPADDING", (0, 0), (-1, -1), 8),
-                ("ALIGN", (1, 0), (-1, -1), "CENTER"),
-            ]
-            for i in range(1, len(coocc_data)):
-                coocc_ts.append(
-                    (
-                        "BACKGROUND",
-                        (0, i),
-                        (-1, i),
-                        colors.white if i % 2 else _ALT_ROW,
-                    )
-                )
+            coocc_ts = _build_table_style(len(coocc_data) - 1, align_col=1)
+            coocc_ts.append(("ALIGN", (2, 0), (2, -1), "CENTER"))
             coocc_table.setStyle(TableStyle(coocc_ts))
             story.append(coocc_table)
 
@@ -386,22 +448,7 @@ class PdfService:
 
             med_col_widths = [2.5 * inch, 2.5 * inch, 1.3 * inch]
             med_table = Table(med_data, colWidths=med_col_widths)
-            med_ts = [
-                ("BACKGROUND", (0, 0), (-1, 0), _HEADER_BG),
-                ("TEXTCOLOR", (0, 0), (-1, 0), _NEUTRAL_DARK),
-                ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
-                ("FONTSIZE", (0, 0), (-1, -1), 9),
-                ("GRID", (0, 0), (-1, -1), 0.5, _BORDER),
-                ("TOPPADDING", (0, 0), (-1, -1), 5),
-                ("BOTTOMPADDING", (0, 0), (-1, -1), 5),
-                ("LEFTPADDING", (0, 0), (-1, -1), 8),
-                ("RIGHTPADDING", (0, 0), (-1, -1), 8),
-            ]
-            for i in range(1, len(med_data)):
-                med_ts.append(
-                    ("BACKGROUND", (0, i), (-1, i), colors.white if i % 2 else _ALT_ROW)
-                )
-            med_table.setStyle(TableStyle(med_ts))
+            med_table.setStyle(TableStyle(_build_table_style(len(med_data) - 1)))
             story.append(med_table)
 
         story.append(Spacer(1, 14))
@@ -421,19 +468,7 @@ class PdfService:
             )
         )
 
-        def _page_footer(canvas, doc):  # noqa: ANN001
-            canvas.saveState()
-            canvas.setFont("Helvetica", 7)
-            canvas.setFillColor(_NEUTRAL_LIGHT)
-            canvas.drawRightString(
-                letter[0] - 0.9 * inch,
-                0.45 * inch,
-                f"Page {canvas.getPageNumber()}",
-            )
-            canvas.restoreState()
-
-        doc.build(story, onFirstPage=_page_footer, onLaterPages=_page_footer)
-        return buffer.getvalue()
+        return _build_pdf(story, footer_func=_page_footer)
 
     def build_provider_summary_pdf(
         self,
@@ -454,66 +489,18 @@ class PdfService:
         Returns:
             PDF file content as bytes.
         """
-        buffer = BytesIO()
-        doc = SimpleDocTemplate(
-            buffer,
-            pagesize=letter,
-            rightMargin=0.9 * inch,
-            leftMargin=0.9 * inch,
-            topMargin=0.9 * inch,
-            bottomMargin=1.0 * inch,
-        )
+        styles = _create_base_styles("PS")
+        title_style = styles["title"]
+        meta_style = styles["meta"]
+        heading_style = styles["heading"]
+        body_style = styles["body"]
+        disclaimer_style = styles["disclaimer"]
 
-        base = getSampleStyleSheet()
-
-        title_style = ParagraphStyle(
-            "PSTitle",
-            parent=base["Title"],
-            fontSize=20,
-            textColor=_NEUTRAL_DARK,
-            fontName="Helvetica-Bold",
-            spaceAfter=4,
-            alignment=TA_LEFT,
-        )
-        meta_style = ParagraphStyle(
-            "PSMeta",
-            parent=base["Normal"],
-            fontSize=9,
-            textColor=_NEUTRAL_LIGHT,
-            fontName="Helvetica",
-            spaceAfter=2,
-        )
-        heading_style = ParagraphStyle(
-            "PSHeading",
-            parent=base["Heading2"],
-            fontSize=12,
-            textColor=_ACCENT,
-            fontName="Helvetica-Bold",
-            spaceBefore=14,
-            spaceAfter=6,
-        )
-        body_style = ParagraphStyle(
-            "PSBody",
-            parent=base["Normal"],
-            fontSize=9.5,
-            textColor=_NEUTRAL_DARK,
-            fontName="Helvetica",
-            leading=14,
-            spaceAfter=6,
-        )
         concern_style = ParagraphStyle(
             "PSConcern",
             parent=body_style,
             leftIndent=14,
             spaceAfter=4,
-        )
-        disclaimer_style = ParagraphStyle(
-            "PSDisclaimer",
-            parent=base["Normal"],
-            fontSize=7.5,
-            textColor=_NEUTRAL_LIGHT,
-            fontName="Helvetica",
-            leading=11,
         )
 
         story = []
@@ -552,23 +539,9 @@ class PdfService:
                 )
             col_widths = [3.0 * inch, 2.2 * inch, 1.1 * inch]
             freq_table = Table(freq_data, colWidths=col_widths)
-            ts = [
-                ("BACKGROUND", (0, 0), (-1, 0), _HEADER_BG),
-                ("TEXTCOLOR", (0, 0), (-1, 0), _NEUTRAL_DARK),
-                ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
-                ("FONTSIZE", (0, 0), (-1, -1), 9),
-                ("GRID", (0, 0), (-1, -1), 0.5, _BORDER),
-                ("TOPPADDING", (0, 0), (-1, -1), 5),
-                ("BOTTOMPADDING", (0, 0), (-1, -1), 5),
-                ("LEFTPADDING", (0, 0), (-1, -1), 8),
-                ("RIGHTPADDING", (0, 0), (-1, -1), 8),
-                ("ALIGN", (2, 0), (2, -1), "CENTER"),
-            ]
-            for i in range(1, len(freq_data)):
-                ts.append(
-                    ("BACKGROUND", (0, i), (-1, i), colors.white if i % 2 else _ALT_ROW)
-                )
-            freq_table.setStyle(TableStyle(ts))
+            freq_table.setStyle(
+                TableStyle(_build_table_style(len(freq_data) - 1, align_col=2))
+            )
             story.append(freq_table)
 
         # --- Co-occurrence Table ---
@@ -581,27 +554,8 @@ class PdfService:
                 coocc_data.append([pair, str(p.cooccurrence_count), rate])
             coocc_col_widths = [3.5 * inch, 1.1 * inch, 1.7 * inch]
             coocc_table = Table(coocc_data, colWidths=coocc_col_widths)
-            coocc_ts = [
-                ("BACKGROUND", (0, 0), (-1, 0), _HEADER_BG),
-                ("TEXTCOLOR", (0, 0), (-1, 0), _NEUTRAL_DARK),
-                ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
-                ("FONTSIZE", (0, 0), (-1, -1), 9),
-                ("GRID", (0, 0), (-1, -1), 0.5, _BORDER),
-                ("TOPPADDING", (0, 0), (-1, -1), 5),
-                ("BOTTOMPADDING", (0, 0), (-1, -1), 5),
-                ("LEFTPADDING", (0, 0), (-1, -1), 8),
-                ("RIGHTPADDING", (0, 0), (-1, -1), 8),
-                ("ALIGN", (1, 0), (-1, -1), "CENTER"),
-            ]
-            for i in range(1, len(coocc_data)):
-                coocc_ts.append(
-                    (
-                        "BACKGROUND",
-                        (0, i),
-                        (-1, i),
-                        colors.white if i % 2 else _ALT_ROW,
-                    )
-                )
+            coocc_ts = _build_table_style(len(coocc_data) - 1, align_col=1)
+            coocc_ts.append(("ALIGN", (2, 0), (2, -1), "CENTER"))
             coocc_table.setStyle(TableStyle(coocc_ts))
             story.append(coocc_table)
 
@@ -629,19 +583,7 @@ class PdfService:
             )
         )
 
-        def _page_footer(canvas, doc):  # noqa: ANN001
-            canvas.saveState()
-            canvas.setFont("Helvetica", 7)
-            canvas.setFillColor(_NEUTRAL_LIGHT)
-            canvas.drawRightString(
-                letter[0] - 0.9 * inch,
-                0.45 * inch,
-                f"Page {canvas.getPageNumber()}",
-            )
-            canvas.restoreState()
-
-        doc.build(story, onFirstPage=_page_footer, onLaterPages=_page_footer)
-        return buffer.getvalue()
+        return _build_pdf(story, footer_func=_page_footer)
 
     def build_cheatsheet_pdf(
         self,
@@ -662,44 +604,15 @@ class PdfService:
         Returns:
             PDF file content as bytes.
         """
-        buffer = BytesIO()
-        doc = SimpleDocTemplate(
-            buffer,
-            pagesize=letter,
-            rightMargin=0.9 * inch,
-            leftMargin=0.9 * inch,
-            topMargin=0.9 * inch,
-            bottomMargin=1.0 * inch,
-        )
+        styles = _create_base_styles("CS")
+        title_style = styles["title"]
+        meta_style = styles["meta"]
+        heading_style = styles["heading"]
+        body_style = styles["body"]
+        disclaimer_style = styles["disclaimer"]
 
         base = getSampleStyleSheet()
 
-        title_style = ParagraphStyle(
-            "CSTitle",
-            parent=base["Title"],
-            fontSize=20,
-            textColor=_NEUTRAL_DARK,
-            fontName="Helvetica-Bold",
-            spaceAfter=4,
-            alignment=TA_LEFT,
-        )
-        meta_style = ParagraphStyle(
-            "CSMeta",
-            parent=base["Normal"],
-            fontSize=9,
-            textColor=_NEUTRAL_LIGHT,
-            fontName="Helvetica",
-            spaceAfter=2,
-        )
-        heading_style = ParagraphStyle(
-            "CSHeading",
-            parent=base["Heading2"],
-            fontSize=12,
-            textColor=_ACCENT,
-            fontName="Helvetica-Bold",
-            spaceBefore=14,
-            spaceAfter=6,
-        )
         subheading_style = ParagraphStyle(
             "CSSubheading",
             parent=base["Heading3"],
@@ -709,28 +622,11 @@ class PdfService:
             spaceBefore=8,
             spaceAfter=4,
         )
-        body_style = ParagraphStyle(
-            "CSBody",
-            parent=base["Normal"],
-            fontSize=9.5,
-            textColor=_NEUTRAL_DARK,
-            fontName="Helvetica",
-            leading=14,
-            spaceAfter=6,
-        )
         item_style = ParagraphStyle(
             "CSItem",
             parent=body_style,
             leftIndent=14,
             spaceAfter=4,
-        )
-        disclaimer_style = ParagraphStyle(
-            "CSDisclaimer",
-            parent=base["Normal"],
-            fontSize=7.5,
-            textColor=_NEUTRAL_LIGHT,
-            fontName="Helvetica",
-            leading=11,
         )
 
         story = []
@@ -814,19 +710,7 @@ class PdfService:
             )
         )
 
-        def _page_footer(canvas, doc):  # noqa: ANN001
-            canvas.saveState()
-            canvas.setFont("Helvetica", 7)
-            canvas.setFillColor(_NEUTRAL_LIGHT)
-            canvas.drawRightString(
-                letter[0] - 0.9 * inch,
-                0.45 * inch,
-                f"Page {canvas.getPageNumber()}",
-            )
-            canvas.restoreState()
-
-        doc.build(story, onFirstPage=_page_footer, onLaterPages=_page_footer)
-        return buffer.getvalue()
+        return _build_pdf(story, footer_func=_page_footer)
 
     def _inline_md(self, text: str) -> str:
         """Convert inline markdown to reportlab XML tags.

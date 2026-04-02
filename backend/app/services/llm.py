@@ -8,6 +8,7 @@ specific treatments. See CLAUDE.md for the LLM provider migration strategy.
 import json
 import logging
 from datetime import date
+from typing import TypeVar
 
 from pydantic import ValidationError
 
@@ -33,6 +34,8 @@ from app.utils.prompt_formatting import (
 )
 
 logger = logging.getLogger(__name__)
+
+T = TypeVar("T")
 
 
 class LLMService:
@@ -91,9 +94,7 @@ class LLMService:
             response_format=response_format,
         )
 
-    async def generate_narrative(
-        self, system_prompt: str, user_prompt: str
-    ) -> str:
+    async def generate_narrative(self, system_prompt: str, user_prompt: str) -> str:
         """Generate a clinical narrative from pre-assembled prompts.
 
         Args:
@@ -147,7 +148,9 @@ class LLMService:
         coocc_text = format_cooccurrence_stats_for_prompt(cooccurrence_stats)
 
         system_prompt = SYMPTOM_SUMMARY_SYSTEM
-        user_prompt = build_symptom_summary_user_prompt(start, end, freq_text, coocc_text)
+        user_prompt = build_symptom_summary_user_prompt(
+            start, end, freq_text, coocc_text
+        )
 
         logger.info(
             "Generating symptom summary: range=%s–%s symptoms=%d pairs=%d",
@@ -198,7 +201,9 @@ class LLMService:
         )
 
         system_prompt = PROVIDER_QUESTIONS_SYSTEM
-        user_prompt = build_provider_questions_user_prompt(freq_text, coocc_text, user_context)
+        user_prompt = build_provider_questions_user_prompt(
+            freq_text, coocc_text, user_context
+        )
 
         logger.info(
             "Generating provider questions: symptoms=%d pairs=%d",
@@ -316,6 +321,49 @@ class LLMService:
         logger.info("Scenario suggestions generated: %d characters", len(raw))
         return raw
 
+    async def _generate_structured_content(
+        self,
+        system_prompt: str,
+        user_prompt: str,
+        response_model: type[T],
+        context: str,
+    ) -> T:
+        """Generate structured content via LLM and parse into a Pydantic model.
+
+        Generic helper for LLM-generated JSON responses that must parse into a
+        strongly-typed response model. Hard-fails on parse errors — a partial or
+        empty response is worse than none.
+
+        Args:
+            system_prompt: System-level instructions (role, behavior, constraints).
+            user_prompt: User's message or query.
+            response_model: Pydantic model class to parse the JSON response into.
+            context: Human-readable context for error logging (e.g., "provider summary").
+
+        Returns:
+            Parsed instance of response_model.
+
+        Raises:
+            DatabaseError: If LLM response cannot be parsed into response_model.
+            TimeoutError: If the LLM API times out.
+            RuntimeError: If the LLM API returns an error or empty response.
+        """
+        raw = await self.provider.chat_completion(
+            system_prompt=system_prompt,
+            user_prompt=user_prompt,
+            max_tokens=1000,
+            temperature=0.4,
+            response_format="json",
+        )
+
+        try:
+            return response_model(**json.loads(raw))
+        except (json.JSONDecodeError, ValidationError) as exc:
+            logger.error(
+                "Failed to parse %s LLM response: %s", context, exc, exc_info=True
+            )
+            raise DatabaseError(f"Failed to parse {context} from LLM: {exc}") from exc
+
     async def generate_provider_summary_content(
         self,
         narrative: str,
@@ -364,23 +412,12 @@ class LLMService:
             goal,
         )
 
-        raw = await self.provider.chat_completion(
+        content = await self._generate_structured_content(
             system_prompt=PROVIDER_SUMMARY_SYSTEM,
             user_prompt=user_prompt,
-            max_tokens=1000,
-            temperature=0.4,
-            response_format="json",
+            response_model=ProviderSummaryResponse,
+            context="provider summary",
         )
-
-        try:
-            content = ProviderSummaryResponse(**json.loads(raw))
-        except (json.JSONDecodeError, ValidationError) as exc:
-            logger.error(
-                "Failed to parse provider summary LLM response: %s", exc, exc_info=True
-            )
-            raise DatabaseError(
-                f"Failed to parse provider summary from LLM: {exc}"
-            ) from exc
 
         logger.info("Provider summary content generated")
         return content
@@ -436,23 +473,12 @@ class LLMService:
             goal,
         )
 
-        raw = await self.provider.chat_completion(
+        content = await self._generate_structured_content(
             system_prompt=CHEATSHEET_SYSTEM,
             user_prompt=user_prompt,
-            max_tokens=1200,
-            temperature=0.4,
-            response_format="json",
+            response_model=CheatsheetResponse,
+            context="cheatsheet",
         )
-
-        try:
-            content = CheatsheetResponse(**json.loads(raw))
-        except (json.JSONDecodeError, ValidationError) as exc:
-            logger.error(
-                "Failed to parse cheatsheet LLM response: %s", exc, exc_info=True
-            )
-            raise DatabaseError(
-                f"Failed to parse cheatsheet from LLM: {exc}"
-            ) from exc
 
         logger.info("Cheatsheet content generated")
         return content

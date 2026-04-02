@@ -8,7 +8,7 @@ import pytest
 from app.exceptions import DatabaseError
 from app.repositories.export_repository import ExportRepository
 
-from tests.fixtures.supabase import setup_supabase_response, setup_supabase_error
+from tests.fixtures.supabase import setup_supabase_response
 
 
 START = date(2026, 1, 1)

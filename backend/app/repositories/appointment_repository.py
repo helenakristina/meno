@@ -653,7 +653,9 @@ class AppointmentRepository:
         try:
             response = (
                 await self.client.table("appointment_prep_contexts")
-                .select("narrative, concerns, scenarios, frequency_stats, cooccurrence_stats")
+                .select(
+                    "narrative, concerns, scenarios, frequency_stats, cooccurrence_stats"
+                )
                 .eq("id", appointment_id)
                 .eq("user_id", user_id)
                 .execute()

@@ -5,7 +5,6 @@ Tests generate_narrative(), generate_scenarios(), and generate_pdf() in isolatio
 """
 
 from unittest.mock import AsyncMock, MagicMock
-from datetime import date
 
 import pytest
 
@@ -104,7 +103,9 @@ def mock_llm_service():
         return_value=CheatsheetResponse(
             opening_statement="I am 48 and experiencing hot flashes.",
             question_groups=[
-                QuestionGroup(topic="Hot flashes", questions=["Could you help me understand..."])
+                QuestionGroup(
+                    topic="Hot flashes", questions=["Could you help me understand..."]
+                )
             ],
         )
     )
@@ -531,7 +532,9 @@ class TestSelectScenarios:
         scenarios = svc._select_scenarios(ctx, "perimenopause")
         titles = self._titles(scenarios)
         assert any(
-            "hot flash" in t.lower() or "layer" in t.lower() or "antidepressant" in t.lower()
+            "hot flash" in t.lower()
+            or "layer" in t.lower()
+            or "antidepressant" in t.lower()
             for t in titles
         )
 
@@ -550,7 +553,9 @@ class TestSelectScenarios:
         ctx = self._context(AppointmentGoal.urgent_symptom, urgent="anxiety")
         scenarios = svc._select_scenarios(ctx, "perimenopause")
         titles = self._titles(scenarios)
-        assert any("meditation" in t.lower() or "psychiatrist" in t.lower() for t in titles)
+        assert any(
+            "meditation" in t.lower() or "psychiatrist" in t.lower() for t in titles
+        )
 
     def test_urgent_vaginal_selects_vaginal_scenarios(self):
         # CATCHES: vaginal keyword group missing or wrong — patient with vaginal
@@ -568,7 +573,9 @@ class TestSelectScenarios:
         ctx = self._context(AppointmentGoal.urgent_symptom, urgent="joint pain")
         scenarios = svc._select_scenarios(ctx, "perimenopause")
         titles = self._titles(scenarios)
-        assert any("rheumatologist" in t.lower() or "arthritis" in t.lower() for t in titles)
+        assert any(
+            "rheumatologist" in t.lower() or "arthritis" in t.lower() for t in titles
+        )
 
     def test_urgent_bladder_selects_bladder_scenarios(self):
         # CATCHES: bladder group missing from JSON entirely — this was the
@@ -577,34 +584,52 @@ class TestSelectScenarios:
         ctx = self._context(AppointmentGoal.urgent_symptom, urgent="bladder leakage")
         scenarios = svc._select_scenarios(ctx, "perimenopause")
         titles = self._titles(scenarios)
-        assert any("kegel" in t.lower() or "pelvic" in t.lower() or "bladder" in t.lower() for t in titles)
+        assert any(
+            "kegel" in t.lower() or "pelvic" in t.lower() or "bladder" in t.lower()
+            for t in titles
+        )
 
     def test_urgent_urinary_keyword_also_matches_bladder_group(self):
         # CATCHES: only "bladder" keyword in group — "urinary" issues miss the
         # group and get generic fallback
         svc = self._make_service()
-        ctx = self._context(AppointmentGoal.urgent_symptom, urgent="urinary incontinence")
+        ctx = self._context(
+            AppointmentGoal.urgent_symptom, urgent="urinary incontinence"
+        )
         scenarios = svc._select_scenarios(ctx, "perimenopause")
         titles = self._titles(scenarios)
-        assert any("kegel" in t.lower() or "pelvic" in t.lower() or "bladder" in t.lower() for t in titles)
+        assert any(
+            "kegel" in t.lower() or "pelvic" in t.lower() or "bladder" in t.lower()
+            for t in titles
+        )
 
     def test_urgent_mood_selects_mood_scenarios(self):
         # CATCHES: "depression" keyword not matched — mood/depression scenarios
         # fallthrough to generic
         svc = self._make_service()
-        ctx = self._context(AppointmentGoal.urgent_symptom, urgent="depression and mood changes")
+        ctx = self._context(
+            AppointmentGoal.urgent_symptom, urgent="depression and mood changes"
+        )
         scenarios = svc._select_scenarios(ctx, "perimenopause")
         titles = self._titles(scenarios)
-        assert any("antidepressant" in t.lower() or "psychological" in t.lower() for t in titles)
+        assert any(
+            "antidepressant" in t.lower() or "psychological" in t.lower()
+            for t in titles
+        )
 
     def test_urgent_fatigue_selects_fatigue_scenarios(self):
         # CATCHES: "tired" keyword not in fatigue group — user reporting
         # tiredness gets wrong scenarios
         svc = self._make_service()
-        ctx = self._context(AppointmentGoal.urgent_symptom, urgent="feeling tired all the time")
+        ctx = self._context(
+            AppointmentGoal.urgent_symptom, urgent="feeling tired all the time"
+        )
         scenarios = svc._select_scenarios(ctx, "perimenopause")
         titles = self._titles(scenarios)
-        assert any("fatigue" in t.lower() or "thyroid" in t.lower() or "exercise" in t.lower() for t in titles)
+        assert any(
+            "fatigue" in t.lower() or "thyroid" in t.lower() or "exercise" in t.lower()
+            for t in titles
+        )
 
     def test_urgent_skin_hair_selects_skin_scenarios(self):
         # CATCHES: "hair" keyword missing — hair loss symptom falls through
@@ -619,7 +644,9 @@ class TestSelectScenarios:
         # CATCHES: no fallback group in JSON — unknown symptom returns empty
         # list which causes generate_scenarios() to produce 0 cards
         svc = self._make_service()
-        ctx = self._context(AppointmentGoal.urgent_symptom, urgent="completely unknown symptom xyz")
+        ctx = self._context(
+            AppointmentGoal.urgent_symptom, urgent="completely unknown symptom xyz"
+        )
         scenarios = svc._select_scenarios(ctx, "perimenopause")
         assert len(scenarios) > 0
 
@@ -643,3 +670,52 @@ class TestSelectScenarios:
         scenarios = svc._select_scenarios(ctx, "perimenopause")
         titles = self._titles(scenarios)
         assert not any("triggers" in t.lower() for t in titles)
+
+    # ── Urgent symptom input sanitization ────────────────────────────────────
+
+    def test_sanitize_urgent_symptom_returns_none_for_empty_input(self):
+        # CATCHES: None or empty string not handled — would cause downstream errors
+        svc = self._make_service()
+        assert svc._sanitize_urgent_symptom(None) is None
+        assert svc._sanitize_urgent_symptom("") is None
+        assert svc._sanitize_urgent_symptom("   ") is None
+
+    def test_sanitize_urgent_symptom_limits_length(self):
+        # CATCHES: no length limit — potential DoS with extremely long strings
+        svc = self._make_service()
+        long_symptom = "a" * 500
+        result = svc._sanitize_urgent_symptom(long_symptom)
+        assert len(result) <= 200
+
+    def test_sanitize_urgent_symptom_removes_special_characters(self):
+        # CATCHES: injection risk — special characters like < > & should be stripped
+        svc = self._make_service()
+        result = svc._sanitize_urgent_symptom("brain fog <script>alert('xss')</script>")
+        assert "<" not in result
+        assert ">" not in result
+        assert "'" not in result  # Single quotes removed
+        assert "brain fog" in result
+
+    def test_sanitize_urgent_symptom_allows_valid_characters(self):
+        # CATCHES: overly aggressive sanitization breaking valid input
+        svc = self._make_service()
+        result = svc._sanitize_urgent_symptom("Hot flashes (night sweats), fatigue.")
+        assert result == "Hot flashes (night sweats), fatigue."
+
+    def test_sanitize_urgent_symptom_strips_whitespace(self):
+        # CATCHES: leading/trailing whitespace not trimmed — affects matching
+        svc = self._make_service()
+        result = svc._sanitize_urgent_symptom("  brain fog  ")
+        assert result == "brain fog"
+
+    def test_urgent_symptom_sanitized_before_use_in_select_scenarios(self):
+        # CATCHES: urgent_symptom used directly without sanitization
+        svc = self._make_service()
+        ctx = self._context(
+            AppointmentGoal.urgent_symptom,
+            urgent="brain fog <script>alert('xss')</script>",
+        )
+        scenarios = svc._select_scenarios(ctx, "perimenopause")
+        # Should still match cognitive scenarios despite sanitization
+        titles = self._titles(scenarios)
+        assert any("brain fog" in t.lower() or "cognitive" in t.lower() for t in titles)

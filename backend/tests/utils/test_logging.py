@@ -1,6 +1,5 @@
 """Tests for app/utils/logging.py (PII-safe logging utilities)."""
 
-import pytest
 from app.utils.logging import (
     hash_user_id,
     hash_appointment_id,

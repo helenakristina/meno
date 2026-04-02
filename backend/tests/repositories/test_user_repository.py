@@ -1,7 +1,6 @@
 """Tests for UserRepository."""
 
 import pytest
-from datetime import date
 from unittest.mock import AsyncMock, MagicMock
 from app.exceptions import DatabaseError, DuplicateEntityError, EntityNotFoundError
 

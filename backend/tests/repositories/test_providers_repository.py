@@ -1,7 +1,6 @@
 """Tests for ProvidersRepository."""
 
 import pytest
-from datetime import date
 from unittest.mock import AsyncMock, MagicMock
 
 from app.exceptions import (
@@ -12,11 +11,9 @@ from app.exceptions import (
 )
 from app.repositories.providers_repository import ProvidersRepository
 from app.models.providers import (
-    ProviderCard,
     ProviderSearchResponse,
     ShortlistEntry,
     ShortlistEntryWithProvider,
-    StateCount,
 )
 
 

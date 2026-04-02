@@ -32,9 +32,7 @@ class TestProviderSummaryResponse:
     def test_key_patterns_defaults_to_empty(self):
         # CATCHES: key_patterns required with no default — LLM sometimes omits
         # this section when no co-occurrence patterns exist, causing a crash
-        m = ProviderSummaryResponse(
-            opening="O", symptom_picture="S", closing="C"
-        )
+        m = ProviderSummaryResponse(opening="O", symptom_picture="S", closing="C")
         assert m.key_patterns == ""
 
     def test_ignores_extra_fields(self):
@@ -44,8 +42,8 @@ class TestProviderSummaryResponse:
             opening="O",
             symptom_picture="S",
             closing="C",
-            unexpected_llm_field="value", # type: ignore
-            another_extra="123", # type: ignore
+            unexpected_llm_field="value",  # type: ignore
+            another_extra="123",  # type: ignore
         )
         assert m.opening == "O"
 
@@ -54,8 +52,9 @@ class TestProviderSummaryResponse:
         # LLM response with no "opening" would silently produce an empty PDF section
         with pytest.raises(ValidationError):
             ProviderSummaryResponse(
-                symptom_picture="S", closing="C"  # missing opening
-            ) # type: ignore
+                symptom_picture="S",
+                closing="C",  # missing opening
+            )  # type: ignore
 
     def test_missing_closing_raises_validation_error(self):
         # CATCHES: closing field optional by mistake — provider summary PDFs would
@@ -71,7 +70,10 @@ class TestCheatsheetResponse:
         data = {
             "opening_statement": "I am 50. My urgent concern is hot flashes.",
             "question_groups": [
-                {"topic": "Hot flashes", "questions": ["Could you help me understand..."]}
+                {
+                    "topic": "Hot flashes",
+                    "questions": ["Could you help me understand..."],
+                }
             ],
         }
         m = CheatsheetResponse(**data)

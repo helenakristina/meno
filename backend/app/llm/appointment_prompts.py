@@ -22,7 +22,26 @@ and a builder function for the dynamic user prompt:
      → generate_cheatsheet_content() in llm.py (Step 5)
 """
 
+import re
 from datetime import date
+
+
+def _sanitize_prompt_input(text: str | None, max_length: int = 2000) -> str:
+    """Sanitize user input before including in LLM prompts.
+
+    Strips newlines, removes potential prompt injection markers,
+    and limits length to prevent prompt flooding.
+    """
+    if not text:
+        return "not provided"
+    text = text[:max_length]
+    # Remove potential prompt injection markers
+    text = text.replace("system:", "").replace("user:", "").replace("assistant:", "")
+    # Strip XML-like tags
+    text = re.sub(r"<[^>]+>", "", text)
+    # Strip newlines (per Ask Meno v2 learnings)
+    text = text.replace("\n", " ").replace("\r", " ")
+    return text.strip()
 
 
 # ---------------------------------------------------------------------------
@@ -176,7 +195,13 @@ def build_provider_questions_user_prompt(
     user_context: str = "",
 ) -> str:
     """Build user prompt for provider question generation."""
-    context_section = f"\nAdditional context: {user_context}" if user_context else ""
+    # Sanitize user-generated content to prevent prompt injection
+    sanitized_context = _sanitize_prompt_input(user_context) if user_context else ""
+    context_section = (
+        f"\nAdditional context: {sanitized_context}"
+        if sanitized_context != "not provided"
+        else ""
+    )
     return (
         f"Based on the following symptom tracking data, generate 5–7 questions "
         f"this person might ask their healthcare provider.\n\n"
@@ -198,6 +223,8 @@ def build_scenario_suggestions_user_prompt(
     age_str: str,
 ) -> str:
     """Build user prompt for scenario suggestion generation (Step 4)."""
+    # Sanitize user-generated content to prevent prompt injection
+    sanitized_concerns = _sanitize_prompt_input(concerns_text)
     return (
         f"A woman (age {age_str}) is preparing for a healthcare appointment. "
         f"She may encounter these dismissals specific to her situation:\n\n"
@@ -206,7 +233,7 @@ def build_scenario_suggestions_user_prompt(
         f"- Appointment type: {appointment_type.replace('_', ' ')}\n"
         f"- What she's here to discuss: {goal.replace('_', ' ')}\n"
         f"- Prior dismissal experience: {dismissed_before.replace('_', ' ')}\n"
-        f"- Her top concerns (in order):\n{concerns_text}\n\n"
+        f"- Her top concerns (in order):\n{sanitized_concerns}\n\n"
         f"For EACH dismissal scenario above, generate a confident, evidence-based response "
         f"she can use IN THIS EXACT APPOINTMENT. Requirements:\n\n"
         f"1. Acknowledge the provider's concern (don't dismiss them)\n"
@@ -233,7 +260,11 @@ def build_provider_summary_user_prompt(
 
     Requests structured JSON output matching ProviderSummaryResponse.
     """
-    urgent_concern = urgent_symptom if urgent_symptom else "not provided"
+    # Sanitize user-generated content to prevent prompt injection
+    sanitized_narrative = _sanitize_prompt_input(narrative)
+    sanitized_concerns = _sanitize_prompt_input(concerns_text)
+    sanitized_urgent = _sanitize_prompt_input(urgent_symptom)
+    urgent_concern = sanitized_urgent
     return (
         f"Write a clinical appointment summary for a healthcare provider.\n"
         f"The provider will read this in 2 minutes — be specific, scannable, useful.\n\n"
@@ -244,8 +275,8 @@ def build_provider_summary_user_prompt(
         f"- Appointment Type: {appointment_type.replace('_', ' ')}\n"
         f"- Goal: {goal.replace('_', ' ')}\n"
         f"- Urgent Concern: {urgent_concern}\n"
-        f"- Narrative Summary: {narrative}\n"
-        f"- Concerns List: {concerns_text if concerns_text else 'None provided'}\n\n"
+        f"- Narrative Summary: {sanitized_narrative}\n"
+        f"- Concerns List: {sanitized_concerns}\n\n"
         f"Return ONLY a valid JSON object with exactly these four fields:\n"
         f'{{"opening": "2-3 sentence intro: who, why here, urgent concern if any", '
         f'"symptom_picture": "3-4 sentences describing what she experiences (from narrative only)", '
@@ -270,7 +301,11 @@ def build_cheatsheet_user_prompt(
     Only generates opening_statement and question_groups — the PDF builder
     renders concerns, frequency stats, scenarios, and what-to-bring sections.
     """
-    urgent_concern = urgent_symptom if urgent_symptom else "not provided"
+    # Sanitize user-generated content to prevent prompt injection
+    sanitized_narrative = _sanitize_prompt_input(narrative)
+    sanitized_concerns = _sanitize_prompt_input(concerns_text)
+    sanitized_urgent = _sanitize_prompt_input(urgent_symptom)
+    urgent_concern = sanitized_urgent
     return (
         f"Write a personal appointment preparation document for a patient.\n"
         f"This is her working document — concise, actionable, no fluff.\n\n"
@@ -281,14 +316,14 @@ def build_cheatsheet_user_prompt(
         f"- Appointment Type: {appointment_type.replace('_', ' ')}\n"
         f"- Primary Goal: {goal.replace('_', ' ')}\n"
         f"- Urgent Concern: {urgent_concern}\n"
-        f"- Prioritized Concerns: {concerns_text}\n"
-        f"- Narrative Summary: {narrative}\n\n"
+        f"- Prioritized Concerns: {sanitized_concerns}\n"
+        f"- Narrative Summary: {sanitized_narrative}\n\n"
         f"Return ONLY a valid JSON object with exactly these fields:\n"
         f'{{"opening_statement": "2-3 sentences: age, perimenopause/menopause stage, '
         f'urgent concern if any, primary goal for today", '
         f'"question_groups": ['
         f'{{"topic": "topic name", "questions": ["open-ended question 1", "open-ended question 2"]}}'
-        f']}}\n\n'
+        f"]}}\n\n"
         f"Rules for question_groups:\n"
         f"- Group 3-6 questions under 2-4 topic headings relevant to the patient's concerns\n"
         f"- Questions must be open-ended information-gathering, not treatment requests\n"

@@ -7,10 +7,8 @@ import logging
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
-from fastapi.responses import JSONResponse
 
 from app.api.dependencies import CurrentUser, get_providers_repo, get_llm_service
-from app.exceptions import DuplicateEntityError
 from app.models.providers import (
     AddToShortlistRequest,
     CallingScriptRequest,

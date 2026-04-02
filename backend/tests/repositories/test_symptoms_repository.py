@@ -6,7 +6,7 @@ from unittest.mock import AsyncMock, MagicMock
 from app.exceptions import DatabaseError, ValidationError
 
 from app.repositories.symptoms_repository import SymptomsRepository
-from app.models.symptoms import SymptomDetail, SymptomLogResponse
+from app.models.symptoms import SymptomDetail
 
 
 def make_sequential_client(*responses):

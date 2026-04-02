@@ -508,6 +508,7 @@ class TestLLMServiceGenerateProviderSummaryContent:
         # CATCHES: method returning str instead of ProviderSummaryResponse —
         # appointment.py Step 5 passes return value directly to build_provider_summary_pdf
         from app.models.appointment import ProviderSummaryResponse
+
         mock_provider.chat_completion.return_value = self._VALID_JSON
 
         result = await service.generate_provider_summary_content(
@@ -528,8 +529,11 @@ class TestLLMServiceGenerateProviderSummaryContent:
         mock_provider.chat_completion.return_value = self._VALID_JSON
 
         await service.generate_provider_summary_content(
-            narrative="Narrative.", concerns=[], appointment_type="new_provider",
-            goal="explore_hrt", user_age=50,
+            narrative="Narrative.",
+            concerns=[],
+            appointment_type="new_provider",
+            goal="explore_hrt",
+            user_age=50,
         )
 
         call_args = mock_provider.chat_completion.call_args
@@ -540,25 +544,37 @@ class TestLLMServiceGenerateProviderSummaryContent:
         # CATCHES: json.JSONDecodeError propagating as RuntimeError — callers
         # expect DatabaseError to trigger the retry flow, not a bare RuntimeError
         from app.exceptions import DatabaseError
+
         mock_provider.chat_completion.return_value = "not json at all {"
 
         with pytest.raises(DatabaseError, match="Failed to parse provider summary"):
             await service.generate_provider_summary_content(
-                narrative="Narrative.", concerns=[], appointment_type="new_provider",
-                goal="explore_hrt", user_age=50,
+                narrative="Narrative.",
+                concerns=[],
+                appointment_type="new_provider",
+                goal="explore_hrt",
+                user_age=50,
             )
 
     @pytest.mark.asyncio
-    async def test_raises_database_error_on_missing_required_field(self, service, mock_provider):
+    async def test_raises_database_error_on_missing_required_field(
+        self, service, mock_provider
+    ):
         # CATCHES: ValidationError not converted to DatabaseError — missing "opening"
         # from LLM would propagate as pydantic.ValidationError, not DatabaseError
         from app.exceptions import DatabaseError
-        mock_provider.chat_completion.return_value = '{"symptom_picture": "S", "closing": "C"}'
+
+        mock_provider.chat_completion.return_value = (
+            '{"symptom_picture": "S", "closing": "C"}'
+        )
 
         with pytest.raises(DatabaseError, match="Failed to parse provider summary"):
             await service.generate_provider_summary_content(
-                narrative="Narrative.", concerns=[], appointment_type="new_provider",
-                goal="explore_hrt", user_age=50,
+                narrative="Narrative.",
+                concerns=[],
+                appointment_type="new_provider",
+                goal="explore_hrt",
+                user_age=50,
             )
 
     @pytest.mark.asyncio
@@ -568,8 +584,12 @@ class TestLLMServiceGenerateProviderSummaryContent:
         mock_provider.chat_completion.return_value = self._VALID_JSON
 
         await service.generate_provider_summary_content(
-            narrative="Narrative.", concerns=[], appointment_type="new_provider",
-            goal="urgent_symptom", user_age=50, urgent_symptom="heart palpitations",
+            narrative="Narrative.",
+            concerns=[],
+            appointment_type="new_provider",
+            goal="urgent_symptom",
+            user_age=50,
+            urgent_symptom="heart palpitations",
         )
 
         call_args = mock_provider.chat_completion.call_args
@@ -583,8 +603,11 @@ class TestLLMServiceGenerateProviderSummaryContent:
 
         with pytest.raises(TimeoutError):
             await service.generate_provider_summary_content(
-                narrative="Narrative.", concerns=[], appointment_type="new_provider",
-                goal="explore_hrt", user_age=50,
+                narrative="Narrative.",
+                concerns=[],
+                appointment_type="new_provider",
+                goal="explore_hrt",
+                user_age=50,
             )
 
 
@@ -598,6 +621,7 @@ class TestLLMServiceGenerateCheatsheetContent:
         # CATCHES: method returning str instead of CheatsheetResponse — appointment.py
         # passes result directly to build_cheatsheet_pdf which expects the model
         from app.models.appointment import CheatsheetResponse
+
         mock_provider.chat_completion.return_value = self._VALID_JSON
 
         result = await service.generate_cheatsheet_content(
@@ -619,8 +643,11 @@ class TestLLMServiceGenerateCheatsheetContent:
         mock_provider.chat_completion.return_value = self._VALID_JSON
 
         await service.generate_cheatsheet_content(
-            narrative="Narrative.", concerns=[], appointment_type="new_provider",
-            goal="explore_hrt", user_age=50,
+            narrative="Narrative.",
+            concerns=[],
+            appointment_type="new_provider",
+            goal="explore_hrt",
+            user_age=50,
         )
 
         call_args = mock_provider.chat_completion.call_args
@@ -631,25 +658,35 @@ class TestLLMServiceGenerateCheatsheetContent:
         # CATCHES: parse error surfaces as RuntimeError — callers need DatabaseError
         # to distinguish "retry this" from "provider is down"
         from app.exceptions import DatabaseError
+
         mock_provider.chat_completion.return_value = "not valid {"
 
         with pytest.raises(DatabaseError, match="Failed to parse cheatsheet"):
             await service.generate_cheatsheet_content(
-                narrative="Narrative.", concerns=[], appointment_type="new_provider",
-                goal="explore_hrt", user_age=50,
+                narrative="Narrative.",
+                concerns=[],
+                appointment_type="new_provider",
+                goal="explore_hrt",
+                user_age=50,
             )
 
     @pytest.mark.asyncio
-    async def test_raises_database_error_on_missing_opening_statement(self, service, mock_provider):
+    async def test_raises_database_error_on_missing_opening_statement(
+        self, service, mock_provider
+    ):
         # CATCHES: opening_statement optional on model — missing field produces a
         # cheatsheet PDF with a blank first section rather than hard-failing
         from app.exceptions import DatabaseError
+
         mock_provider.chat_completion.return_value = '{"question_groups": []}'
 
         with pytest.raises(DatabaseError, match="Failed to parse cheatsheet"):
             await service.generate_cheatsheet_content(
-                narrative="Narrative.", concerns=[], appointment_type="new_provider",
-                goal="explore_hrt", user_age=50,
+                narrative="Narrative.",
+                concerns=[],
+                appointment_type="new_provider",
+                goal="explore_hrt",
+                user_age=50,
             )
 
     @pytest.mark.asyncio
@@ -660,6 +697,9 @@ class TestLLMServiceGenerateCheatsheetContent:
 
         with pytest.raises(TimeoutError):
             await service.generate_cheatsheet_content(
-                narrative="Narrative.", concerns=[], appointment_type="new_provider",
-                goal="explore_hrt", user_age=50,
+                narrative="Narrative.",
+                concerns=[],
+                appointment_type="new_provider",
+                goal="explore_hrt",
+                user_age=50,
             )

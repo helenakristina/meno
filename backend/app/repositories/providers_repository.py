@@ -6,7 +6,6 @@ Keeps data access logic out of routes and services.
 
 import logging
 from datetime import datetime, timezone
-from typing import Optional
 
 from supabase import AsyncClient
 
@@ -18,7 +17,6 @@ from app.exceptions import (
 )
 
 from app.models.providers import (
-    ProviderCard,
     ProviderSearchResponse,
     ShortlistEntry,
     ShortlistEntryWithProvider,
