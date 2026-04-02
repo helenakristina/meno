@@ -35,8 +35,8 @@ def _sanitize_prompt_input(text: str | None, max_length: int = 2000) -> str:
     if not text:
         return "not provided"
     text = text[:max_length]
-    # Remove potential prompt injection markers
-    text = text.replace("system:", "").replace("user:", "").replace("assistant:", "")
+    # Remove potential prompt injection markers (case-insensitive)
+    text = re.sub(r"(?i)(system:|user:|assistant:)", "", text)
     # Strip XML-like tags
     text = re.sub(r"<[^>]+>", "", text)
     # Strip newlines (per Ask Meno v2 learnings)

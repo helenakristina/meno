@@ -398,6 +398,34 @@ class TestGeneratePdf:
         with pytest.raises(DatabaseError, match="upload"):
             await service.generate_pdf("appt-123", "user-456")
 
+    @pytest.mark.asyncio
+    async def test_raises_database_error_when_cheatsheet_times_out(
+        self, service, mock_llm_service
+    ):
+        """Test that timeout on cheatsheet_content is caught and converted to DatabaseError."""
+        # CATCHES: cheatsheet task timeout in asyncio.gather() not caught —
+        # would surface as unhandled 500 or TimeoutError
+        mock_llm_service.generate_cheatsheet_content.side_effect = TimeoutError(
+            "LLM request timed out"
+        )
+
+        with pytest.raises(DatabaseError, match="timed out"):
+            await service.generate_pdf("appt-123", "user-456")
+
+    @pytest.mark.asyncio
+    async def test_raises_database_error_when_cheatsheet_fails(
+        self, service, mock_llm_service
+    ):
+        """Test that non-timeout exception on cheatsheet_content is caught."""
+        # CATCHES: cheatsheet task exception in asyncio.gather() not caught —
+        # would surface as unhandled 500 with LLM error details
+        mock_llm_service.generate_cheatsheet_content.side_effect = ValueError(
+            "Invalid cheatsheet response"
+        )
+
+        with pytest.raises(DatabaseError, match="Failed to generate"):
+            await service.generate_pdf("appt-123", "user-456")
+
 
 # ---------------------------------------------------------------------------
 # _select_scenarios (private helper)

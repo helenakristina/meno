@@ -192,7 +192,8 @@ class CreateAppointmentContextRequest(BaseModel):
     )
     urgent_symptom: str | None = Field(
         default=None,
-        description="Which symptom is urgent (only set when goal is 'urgent_symptom')",
+        max_length=500,
+        description="Which symptom is urgent (max 500 chars; only set when goal is 'urgent_symptom')",
     )
 
 
