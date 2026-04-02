@@ -6,131 +6,271 @@
     "cognitive": {
       "keywords": ["brain fog", "cognitive", "concentration"],
       "dismissals": [
-        {"title": "Brain fog is just normal aging", "category": "normalization"},
-        {"title": "That's probably anxiety, not hormones", "category": "psychology"},
-        {"title": "You should see a neurologist, not a gynecologist", "category": "specialist-referral"},
-        {"title": "Cognitive symptoms don't respond to hormone therapy", "category": "dismissal"},
-        {"title": "Cognitive decline at your stage is expected", "category": "normalization"}
+        {
+          "title": "Brain fog is just normal aging",
+          "category": "normalization"
+        },
+        {
+          "title": "That's probably anxiety, not hormones",
+          "category": "psychology"
+        },
+        {
+          "title": "You should see a neurologist, not a gynecologist",
+          "category": "specialist-referral"
+        },
+        {
+          "title": "Cognitive decline at your age is expected",
+          "category": "normalization"
+        }
       ]
     },
     "vasomotor": {
       "keywords": ["hot flash", "vasomotor"],
       "dismissals": [
-        {"title": "Hormone therapy increases breast cancer risk", "category": "hrt-safety"},
-        {"title": "Hot flashes will go away on their own", "category": "wait-and-see"},
-        {"title": "You just need to dress in layers and use a fan", "category": "lifestyle-only"},
-        {"title": "Hot flashes aren't a real medical symptom", "category": "dismissal"},
-        {"title": "Let's try an antidepressant first", "category": "wrong-specialist"}
+        {
+          "title": "Hot flashes will go away on their own",
+          "category": "wait-and-see"
+        },
+        {
+          "title": "You just need to dress in layers and use a fan",
+          "category": "lifestyle-only"
+        },
+        {
+          "title": "Hot flashes aren't a real medical symptom",
+          "category": "dismissal"
+        },
+        {
+          "title": "Let's try an antidepressant first",
+          "category": "wrong-specialist"
+        }
       ]
     },
     "sleep": {
       "keywords": ["sleep", "insomnia", "waking"],
       "dismissals": [
-        {"title": "Sleep disruption at your age is normal", "category": "normalization"},
-        {"title": "You should see a sleep specialist, not discuss hormones", "category": "specialist-referral"},
-        {"title": "Melatonin or sleep hygiene will fix this", "category": "lifestyle-only"},
-        {"title": "Hormone therapy doesn't help sleep", "category": "dismissal"},
-        {"title": "Let's try an antidepressant first", "category": "wrong-specialist"}
+        {
+          "title": "Sleep disruption at your age is normal",
+          "category": "normalization"
+        },
+        {
+          "title": "You should see a sleep specialist, not discuss hormones",
+          "category": "specialist-referral"
+        },
+        {
+          "title": "Melatonin or sleep hygiene will fix this",
+          "category": "lifestyle-only"
+        },
+        {
+          "title": "Let's try an antidepressant first",
+          "category": "wrong-specialist"
+        }
       ]
     },
     "anxiety": {
       "keywords": ["anxiety"],
       "dismissals": [
-        {"title": "That sounds like anxiety disorder, you need a psychiatrist", "category": "wrong-specialist"},
-        {"title": "Let's try an antidepressant first", "category": "wrong-specialist"},
-        {"title": "Hormone therapy won't help anxiety", "category": "dismissal"},
-        {"title": "You're just stressed, try meditation", "category": "psychology"},
-        {"title": "Anxiety medications are better than hormone therapy", "category": "wrong-specialist"}
+        {
+          "title": "That sounds like anxiety disorder, you need a psychiatrist",
+          "category": "wrong-specialist"
+        },
+        {
+          "title": "Let's try an antidepressant first",
+          "category": "wrong-specialist"
+        },
+        {
+          "title": "You're just stressed, try meditation",
+          "category": "psychology"
+        },
+        {
+          "title": "Anxiety medications are better than hormone therapy",
+          "category": "wrong-specialist"
+        }
       ]
     },
     "vaginal": {
       "keywords": ["vaginal", "dryness", "sexual"],
       "dismissals": [
-        {"title": "Just use lube, that's the standard treatment", "category": "lifestyle-only"},
-        {"title": "That's a gynecology issue, not a hormone issue", "category": "specialist-referral"},
-        {"title": "Vaginal issues are normal at this stage", "category": "normalization"},
-        {"title": "You don't need systemic treatment for local symptoms", "category": "dismissal"},
-        {"title": "Let's try an antidepressant first", "category": "wrong-specialist"}
+        {
+          "title": "Just use lube, that's the standard treatment",
+          "category": "lifestyle-only"
+        },
+        {
+          "title": "That's a gynecology issue, not a hormone issue",
+          "category": "specialist-referral"
+        },
+        {
+          "title": "Vaginal issues are normal at this stage",
+          "category": "normalization"
+        }
       ]
     },
     "joint_pain": {
       "keywords": ["joint", "pain"],
       "dismissals": [
-        {"title": "Joint pain isn't related to hormones", "category": "dismissal"},
-        {"title": "You should see a rheumatologist", "category": "specialist-referral"},
-        {"title": "That's just arthritis, not perimenopause", "category": "normalization"},
-        {"title": "Exercise will fix this, not hormones", "category": "lifestyle-only"},
-        {"title": "Your symptoms aren't severe enough to treat", "category": "dismissal"}
+        {
+          "title": "Joint pain isn't related to hormones",
+          "category": "dismissal"
+        },
+        {
+          "title": "You should see a rheumatologist",
+          "category": "specialist-referral"
+        },
+        {
+          "title": "That's just arthritis, not perimenopause",
+          "category": "normalization"
+        },
+        {
+          "title": "Exercise will fix this",
+          "category": "lifestyle-only"
+        },
+        {
+          "title": "Your symptoms aren't severe enough to treat",
+          "category": "dismissal"
+        }
       ]
     },
     "bladder": {
       "keywords": ["bladder", "urinary", "incontinence"],
       "dismissals": [
-        {"title": "Bladder issues are gynecological, not hormonal", "category": "specialist-referral"},
-        {"title": "You need pelvic floor physical therapy, not hormones", "category": "specialist-referral"},
-        {"title": "That's normal at your stage, you'll have to manage it", "category": "normalization"},
-        {"title": "Kegel exercises should be enough", "category": "lifestyle-only"},
-        {"title": "Hormone therapy doesn't help bladder symptoms", "category": "dismissal"}
+        {
+          "title": "Bladder issues are gynecological, not hormonal",
+          "category": "specialist-referral"
+        },
+        {
+          "title": "You need pelvic floor physical therapy",
+          "category": "specialist-referral"
+        },
+        {
+          "title": "That's normal at your age, you'll have to manage it",
+          "category": "normalization"
+        },
+        {
+          "title": "Kegel exercises should be enough",
+          "category": "lifestyle-only"
+        }
       ]
     },
     "mood": {
       "keywords": ["mood", "depression"],
       "dismissals": [
-        {"title": "That sounds like depression, you need an antidepressant", "category": "wrong-specialist"},
-        {"title": "Hormone therapy isn't approved for mood", "category": "dismissal"},
-        {"title": "You should see a psychiatrist", "category": "wrong-specialist"},
-        {"title": "Mood changes are psychological, not hormonal", "category": "psychology"},
-        {"title": "Let's try an antidepressant first", "category": "wrong-specialist"}
+        {
+          "title": "That sounds like depression, you need an antidepressant",
+          "category": "wrong-specialist"
+        },
+        {
+          "title": "You should see a psychiatrist",
+          "category": "wrong-specialist"
+        },
+        {
+          "title": "Mood changes are psychological, not hormonal",
+          "category": "psychology"
+        },
+        {
+          "title": "Let's try an antidepressant first",
+          "category": "wrong-specialist"
+        }
       ]
     },
     "fatigue": {
       "keywords": ["fatigue", "tired"],
       "dismissals": [
-        {"title": "Fatigue is normal aging, not hormonal", "category": "normalization"},
-        {"title": "You just need better sleep hygiene", "category": "lifestyle-only"},
-        {"title": "That sounds like thyroid or anemia, let me check labs", "category": "specialist-referral"},
-        {"title": "Hormone therapy won't fix your energy", "category": "dismissal"},
-        {"title": "You should get more exercise", "category": "lifestyle-only"}
+        {
+          "title": "Fatigue is normal aging, not hormonal",
+          "category": "normalization"
+        },
+        {
+          "title": "You just need better sleep hygiene",
+          "category": "lifestyle-only"
+        },
+        {
+          "title": "That sounds like thyroid or anemia, let me check labs",
+          "category": "specialist-referral"
+        },
+        {
+          "title": "Hormone therapy won't fix your energy",
+          "category": "dismissal"
+        },
+        {
+          "title": "You should get more exercise",
+          "category": "lifestyle-only"
+        }
       ]
     },
     "skin_hair_nail": {
       "keywords": ["skin", "hair", "nail"],
       "dismissals": [
-        {"title": "Skin changes are cosmetic, not medical", "category": "dismissal"},
-        {"title": "You should see a dermatologist", "category": "specialist-referral"},
-        {"title": "That's not related to perimenopause", "category": "dismissal"},
-        {"title": "Hair loss is normal aging", "category": "normalization"},
-        {"title": "Hormone therapy doesn't improve skin quality", "category": "dismissal"}
+        {
+          "title": "Skin changes are cosmetic, not medical",
+          "category": "dismissal"
+        },
+        {
+          "title": "You should see a dermatologist",
+          "category": "specialist-referral"
+        },
+        {
+          "title": "That's not related to perimenopause",
+          "category": "dismissal"
+        },
+        { "title": "Hair loss is normal aging", "category": "normalization" }
       ]
     }
   },
 
   "urgent_fallback_scenarios": [
-    {"title": "That symptom isn't really related to perimenopause", "category": "dismissal"},
-    {"title": "Your symptoms aren't severe enough to treat", "category": "dismissal"},
-    {"title": "Let's wait and see if it gets better", "category": "wait-and-see"},
-    {"title": "That's probably something else, not hormones", "category": "dismissal"}
+    {
+      "title": "Your symptoms aren't severe enough to treat",
+      "category": "dismissal"
+    },
+    {
+      "title": "Let's wait and see if it gets better",
+      "category": "wait-and-see"
+    },
+    {
+      "title": "That's probably something else, not hormones",
+      "category": "dismissal"
+    }
   ],
 
   "goal_scenarios": {
     "explore_hrt": [
-      {"title": "Hormone therapy increases breast cancer risk", "category": "hrt-safety"},
-      {"title": "I don't prescribe that, I give the birth control pill instead", "category": "dismissal"},
-      {"title": "Let's try an antidepressant first", "category": "wrong-specialist"}
+      {
+        "title": "Hormone therapy increases breast cancer risk",
+        "category": "hrt-safety"
+      },
+      {
+        "title": "I don't prescribe that, I give the birth control pill instead",
+        "category": "dismissal"
+      },
+      {
+        "title": "Let's try an antidepressant first",
+        "category": "wrong-specialist"
+      }
     ],
     "optimize_current_treatment": [
-      {"title": "Your symptoms aren't severe enough to treat", "category": "dismissal"},
-      {"title": "That dose is already too high", "category": "dismissal"},
-      {"title": "Let's try lifestyle changes first", "category": "lifestyle-only"}
+      {
+        "title": "Your symptoms aren't severe enough to treat",
+        "category": "dismissal"
+      },
+      { "title": "That dose is already too high", "category": "dismissal" },
+      {
+        "title": "Let's try lifestyle changes first",
+        "category": "lifestyle-only"
+      }
     ],
     "assess_status": [
-      {"title": "Your symptoms will go away on their own", "category": "wait-and-see"},
-      {"title": "You're just stressed or anxious", "category": "psychology"}
+      {
+        "title": "Your symptoms will go away on their own",
+        "category": "wait-and-see"
+      },
+      { "title": "You're just stressed or anxious", "category": "psychology" }
     ]
   },
 
   "universal_scenarios": [
-    {"title": "Your symptoms will go away on their own", "category": "wait-and-see"},
-    {"title": "You're just stressed or anxious", "category": "psychology"}
+    {
+      "title": "Your symptoms will go away on their own",
+      "category": "wait-and-see"
+    },
+    { "title": "You're just stressed or anxious", "category": "psychology" }
   ]
 }
