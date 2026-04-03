@@ -398,7 +398,6 @@ class LLMService:
         age_str = str(user_age) if user_age else "not specified"
 
         user_prompt = build_provider_summary_user_prompt(
-            narrative=narrative,
             concerns_text=concerns_text,
             appointment_type=appointment_type,
             goal=goal,

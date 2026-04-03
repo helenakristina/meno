@@ -80,16 +80,17 @@ SCENARIO_SUGGESTIONS_SYSTEM = (
     "You are helping a woman prepare for a healthcare appointment about perimenopause or menopause. "
     "Your role is to help her respond to common dismissals she might encounter from healthcare providers.\n\n"
     "Guidelines:\n"
-    "- Ground responses in current evidence and research (NAMS guidelines, peer-reviewed studies, major medical organizations)\n"
+    "- Use ONLY the provided source documents to ground your responses — do not add external knowledge as citations\n"
     "- Address the specific dismissal directly and acknowledge the provider's perspective\n"
     "- Provide concrete language she can use in the appointment\n"
-    "- Reference specific research/statistics when relevant (e.g., 'Research shows...', 'The NAMS guidelines state...')\n"
-    "- Never diagnose or prescribe, but DO reference evidence-based information\n"
+    "- When sources are provided, reference them specifically (e.g., 'According to [source title]...')\n"
+    "- When no sources are provided, use evidence-based language without fabricating citations\n"
+    "- Never diagnose or prescribe\n"
     "- Empower her to advocate for herself\n"
     "- Acknowledge her experience and validate her concerns\n"
     "- Make responses conversational and natural (2-3 sentences max)\n"
     "- Return ONLY a valid JSON array with no markdown, no explanation\n"
-    '- Each object must have: {"scenario_title": string, "suggestion": string}'
+    '- Each object must have: {"scenario_title": string, "suggestion": string, "sources": [{"title": string, "excerpt": string}]}'
 )
 
 PROVIDER_SUMMARY_SYSTEM = (
@@ -138,8 +139,17 @@ def build_narrative_user_prompt(
     freq_text: str,
     coocc_text: str,
     med_section: str,
+    what_have_you_tried: str | None = None,
+    specific_ask: str | None = None,
 ) -> str:
     """Build user prompt for clinical narrative generation (Step 2)."""
+    qualitative_section = ""
+    if what_have_you_tried:
+        qualitative_section += f"\nWhat the patient has tried: {what_have_you_tried}"
+    if specific_ask:
+        qualitative_section += (
+            f"\nPatient's specific ask for this appointment: {specific_ask}"
+        )
     return (
         f"Write a 2–3 paragraph clinical summary for a healthcare appointment. "
         f"Patient context: {appt_type_str} appointment, goal is '{goal_str}', "
@@ -148,7 +158,8 @@ def build_narrative_user_prompt(
         f"({start_date.strftime('%B %d, %Y')} to {end_date.strftime('%B %d, %Y')}).\n\n"
         f"Most frequently logged symptoms:\n{freq_text}\n\n"
         f"Symptom patterns (co-occurrences):\n{coocc_text}"
-        f"{med_section}\n\n"
+        f"{med_section}"
+        f"{qualitative_section}\n\n"
         "Write a clear, objective summary using 'logs show' language throughout. "
         "No diagnoses. No treatment recommendations."
     )
@@ -204,10 +215,25 @@ def build_scenario_suggestions_user_prompt(
     goal: str,
     dismissed_before: str,
     age_str: str,
+    rag_chunks: list[dict] | None = None,
 ) -> str:
     """Build user prompt for scenario suggestion generation (Step 4)."""
     # Sanitize user-generated content to prevent prompt injection
     sanitized_concerns = sanitize_prompt_input(concerns_text)
+
+    sources_section = ""
+    if rag_chunks:
+        sources_lines = []
+        for chunk in rag_chunks:
+            title = chunk.get("title", "Source")
+            content = chunk.get("content", "")
+            sources_lines.append(f"[{title}]: {content}")
+        sources_section = (
+            f"\nSource documents to ground your responses:\n"
+            + "\n".join(sources_lines)
+            + "\n"
+        )
+
     return (
         f"A woman (age {age_str}) is preparing for a healthcare appointment. "
         f"She may encounter these dismissals specific to her situation:\n\n"
@@ -216,38 +242,67 @@ def build_scenario_suggestions_user_prompt(
         f"- Appointment type: {appointment_type.replace('_', ' ')}\n"
         f"- What she's here to discuss: {goal.replace('_', ' ')}\n"
         f"- Prior dismissal experience: {dismissed_before.replace('_', ' ')}\n"
-        f"- Her top concerns (in order):\n{sanitized_concerns}\n\n"
+        f"- Her top concerns (in order):\n{sanitized_concerns}"
+        f"{sources_section}\n\n"
         f"For EACH dismissal scenario above, generate a confident, evidence-based response "
         f"she can use IN THIS EXACT APPOINTMENT. Requirements:\n\n"
         f"1. Acknowledge the provider's concern (don't dismiss them)\n"
-        f"2. Provide evidence-based reasoning (don't make up sources)\n"
+        f"2. Provide evidence-based reasoning (only from the provided sources if available)\n"
         f"3. Redirect to actionable discussion\n"
         f"4. Keep to 2-3 sentences (realistic for appointment)\n"
         f"5. Use conversational 'I' language\n\n"
-        f"CRITICAL: Do NOT include URLs or citations. We don't have verified sources to cite yet.\n"
-        f"Focus on clear, confident, evidence-based language.\n\n"
         f"Return ONLY valid JSON with this exact structure, no markdown or explanation:\n"
         f'{{"scenarios": [{{"scenario_title": "...", "suggestion": "...", "sources": []}}]}}'
     )
 
 
 def build_provider_summary_user_prompt(
-    narrative: str,
     concerns_text: str,
     appointment_type: str,
     goal: str,
     age_str: str,
     urgent_symptom: str | None = None,
+    what_have_you_tried: str | None = None,
+    specific_ask: str | None = None,
+    history_clotting_risk: str | None = None,
+    history_breast_cancer: str | None = None,
 ) -> str:
     """Build user prompt for provider summary PDF generation (Step 5).
 
     Requests structured JSON output matching ProviderSummaryResponse.
     """
     # Sanitize user-generated content to prevent prompt injection
-    sanitized_narrative = sanitize_prompt_input(narrative)
     sanitized_concerns = sanitize_prompt_input(concerns_text)
     sanitized_urgent = sanitize_prompt_input(urgent_symptom)
-    urgent_concern = sanitized_urgent
+    sanitized_tried = sanitize_prompt_input(what_have_you_tried)
+    sanitized_ask = sanitize_prompt_input(specific_ask)
+
+    urgent_line = (
+        f"- Urgent Concern: {sanitized_urgent}\n"
+        if sanitized_urgent != "not provided"
+        else ""
+    )
+    tried_line = (
+        f"- What she has tried: {sanitized_tried}\n"
+        if sanitized_tried != "not provided"
+        else ""
+    )
+    ask_line = (
+        f"- Specific ask for this appointment: {sanitized_ask}\n"
+        if sanitized_ask != "not provided"
+        else ""
+    )
+    clotting_line = (
+        f"- History of clotting risk: {history_clotting_risk}\n"
+        if history_clotting_risk == "yes"
+        else ""
+    )
+    breast_cancer_line = (
+        f"- History of breast cancer risk: {history_breast_cancer}\n"
+        if history_breast_cancer == "yes"
+        else ""
+    )
+
     return (
         f"Write a clinical appointment summary for a healthcare provider.\n"
         f"The provider will read this in 2 minutes — be specific, scannable, useful.\n\n"
@@ -257,12 +312,14 @@ def build_provider_summary_user_prompt(
         f"- Age: {age_str}\n"
         f"- Appointment Type: {appointment_type.replace('_', ' ')}\n"
         f"- Goal: {goal.replace('_', ' ')}\n"
-        f"- Urgent Concern: {urgent_concern}\n"
-        f"- Narrative Summary: {sanitized_narrative}\n"
+        f"{urgent_line}"
+        f"{tried_line}"
+        f"{ask_line}"
+        f"{clotting_line}"
+        f"{breast_cancer_line}"
         f"- Concerns List: {sanitized_concerns}\n\n"
-        f"Return ONLY a valid JSON object with exactly these four fields:\n"
+        f"Return ONLY a valid JSON object with exactly these three fields:\n"
         f'{{"opening": "2-3 sentence intro: who, why here, urgent concern if any", '
-        f'"symptom_picture": "3-4 sentences describing what she experiences (from narrative only)", '
         f'"key_patterns": "2-3 sentences on co-occurring patterns if present, else empty string", '
         f'"closing": "1-2 sentences on what the patient is seeking from this appointment"}}\n\n'
         f"No markdown. No explanation. No extra fields. Valid JSON only."
@@ -277,6 +334,7 @@ def build_cheatsheet_user_prompt(
     age_str: str,
     urgent_symptom: str | None = None,
     scenarios: list[dict] | None = None,
+    specific_ask: str | None = None,
 ) -> str:
     """Build user prompt for personal cheatsheet PDF generation (Step 5).
 
@@ -288,7 +346,17 @@ def build_cheatsheet_user_prompt(
     sanitized_narrative = sanitize_prompt_input(narrative)
     sanitized_concerns = sanitize_prompt_input(concerns_text)
     sanitized_urgent = sanitize_prompt_input(urgent_symptom)
-    urgent_concern = sanitized_urgent
+    sanitized_ask = sanitize_prompt_input(specific_ask)
+
+    urgent_line = (
+        f"- Urgent Concern: {sanitized_urgent}\n"
+        if sanitized_urgent != "not provided"
+        else ""
+    )
+    ask_line = (
+        f"- Specific ask: {sanitized_ask}\n" if sanitized_ask != "not provided" else ""
+    )
+
     return (
         f"Write a personal appointment preparation document for a patient.\n"
         f"This is her working document — concise, actionable, no fluff.\n\n"
@@ -298,7 +366,8 @@ def build_cheatsheet_user_prompt(
         f"- Age: {age_str}\n"
         f"- Appointment Type: {appointment_type.replace('_', ' ')}\n"
         f"- Primary Goal: {goal.replace('_', ' ')}\n"
-        f"- Urgent Concern: {urgent_concern}\n"
+        f"{urgent_line}"
+        f"{ask_line}"
         f"- Prioritized Concerns: {sanitized_concerns}\n"
         f"- Narrative Summary: {sanitized_narrative}\n\n"
         f"Return ONLY a valid JSON object with exactly these fields:\n"
