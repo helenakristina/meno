@@ -10,6 +10,7 @@ from pydantic import ValidationError
 
 from app.models.appointment import (
     CheatsheetResponse,
+    Concern,
     ProviderSummaryResponse,
     QuestionGroup,
 )
@@ -21,18 +22,23 @@ class TestProviderSummaryResponse:
         # would crash before even trying to parse the LLM response
         data = {
             "opening": "Patient is 50, presenting with hot flashes.",
-            "symptom_picture": "Logs show 12 hot flash episodes.",
             "key_patterns": "Hot flashes co-occur with night sweats.",
             "closing": "Patient seeks discussion of options.",
         }
         m = ProviderSummaryResponse(**data)
         assert m.opening == data["opening"]
-        assert m.symptom_picture == data["symptom_picture"]
+        assert m.closing == data["closing"]
+
+    def test_no_symptom_picture_field(self):
+        # CATCHES: symptom_picture accidentally re-added — Phase 5 removes this field
+        # so the LLM no longer generates it; narrative is inserted verbatim by PDF builder
+        m = ProviderSummaryResponse(opening="O", closing="C")
+        assert not hasattr(m, "symptom_picture")
 
     def test_key_patterns_defaults_to_empty(self):
         # CATCHES: key_patterns required with no default — LLM sometimes omits
         # this section when no co-occurrence patterns exist, causing a crash
-        m = ProviderSummaryResponse(opening="O", symptom_picture="S", closing="C")
+        m = ProviderSummaryResponse(opening="O", closing="C")
         assert m.key_patterns == ""
 
     def test_ignores_extra_fields(self):
@@ -40,27 +46,50 @@ class TestProviderSummaryResponse:
         # would raise ValidationError instead of being silently dropped
         m = ProviderSummaryResponse(
             opening="O",
-            symptom_picture="S",
             closing="C",
             unexpected_llm_field="value",  # type: ignore
             another_extra="123",  # type: ignore
         )
         assert m.opening == "O"
 
-    def test_missing_required_field_raises_validation_error(self):
+    def test_missing_opening_raises_validation_error(self):
         # CATCHES: extra="ignore" also allowing missing required fields — a corrupt
         # LLM response with no "opening" would silently produce an empty PDF section
         with pytest.raises(ValidationError):
-            ProviderSummaryResponse(
-                symptom_picture="S",
-                closing="C",  # missing opening
-            )  # type: ignore
+            ProviderSummaryResponse(closing="C")  # type: ignore
 
     def test_missing_closing_raises_validation_error(self):
         # CATCHES: closing field optional by mistake — provider summary PDFs would
         # generate without the mandatory patient-is-seeking-discussion closing section
         with pytest.raises(ValidationError):
-            ProviderSummaryResponse(opening="O", symptom_picture="S")
+            ProviderSummaryResponse(opening="O")  # type: ignore
+
+
+class TestConcern:
+    def test_parses_text_only(self):
+        # CATCHES: Concern not importable or constructor broken — save_concerns
+        # would crash converting the incoming list before any DB write
+        c = Concern(text="Joint pain")
+        assert c.text == "Joint pain"
+        assert c.comment is None
+
+    def test_parses_with_comment(self):
+        # CATCHES: comment field missing — concern context provided by user
+        # would be silently dropped, defeating the purpose of Phase 5 Area 3
+        c = Concern(text="Joint pain", comment="Can't get through a workday without it")
+        assert c.comment == "Can't get through a workday without it"
+
+    def test_comment_defaults_to_none(self):
+        # CATCHES: comment required with no default — existing concerns from Step 3
+        # (which have no comment) would fail to parse, breaking the flow
+        c = Concern(text="Sleep issues")
+        assert c.comment is None
+
+    def test_missing_text_raises_validation_error(self):
+        # CATCHES: text optional — a concern with no text would produce a blank
+        # bullet point in PDFs and empty entries in the LLM prompt
+        with pytest.raises(ValidationError):
+            Concern()  # type: ignore
 
 
 class TestCheatsheetResponse:

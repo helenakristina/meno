@@ -27,7 +27,7 @@ from reportlab.platypus import (
     TableStyle,
 )
 
-from app.models.appointment import CheatsheetResponse, ProviderSummaryResponse
+from app.models.appointment import Concern, CheatsheetResponse, ProviderSummaryResponse
 from app.models.symptoms import SymptomFrequency, SymptomPair
 
 logger = logging.getLogger(__name__)
@@ -473,18 +473,19 @@ class PdfService:
     def build_provider_summary_pdf(
         self,
         content: ProviderSummaryResponse,
+        narrative: str,
         frequency_stats: list[SymptomFrequency],
         cooccurrence_stats: list[SymptomPair],
-        concerns: list[str],
+        concerns: list[Concern],
     ) -> bytes:
         """Build a clinical provider-facing appointment summary PDF.
 
         Args:
-            content: Structured LLM response with opening, symptom_picture,
-                     key_patterns, and closing prose sections.
+            content: Structured LLM response with opening, key_patterns, and closing.
+            narrative: User's narrative text, inserted verbatim as "Symptom Summary".
             frequency_stats: Symptom frequency data to render as a table.
             cooccurrence_stats: Co-occurring symptom pairs to render as a table.
-            concerns: Patient's prioritized concerns list.
+            concerns: Patient's prioritized concerns (with optional comments).
 
         Returns:
             PDF file content as bytes.
@@ -501,6 +502,14 @@ class PdfService:
             parent=body_style,
             leftIndent=14,
             spaceAfter=4,
+        )
+        concern_comment_style = ParagraphStyle(
+            "PSConcernComment",
+            parent=body_style,
+            leftIndent=28,
+            fontSize=8,
+            textColor=HexColor("#6b7280"),
+            spaceAfter=6,
         )
 
         story = []
@@ -520,9 +529,9 @@ class PdfService:
         story.append(Paragraph("Overview", heading_style))
         story.append(Paragraph(content.opening, body_style))
 
-        # --- Symptom Picture ---
-        story.append(Paragraph("Symptom Picture", heading_style))
-        story.append(Paragraph(content.symptom_picture, body_style))
+        # --- Symptom Summary (verbatim from user's narrative) ---
+        story.append(Paragraph("Symptom Summary", heading_style))
+        story.append(Paragraph(narrative, body_style))
 
         # --- Key Patterns (optional) ---
         if content.key_patterns:
@@ -563,7 +572,9 @@ class PdfService:
         if concerns:
             story.append(Paragraph("Patient's Prioritized Concerns", heading_style))
             for i, c in enumerate(concerns, 1):
-                story.append(Paragraph(f"{i}. {c}", concern_style))
+                story.append(Paragraph(f"{i}. {c.text}", concern_style))
+                if c.comment:
+                    story.append(Paragraph(c.comment, concern_comment_style))
 
         # --- Closing ---
         story.append(Paragraph("Next Steps", heading_style))
@@ -588,7 +599,7 @@ class PdfService:
     def build_cheatsheet_pdf(
         self,
         content: CheatsheetResponse,
-        concerns: list[str],
+        concerns: list[Concern],
         scenarios: list[dict],
         frequency_stats: list[SymptomFrequency],
     ) -> bytes:
@@ -597,7 +608,7 @@ class PdfService:
         Args:
             content: Structured LLM response with opening_statement and
                      question_groups (topic + questions per group).
-            concerns: Patient's prioritized concerns list.
+            concerns: Patient's prioritized concerns (with optional comments).
             scenarios: Scenario cards from Step 4 (each has 'title' and 'suggestion').
             frequency_stats: Symptom frequency data for the top symptoms section.
 
@@ -655,11 +666,22 @@ class PdfService:
                     Paragraph(f"{i}. {s.symptom_name} ({cat}) — {s.count}x", item_style)
                 )
 
+        cs_comment_style = ParagraphStyle(
+            "CSConcernComment",
+            parent=body_style,
+            leftIndent=28,
+            fontSize=8,
+            textColor=HexColor("#6b7280"),
+            spaceAfter=6,
+        )
+
         # --- Prioritized Concerns ---
         if concerns:
             story.append(Paragraph("What I Most Want to Address", heading_style))
             for i, c in enumerate(concerns, 1):
-                story.append(Paragraph(f"{i}. {c}", item_style))
+                story.append(Paragraph(f"{i}. {c.text}", item_style))
+                if c.comment:
+                    story.append(Paragraph(c.comment, cs_comment_style))
 
         # --- Questions by Topic Group ---
         if content.question_groups:

@@ -18,6 +18,7 @@ from app.models.appointment import (
     AppointmentPrepScenariosResponse,
     AppointmentType,
     CheatsheetResponse,
+    Concern,
     DismissalExperience,
     ProviderSummaryResponse,
     QuestionGroup,
@@ -51,10 +52,13 @@ def mock_appointment_repo(context):
         "sym-1": {"name": "Hot flashes", "category": "vasomotor"},
         "sym-2": {"name": "Night sweats", "category": "vasomotor"},
     }
-    mock.get_concerns.return_value = ["Discuss HRT options", "Ask about dosage"]
+    mock.get_concerns.return_value = [
+        Concern(text="Discuss HRT options"),
+        Concern(text="Ask about dosage"),
+    ]
     mock.get_appointment_data.return_value = {
         "narrative": "Logs show frequent hot flashes and night sweats.",
-        "concerns": ["Discuss HRT options"],
+        "concerns": [{"text": "Discuss HRT options", "comment": None}],
         "scenarios": [{"id": "scenario-1", "title": "HRT risk", "suggestion": "..."}],
         "frequency_stats": [],
         "cooccurrence_stats": [],
@@ -95,7 +99,6 @@ def mock_llm_service():
     svc.generate_provider_summary_content = AsyncMock(
         return_value=ProviderSummaryResponse(
             opening="Patient presents for discussion.",
-            symptom_picture="Logs show hot flashes.",
             key_patterns="Hot flashes co-occur with night sweats.",
             closing="Patient seeks treatment options.",
         )

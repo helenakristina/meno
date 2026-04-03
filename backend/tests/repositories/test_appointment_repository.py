@@ -8,6 +8,7 @@ from app.repositories.appointment_repository import AppointmentRepository
 from app.models.appointment import (
     AppointmentType,
     AppointmentGoal,
+    Concern,
     DismissalExperience,
     AppointmentContext,
     ProviderSummary,
@@ -444,7 +445,10 @@ async def test_save_concerns_success():
     """Test saving prioritized concerns successfully."""
     appointment_id = "appt-123"
     user_id = "user-456"
-    concerns = ["Hot flashes affecting work", "Sleep disruption"]
+    concerns = [
+        Concern(text="Hot flashes affecting work", comment="Happens 3x daily"),
+        Concern(text="Sleep disruption"),
+    ]
 
     update_response = MagicMock(data=[{"id": appointment_id}])
     mock_client = make_sequential_client(update_response)

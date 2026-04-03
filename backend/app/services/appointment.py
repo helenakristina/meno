@@ -21,6 +21,7 @@ from app.models.appointment import (
     AppointmentPrepGenerateResponse,
     AppointmentPrepNarrativeResponse,
     AppointmentPrepScenariosResponse,
+    Concern,
     ScenarioCard,
 )
 from app.models.symptoms import SymptomFrequency, SymptomPair
@@ -337,11 +338,17 @@ class AppointmentService:
             logger.warning("Failed to fetch concerns, using empty list: %s", exc)
             concerns = []
 
+        # Format concerns as strings for LLM prompt (comment appended when present)
+        concerns_for_llm = [
+            f"{c.text}; {c.comment}" if c.comment else c.text
+            for c in concerns
+        ]
+
         # Call LLM
         try:
             raw_suggestions = await self.llm_service.generate_scenario_suggestions(
                 scenarios_to_generate=scenarios_to_generate,
-                concerns=concerns,
+                concerns=concerns_for_llm,
                 appointment_type=context.appointment_type.value,
                 goal=context.goal.value,
                 dismissed_before=context.dismissed_before.value,
@@ -473,8 +480,12 @@ class AppointmentService:
             logger.error("Failed to fetch appointment data: %s", exc, exc_info=True)
             raise DatabaseError(f"Failed to generate PDF: {exc}") from exc
 
-        narrative = appointment_data.get("narrative", "No narrative available.")
-        concerns = appointment_data.get("concerns", [])
+        narrative = appointment_data.get("narrative")
+        if not narrative:
+            raise DatabaseError(
+                "Narrative not found — Step 2 must be completed before generating PDFs"
+            )
+        concerns_raw = appointment_data.get("concerns") or []
         scenarios_data = appointment_data.get("scenarios", [])
         frequency_stats_data = appointment_data.get("frequency_stats") or []
         cooccurrence_stats_data = appointment_data.get("cooccurrence_stats") or []
@@ -491,10 +502,21 @@ class AppointmentService:
             )
             raise DatabaseError(f"Failed to generate PDF: {exc}") from exc
 
-        narrative_text: str = (
-            narrative if isinstance(narrative, str) else str(narrative)
-        )
-        concerns_list: list = concerns if isinstance(concerns, list) else []
+        narrative_text: str = narrative if isinstance(narrative, str) else str(narrative)
+
+        # Deserialize concerns — DB may store old string[] or new Concern[] format
+        concerns_list: list[Concern] = []
+        for item in (concerns_raw if isinstance(concerns_raw, list) else []):
+            if isinstance(item, str):
+                concerns_list.append(Concern(text=item))
+            elif isinstance(item, dict):
+                concerns_list.append(Concern(**item))
+
+        # Format concerns as strings for LLM prompts (comment appended when present)
+        concerns_for_llm: list[str] = [
+            f"{c.text}; {c.comment}" if c.comment else c.text
+            for c in concerns_list
+        ]
 
         scenarios_for_pdf: list[dict] = []
         if scenarios_data and isinstance(scenarios_data, list):
@@ -517,7 +539,7 @@ class AppointmentService:
         # Generate provider summary and cheat sheet in parallel via LLM
         provider_task = self.llm_service.generate_provider_summary_content(
             narrative=narrative_text,
-            concerns=concerns_list,
+            concerns=concerns_for_llm,
             appointment_type=context.appointment_type.value,
             goal=context.goal.value,
             user_age=age,
@@ -526,7 +548,7 @@ class AppointmentService:
 
         cheatsheet_task = self.llm_service.generate_cheatsheet_content(
             narrative=narrative_text,
-            concerns=concerns_list,
+            concerns=concerns_for_llm,
             appointment_type=context.appointment_type.value,
             goal=context.goal.value,
             user_age=age,
@@ -557,6 +579,7 @@ class AppointmentService:
         try:
             provider_summary_pdf = self.pdf_service.build_provider_summary_pdf(
                 content=provider_summary_content,
+                narrative=narrative_text,
                 frequency_stats=frequency_stats,
                 cooccurrence_stats=cooccurrence_stats,
                 concerns=concerns_list,

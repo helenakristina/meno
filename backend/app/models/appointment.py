@@ -9,6 +9,7 @@ This includes models for:
 
 from datetime import datetime
 from enum import Enum
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -37,6 +38,20 @@ class DismissalExperience(str, Enum):
     multiple_times = "multiple_times"
 
 
+class Concern(BaseModel):
+    """A single prioritized concern with optional contextual comment.
+
+    The comment lets users add detail that shapes how the concern is
+    represented in provider-facing and patient-facing documents.
+    """
+
+    text: str = Field(description="The concern text")
+    comment: str | None = Field(
+        default=None,
+        description="Optional context the user wants their provider to know about this concern",
+    )
+
+
 class AppointmentContext(BaseModel):
     """
     User's selections from Step 1 of Appointment Prep flow.
@@ -54,6 +69,22 @@ class AppointmentContext(BaseModel):
     urgent_symptom: str | None = Field(
         default=None,
         description="Which symptom is urgent (only set when goal is 'urgent_symptom')",
+    )
+    what_have_you_tried: str | None = Field(
+        default=None,
+        description="What treatments or approaches the user has already tried (Step 3.5)",
+    )
+    specific_ask: str | None = Field(
+        default=None,
+        description="What the user specifically wants from this appointment (Step 3.5)",
+    )
+    history_clotting_risk: Literal["yes", "no", "not_sure"] | None = Field(
+        default=None,
+        description="Personal or family history of blood clots or clotting disorders (Step 3.5)",
+    )
+    history_breast_cancer: Literal["yes", "no", "not_sure"] | None = Field(
+        default=None,
+        description="Personal or family history of breast cancer (Step 3.5)",
     )
 
 
@@ -116,7 +147,7 @@ class AppointmentPrep(BaseModel):
         default=None,
         description="LLM-generated narrative summary of symptoms (Step 2), editable by user",
     )
-    concerns: list[str] = Field(
+    concerns: list[Concern] = Field(
         default_factory=list,
         description="Prioritized list of concerns from Step 3",
     )
@@ -162,7 +193,7 @@ class AppointmentPrepOutputResponse(BaseModel):
     user_id: str = Field(description="User ID")
     context: AppointmentContextResponse
     narrative: str | None
-    concerns: list[str]
+    concerns: list[Concern]
     outputs: AppointmentPrepOutput | None
     created_at: datetime
     updated_at: datetime
@@ -252,9 +283,10 @@ class PrioritizeConcernsRequest(BaseModel):
     Request model for PUT /api/appointment-prep/{id}/prioritize (Step 3).
 
     User submits their prioritized concerns in ranked order.
+    Each concern has a required text and optional comment for context.
     """
 
-    concerns: list[str] = Field(
+    concerns: list[Concern] = Field(
         min_length=1,
         description="Ordered list of prioritized concerns (non-empty)",
     )
@@ -268,10 +300,50 @@ class AppointmentPrepPrioritizeResponse(BaseModel):
     """
 
     appointment_id: str = Field(description="UUID of the appointment context")
-    concerns: list[str] = Field(description="Saved prioritized concerns")
+    concerns: list[Concern] = Field(description="Saved prioritized concerns")
     next_step: str = Field(
         default="scenarios",
         description="Next step in the flow (always 'scenarios' after Step 3)",
+    )
+
+
+class SaveQualitativeContextRequest(BaseModel):
+    """
+    Request model for PUT /api/appointment-prep/{id}/qualitative-context (Step 3.5).
+
+    User submits additional qualitative context that shapes the tone and content
+    of generated documents. All fields are optional — partial saves are valid.
+    """
+
+    what_have_you_tried: str | None = Field(
+        default=None,
+        max_length=500,
+        description="Treatments or approaches already tried (max 500 chars)",
+    )
+    specific_ask: str | None = Field(
+        default=None,
+        max_length=300,
+        description="What the user specifically wants from this appointment (max 300 chars)",
+    )
+    history_clotting_risk: Literal["yes", "no", "not_sure"] | None = Field(
+        default=None,
+        description="Personal or family history of blood clots or clotting disorders",
+    )
+    history_breast_cancer: Literal["yes", "no", "not_sure"] | None = Field(
+        default=None,
+        description="Personal or family history of breast cancer",
+    )
+
+
+class SaveQualitativeContextResponse(BaseModel):
+    """
+    Response model for PUT /api/appointment-prep/{id}/qualitative-context (Step 3.5).
+    """
+
+    appointment_id: str = Field(description="UUID of the appointment context")
+    next_step: str = Field(
+        default="scenarios",
+        description="Next step in the flow (always 'scenarios' after Step 3.5)",
     )
 
 
@@ -378,12 +450,14 @@ class ProviderSummaryResponse(BaseModel):
     extra="ignore" lets unexpected LLM fields pass silently.
     Missing required fields raise ValidationError — the caller converts this
     to DatabaseError so the user can retry (hard-fail, no degraded PDF).
+
+    Note: symptom_picture removed in Phase 5 — the user's narrative is inserted
+    verbatim by the PDF builder instead of being rewritten by the LLM.
     """
 
     model_config = ConfigDict(extra="ignore")
 
     opening: str
-    symptom_picture: str
     key_patterns: str = ""
     closing: str
 
