@@ -132,6 +132,12 @@ def mock_pdf_service():
 
 
 @pytest.fixture
+def mock_rag_retriever():
+    retriever = AsyncMock(return_value=[])
+    return retriever
+
+
+@pytest.fixture
 def service(
     mock_appointment_repo,
     mock_symptoms_repo,
@@ -139,6 +145,7 @@ def service(
     mock_llm_service,
     mock_storage_service,
     mock_pdf_service,
+    mock_rag_retriever,
 ):
     return AppointmentService(
         appointment_repo=mock_appointment_repo,
@@ -147,6 +154,7 @@ def service(
         llm_service=mock_llm_service,
         storage_service=mock_storage_service,
         pdf_service=mock_pdf_service,
+        rag_retriever=mock_rag_retriever,
     )
 
 
@@ -322,6 +330,48 @@ class TestGenerateScenarios:
 
         with pytest.raises(DatabaseError, match="Failed to parse"):
             await service.generate_scenarios("appt-123", "user-456")
+
+    @pytest.mark.asyncio
+    async def test_rag_retriever_called_for_each_scenario(
+        self, service, mock_rag_retriever
+    ):
+        # CATCHES: rag_retriever not wired into generate_scenarios — scenario
+        # suggestions would be generated without any RAG grounding, sources empty
+        await service.generate_scenarios("appt-123", "user-456")
+
+        # rag_retriever should be called at least once (once per selected scenario)
+        assert mock_rag_retriever.call_count >= 1
+
+    @pytest.mark.asyncio
+    async def test_rag_chunks_passed_to_llm_service(
+        self, service, mock_rag_retriever, mock_llm_service
+    ):
+        # CATCHES: rag_chunks collected but not forwarded to LLM — prompt builder
+        # never sees the source documents and scenario suggestions remain ungrounded
+        mock_rag_retriever.return_value = [
+            {"title": "NAMS 2022", "content": "MHT is effective for vasomotor symptoms."}
+        ]
+
+        await service.generate_scenarios("appt-123", "user-456")
+
+        call_kwargs = mock_llm_service.generate_scenario_suggestions.call_args[1]
+        assert "rag_chunks" in call_kwargs
+        assert call_kwargs["rag_chunks"] is not None and len(call_kwargs["rag_chunks"]) > 0
+
+    @pytest.mark.asyncio
+    async def test_scenarios_generated_without_rag_when_retriever_returns_empty(
+        self, service, mock_rag_retriever, mock_llm_service
+    ):
+        # CATCHES: empty RAG result causes crash — fallback must work cleanly
+        # when no relevant chunks are found (no-source generation is valid)
+        mock_rag_retriever.return_value = []
+
+        result = await service.generate_scenarios("appt-123", "user-456")
+
+        assert isinstance(result, AppointmentPrepScenariosResponse)
+        call_kwargs = mock_llm_service.generate_scenario_suggestions.call_args[1]
+        # Empty chunks still passed (not None) — prompt builder handles it
+        assert "rag_chunks" in call_kwargs
 
 
 # ---------------------------------------------------------------------------

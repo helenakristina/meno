@@ -13,7 +13,7 @@ import json
 import logging
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Optional
+from typing import Callable, Optional
 
 from app.exceptions import DatabaseError, EntityNotFoundError
 from app.models.appointment import (
@@ -62,6 +62,7 @@ class AppointmentService:
         storage_service: StorageService,
         pdf_service: PdfService,
         medication_service: Optional[MedicationServiceBase] = None,
+        rag_retriever: Optional[Callable] = None,
     ):
         self.appointment_repo = appointment_repo
         self.symptoms_repo = symptoms_repo
@@ -70,6 +71,7 @@ class AppointmentService:
         self.storage_service = storage_service
         self.pdf_service = pdf_service
         self.medication_service = medication_service
+        self.rag_retriever = rag_retriever
         self._scenario_config = self._load_scenario_config()
 
     # -------------------------------------------------------------------------
@@ -224,6 +226,8 @@ class AppointmentService:
             freq_text=freq_text,
             coocc_text=coocc_text,
             med_section=med_section,
+            what_have_you_tried=context.what_have_you_tried,
+            specific_ask=context.specific_ask,
         )
 
         # Call LLM
@@ -344,6 +348,27 @@ class AppointmentService:
             for c in concerns
         ]
 
+        # Retrieve RAG chunks for each scenario to ground suggestions in real sources
+        all_rag_chunks: list[dict] = []
+        if self.rag_retriever is not None:
+            try:
+                chunk_results = await asyncio.gather(
+                    *[
+                        self.rag_retriever(s["title"], top_k=5, min_similarity=0.25)
+                        for s in scenarios_to_generate
+                    ]
+                )
+                for chunks in chunk_results:
+                    all_rag_chunks.extend(chunks)
+                logger.info(
+                    "RAG retrieval for scenarios: retrieved %d chunks across %d scenarios",
+                    len(all_rag_chunks),
+                    len(scenarios_to_generate),
+                )
+            except Exception as exc:
+                logger.warning("RAG retrieval failed for scenarios, continuing without chunks: %s", exc)
+                all_rag_chunks = []
+
         # Call LLM
         try:
             raw_suggestions = await self.llm_service.generate_scenario_suggestions(
@@ -353,6 +378,7 @@ class AppointmentService:
                 goal=context.goal.value,
                 dismissed_before=context.dismissed_before.value,
                 user_age=age,
+                rag_chunks=all_rag_chunks,
             )
         except TimeoutError:
             logger.error(
@@ -544,6 +570,10 @@ class AppointmentService:
             goal=context.goal.value,
             user_age=age,
             urgent_symptom=context.urgent_symptom,
+            what_have_you_tried=context.what_have_you_tried,
+            specific_ask=context.specific_ask,
+            history_clotting_risk=context.history_clotting_risk,
+            history_breast_cancer=context.history_breast_cancer,
         )
 
         cheatsheet_task = self.llm_service.generate_cheatsheet_content(
@@ -554,6 +584,7 @@ class AppointmentService:
             user_age=age,
             urgent_symptom=context.urgent_symptom,
             scenarios=scenarios_for_pdf,
+            specific_ask=context.specific_ask,
         )
 
         try:

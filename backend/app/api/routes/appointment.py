@@ -27,12 +27,15 @@ from app.models.appointment import (
     CreateAppointmentContextResponse,
     GenerateNarrativeRequest,
     AppointmentPrepNarrativeResponse,
+    SaveNarrativeRequest,
     PrioritizeConcernsRequest,
     AppointmentPrepPrioritizeResponse,
     AppointmentPrepScenariosResponse,
     AppointmentPrepGenerateResponse,
     AppointmentPrepHistoryListResponse,
     AppointmentPrepHistoryResponse,
+    SaveQualitativeContextRequest,
+    SaveQualitativeContextResponse,
 )
 from app.utils.logging import hash_user_id
 
@@ -150,6 +153,127 @@ async def generate_appointment_narrative(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to generate narrative. Please try again.",
         )
+
+
+@router.put(
+    "/{appointment_id}/narrative",
+    response_model=AppointmentPrepNarrativeResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Save user-edited narrative",
+    description=(
+        "Step 2b of Appointment Prep Flow. User edits the LLM-generated narrative and saves it. "
+        "The saved narrative goes verbatim into the Provider Summary PDF."
+    ),
+)
+async def save_narrative(
+    appointment_id: str,
+    payload: SaveNarrativeRequest,
+    user_id: CurrentUser,
+    appointment_repo: AppointmentRepository = Depends(get_appointment_repo),
+) -> AppointmentPrepNarrativeResponse:
+    """Save the user-edited narrative from Step 2.
+
+    The narrative is stored verbatim and used directly in the Provider Summary PDF.
+
+    Raises:
+        HTTPException: 401 if not authenticated.
+        HTTPException: 404 if appointment context doesn't exist or doesn't belong to user.
+        HTTPException: 500 if database operation fails.
+    """
+    try:
+        await appointment_repo.get_context(appointment_id, user_id)
+    except EntityNotFoundError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc))
+
+    try:
+        await appointment_repo.save_narrative(appointment_id, user_id, payload.narrative)
+    except (EntityNotFoundError, DatabaseError) as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND if isinstance(exc, EntityNotFoundError) else status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=str(exc),
+        )
+    except Exception as exc:
+        logger.error(
+            "Failed to save narrative: appointment_id=%s error=%s",
+            appointment_id,
+            exc,
+            exc_info=True,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to save narrative. Please try again.",
+        )
+
+    logger.info("Narrative saved by user: appointment_id=%s", appointment_id)
+
+    return AppointmentPrepNarrativeResponse(
+        appointment_id=appointment_id,
+        narrative=payload.narrative,
+        next_step="prioritize",
+    )
+
+
+@router.put(
+    "/{appointment_id}/qualitative-context",
+    response_model=SaveQualitativeContextResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Save qualitative context for Step 3.5",
+    description=(
+        "Step 3.5 of Appointment Prep Flow. User provides additional qualitative context "
+        "about what they have tried and what they specifically want from this appointment. "
+        "All fields are optional — partial saves are valid."
+    ),
+)
+async def save_qualitative_context(
+    appointment_id: str,
+    payload: SaveQualitativeContextRequest,
+    user_id: CurrentUser,
+    appointment_repo: AppointmentRepository = Depends(get_appointment_repo),
+) -> SaveQualitativeContextResponse:
+    """Save qualitative context from Step 3.5.
+
+    Raises:
+        HTTPException: 401 if not authenticated.
+        HTTPException: 404 if appointment doesn't exist or doesn't belong to user.
+        HTTPException: 500 if database operation fails.
+    """
+    try:
+        await appointment_repo.get_context(appointment_id, user_id)
+    except EntityNotFoundError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc))
+
+    try:
+        await appointment_repo.save_qualitative_context(
+            appointment_id=appointment_id,
+            user_id=user_id,
+            what_have_you_tried=payload.what_have_you_tried,
+            specific_ask=payload.specific_ask,
+            history_clotting_risk=payload.history_clotting_risk,
+            history_breast_cancer=payload.history_breast_cancer,
+        )
+    except (EntityNotFoundError, DatabaseError) as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND if isinstance(exc, EntityNotFoundError) else status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=str(exc),
+        )
+    except Exception as exc:
+        logger.error(
+            "Failed to save qualitative context: appointment_id=%s error=%s",
+            appointment_id,
+            exc,
+            exc_info=True,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to save qualitative context. Please try again.",
+        )
+
+    logger.info("Qualitative context saved: appointment_id=%s", appointment_id)
+
+    return SaveQualitativeContextResponse(
+        appointment_id=appointment_id,
+        next_step="scenarios",
+    )
 
 
 @router.put(

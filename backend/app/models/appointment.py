@@ -273,6 +273,19 @@ class AppointmentPrepNarrativeResponse(BaseModel):
     )
 
 
+class SaveNarrativeRequest(BaseModel):
+    """Request model for PUT /api/appointment-prep/{id}/narrative.
+
+    Allows the user to save their edited narrative from Step 2.
+    """
+
+    narrative: str = Field(
+        description="User-edited narrative text (markdown)",
+        min_length=1,
+        max_length=10000,
+    )
+
+
 # ============================================================================
 # Step 3: Prioritize Concerns
 # ============================================================================

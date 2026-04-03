@@ -265,24 +265,27 @@ class LLMService:
 
     async def generate_scenario_suggestions(
         self,
-        scenarios_to_generate: list[str],
+        scenarios_to_generate: list,
         concerns: list[str],
         appointment_type: str,
         goal: str,
         dismissed_before: str,
         user_age: int | None,
+        rag_chunks: list[dict] | None = None,
     ) -> str:
         """Generate LLM suggestions for dismissal scenario responses.
 
         Returns JSON-formatted scenario suggestions matching the provided scenario titles.
 
         Args:
-            scenarios_to_generate: List of scenario titles (e.g., ["Provider dismisses concerns"]).
+            scenarios_to_generate: List of scenario dicts ({"title": str, "category": str})
+                or strings (legacy).
             concerns: User's prioritized concerns from Step 3.
             appointment_type: Type of appointment (new_provider or established_relationship).
             goal: Appointment goal (assess_status, explore_hrt, etc.).
             dismissed_before: Prior dismissal experience (no, once_or_twice, multiple_times).
             user_age: User's age in years (optional).
+            rag_chunks: RAG source documents to ground suggestions (optional).
 
         Returns:
             JSON string with scenario suggestions (parsed by caller).
@@ -291,7 +294,11 @@ class LLMService:
             TimeoutError: If the LLM API times out.
             RuntimeError: If the LLM API returns an error or empty response.
         """
-        scenarios_text = "\n".join([f"- {s}" for s in scenarios_to_generate])
+        # Extract title from dict or use string directly (backward compat)
+        scenario_titles = [
+            s["title"] if isinstance(s, dict) else s for s in scenarios_to_generate
+        ]
+        scenarios_text = "\n".join([f"- {t}" for t in scenario_titles])
         concerns_text = "\n".join([f"- {c}" for c in concerns])
         age_str = str(user_age) if user_age else "not specified"
 
@@ -303,6 +310,7 @@ class LLMService:
             goal=goal,
             dismissed_before=dismissed_before,
             age_str=age_str,
+            rag_chunks=rag_chunks or None,
         )
 
         logger.info(
@@ -372,6 +380,10 @@ class LLMService:
         goal: str,
         user_age: int | None,
         urgent_symptom: str | None = None,
+        what_have_you_tried: str | None = None,
+        specific_ask: str | None = None,
+        history_clotting_risk: str | None = None,
+        history_breast_cancer: str | None = None,
     ) -> ProviderSummaryResponse:
         """Generate structured content for the provider-facing appointment summary PDF.
 
@@ -403,6 +415,10 @@ class LLMService:
             goal=goal,
             age_str=age_str,
             urgent_symptom=urgent_symptom,
+            what_have_you_tried=what_have_you_tried,
+            specific_ask=specific_ask,
+            history_clotting_risk=history_clotting_risk,
+            history_breast_cancer=history_breast_cancer,
         )
 
         logger.info(
@@ -430,6 +446,7 @@ class LLMService:
         user_age: int | None,
         urgent_symptom: str | None = None,
         scenarios: list[dict] | None = None,
+        specific_ask: str | None = None,
     ) -> CheatsheetResponse:
         """Generate structured content for the patient-facing cheatsheet PDF.
 
@@ -464,6 +481,7 @@ class LLMService:
             age_str=age_str,
             urgent_symptom=urgent_symptom,
             scenarios=scenarios,
+            specific_ask=specific_ask,
         )
 
         logger.info(
