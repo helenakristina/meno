@@ -383,9 +383,9 @@ class ScenarioCard(BaseModel):
         description="LLM-generated response suggestion with evidence-based language and source links"
     )
     category: str = Field(description="Scenario category based on dismissal type")
-    sources: list[str] = Field(
+    sources: list[dict] = Field(
         default_factory=list,
-        description="URLs referenced in the suggestion (e.g., NAMS links)",
+        description="RAG source documents used to ground this scenario (each has 'title' and 'excerpt')",
     )
 
 
