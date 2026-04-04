@@ -169,7 +169,7 @@ async def save_narrative(
     appointment_id: str,
     payload: SaveNarrativeRequest,
     user_id: CurrentUser,
-    appointment_repo: AppointmentRepository = Depends(get_appointment_repo),
+    appointment_service: AppointmentService = Depends(get_appointment_service),
 ) -> AppointmentPrepNarrativeResponse:
     """Save the user-edited narrative from Step 2.
 
@@ -181,19 +181,14 @@ async def save_narrative(
         HTTPException: 500 if database operation fails.
     """
     try:
-        await appointment_repo.get_context(appointment_id, user_id)
-    except EntityNotFoundError as exc:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc))
-
-    try:
-        await appointment_repo.save_narrative(
+        await appointment_service.save_narrative(
             appointment_id, user_id, payload.narrative
         )
-    except (EntityNotFoundError, DatabaseError) as exc:
+    except EntityNotFoundError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc))
+    except DatabaseError as exc:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND
-            if isinstance(exc, EntityNotFoundError)
-            else status.HTTP_500_INTERNAL_SERVER_ERROR,
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=str(exc),
         )
     except Exception as exc:
@@ -232,7 +227,7 @@ async def save_qualitative_context(
     appointment_id: str,
     payload: SaveQualitativeContextRequest,
     user_id: CurrentUser,
-    appointment_repo: AppointmentRepository = Depends(get_appointment_repo),
+    appointment_service: AppointmentService = Depends(get_appointment_service),
 ) -> SaveQualitativeContextResponse:
     """Save qualitative context from Step 3.5.
 
@@ -242,24 +237,14 @@ async def save_qualitative_context(
         HTTPException: 500 if database operation fails.
     """
     try:
-        await appointment_repo.get_context(appointment_id, user_id)
+        await appointment_service.save_qualitative_context(
+            appointment_id, user_id, payload
+        )
     except EntityNotFoundError as exc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc))
-
-    try:
-        await appointment_repo.save_qualitative_context(
-            appointment_id=appointment_id,
-            user_id=user_id,
-            what_have_you_tried=payload.what_have_you_tried,
-            specific_ask=payload.specific_ask,
-            history_clotting_risk=payload.history_clotting_risk,
-            history_breast_cancer=payload.history_breast_cancer,
-        )
-    except (EntityNotFoundError, DatabaseError) as exc:
+    except DatabaseError as exc:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND
-            if isinstance(exc, EntityNotFoundError)
-            else status.HTTP_500_INTERNAL_SERVER_ERROR,
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=str(exc),
         )
     except Exception as exc:
@@ -321,8 +306,13 @@ async def prioritize_concerns(
     # Verify appointment ownership
     try:
         await appointment_repo.get_context(appointment_id, user_id)
-    except (EntityNotFoundError, DatabaseError):
-        raise
+    except (EntityNotFoundError, DatabaseError) as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND
+            if isinstance(exc, EntityNotFoundError)
+            else status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=str(exc),
+        )
 
     logger.info(
         "Prioritize concerns started: appointment_id=%s concerns_count=%d",
@@ -333,8 +323,13 @@ async def prioritize_concerns(
     # Save concerns
     try:
         await appointment_repo.save_concerns(appointment_id, user_id, payload.concerns)
-    except (EntityNotFoundError, DatabaseError):
-        raise
+    except (EntityNotFoundError, DatabaseError) as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND
+            if isinstance(exc, EntityNotFoundError)
+            else status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=str(exc),
+        )
     except Exception as exc:
         logger.error(
             "Failed to save concerns: appointment_id=%s error=%s",

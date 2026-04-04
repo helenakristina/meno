@@ -21,8 +21,9 @@ from app.models.appointment import (
     AppointmentPrepGenerateResponse,
     AppointmentPrepNarrativeResponse,
     AppointmentPrepScenariosResponse,
-    Concern,
+    SaveQualitativeContextRequest,
     ScenarioCard,
+    ScenarioSource,
 )
 from app.models.symptoms import SymptomFrequency, SymptomPair
 from app.repositories.appointment_repository import AppointmentRepository
@@ -285,6 +286,61 @@ class AppointmentService:
         )
 
     # -------------------------------------------------------------------------
+    # Step 2b / 3.5: Save user-edited narrative and qualitative context
+    # -------------------------------------------------------------------------
+
+    async def save_narrative(
+        self,
+        appointment_id: str,
+        user_id: str,
+        narrative: str,
+    ) -> None:
+        """Save user-edited narrative to the appointment context.
+
+        Verifies ownership via get_context before saving.
+
+        Args:
+            appointment_id: UUID of the appointment context.
+            user_id: Authenticated user ID.
+            narrative: The user-edited narrative text to save.
+
+        Raises:
+            EntityNotFoundError: Appointment not found or doesn't belong to user.
+            DatabaseError: Database operation failed.
+        """
+        await self.appointment_repo.get_context(appointment_id, user_id)
+        await self.appointment_repo.save_narrative(appointment_id, user_id, narrative)
+
+    async def save_qualitative_context(
+        self,
+        appointment_id: str,
+        user_id: str,
+        ctx: SaveQualitativeContextRequest,
+    ) -> None:
+        """Save qualitative context fields to the appointment context.
+
+        Verifies ownership via get_context before saving.
+
+        Args:
+            appointment_id: UUID of the appointment context.
+            user_id: Authenticated user ID.
+            ctx: SaveQualitativeContextRequest with optional qualitative fields.
+
+        Raises:
+            EntityNotFoundError: Appointment not found or doesn't belong to user.
+            DatabaseError: Database operation failed.
+        """
+        await self.appointment_repo.get_context(appointment_id, user_id)
+        await self.appointment_repo.save_qualitative_context(
+            appointment_id,
+            user_id,
+            ctx.what_have_you_tried,
+            ctx.specific_ask,
+            ctx.history_clotting_risk,
+            ctx.history_breast_cancer,
+        )
+
+    # -------------------------------------------------------------------------
     # Step 4: Generate scenarios
     # -------------------------------------------------------------------------
 
@@ -359,6 +415,18 @@ class AppointmentService:
                 )
                 for chunks in chunk_results:
                     all_rag_chunks.extend(chunks)
+
+                # Deduplicate by chunk id and cap at 12 to stay within token budget
+                seen_ids: set[str] = set()
+                deduped: list[dict] = []
+                for chunk in all_rag_chunks:
+                    chunk_id = chunk.get("id")
+                    if chunk_id not in seen_ids:
+                        deduped.append(chunk)
+                        if chunk_id is not None:
+                            seen_ids.add(chunk_id)
+                all_rag_chunks = deduped[:12]
+
                 logger.info(
                     "RAG retrieval for scenarios: retrieved %d chunks across %d scenarios",
                     len(all_rag_chunks),
@@ -425,11 +493,16 @@ class AppointmentService:
                 if isinstance(suggestion_data, dict)
                 else str(suggestion_data)
             )
-            sources = (
+            raw_sources = (
                 suggestion_data.get("sources", [])
                 if isinstance(suggestion_data, dict)
                 else []
             )
+            sources = [
+                ScenarioSource(**s) if isinstance(s, dict) else s
+                for s in raw_sources
+                if isinstance(s, (dict, ScenarioSource))
+            ]
             scenario_cards.append(
                 ScenarioCard(
                     id=f"scenario-{idx + 1}",
@@ -513,7 +586,6 @@ class AppointmentService:
             raise DatabaseError(
                 "Narrative not found — Step 2 must be completed before generating PDFs"
             )
-        concerns_raw = appointment_data.get("concerns") or []
         scenarios_data = appointment_data.get("scenarios", [])
         frequency_stats_data = appointment_data.get("frequency_stats") or []
         cooccurrence_stats_data = appointment_data.get("cooccurrence_stats") or []
@@ -534,13 +606,15 @@ class AppointmentService:
             narrative if isinstance(narrative, str) else str(narrative)
         )
 
-        # Deserialize concerns — DB may store old string[] or new Concern[] format
-        concerns_list: list[Concern] = []
-        for item in concerns_raw if isinstance(concerns_raw, list) else []:
-            if isinstance(item, str):
-                concerns_list.append(Concern(text=item))
-            elif isinstance(item, dict):
-                concerns_list.append(Concern(**item))
+        # Fetch concerns via repository (handles deserialization of both legacy string[]
+        # and current Concern[] formats stored in DB)
+        try:
+            concerns_list = await self.appointment_repo.get_concerns(
+                appointment_id, user_id
+            )
+        except Exception as exc:
+            logger.warning("Failed to fetch concerns, using empty list: %s", exc)
+            concerns_list = []
 
         # Format concerns as strings for LLM prompts (comment appended when present)
         concerns_for_llm: list[str] = [
@@ -567,7 +641,6 @@ class AppointmentService:
 
         # Generate provider summary and cheat sheet in parallel via LLM
         provider_task = self.llm_service.generate_provider_summary_content(
-            narrative=narrative_text,
             concerns=concerns_for_llm,
             appointment_type=context.appointment_type.value,
             goal=context.goal.value,
@@ -740,4 +813,4 @@ class AppointmentService:
             len(unique),
             bool(urgent_symptom),
         )
-        return unique
+        return unique[:7]

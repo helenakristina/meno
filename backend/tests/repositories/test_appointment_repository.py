@@ -388,6 +388,40 @@ async def test_get_latest_db_error():
         await repo.get_latest("user-123")
 
 
+@pytest.mark.asyncio
+async def test_get_latest_includes_qualitative_context_columns():
+    """Test that get_latest selects the 4 qualitative context columns."""
+    selected_columns: list[str] = []
+
+    mock_client = MagicMock()
+
+    def capture_select(columns):
+        selected_columns.append(columns)
+        chain = MagicMock()
+        chain.eq.return_value = chain
+        chain.order.return_value = chain
+        chain.limit.return_value = chain
+        chain.execute = AsyncMock(return_value=MagicMock(data=[]))
+        return chain
+
+    mock_client.table.return_value.select.side_effect = capture_select
+
+    repo = AppointmentRepository(client=mock_client)
+    await repo.get_latest("user-123")
+
+    assert selected_columns, "select() was never called"
+    select_arg = selected_columns[0]
+    for col in (
+        "what_have_you_tried",
+        "specific_ask",
+        "history_clotting_risk",
+        "history_breast_cancer",
+    ):
+        assert col in select_arg, (
+            f"Column '{col}' missing from get_latest select: {select_arg}"
+        )
+
+
 # ============================================================================
 # save_narrative() tests
 # ============================================================================

@@ -11,6 +11,7 @@ from typing import Any, Optional
 from supabase import AsyncClient
 
 from app.exceptions import DatabaseError, EntityNotFoundError
+from app.utils.logging import hash_user_id
 
 from app.models.appointment import (
     AppointmentContext,
@@ -73,7 +74,7 @@ class AppointmentRepository:
         except Exception as exc:
             logger.error(
                 "DB insert failed creating appointment context for user %s: %s",
-                user_id,
+                hash_user_id(user_id),
                 exc,
                 exc_info=True,
             )
@@ -82,7 +83,7 @@ class AppointmentRepository:
         if not response.data or not isinstance(response.data, list):
             logger.error(
                 "Supabase returned no data after appointment context insert for user %s",
-                user_id,
+                hash_user_id(user_id),
             )
             raise DatabaseError(
                 "Failed to create appointment context: no data returned"
@@ -93,7 +94,7 @@ class AppointmentRepository:
         logger.info(
             "Appointment context created: id=%s user=%s appointment_type=%s",
             context_id,
-            user_id,
+            hash_user_id(user_id),
             context.appointment_type.value,
         )
         return context_id
@@ -290,7 +291,7 @@ class AppointmentRepository:
             response = (
                 await self.client.table("appointment_prep_outputs")
                 .select(
-                    "*, appointment_prep_contexts(appointment_type, goal, dismissed_before, urgent_symptom, created_at)"
+                    "*, appointment_prep_contexts(appointment_type, goal, dismissed_before, urgent_symptom, created_at, what_have_you_tried, specific_ask, history_clotting_risk, history_breast_cancer)"
                 )
                 .eq("user_id", user_id)
                 .order("created_at", desc=True)
@@ -807,7 +808,7 @@ class AppointmentRepository:
 
             logger.info(
                 "Fetched appointment prep history: user=%s count=%d total=%d",
-                user_id,
+                hash_user_id(user_id),
                 len(preps),
                 total,
             )
