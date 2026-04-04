@@ -84,11 +84,23 @@
 					<div class="mt-3 rounded-lg bg-primary-50 p-3">
 						<p class="text-sm text-primary-800">{card.suggestion}</p>
 					</div>
-					<span
-						class="mt-2 inline-block rounded-full bg-neutral-100 px-2 py-0.5 text-xs text-neutral-500"
-					>
-						{card.category.replace(/-/g, ' ')}
-					</span>
+					<div class="mt-2 flex flex-wrap items-center gap-2">
+						<span
+							class="inline-block rounded-full bg-neutral-100 px-2 py-0.5 text-xs text-neutral-500"
+						>
+							{card.category.replace(/-/g, ' ')}
+						</span>
+						{#if card.sources && card.sources.length > 0}
+							{#each card.sources as source}
+								<span
+									class="inline-block rounded-full border border-primary-200 bg-primary-50 px-2 py-0.5 text-xs text-primary-700"
+									title={source.excerpt}
+								>
+									Based on: {source.title}
+								</span>
+							{/each}
+						{/if}
+					</div>
 				</div>
 			{/each}
 		</div>

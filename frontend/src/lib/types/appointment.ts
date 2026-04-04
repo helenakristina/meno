@@ -29,23 +29,37 @@ export interface AppointmentContext {
 	urgent_symptom?: string | null;
 }
 
+export interface Concern {
+	text: string;
+	comment?: string;
+}
+
 export interface ScenarioCard {
 	id: string;
 	title: string;
 	situation: string;
 	suggestion: string;
 	category: string;
+	sources?: Array<{ title: string; excerpt: string }>;
+}
+
+export interface QualitativeContext {
+	what_have_you_tried?: string | null;
+	specific_ask?: string | null;
+	history_clotting_risk?: 'yes' | 'no' | 'not_sure' | null;
+	history_breast_cancer?: 'yes' | 'no' | 'not_sure' | null;
 }
 
 export interface AppointmentPrepState {
 	appointmentId: string | null;
 	context: AppointmentContext | null;
 	narrative: string | null;
-	concerns: string[];
+	concerns: Concern[];
+	qualitativeContext: QualitativeContext | null;
 	scenarios: ScenarioCard[];
 	isLoading: boolean;
 	error: string | null;
-	currentStep: 1 | 2 | 3 | 4 | 5;
+	currentStep: 1 | 2 | 3 | 4 | 5 | 6;
 }
 
 /** Human-readable labels for enums */
@@ -99,8 +113,9 @@ export const STEP_TITLES: Record<number, string> = {
 	1: 'About your appointment',
 	2: 'Your symptom summary',
 	3: 'Prioritize concerns',
-	4: 'Practice scenarios',
-	5: 'Get your materials'
+	4: 'A little more about you',
+	5: 'Practice scenarios',
+	6: 'Get your materials'
 };
 
 /** History and persistence types */

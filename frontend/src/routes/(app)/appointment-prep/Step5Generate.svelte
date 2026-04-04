@@ -90,7 +90,10 @@
 			<h2 class="mt-2 text-lg font-semibold text-primary-800">
 				{message || 'Your appointment prep is ready!'}
 			</h2>
-			<p class="mt-1 text-sm text-primary-700">Take these documents to your appointment.</p>
+			<p class="mt-1 text-sm text-primary-700">
+				Your Provider Summary is ready to email ahead or hand to your provider. Your Personal Cheat
+				Sheet is yours to carry in.
+			</p>
 		</div>
 
 		<div class="space-y-3">

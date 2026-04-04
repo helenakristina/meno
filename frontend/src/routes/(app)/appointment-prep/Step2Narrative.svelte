@@ -12,6 +12,7 @@
 
 	let narrative = $state('');
 	let isLoading = $state(true);
+	let isSaving = $state(false);
 	let loadError = $state('');
 
 	$effect(() => {
@@ -38,8 +39,24 @@
 		}
 	}
 
-	function handleNext() {
-		onNext(narrative);
+	async function handleNext() {
+		if (!narrative.trim()) return;
+		isSaving = true;
+		try {
+			await apiClient.put(
+				`/api/appointment-prep/${appointmentId}/narrative` as '/api/appointment-prep/{id}/narrative',
+				{ narrative }
+			);
+			onNext(narrative);
+		} catch (e) {
+			const msg =
+				e instanceof Error && 'detail' in e
+					? (e as ApiError).detail
+					: 'Failed to save narrative. Please try again.';
+			loadError = msg;
+		} finally {
+			isSaving = false;
+		}
 	}
 </script>
 
@@ -71,9 +88,11 @@
 		</div>
 	{:else}
 		<div
-			class="rounded-xl border border-warning bg-warning-light px-4 py-3 text-sm text-warning-dark"
+			class="rounded-xl border border-primary-200 bg-primary-50 px-4 py-3 text-sm text-primary-800"
 		>
-			AI-generated summary — review and edit before sharing with your provider.
+			This summary goes directly to your provider's document, word for word. Read it carefully and
+			edit anything that doesn't sound right or doesn't reflect your experience. This is the most
+			important thing you'll do in this process.
 		</div>
 
 		<div>
@@ -88,17 +107,17 @@
 				aria-describedby="narrative-hint"
 			></textarea>
 			<p id="narrative-hint" class="mt-1 text-xs text-neutral-500">
-				Edit freely — this is your document.
+				Your edits are saved automatically. What you see here is what your provider will read.
 			</p>
 		</div>
 
 		<button
 			type="button"
 			onclick={handleNext}
-			disabled={!narrative.trim()}
+			disabled={!narrative.trim() || isSaving}
 			class="w-full rounded-xl bg-primary-500 py-3 text-sm font-semibold text-white transition-colors hover:bg-primary-600 disabled:cursor-not-allowed disabled:opacity-40"
 		>
-			Next: Prioritize your concerns
+			{isSaving ? 'Saving…' : 'Next: Prioritize your concerns'}
 		</button>
 	{/if}
 </div>

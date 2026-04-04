@@ -2,6 +2,8 @@
 	import { apiClient } from '$lib/api/client';
 	import type {
 		AppointmentContext,
+		Concern,
+		QualitativeContext,
 		ScenarioCard,
 		AppointmentPrepState
 	} from '$lib/types/appointment';
@@ -10,6 +12,7 @@
 	import Step1Context from './Step1Context.svelte';
 	import Step2Narrative from './Step2Narrative.svelte';
 	import Step3Prioritize from './Step3Prioritize.svelte';
+	import Step3Qualitative from './Step3Qualitative.svelte';
 	import Step4Scenarios from './Step4Scenarios.svelte';
 	import Step5Generate from './Step5Generate.svelte';
 
@@ -24,6 +27,7 @@
 		context: null,
 		narrative: null,
 		concerns: [],
+		qualitativeContext: null,
 		scenarios: [],
 		isLoading: false,
 		error: null,
@@ -32,7 +36,7 @@
 
 	let savedStateExists = $state(false);
 
-	let progressPercent = $derived((state.currentStep / 5) * 100);
+	let progressPercent = $derived((state.currentStep / 6) * 100);
 
 	// =========================================================================
 	// State persistence
@@ -90,14 +94,19 @@
 		state.currentStep = 3;
 	}
 
-	function handleStep3(concerns: string[]) {
+	function handleStep3(concerns: Concern[]) {
 		state.concerns = concerns;
 		state.currentStep = 4;
 	}
 
+	function handleStep3Qualitative(ctx: QualitativeContext) {
+		state.qualitativeContext = ctx;
+		state.currentStep = 5;
+	}
+
 	function handleStep4(scenarios: ScenarioCard[]) {
 		state.scenarios = scenarios;
-		state.currentStep = 5;
+		state.currentStep = 6;
 	}
 
 	function handleStepError(msg: string) {
@@ -107,7 +116,7 @@
 	function goBack() {
 		if (state.currentStep > 1) {
 			state.error = null;
-			state.currentStep = (state.currentStep - 1) as 1 | 2 | 3 | 4 | 5;
+			state.currentStep = (state.currentStep - 1) as 1 | 2 | 3 | 4 | 5 | 6;
 		}
 	}
 
@@ -117,6 +126,7 @@
 			context: null,
 			narrative: null,
 			concerns: [],
+			qualitativeContext: null,
 			scenarios: [],
 			isLoading: false,
 			error: null,
@@ -133,7 +143,7 @@
 			<div>
 				<h1 class="text-2xl font-bold text-neutral-800">Appointment Prep</h1>
 				<p class="mt-0.5 text-sm text-neutral-500">
-					Step {state.currentStep} of 5: {STEP_TITLES[state.currentStep]}
+					Step {state.currentStep} of 6: {STEP_TITLES[state.currentStep]}
 				</p>
 			</div>
 			{#if state.currentStep > 1}
@@ -154,8 +164,8 @@
 			role="progressbar"
 			aria-valuenow={state.currentStep}
 			aria-valuemin={1}
-			aria-valuemax={5}
-			aria-label="Step {state.currentStep} of 5"
+			aria-valuemax={6}
+			aria-label="Step {state.currentStep} of 6"
 		>
 			<div
 				class="h-full rounded-full bg-primary-500 transition-all duration-500"
@@ -246,8 +256,14 @@
 				onError={handleStepError}
 			/>
 		{:else if state.currentStep === 4 && state.appointmentId}
-			<Step4Scenarios appointmentId={state.appointmentId} onNext={handleStep4} />
+			<Step3Qualitative
+				appointmentId={state.appointmentId}
+				onNext={handleStep3Qualitative}
+				onError={handleStepError}
+			/>
 		{:else if state.currentStep === 5 && state.appointmentId}
+			<Step4Scenarios appointmentId={state.appointmentId} onNext={handleStep4} />
+		{:else if state.currentStep === 6 && state.appointmentId}
 			<Step5Generate
 				appointmentId={state.appointmentId}
 				onStartOver={startOver}
