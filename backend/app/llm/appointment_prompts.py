@@ -143,12 +143,16 @@ def build_narrative_user_prompt(
     specific_ask: str | None = None,
 ) -> str:
     """Build user prompt for clinical narrative generation (Step 2)."""
+    # Sanitize user-generated content to prevent prompt injection
+    sanitized_tried = sanitize_prompt_input(what_have_you_tried)
+    sanitized_ask = sanitize_prompt_input(specific_ask)
+
     qualitative_section = ""
-    if what_have_you_tried:
-        qualitative_section += f"\nWhat the patient has tried: {what_have_you_tried}"
-    if specific_ask:
+    if sanitized_tried != "not provided":
+        qualitative_section += f"\nWhat the patient has tried: {sanitized_tried}"
+    if sanitized_ask != "not provided":
         qualitative_section += (
-            f"\nPatient's specific ask for this appointment: {specific_ask}"
+            f"\nPatient's specific ask for this appointment: {sanitized_ask}"
         )
     return (
         f"Write a 2–3 paragraph clinical summary for a healthcare appointment. "
