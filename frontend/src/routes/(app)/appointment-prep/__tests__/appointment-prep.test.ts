@@ -443,17 +443,24 @@ describe('Appointment Prep — Error handling', () => {
 });
 
 describe('Appointment Prep — Progress indicator', () => {
-	it('calculates progress percent for each step', () => {
+	it('calculates progress percent for each step in 6-step flow', () => {
+		// Component uses (step / 6) * 100
 		const cases = [
-			{ step: 1, expected: 20 },
-			{ step: 2, expected: 40 },
-			{ step: 3, expected: 60 },
-			{ step: 4, expected: 80 },
-			{ step: 5, expected: 100 }
+			{ step: 1, expected: 100 / 6 },
+			{ step: 2, expected: 200 / 6 },
+			{ step: 3, expected: 300 / 6 },
+			{ step: 4, expected: 400 / 6 },
+			{ step: 5, expected: 500 / 6 },
+			{ step: 6, expected: 100 }
 		];
 		for (const { step, expected } of cases) {
-			const percent = (step / 5) * 100;
-			expect(percent).toBe(expected);
+			const percent = (step / 6) * 100;
+			expect(percent).toBeCloseTo(expected, 5);
 		}
+	});
+
+	it('reaches exactly 100% at step 6', () => {
+		const percent = (6 / 6) * 100;
+		expect(percent).toBe(100);
 	});
 });

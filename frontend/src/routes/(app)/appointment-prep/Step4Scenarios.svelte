@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { onMount } from 'svelte';
 	import { apiClient } from '$lib/api/client';
 	import type { ScenarioCard } from '$lib/types/appointment';
 	import type { ApiError } from '$lib/types';
@@ -15,7 +16,7 @@
 	let isLoading = $state(true);
 	let loadError = $state('');
 
-	$effect(() => {
+	onMount(() => {
 		loadScenarios();
 	});
 
@@ -91,7 +92,7 @@
 							{card.category.replace(/-/g, ' ')}
 						</span>
 						{#if card.sources && card.sources.length > 0}
-							{#each card.sources as source}
+							{#each card.sources as source (source.title)}
 								<span
 									class="inline-block rounded-full border border-primary-200 bg-primary-50 px-2 py-0.5 text-xs text-primary-700"
 									title={source.excerpt}

@@ -44,13 +44,29 @@
 		}
 	}
 
-	function handleSkip() {
-		onNext({
+	async function handleSkip() {
+		isSaving = true;
+		const payload: QualitativeContext = {
 			what_have_you_tried: null,
 			specific_ask: null,
 			history_clotting_risk: null,
 			history_breast_cancer: null
-		});
+		};
+		try {
+			await apiClient.put(
+				`/api/appointment-prep/${appointmentId}/qualitative-context` as '/api/appointment-prep/{id}/qualitative-context',
+				payload
+			);
+			onNext(payload);
+		} catch (e) {
+			const msg =
+				e instanceof Error && 'detail' in e
+					? (e as ApiError).detail
+					: 'Failed to save. Please try again.';
+			onError(msg);
+		} finally {
+			isSaving = false;
+		}
 	}
 </script>
 
@@ -162,7 +178,8 @@
 		<button
 			type="button"
 			onclick={handleSkip}
-			class="flex-1 rounded-xl border border-neutral-200 py-3 text-sm font-medium text-neutral-600 transition-colors hover:bg-neutral-50"
+			disabled={isSaving}
+			class="flex-1 rounded-xl border border-neutral-200 py-3 text-sm font-medium text-neutral-600 transition-colors hover:bg-neutral-50 disabled:cursor-not-allowed disabled:opacity-40"
 		>
 			Skip this step
 		</button>

@@ -7,17 +7,21 @@
 	let {
 		appointmentId,
 		context,
+		initialConcerns = [],
 		onNext,
 		onError
 	}: {
 		appointmentId: string;
 		context: AppointmentContext;
+		initialConcerns?: Concern[];
 		onNext: (concerns: Concern[]) => void;
 		onError: (msg: string) => void;
 	} = $props();
 
 	let concerns = $state<Concern[]>(
-		DEFAULT_CONCERNS[context.goal as AppointmentGoal].map((text) => ({ text }))
+		initialConcerns.length > 0
+			? initialConcerns
+			: DEFAULT_CONCERNS[context.goal as AppointmentGoal].map((text) => ({ text }))
 	);
 	let newConcernText = $state('');
 	let isSaving = $state(false);

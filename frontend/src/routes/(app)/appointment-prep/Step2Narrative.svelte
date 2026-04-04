@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { onMount } from 'svelte';
 	import { apiClient } from '$lib/api/client';
 	import type { ApiError } from '$lib/types';
 
@@ -15,7 +16,7 @@
 	let isSaving = $state(false);
 	let loadError = $state('');
 
-	$effect(() => {
+	onMount(() => {
 		loadNarrative();
 	});
 

@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { onMount } from 'svelte';
 	import { apiClient } from '$lib/api/client';
 	import type {
 		AppointmentContext,
@@ -43,7 +44,7 @@
 	// =========================================================================
 
 	// Load saved state from sessionStorage on mount
-	$effect(() => {
+	onMount(() => {
 		const saved = sessionStorage.getItem('appointmentPrepState');
 		if (saved) {
 			try {
@@ -211,7 +212,7 @@
 		aria-label="Appointment prep step {state.currentStep}"
 	>
 		{#if savedStateExists && state.currentStep > 1}
-			<div role="dialog" class="mb-6 rounded-lg border border-primary-200 bg-primary-50 p-4">
+			<div role="region" aria-label="Resume previous session" class="mb-6 rounded-lg border border-primary-200 bg-primary-50 p-4">
 				<div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
 					<div>
 						<h3 class="font-semibold text-primary-900">Resume Previous Session?</h3>
@@ -252,6 +253,7 @@
 			<Step3Prioritize
 				appointmentId={state.appointmentId}
 				context={state.context}
+				initialConcerns={state.concerns}
 				onNext={handleStep3}
 				onError={handleStepError}
 			/>
