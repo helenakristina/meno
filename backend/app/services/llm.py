@@ -310,7 +310,7 @@ class LLMService:
             goal=goal,
             dismissed_before=dismissed_before,
             age_str=age_str,
-            rag_chunks=rag_chunks or None,
+            rag_chunks=rag_chunks,
         )
 
         logger.info(
@@ -374,7 +374,6 @@ class LLMService:
 
     async def generate_provider_summary_content(
         self,
-        narrative: str,
         concerns: list[str],
         appointment_type: str,
         goal: str,
@@ -391,15 +390,18 @@ class LLMService:
         Hard-fails on parse errors — a partial or empty clinical summary is worse than none.
 
         Args:
-            narrative: LLM-generated narrative from Step 2.
             concerns: User's prioritized concerns from Step 3.
             appointment_type: Type of appointment (new_provider or established_relationship).
             goal: Appointment goal (assess_status, explore_hrt, etc.).
             user_age: User's age in years (optional).
             urgent_symptom: Specific urgent symptom if goal is "urgent_symptom" (optional).
+            what_have_you_tried: Treatments or approaches already tried (optional).
+            specific_ask: What the user specifically wants from this appointment (optional).
+            history_clotting_risk: History of clotting risk (optional).
+            history_breast_cancer: History of breast cancer (optional).
 
         Returns:
-            ProviderSummaryResponse with opening, symptom_picture, key_patterns, closing.
+            ProviderSummaryResponse with opening, key_patterns, closing.
 
         Raises:
             DatabaseError: If LLM response cannot be parsed into the expected structure.

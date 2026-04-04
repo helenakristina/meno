@@ -45,10 +45,11 @@ class Concern(BaseModel):
     represented in provider-facing and patient-facing documents.
     """
 
-    text: str = Field(description="The concern text")
+    text: str = Field(description="The concern text", min_length=1, max_length=500)
     comment: str | None = Field(
         default=None,
         description="Optional context the user wants their provider to know about this concern",
+        max_length=200,
     )
 
 
@@ -365,6 +366,13 @@ class SaveQualitativeContextResponse(BaseModel):
 # ============================================================================
 
 
+class ScenarioSource(BaseModel):
+    """A single RAG source document grounding a scenario suggestion."""
+
+    title: str
+    excerpt: str
+
+
 class ScenarioCard(BaseModel):
     """
     A single scenario card for practice responses.
@@ -383,7 +391,7 @@ class ScenarioCard(BaseModel):
         description="LLM-generated response suggestion with evidence-based language and source links"
     )
     category: str = Field(description="Scenario category based on dismissal type")
-    sources: list[dict] = Field(
+    sources: list[ScenarioSource] = Field(
         default_factory=list,
         description="RAG source documents used to ground this scenario (each has 'title' and 'excerpt')",
     )

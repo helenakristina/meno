@@ -378,6 +378,28 @@ class TestGenerateScenarios:
         # Empty chunks still passed (not None) — prompt builder handles it
         assert "rag_chunks" in call_kwargs
 
+    @pytest.mark.asyncio
+    async def test_duplicate_rag_chunks_deduplicated_before_llm_call(
+        self, service, mock_rag_retriever, mock_llm_service
+    ):
+        # CATCHES: same chunk returned for multiple scenarios passed to LLM
+        # multiple times — inflates prompt size and wastes tokens
+        duplicate_chunk = {
+            "id": "chunk-1",
+            "title": "NAMS 2022",
+            "content": "MHT is effective.",
+        }
+        mock_rag_retriever.return_value = [duplicate_chunk]
+
+        await service.generate_scenarios("appt-123", "user-456")
+
+        call_kwargs = mock_llm_service.generate_scenario_suggestions.call_args[1]
+        rag_chunks = call_kwargs["rag_chunks"]
+        # Even though each scenario retrieval returns the same chunk, only one copy
+        # should reach the LLM
+        chunk_ids = [c.get("id") for c in rag_chunks]
+        assert chunk_ids.count("chunk-1") == 1
+
 
 # ---------------------------------------------------------------------------
 # generate_pdf
@@ -545,6 +567,24 @@ class TestSelectScenarios:
         # scenario list with LLM suggestions and must stay within token budget
         svc = self._make_service()
         ctx = self._context(AppointmentGoal.urgent_symptom, urgent="brain fog")
+        scenarios = svc._select_scenarios(ctx, "perimenopause")
+        assert len(scenarios) <= 7
+
+    def test_cap_at_7_when_many_unique_scenarios(self):
+        # CATCHES: comment says "cap at 7" but no [:7] slice exists — deduplicated
+        # list with 10+ entries would be returned in full, exceeding token budget
+        svc = self._make_service()
+        # Inject a bloated config with 10+ unique scenarios for a goal
+        import copy
+
+        original_config = svc._scenario_config
+        bloated_config = copy.deepcopy(original_config)
+        bloated_config["goal_scenarios"]["assess_status"] = [
+            {"title": f"Unique scenario title {i}", "category": "general"}
+            for i in range(12)
+        ]
+        svc._scenario_config = bloated_config
+        ctx = self._context(AppointmentGoal.assess_status)
         scenarios = svc._select_scenarios(ctx, "perimenopause")
         assert len(scenarios) <= 7
 
