@@ -101,11 +101,13 @@
 	<!-- Clotting risk -->
 	<div>
 		<p class="mb-2 text-sm font-medium text-neutral-700">
-			Do you have a personal or family history of blood clots or clotting disorders?
+			Do you have a personal history of blood clots or clotting disorders?
 		</p>
 		<div class="flex flex-col gap-2" role="radiogroup" aria-label="History of clotting risk">
-			{#each [['yes', 'Yes'], ['no', 'No'], ['not_sure', 'Not sure']] as [val, label]}
-				<label class="flex cursor-pointer items-center gap-3 rounded-lg px-3 py-2 transition-colors hover:bg-neutral-50">
+			{#each [['yes', 'Yes'], ['no', 'No'], ['not_sure', 'Not sure']] as [val, label] (val)}
+				<label
+					class="flex cursor-pointer items-center gap-3 rounded-lg px-3 py-2 transition-colors hover:bg-neutral-50"
+				>
 					<input
 						type="radio"
 						name="clotting"
@@ -129,11 +131,13 @@
 	<!-- Breast cancer risk -->
 	<div>
 		<p class="mb-2 text-sm font-medium text-neutral-700">
-			Do you have a personal or family history of breast cancer?
+			Do you have a personal history of breast cancer?
 		</p>
 		<div class="flex flex-col gap-2" role="radiogroup" aria-label="History of breast cancer">
-			{#each [['yes', 'Yes'], ['no', 'No'], ['not_sure', 'Not sure']] as [val, label]}
-				<label class="flex cursor-pointer items-center gap-3 rounded-lg px-3 py-2 transition-colors hover:bg-neutral-50">
+			{#each [['yes', 'Yes'], ['no', 'No'], ['not_sure', 'Not sure']] as [val, label] (val)}
+				<label
+					class="flex cursor-pointer items-center gap-3 rounded-lg px-3 py-2 transition-colors hover:bg-neutral-50"
+				>
 					<input
 						type="radio"
 						name="breast-cancer"

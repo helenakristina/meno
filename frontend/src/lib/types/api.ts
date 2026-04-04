@@ -320,12 +320,25 @@ export interface ApiEndpoints {
 	// Dynamic path: /api/appointment-prep/{id}/prioritize
 	'/api/appointment-prep/{id}/prioritize': {
 		request: {
-			concerns: string[];
+			concerns: Array<{ text: string; comment?: string | null }>;
 		};
 		response: {
 			appointment_id: string;
-			concerns: string[];
+			concerns: Array<{ text: string; comment?: string | null }>;
 			next_step: string;
+		};
+	};
+
+	// Dynamic path: /api/appointment-prep/{id}/qualitative-context
+	'/api/appointment-prep/{id}/qualitative-context': {
+		request: {
+			what_have_you_tried?: string | null;
+			specific_ask?: string | null;
+			history_clotting_risk?: 'yes' | 'no' | 'not_sure' | null;
+			history_breast_cancer?: 'yes' | 'no' | 'not_sure' | null;
+		};
+		response: {
+			appointment_id: string;
 		};
 	};
 
