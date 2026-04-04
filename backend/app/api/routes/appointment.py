@@ -186,10 +186,14 @@ async def save_narrative(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc))
 
     try:
-        await appointment_repo.save_narrative(appointment_id, user_id, payload.narrative)
+        await appointment_repo.save_narrative(
+            appointment_id, user_id, payload.narrative
+        )
     except (EntityNotFoundError, DatabaseError) as exc:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND if isinstance(exc, EntityNotFoundError) else status.HTTP_500_INTERNAL_SERVER_ERROR,
+            status_code=status.HTTP_404_NOT_FOUND
+            if isinstance(exc, EntityNotFoundError)
+            else status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=str(exc),
         )
     except Exception as exc:
@@ -253,7 +257,9 @@ async def save_qualitative_context(
         )
     except (EntityNotFoundError, DatabaseError) as exc:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND if isinstance(exc, EntityNotFoundError) else status.HTTP_500_INTERNAL_SERVER_ERROR,
+            status_code=status.HTTP_404_NOT_FOUND
+            if isinstance(exc, EntityNotFoundError)
+            else status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=str(exc),
         )
     except Exception as exc:

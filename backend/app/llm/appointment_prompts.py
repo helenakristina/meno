@@ -229,7 +229,7 @@ def build_scenario_suggestions_user_prompt(
             content = chunk.get("content", "")
             sources_lines.append(f"[{title}]: {content}")
         sources_section = (
-            f"\nSource documents to ground your responses:\n"
+            "\nSource documents to ground your responses:\n"
             + "\n".join(sources_lines)
             + "\n"
         )

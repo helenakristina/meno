@@ -344,8 +344,7 @@ class AppointmentService:
 
         # Format concerns as strings for LLM prompt (comment appended when present)
         concerns_for_llm = [
-            f"{c.text}; {c.comment}" if c.comment else c.text
-            for c in concerns
+            f"{c.text}; {c.comment}" if c.comment else c.text for c in concerns
         ]
 
         # Retrieve RAG chunks for each scenario to ground suggestions in real sources
@@ -366,7 +365,10 @@ class AppointmentService:
                     len(scenarios_to_generate),
                 )
             except Exception as exc:
-                logger.warning("RAG retrieval failed for scenarios, continuing without chunks: %s", exc)
+                logger.warning(
+                    "RAG retrieval failed for scenarios, continuing without chunks: %s",
+                    exc,
+                )
                 all_rag_chunks = []
 
         # Call LLM
@@ -528,11 +530,13 @@ class AppointmentService:
             )
             raise DatabaseError(f"Failed to generate PDF: {exc}") from exc
 
-        narrative_text: str = narrative if isinstance(narrative, str) else str(narrative)
+        narrative_text: str = (
+            narrative if isinstance(narrative, str) else str(narrative)
+        )
 
         # Deserialize concerns — DB may store old string[] or new Concern[] format
         concerns_list: list[Concern] = []
-        for item in (concerns_raw if isinstance(concerns_raw, list) else []):
+        for item in concerns_raw if isinstance(concerns_raw, list) else []:
             if isinstance(item, str):
                 concerns_list.append(Concern(text=item))
             elif isinstance(item, dict):
@@ -540,8 +544,7 @@ class AppointmentService:
 
         # Format concerns as strings for LLM prompts (comment appended when present)
         concerns_for_llm: list[str] = [
-            f"{c.text}; {c.comment}" if c.comment else c.text
-            for c in concerns_list
+            f"{c.text}; {c.comment}" if c.comment else c.text for c in concerns_list
         ]
 
         scenarios_for_pdf: list[dict] = []

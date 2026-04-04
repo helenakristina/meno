@@ -349,14 +349,19 @@ class TestGenerateScenarios:
         # CATCHES: rag_chunks collected but not forwarded to LLM — prompt builder
         # never sees the source documents and scenario suggestions remain ungrounded
         mock_rag_retriever.return_value = [
-            {"title": "NAMS 2022", "content": "MHT is effective for vasomotor symptoms."}
+            {
+                "title": "NAMS 2022",
+                "content": "MHT is effective for vasomotor symptoms.",
+            }
         ]
 
         await service.generate_scenarios("appt-123", "user-456")
 
         call_kwargs = mock_llm_service.generate_scenario_suggestions.call_args[1]
         assert "rag_chunks" in call_kwargs
-        assert call_kwargs["rag_chunks"] is not None and len(call_kwargs["rag_chunks"]) > 0
+        assert (
+            call_kwargs["rag_chunks"] is not None and len(call_kwargs["rag_chunks"]) > 0
+        )
 
     @pytest.mark.asyncio
     async def test_scenarios_generated_without_rag_when_retriever_returns_empty(
@@ -757,21 +762,18 @@ class TestSelectScenarios:
 
     def test_sanitize_urgent_symptom_returns_none_for_empty_input(self):
         # CATCHES: None or empty string not handled — would cause downstream errors
-        svc = self._make_service()
         assert sanitize_urgent_symptom(None) is None
         assert sanitize_urgent_symptom("") is None
         assert sanitize_urgent_symptom("   ") is None
 
     def test_sanitize_urgent_symptom_limits_length(self):
         # CATCHES: no length limit — potential DoS with extremely long strings
-        svc = self._make_service()
         long_symptom = "a" * 500
         result = sanitize_urgent_symptom(long_symptom)
         assert len(result) <= 200
 
     def test_sanitize_urgent_symptom_removes_special_characters(self):
         # CATCHES: injection risk — special characters like < > & should be stripped
-        svc = self._make_service()
         result = sanitize_urgent_symptom("brain fog <script>alert('xss')</script>")
         assert "<" not in result
         assert ">" not in result
@@ -780,13 +782,11 @@ class TestSelectScenarios:
 
     def test_sanitize_urgent_symptom_allows_valid_characters(self):
         # CATCHES: overly aggressive sanitization breaking valid input
-        svc = self._make_service()
         result = sanitize_urgent_symptom("Hot flashes (night sweats), fatigue.")
         assert result == "Hot flashes (night sweats), fatigue."
 
     def test_sanitize_urgent_symptom_strips_whitespace(self):
         # CATCHES: leading/trailing whitespace not trimmed — affects matching
-        svc = self._make_service()
         result = sanitize_urgent_symptom("  brain fog  ")
         assert result == "brain fog"
 
