@@ -180,7 +180,6 @@ class TestGenerateNarrative:
 
         mock_llm_service.generate_narrative.assert_called_once()
         call_kwargs = mock_llm_service.generate_narrative.call_args[1]
-        assert "logs show" in call_kwargs["system_prompt"].lower()
         assert "system_prompt" in call_kwargs
         assert "user_prompt" in call_kwargs
 

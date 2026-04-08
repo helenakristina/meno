@@ -39,23 +39,10 @@ class TestNarrativeSystem:
         # send a blank system instruction and LLM would have no guardrails
         assert isinstance(NARRATIVE_SYSTEM, str) and NARRATIVE_SYSTEM.strip()
 
-    def test_contains_logs_show_rule(self):
-        # CATCHES: clinical language rule removed — LLM would produce "you have"
-        # or "you are experiencing" phrasing instead of objective "logs show"
-        assert "logs show" in NARRATIVE_SYSTEM.lower()
-
     def test_contains_no_diagnosis_guardrail(self):
         # CATCHES: diagnosis guardrail stripped — LLM could produce diagnostic
         # statements that cross Meno's medical-advice boundary
         assert "diagnos" in NARRATIVE_SYSTEM.lower()
-
-    def test_contains_discuss_with_provider(self):
-        # CATCHES: provider-discussion closing instruction removed — LLM would not
-        # end summaries with the required "discuss with a provider" framing
-        assert (
-            "discuss" in NARRATIVE_SYSTEM.lower()
-            and "provider" in NARRATIVE_SYSTEM.lower()
-        )
 
 
 class TestSymptomSummarySystem:

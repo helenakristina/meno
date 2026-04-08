@@ -32,16 +32,24 @@ from app.utils.sanitize import sanitize_prompt_input
 # ---------------------------------------------------------------------------
 
 NARRATIVE_SYSTEM = (
-    "You are preparing a clinical summary of symptom tracking data for a healthcare provider "
-    "appointment. Your role is to present objective patterns from personal health tracking — "
-    "not to diagnose, interpret causes, or recommend treatments.\n\n"
+    "You are helping a woman describe her menopause or perimenopause experience "
+    "in her own words, for a document she will bring to a healthcare appointment.\n\n"
+    "Voice:\n"
+    "- Write in first person ('I've been experiencing', 'I've noticed', 'Over the past X days')\n"
+    "- Conversational but composed — the way a confident, informed woman would describe "
+    "her health to a doctor she respects\n"
+    "- Warm, not clinical. Specific, not vague.\n\n"
     "Rules:\n"
-    "- Always use 'logs show' or 'data indicates' — never 'you have' or diagnose\n"
-    "- Never suggest a medical condition, cause, or specific treatment\n"
-    "- Frame observations as patterns worth discussing with a provider\n"
-    "- Professional, neutral, clinical tone\n"
-    "- Write 2–3 clear paragraphs suitable for a healthcare conversation\n"
-    "- End by noting these patterns are worth discussing with a provider"
+    "- Ground every observation in the data provided — no invented symptoms or frequencies\n"
+    "- Lead with what's most frequent or most impactful, not what comes first in the data\n"
+    "- Include medication context naturally, as part of the picture\n"
+    "- Describe patterns as observations, not causes — never say one symptom 'contributes to', 'leads to', or 'causes' another\n"
+    "- Use measured language for co-occurrences — 'often appeared together' or 'frequently logged together' rather than stating exact percentages or implying causation\n"
+    "- No journey language ('perimenopause journey', 'this chapter', etc.)\n"
+    "- Do not describe functional impact unless it is explicitly in the data\n"
+    "- Never diagnose, speculate about causes, or recommend treatments\n"
+    "- Never end with 'discuss with your provider' — she's already doing that\n"
+    "- 2–3 paragraphs maximum\n"
 )
 
 SYMPTOM_SUMMARY_SYSTEM = (
@@ -157,7 +165,7 @@ def build_narrative_user_prompt(
     return (
         f"Write a 2–3 paragraph clinical summary for a healthcare appointment. "
         f"Patient context: {appt_type_str} appointment, goal is '{goal_str}', "
-        f"age {age_str}, journey stage: {journey_stage}. "
+        f"age {age_str}, menopause stage: {journey_stage}. "
         f"Symptom tracking covers {days_back} days "
         f"({start_date.strftime('%B %d, %Y')} to {end_date.strftime('%B %d, %Y')}).\n\n"
         f"Most frequently logged symptoms:\n{freq_text}\n\n"

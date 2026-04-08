@@ -1,0 +1,154 @@
+# PRD: "My Health Picture" Rename + Next Steps Removal
+
+**Branch:** appointment-prep-refactor  
+**Type:** Cleanup / UX improvement  
+**Risk:** Low — string replacements and a field removal with no database impact  
+**Commit strategy:** Single commit. All changes are tightly coupled — a partial commit would leave the UI and PDF out of sync.
+
+---
+
+## Background
+
+The narrative section generated at Step 2 has been called "Symptom Summary" throughout the codebase and UI. This name is inaccurate — the section also includes medication context. We are renaming it to "My Health Picture" to better reflect its scope and to use first-person voice consistently across the document.
+
+Separately, the provider summary PDF contains a "Next Steps" section rendered from `content.closing`. This section is redundant with the "Patient's Prioritized Concerns" list that precedes it. Removing it shortens the document and increases the likelihood that a busy provider reads it in full.
+
+---
+
+## Goals
+
+1. Rename "symptom summary" to "My Health Picture" everywhere it appears — frontend UI, PDF section header, and all docstrings.
+2. Remove the Next Steps section from the provider summary PDF.
+3. Remove the `closing` field from `ProviderSummaryResponse` and all code that produces or consumes it.
+
+---
+
+## Out of Scope
+
+- Voice or content changes to any prompt (separate workstream)
+- Any changes to `CheatsheetResponse` or the cheatsheet PDF
+- Any changes to `build_export_pdf` or the health export flow
+- Database migrations (no stored structured content to update)
+
+---
+
+## Changes Required
+
+### 1. Frontend — Svelte appointment prep component
+
+**File:** The Svelte component that renders the Step 2 narrative screen (search for the loading string to locate it).
+
+Replace exactly:
+- `"Loading your symptom summary"` → `"Loading your health picture"`
+- `"Your symptom summary"` → `"Your health picture"`
+
+These are hardcoded strings. Use exact string search, not regex.
+
+---
+
+### 2. Frontend — TypeScript constants
+
+**File:** The file containing `STEP_TITLES` (search for `STEP_TITLES` to locate it).
+
+Replace:
+```typescript
+2: 'Your symptom summary',
+```
+with:
+```typescript
+2: 'Your health picture',
+```
+
+---
+
+### 3. Backend — `ProviderSummaryResponse` Pydantic model
+
+**File:** `app/models/appointment.py`
+
+Search for `ProviderSummaryResponse`. Remove the `closing` field from the model definition.
+
+Before removing, run a grep for `closing` scoped to `app/` to confirm there are no other references outside the files listed in this PRD. If any are found, stop and report them.
+
+After removal, verify the model still has at minimum: `opening` and `key_patterns`.
+
+Do NOT change `extra=` setting — leave it as-is per project standards.
+
+---
+
+### 4. Backend — `build_provider_summary_user_prompt`
+
+**File:** `app/llm/appointment_prompts.py`
+
+In the `build_provider_summary_user_prompt` function, the JSON spec at the end of the user prompt currently requests three fields: `opening`, `key_patterns`, and `closing`. Remove `closing` from this spec.
+
+Current (approximate):
+```python
+f'Return ONLY a valid JSON object with exactly these three fields:\n'
+f'{{"opening": "...", "key_patterns": "...", "closing": "..."}}\n\n'
+```
+
+Updated:
+```python
+f'Return ONLY a valid JSON object with exactly these two fields:\n'
+f'{{"opening": "...", "key_patterns": "..."}}\n\n'
+```
+
+Also update the docstring for `generate_provider_summary_content` in `app/services/llm.py` — it currently says `"ProviderSummaryResponse with opening, key_patterns, closing"`. Remove `closing` from that description.
+
+---
+
+### 5. Backend — `build_provider_summary_pdf` in `pdf.py`
+
+**File:** `app/services/pdf.py`
+
+**5a. Remove Next Steps section**
+
+Remove these lines from `build_provider_summary_pdf`:
+```python
+# --- Closing ---
+story.append(Paragraph("Next Steps", heading_style))
+story.append(Paragraph(content.closing, body_style))
+```
+
+**5b. Rename "Symptom Summary" heading**
+
+Change:
+```python
+story.append(Paragraph("Symptom Summary", heading_style))
+```
+to:
+```python
+story.append(Paragraph("My Health Picture", heading_style))
+```
+
+**5c. Update docstring**
+
+The docstring for `build_provider_summary_pdf` currently says:
+`"Structured LLM response with opening, key_patterns, and closing."`
+
+Update to:
+`"Structured LLM response with opening and key_patterns."`
+
+---
+
+## Verification Steps
+
+CC should verify each of the following before marking the task complete:
+
+1. Grep for `"symptom summary"` (case-insensitive) across the entire repo. The only remaining hits should be in unrelated files (e.g., the export PDF `build_export_pdf`, which is out of scope). No hits in the appointment prep Svelte component, the TypeScript constants file, or `pdf.py`'s `build_provider_summary_pdf`.
+
+2. Grep for `closing` scoped to `app/`. No hits should remain in `appointment_prompts.py`, `llm.py`, `pdf.py`, or `models/appointment.py`. Make sure CC does that grep before it starts making changes, not after. If it finds something unexpected — say, closing referenced in a route handler or a test file — you want to know that before the model is already modified.
+
+3. Confirm `ProviderSummaryResponse` has exactly two fields: `opening` and `key_patterns`.
+
+4. Confirm `build_provider_summary_pdf` no longer references `content.closing` anywhere.
+
+5. Confirm the Svelte component and `STEP_TITLES` both use `"health picture"` not `"symptom summary"`.
+
+---
+
+## Risk Notes
+
+- **No database migration needed.** `ProviderSummaryResponse` is used only at PDF generation time — the structured content is generated fresh at Step 5 and immediately rendered. It is never persisted to the database.
+- **`extra="forbid"` on `ProviderSummaryResponse`** means if the LLM returns a `closing` field after this change, validation will hard-fail. This is the correct behavior — it enforces that the prompt and model stay in sync.
+- **`build_export_pdf`** in `pdf.py` contains a `"Symptom Pattern Summary"` heading that is intentionally left unchanged — it is a different document and out of scope for this PRD.

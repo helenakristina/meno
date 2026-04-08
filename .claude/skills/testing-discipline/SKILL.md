@@ -79,10 +79,61 @@ This sounds extreme but it's the only way to know your test actually tests somet
 
 ---
 
+### When TDD Feels Impossible
+
+Sometimes you can't write the test first because a dependency doesn't exist yet —
+a repository method, a service interface, a provider ABC. This is not an excuse
+to skip TDD. It's a signal to build the interface first.
+
+**The pattern:**
+
+1. Define the interface (ABC or stub) for the missing dependency
+2. Write the test against that interface using a mock
+3. Watch the test fail
+4. Implement the real dependency
+5. Watch the test pass
+
+```python
+# Scenario: you're writing SymptomService but SymptomRepository doesn't exist yet.
+# Don't implement the service without tests. Define the interface first.
+
+# Step 1 — stub the interface (no implementation yet)
+class SymptomRepositoryBase(ABC):
+    @abstractmethod
+    async def get_by_user(self, user_id: str) -> list[SymptomLog]: ...
+
+# Step 2 — write the test against the interface
+# CATCHES: Service returns all symptoms without filtering to the requesting user,
+#          leaking another user's health data
+async def test_get_symptoms_filters_by_user():
+    mock_repo = AsyncMock(spec=SymptomRepositoryBase)
+    mock_repo.get_by_user.return_value = [
+        SymptomLog(id="1", user_id="user-abc", symptom="fatigue")
+    ]
+    service = SymptomService(repo=mock_repo)
+
+    results = await service.get_symptoms(user_id="user-abc")
+
+    mock_repo.get_by_user.assert_called_once_with(user_id="user-abc")
+    assert all(r.user_id == "user-abc" for r in results)
+
+# Step 3 — run it, watch it fail (SymptomService doesn't exist yet)
+# Step 4 — implement SymptomRepository and SymptomService
+# Step 5 — run it, watch it pass
+```
+
+**The rule:** if you're blocked on TDD because something doesn't exist,
+define its interface and test against that. You should never be in a position
+where "the dependency doesn't exist yet" justifies skipping the failing test step.
+
+**One exception:** if you're writing a pure utility function with no dependencies,
+just write the test directly — no interface needed. Utils have no collaborators
+to stub.
+
 ## Changing Existing Code
 
-This codebase has real users. Rewriting things test-first isn't always practical.
-Use characterization testing instead.
+For code that already exists and is working, rewriting everything test-first
+isn't always practical. Use characterization testing before making changes.
 
 ### Steps
 
@@ -173,6 +224,76 @@ async def test_get_embedding_handles_empty_string(mock_openai):
 - Test that your query construction is correct
 - Test result ranking/filtering logic with known test data
 - Test edge cases: no results, identical scores, empty query vectors
+
+### pgvector / Similarity Search
+
+The RAG pipeline is central to Meno. These tests are not optional.
+
+**What to test:**
+
+- Query construction produces the correct similarity threshold and top-k limit
+- Results are returned in descending similarity order
+- Filtering by metadata (source, date range, chunk type) works correctly
+- Edge cases: empty result set, single result, all results tied on score
+
+```python
+# CATCHES: Similarity search returns chunks in wrong order because ORDER BY
+#          was accidentally dropped during a query refactor
+async def test_similarity_search_returns_results_in_score_order(mock_supabase):
+    chunks = [
+        {"id": "a", "content": "high relevance", "similarity": 0.92},
+        {"id": "b", "content": "medium relevance", "similarity": 0.75},
+        {"id": "c", "content": "low relevance", "similarity": 0.61},
+    ]
+    setup_supabase_response(mock_supabase, data=chunks)
+
+    results = await rag_repo.similarity_search(query_vector=[0.1] * 1536, top_k=3)
+
+    assert [r.id for r in results] == ["a", "b", "c"]
+    assert results[0].similarity > results[1].similarity > results[2].similarity
+
+
+# CATCHES: top_k parameter is ignored, returning all chunks and blowing
+#          the context window
+async def test_similarity_search_respects_top_k(mock_supabase):
+    chunks = [{"id": str(i), "similarity": 0.9 - i * 0.01} for i in range(20)]
+    setup_supabase_response(mock_supabase, data=chunks)
+
+    results = await rag_repo.similarity_search(query_vector=[0.1] * 1536, top_k=5)
+
+    assert len(results) == 5
+
+
+# CATCHES: Source filter is silently ignored, returning chunks from all
+#          sources when only PubMed chunks were requested
+async def test_similarity_search_filters_by_source(mock_supabase):
+    setup_supabase_response(mock_supabase, data=[
+        {"id": "1", "source": "pubmed", "similarity": 0.88},
+    ])
+
+    results = await rag_repo.similarity_search(
+        query_vector=[0.1] * 1536,
+        top_k=5,
+        source_filter="pubmed",
+    )
+
+    assert all(r.source == "pubmed" for r in results)
+
+
+# CATCHES: Empty result set raises an exception instead of returning
+#          an empty list, breaking the RAG pipeline silently
+async def test_similarity_search_returns_empty_list_when_no_results(mock_supabase):
+    setup_supabase_response(mock_supabase, data=[])
+
+    results = await rag_repo.similarity_search(query_vector=[0.1] * 1536, top_k=5)
+
+    assert results == []
+```
+
+**Mutation notes for the above:** these tests would catch: `ORDER BY similarity DESC`
+becoming `ASC`; `top_k` parameter never applied to the query; source filter
+applied with wrong column name; empty result raising `IndexError` instead of
+returning `[]`.
 
 ### Backend Anti-Patterns (Stop Doing These)
 
@@ -305,15 +426,26 @@ aren't good enough.**
 
 ## Integration with Compound Engineering
 
-This skill works alongside the CE plugin workflow:
+This skill works alongside the CE plugin workflow. The commands below
+are explicit activation points — when invoked, apply the corresponding
+rules from this skill without being asked.
 
-- **`/ce:plan`** — During planning, identify which testing approach applies
-  (TDD for new code, characterization for changes). Include test strategy in the plan.
-- **`/ce:work`** — Apply this skill. Write tests per the rules above.
-- **`/ce:review`** — Review should flag: mock-heavy tests, missing edge cases,
-  tests that look like they confirm implementation rather than behavior.
-- **`/ce:compound`** — Document any new testing patterns, fixtures, or helpers
-  that emerged. Add them to the project's testing utilities.
+- **`/ce:plan`** — Before writing any code, state which testing approach
+  applies (TDD for new code, characterization for existing code) and why.
+  Include test strategy in the plan. This step is non-negotiable.
+
+- **`/ce:work`** — **This skill is active.** No implementation without a
+  failing test first (new code) or characterization test (existing code).
+  Apply all rules above. Include CATCHES: comments on every test.
+
+- **`/ce:review`** — Explicitly check for: mock-heavy tests, missing
+  CATCHES: comments, tests that assert on implementation details rather
+  than behavior, and the self-confirmation problem. Surface findings
+  even if minor — silence in review is not a pass.
+
+- **`/ce:compound`** — Document any new testing patterns, fixtures, or
+  helpers that emerged. Add them to the project's testing utilities so
+  the next session benefits from them.
 
 ---
 
