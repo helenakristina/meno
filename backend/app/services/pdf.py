@@ -570,7 +570,7 @@ class PdfService:
 
         # --- Concerns ---
         if concerns:
-            story.append(Paragraph("Patient's Prioritized Concerns", heading_style))
+            story.append(Paragraph("My Prioritized Concerns", heading_style))
             for i, c in enumerate(concerns, 1):
                 story.append(Paragraph(f"{i}. {c.text}", concern_style))
                 if c.comment:
