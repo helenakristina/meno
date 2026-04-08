@@ -111,7 +111,7 @@ export const DEFAULT_CONCERNS: Record<AppointmentGoal, string[]> = {
 
 export const STEP_TITLES: Record<number, string> = {
 	1: 'About your appointment',
-	2: 'Your symptom summary',
+	2: 'Your health picture',
 	3: 'Prioritize concerns',
 	4: 'A little more about you',
 	5: 'Practice scenarios',

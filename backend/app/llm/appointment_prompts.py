@@ -322,10 +322,9 @@ def build_provider_summary_user_prompt(
         f"{clotting_line}"
         f"{breast_cancer_line}"
         f"- Concerns List: {sanitized_concerns}\n\n"
-        f"Return ONLY a valid JSON object with exactly these three fields:\n"
+        f"Return ONLY a valid JSON object with exactly these two fields:\n"
         f'{{"opening": "2-3 sentence intro: who, why here, urgent concern if any", '
-        f'"key_patterns": "2-3 sentences on co-occurring patterns if present, else empty string", '
-        f'"closing": "1-2 sentences on what the patient is seeking from this appointment"}}\n\n'
+        f'"key_patterns": "2-3 sentences on co-occurring patterns if present, else empty string"}}\n\n'
         f"No markdown. No explanation. No extra fields. Valid JSON only."
     )
 

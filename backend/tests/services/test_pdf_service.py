@@ -226,7 +226,6 @@ def _provider_content(**overrides):
     defaults = dict(
         opening="Patient is 52 presenting with hot flashes.",
         key_patterns="Hot flashes co-occur with night sweats.",
-        closing="Patient seeks discussion of treatment options.",
     )
     return ProviderSummaryResponse(**{**defaults, **overrides})
 
@@ -339,7 +338,6 @@ class TestBuildProviderSummaryPdf:
         result = svc.build_provider_summary_pdf(
             content=_provider_content(
                 opening="The patient is presenting today.",
-                closing="Seeking discussion.",
             ),
             narrative="Logs show symptoms.",
             frequency_stats=[],

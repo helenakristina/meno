@@ -100,7 +100,6 @@ def mock_llm_service():
         return_value=ProviderSummaryResponse(
             opening="Patient presents for discussion.",
             key_patterns="Hot flashes co-occur with night sweats.",
-            closing="Patient seeks treatment options.",
         )
     )
     svc.generate_cheatsheet_content = AsyncMock(

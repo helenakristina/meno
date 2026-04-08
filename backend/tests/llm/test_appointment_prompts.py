@@ -541,13 +541,13 @@ class TestBuildProviderSummaryUserPrompt:
         result = self._call()
         assert "symptom_picture" not in result
 
-    def test_schema_has_opening_key_patterns_closing(self):
+    def test_schema_has_opening_and_key_patterns(self):
         # CATCHES: JSON schema missing required fields — LLM returns incomplete
         # response that fails ProviderSummaryResponse validation
         result = self._call()
         assert "opening" in result
         assert "key_patterns" in result
-        assert "closing" in result
+        assert "closing" not in result
 
     def test_includes_urgent_symptom_when_provided(self):
         # CATCHES: urgent_symptom not emphasized — the urgent concern that led

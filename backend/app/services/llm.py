@@ -401,7 +401,7 @@ class LLMService:
             history_breast_cancer: History of breast cancer (optional).
 
         Returns:
-            ProviderSummaryResponse with opening, key_patterns, closing.
+            ProviderSummaryResponse with opening and key_patterns.
 
         Raises:
             DatabaseError: If LLM response cannot be parsed into the expected structure.

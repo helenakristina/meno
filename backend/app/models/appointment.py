@@ -480,7 +480,6 @@ class ProviderSummaryResponse(BaseModel):
 
     opening: str
     key_patterns: str = ""
-    closing: str
 
 
 class QuestionGroup(BaseModel):

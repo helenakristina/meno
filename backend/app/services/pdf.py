@@ -481,8 +481,8 @@ class PdfService:
         """Build a clinical provider-facing appointment summary PDF.
 
         Args:
-            content: Structured LLM response with opening, key_patterns, and closing.
-            narrative: User's narrative text, inserted verbatim as "Symptom Summary".
+            content: Structured LLM response with opening and key_patterns.
+            narrative: User's narrative text, inserted verbatim as "My Health Picture".
             frequency_stats: Symptom frequency data to render as a table.
             cooccurrence_stats: Co-occurring symptom pairs to render as a table.
             concerns: Patient's prioritized concerns (with optional comments).
@@ -529,8 +529,8 @@ class PdfService:
         story.append(Paragraph("Overview", heading_style))
         story.append(Paragraph(content.opening, body_style))
 
-        # --- Symptom Summary (verbatim from user's narrative) ---
-        story.append(Paragraph("Symptom Summary", heading_style))
+        # --- My Health Picture (verbatim from user's narrative) ---
+        story.append(Paragraph("My Health Picture", heading_style))
         story.append(Paragraph(narrative, body_style))
 
         # --- Key Patterns (optional) ---
@@ -575,10 +575,6 @@ class PdfService:
                 story.append(Paragraph(f"{i}. {c.text}", concern_style))
                 if c.comment:
                     story.append(Paragraph(c.comment, concern_comment_style))
-
-        # --- Closing ---
-        story.append(Paragraph("Next Steps", heading_style))
-        story.append(Paragraph(content.closing, body_style))
 
         story.append(Spacer(1, 14))
         story.append(

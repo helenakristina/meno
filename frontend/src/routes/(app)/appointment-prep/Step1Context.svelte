@@ -168,6 +168,6 @@
 		class="w-full rounded-xl bg-primary-500 py-3 text-sm font-semibold text-white transition-colors hover:bg-primary-600 disabled:cursor-not-allowed disabled:opacity-40"
 		aria-disabled={!canSubmit()}
 	>
-		Next: Generate symptom summary
+		Next: Generate health picture
 	</button>
 </div>

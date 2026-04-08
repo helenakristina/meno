@@ -71,7 +71,7 @@
 			<div
 				class="h-8 w-8 animate-spin rounded-full border-4 border-primary-200 border-t-primary-600"
 			></div>
-			<p class="text-sm text-neutral-500" aria-live="polite">Generating your symptom summary…</p>
+			<p class="text-sm text-neutral-500" aria-live="polite">Generating your health picture…</p>
 		</div>
 	{:else if loadError}
 		<div
@@ -98,7 +98,7 @@
 
 		<div>
 			<label for="narrative" class="mb-2 block text-sm font-medium text-neutral-700">
-				Your symptom summary
+				Your health picture
 			</label>
 			<textarea
 				id="narrative"

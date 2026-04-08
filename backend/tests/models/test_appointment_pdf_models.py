@@ -23,22 +23,21 @@ class TestProviderSummaryResponse:
         data = {
             "opening": "Patient is 50, presenting with hot flashes.",
             "key_patterns": "Hot flashes co-occur with night sweats.",
-            "closing": "Patient seeks discussion of options.",
         }
         m = ProviderSummaryResponse(**data)
         assert m.opening == data["opening"]
-        assert m.closing == data["closing"]
+        assert m.key_patterns == data["key_patterns"]
 
     def test_no_symptom_picture_field(self):
         # CATCHES: symptom_picture accidentally re-added — Phase 5 removes this field
         # so the LLM no longer generates it; narrative is inserted verbatim by PDF builder
-        m = ProviderSummaryResponse(opening="O", closing="C")
+        m = ProviderSummaryResponse(opening="O")
         assert not hasattr(m, "symptom_picture")
 
     def test_key_patterns_defaults_to_empty(self):
         # CATCHES: key_patterns required with no default — LLM sometimes omits
         # this section when no co-occurrence patterns exist, causing a crash
-        m = ProviderSummaryResponse(opening="O", closing="C")
+        m = ProviderSummaryResponse(opening="O")
         assert m.key_patterns == ""
 
     def test_ignores_extra_fields(self):
@@ -46,7 +45,6 @@ class TestProviderSummaryResponse:
         # would raise ValidationError instead of being silently dropped
         m = ProviderSummaryResponse(
             opening="O",
-            closing="C",
             unexpected_llm_field="value",  # type: ignore
             another_extra="123",  # type: ignore
         )
@@ -56,13 +54,7 @@ class TestProviderSummaryResponse:
         # CATCHES: extra="ignore" also allowing missing required fields — a corrupt
         # LLM response with no "opening" would silently produce an empty PDF section
         with pytest.raises(ValidationError):
-            ProviderSummaryResponse(closing="C")  # type: ignore
-
-    def test_missing_closing_raises_validation_error(self):
-        # CATCHES: closing field optional by mistake — provider summary PDFs would
-        # generate without the mandatory patient-is-seeking-discussion closing section
-        with pytest.raises(ValidationError):
-            ProviderSummaryResponse(opening="O")  # type: ignore
+            ProviderSummaryResponse(key_patterns="K")  # type: ignore
 
 
 class TestConcern:
