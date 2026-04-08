@@ -332,6 +332,20 @@ class TestBuildProviderSummaryPdf:
         # Confirms the PDF builds without error when a concern has a comment
         assert result[:4] == b"%PDF"
 
+    def test_survives_llm_output_with_xml_tags(self, svc):
+        # CATCHES: ReportLab ValueError when LLM returns XML-like tags in opening/key_patterns
+        result = svc.build_provider_summary_pdf(
+            content=_provider_content(
+                opening="Patient has <b>severe</b> hot flashes & night sweats.",
+                key_patterns="Hot flashes <i>often</i> co-occur with sweats.",
+            ),
+            narrative=_NARRATIVE,
+            frequency_stats=[],
+            cooccurrence_stats=[],
+            concerns=[],
+        )
+        assert result[:4] == b"%PDF"
+
     def test_no_user_name_in_content(self, svc):
         # CATCHES: user name interpolated into PDF — privacy requirement that no
         # personal identifiers appear in generated PDFs

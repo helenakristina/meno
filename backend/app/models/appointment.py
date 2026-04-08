@@ -474,6 +474,8 @@ class ProviderSummaryResponse(BaseModel):
 
     Note: symptom_picture removed in Phase 5 — the user's narrative is inserted
     verbatim by the PDF builder instead of being rewritten by the LLM.
+    Note: closing removed — the opening field already frames the encounter context;
+    a separate closing section was redundant on a one-page provider document.
     """
 
     model_config = ConfigDict(extra="ignore")

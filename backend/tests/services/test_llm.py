@@ -501,7 +501,7 @@ class TestLLMServiceGenerateScenarioSuggestions:
 class TestLLMServiceGenerateProviderSummaryContent:
     """Tests for LLMService.generate_provider_summary_content()."""
 
-    _VALID_JSON = '{"opening": "Patient presents.", "symptom_picture": "Logs show hot flashes.", "key_patterns": "Co-occur with night sweats."}'
+    _VALID_JSON = '{"opening": "Patient presents.", "key_patterns": "Co-occur with night sweats."}'
 
     @pytest.mark.asyncio
     async def test_returns_provider_summary_response(self, service, mock_provider):
@@ -561,7 +561,9 @@ class TestLLMServiceGenerateProviderSummaryContent:
         # from LLM would propagate as pydantic.ValidationError, not DatabaseError
         from app.exceptions import DatabaseError
 
-        mock_provider.chat_completion.return_value = '{"symptom_picture": "S"}'
+        mock_provider.chat_completion.return_value = (
+            '{"key_patterns": "Only patterns, no opening."}'
+        )
 
         with pytest.raises(DatabaseError, match="Failed to parse provider summary"):
             await service.generate_provider_summary_content(

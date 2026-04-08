@@ -34,6 +34,12 @@ class TestProviderSummaryResponse:
         m = ProviderSummaryResponse(opening="O")
         assert not hasattr(m, "symptom_picture")
 
+    def test_no_closing_field(self):
+        # CATCHES: closing accidentally re-added — removed alongside "Next Steps"
+        # PDF section; the PDF no longer renders a closing section
+        m = ProviderSummaryResponse(opening="O")
+        assert not hasattr(m, "closing")
+
     def test_key_patterns_defaults_to_empty(self):
         # CATCHES: key_patterns required with no default — LLM sometimes omits
         # this section when no co-occurrence patterns exist, causing a crash
