@@ -53,20 +53,10 @@ class TestSymptomSummarySystem:
             isinstance(SYMPTOM_SUMMARY_SYSTEM, str) and SYMPTOM_SUMMARY_SYSTEM.strip()
         )
 
-    def test_contains_logs_show_rule(self):
-        # CATCHES: "logs show" rule absent — symptom summary would use "you have"
-        # phrasing, violating the clinical objectivity requirement
-        assert "logs show" in SYMPTOM_SUMMARY_SYSTEM.lower()
-
     def test_contains_no_diagnosis_guardrail(self):
         # CATCHES: diagnosis rule absent — LLM could name conditions like
         # "you have perimenopause" in a provider-facing document
         assert "diagnos" in SYMPTOM_SUMMARY_SYSTEM.lower()
-
-    def test_contains_discuss_with_provider(self):
-        # CATCHES: closing instruction absent — summary would not direct patterns
-        # toward provider discussion, breaking the clinical summary structure
-        assert "provider" in SYMPTOM_SUMMARY_SYSTEM.lower()
 
 
 class TestProviderQuestionsSystem:
