@@ -631,7 +631,7 @@ class PdfService:
             fontSize=10,
             textColor=_NEUTRAL_DARK,
             fontName="Helvetica-Bold",
-            spaceBefore=8,
+            spaceBefore=14,
             spaceAfter=4,
         )
         item_style = ParagraphStyle(
@@ -701,17 +701,23 @@ class PdfService:
                     body_style,
                 )
             )
-            for s in scenarios:
-                title = s.get("title", "")
-                suggestion = s.get("suggestion", "")
-                if title:
-                    story.append(Paragraph(title, subheading_style))
-                if suggestion:
-                    story.append(Paragraph(suggestion, item_style))
-
+        for i, s in enumerate(scenarios):
+            title = s.get("title", "")
+            suggestion = s.get("suggestion", "")
+            if title:
+                story.append(Paragraph(f"<b>{title}</b>", body_style))
+            if suggestion:
+                story.append(Spacer(1, 4))
+                story.append(Paragraph(suggestion, item_style))
+            if i < len(scenarios) - 1:
+                story.append(Spacer(1, 8))
+                story.append(
+                    HRFlowable(width="100%", thickness=0.5, color=_BORDER, spaceAfter=8)
+                )
         # --- What to Bring (static) ---
         story.append(Paragraph("What to Bring", heading_style))
         for item in [
+            "Your provider summary (the other document in your packet)",
             "This cheat sheet",
             "A list of all current medications and supplements",
             "Any recent lab results or test reports",
