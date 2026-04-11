@@ -2,7 +2,8 @@
 	import { apiClient } from '$lib/api/client';
 	import { DEFAULT_CONCERNS } from '$lib/types/appointment';
 	import type { AppointmentContext, AppointmentGoal, Concern } from '$lib/types/appointment';
-	import { ApiError } from '$lib/types';
+	import { ApiError } from '$lib/types/api';
+	import { onDestroy } from 'svelte';
 
 	let {
 		appointmentId,
@@ -77,10 +78,14 @@
 
 		if (commentDebounceTimer) clearTimeout(commentDebounceTimer);
 		commentDebounceTimer = setTimeout(() => {
-			onChange?.(updated);
+			onChange?.(concerns); // read current state at fire time, not stale snapshot
 			commentDebounceTimer = null;
 		}, 300);
 	}
+
+	onDestroy(() => {
+		if (commentDebounceTimer) clearTimeout(commentDebounceTimer);
+	});
 
 	// Drag and drop handlers
 	function handleDragStart(e: DragEvent, index: number) {

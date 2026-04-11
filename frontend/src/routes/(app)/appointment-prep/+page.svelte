@@ -21,6 +21,12 @@
 	let { data } = $props();
 
 	// =========================================================================
+	// Constants
+	// =========================================================================
+
+	const VALID_STEPS = [1, 2, 3, 4, 5, 6] as const;
+
+	// =========================================================================
 	// State
 	// =========================================================================
 
@@ -40,8 +46,9 @@
 
 	let progressPercent = $derived((state.currentStep / 6) * 100);
 
-	// User-scoped session key prevents state leaking between accounts
-	const SESSION_KEY = $derived(`appointmentPrepState_${$authState.user?.id ?? 'anon'}`);
+	// User-scoped session key — set in onMount after auth resolves to prevent
+	// medical data being written under a shared 'anon' key during auth hydration
+	let SESSION_KEY = '';
 
 	// =========================================================================
 	// State persistence
@@ -50,12 +57,22 @@
 	function isValidAppointmentPrepState(v: unknown): v is AppointmentPrepState {
 		if (typeof v !== 'object' || v === null) return false;
 		const s = v as Record<string, unknown>;
-		const validSteps = [1, 2, 3, 4, 5, 6];
-		return validSteps.includes(s.currentStep as number);
+		if (!(VALID_STEPS as readonly number[]).includes(s.currentStep as number)) return false;
+		// appointmentId must be string or null
+		if (s.appointmentId !== null && s.appointmentId !== undefined && typeof s.appointmentId !== 'string') return false;
+		// concerns must be an array if present
+		if (s.concerns !== undefined && !Array.isArray(s.concerns)) return false;
+		return true;
 	}
 
 	// Load saved state from sessionStorage on mount
 	onMount(() => {
+		const userId = $authState.user?.id;
+		if (!userId) {
+			// Auth not resolved — don't restore, start fresh
+			return;
+		}
+		SESSION_KEY = `appointmentPrepState_${userId}`;
 		const saved = sessionStorage.getItem(SESSION_KEY);
 		if (saved) {
 			try {
@@ -79,6 +96,7 @@
 	// =========================================================================
 
 	function saveToSession() {
+		if (!SESSION_KEY) return; // auth not yet resolved
 		// Strip transient UI fields before persisting — they should always reset on restore
 		const { isLoading, error, ...persistable } = state;
 		sessionStorage.setItem(SESSION_KEY, JSON.stringify(persistable));
@@ -163,7 +181,7 @@
 			currentStep: 1
 		};
 		savedStateExists = false;
-		sessionStorage.removeItem(SESSION_KEY);
+		if (SESSION_KEY) sessionStorage.removeItem(SESSION_KEY);
 	}
 </script>
 

@@ -35,11 +35,7 @@
 	onMount(() => {
 		const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
 			if (event === 'SIGNED_OUT') {
-				for (const key of Object.keys(sessionStorage)) {
-					if (key.startsWith('appointmentPrepState')) {
-						sessionStorage.removeItem(key);
-					}
-				}
+				clearAppointmentPrepStorage();
 			}
 		});
 		return () => subscription.unsubscribe();
@@ -57,13 +53,17 @@
 
 	async function handleLogout() {
 		// Clear appointment prep health data from sessionStorage before sign-out
+		clearAppointmentPrepStorage();
+		await supabase.auth.signOut();
+		goto('/login');
+	}
+
+	function clearAppointmentPrepStorage() {
 		for (const key of Object.keys(sessionStorage)) {
 			if (key.startsWith('appointmentPrepState')) {
 				sessionStorage.removeItem(key);
 			}
 		}
-		await supabase.auth.signOut();
-		goto('/login');
 	}
 
 	function closeMenu() {

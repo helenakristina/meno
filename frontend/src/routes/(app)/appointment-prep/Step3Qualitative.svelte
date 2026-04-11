@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { apiClient } from '$lib/api/client';
 	import type { QualitativeContext } from '$lib/types/appointment';
-	import { ApiError } from '$lib/types';
+	import { ApiError } from '$lib/types/api';
 
 	let {
 		appointmentId,
