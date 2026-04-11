@@ -190,7 +190,7 @@ def build_narrative_user_prompt(
         f"Symptom patterns (co-occurrences):\n{coocc_text}"
         f"{med_section}"
         f"{qualitative_section}\n\n"
-        "Write a clear, objective summary using 'logs show' language throughout. "
+        "Write a clear, objective summary. "
         "No diagnoses. No treatment recommendations."
     )
 
