@@ -96,6 +96,11 @@
 		saveToSession();
 	}
 
+	function handleConcernsChange(concerns: Concern[]) {
+		state.concerns = concerns;
+		saveToSession();
+	}
+
 	function handleStep3(concerns: Concern[]) {
 		state.concerns = concerns;
 		state.currentStep = 4;
@@ -248,7 +253,7 @@
 		{/if}
 
 		{#if state.currentStep === 1}
-			<Step1Context data={data.form} onNext={handleStep1} />
+			<Step1Context data={data.form} existingContext={state.context} onNext={handleStep1} />
 		{:else if state.currentStep === 2 && state.appointmentId}
 			<Step2Narrative appointmentId={state.appointmentId} existingNarrative={state.narrative} onNext={handleStep2} />
 		{:else if state.currentStep === 3 && state.appointmentId && state.context}
@@ -257,11 +262,13 @@
 				context={state.context}
 				initialConcerns={state.concerns}
 				onNext={handleStep3}
+				onChange={handleConcernsChange}
 				onError={handleStepError}
 			/>
 		{:else if state.currentStep === 4 && state.appointmentId}
 			<Step3Qualitative
 				appointmentId={state.appointmentId}
+				existingQualitativeContext={state.qualitativeContext}
 				onNext={handleStep3Qualitative}
 				onError={handleStepError}
 			/>

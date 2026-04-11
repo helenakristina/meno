@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { onMount } from 'svelte';
 	import { superForm } from 'sveltekit-superforms/client';
 	import { zod4 } from 'sveltekit-superforms/adapters';
 	import type { SuperValidated } from 'sveltekit-superforms';
@@ -16,9 +17,11 @@
 
 	let {
 		data,
+		existingContext = null,
 		onNext
 	}: {
 		data: SuperValidated<AppointmentContextForm>;
+		existingContext: AppointmentContext | null;
 		onNext: (context: AppointmentContext) => void;
 	} = $props();
 
@@ -28,6 +31,15 @@
 	});
 
 	const { form: formData, errors } = form;
+
+	onMount(() => {
+		if (existingContext) {
+			$formData.appointment_type = existingContext.appointment_type;
+			$formData.goal = existingContext.goal;
+			$formData.dismissed_before = existingContext.dismissed_before;
+			$formData.urgent_symptom = existingContext.urgent_symptom ?? '';
+		}
+	});
 
 	let showUrgentSymptomField = $derived($formData.goal === AppointmentGoal.urgent_symptom);
 

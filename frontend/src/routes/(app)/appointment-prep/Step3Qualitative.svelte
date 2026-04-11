@@ -5,18 +5,24 @@
 
 	let {
 		appointmentId,
+		existingQualitativeContext = null,
 		onNext,
 		onError
 	}: {
 		appointmentId: string;
+		existingQualitativeContext: QualitativeContext | null;
 		onNext: (ctx: QualitativeContext) => void;
 		onError: (msg: string) => void;
 	} = $props();
 
-	let what_have_you_tried = $state('');
-	let specific_ask = $state('');
-	let history_clotting_risk = $state<'yes' | 'no' | 'not_sure' | null>(null);
-	let history_breast_cancer = $state<'yes' | 'no' | 'not_sure' | null>(null);
+	let what_have_you_tried = $state(existingQualitativeContext?.what_have_you_tried ?? '');
+	let specific_ask = $state(existingQualitativeContext?.specific_ask ?? '');
+	let history_clotting_risk = $state<'yes' | 'no' | 'not_sure' | null>(
+		existingQualitativeContext?.history_clotting_risk ?? null
+	);
+	let history_breast_cancer = $state<'yes' | 'no' | 'not_sure' | null>(
+		existingQualitativeContext?.history_breast_cancer ?? null
+	);
 	let isSaving = $state(false);
 
 	async function handleNext() {

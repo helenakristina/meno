@@ -9,12 +9,14 @@
 		context,
 		initialConcerns = [],
 		onNext,
+		onChange = null,
 		onError
 	}: {
 		appointmentId: string;
 		context: AppointmentContext;
 		initialConcerns?: Concern[];
 		onNext: (concerns: Concern[]) => void;
+		onChange?: ((concerns: Concern[]) => void) | null;
 		onError: (msg: string) => void;
 	} = $props();
 
@@ -33,6 +35,7 @@
 		const updated = [...concerns];
 		[updated[index - 1], updated[index]] = [updated[index], updated[index - 1]];
 		concerns = updated;
+		onChange?.(updated);
 	}
 
 	function moveDown(index: number) {
@@ -40,17 +43,22 @@
 		const updated = [...concerns];
 		[updated[index], updated[index + 1]] = [updated[index + 1], updated[index]];
 		concerns = updated;
+		onChange?.(updated);
 	}
 
 	function removeConcern(index: number) {
-		concerns = concerns.filter((_, i) => i !== index);
+		const updated = concerns.filter((_, i) => i !== index);
+		concerns = updated;
+		onChange?.(updated);
 	}
 
 	function addConcern() {
 		const text = newConcernText.trim();
 		if (!text) return;
-		concerns = [...concerns, { text }];
+		const updated = [...concerns, { text }];
+		concerns = updated;
 		newConcernText = '';
+		onChange?.(updated);
 	}
 
 	function handleAddKeydown(e: KeyboardEvent) {
@@ -64,6 +72,7 @@
 		const updated = [...concerns];
 		updated[index] = { ...updated[index], comment: comment || undefined };
 		concerns = updated;
+		onChange?.(updated);
 	}
 
 	// Drag and drop handlers
@@ -90,6 +99,7 @@
 		updated.splice(targetIndex, 0, moved);
 		concerns = updated;
 		dragSrcIndex = null;
+		onChange?.(updated);
 	}
 
 	function handleDragEnd() {
