@@ -12,8 +12,7 @@ Keep business logic here, not scattered across repositories or services.
 """
 
 import logging
-from datetime import date, datetime, timedelta
-from typing import Optional
+from datetime import date, timedelta
 
 logger = logging.getLogger(__name__)
 

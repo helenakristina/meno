@@ -8,10 +8,12 @@ Handles Steps 2, 4, and 5 of the Appointment Prep Flow:
 Routes become thin wrappers that call one method and return the result.
 """
 
+import asyncio
 import json
 import logging
 from datetime import datetime, timedelta
-from typing import Any, Optional
+from pathlib import Path
+from typing import Callable, Optional
 
 from app.exceptions import DatabaseError, EntityNotFoundError
 from app.models.appointment import (
@@ -19,15 +21,25 @@ from app.models.appointment import (
     AppointmentPrepGenerateResponse,
     AppointmentPrepNarrativeResponse,
     AppointmentPrepScenariosResponse,
+    SaveQualitativeContextRequest,
     ScenarioCard,
+    ScenarioSource,
 )
+from app.models.symptoms import SymptomFrequency, SymptomPair
 from app.repositories.appointment_repository import AppointmentRepository
 from app.repositories.symptoms_repository import SymptomsRepository
 from app.services.medication_base import MedicationServiceBase
+from app.utils.sanitize import sanitize_urgent_symptom
 from app.repositories.user_repository import UserRepository
 from app.services.llm import LLMService
+from app.llm.appointment_prompts import NARRATIVE_SYSTEM, build_narrative_user_prompt
 from app.services.pdf import PdfService
 from app.services.storage import StorageService
+from app.utils.prompt_formatting import (
+    format_cooccurrence_stats_for_prompt,
+    format_frequency_stats_for_prompt,
+    format_medications_for_prompt,
+)
 from app.utils.logging import hash_user_id, safe_len
 from app.utils.stats import calculate_cooccurrence_stats, calculate_frequency_stats
 
@@ -51,6 +63,7 @@ class AppointmentService:
         storage_service: StorageService,
         pdf_service: PdfService,
         medication_service: Optional[MedicationServiceBase] = None,
+        rag_retriever: Optional[Callable] = None,
     ):
         self.appointment_repo = appointment_repo
         self.symptoms_repo = symptoms_repo
@@ -59,6 +72,8 @@ class AppointmentService:
         self.storage_service = storage_service
         self.pdf_service = pdf_service
         self.medication_service = medication_service
+        self.rag_retriever = rag_retriever
+        self._scenario_config = self._load_scenario_config()
 
     # -------------------------------------------------------------------------
     # Step 2: Generate narrative
@@ -192,16 +207,28 @@ class AppointmentService:
                 )
 
         # Build prompts
-        system_prompt, user_prompt = self._build_narrative_prompts(
-            context=context,
-            frequency_stats=frequency_stats,
-            cooccurrence_stats=cooccurrence_stats,
+        appt_type_str = context.appointment_type.value.replace("_", " ").title()
+        goal_str = context.goal.value.replace("_", " ")
+        age_str = str(age) if age else "not specified"
+        freq_text = format_frequency_stats_for_prompt(
+            frequency_stats, empty_msg="No symptom data."
+        )
+        coocc_text = format_cooccurrence_stats_for_prompt(cooccurrence_stats)
+        med_section = format_medications_for_prompt(current_medications or [])
+
+        user_prompt = build_narrative_user_prompt(
+            appt_type_str=appt_type_str,
+            goal_str=goal_str,
+            age_str=age_str,
+            journey_stage=journey_stage,
             days_back=days_back,
             start_date=start_date,
             end_date=end_date,
-            journey_stage=journey_stage,
-            age=age,
-            current_medications=current_medications,
+            freq_text=freq_text,
+            coocc_text=coocc_text,
+            med_section=med_section,
+            what_have_you_tried=context.what_have_you_tried,
+            specific_ask=context.specific_ask,
         )
 
         # Call LLM
@@ -209,11 +236,9 @@ class AppointmentService:
             "Calling LLM to generate narrative: appointment_id=%s", appointment_id
         )
         try:
-            narrative = await self.llm_service.provider.chat_completion(
-                system_prompt=system_prompt,
+            narrative = await self.llm_service.generate_narrative(
+                system_prompt=NARRATIVE_SYSTEM,
                 user_prompt=user_prompt,
-                max_tokens=600,
-                temperature=0.3,
             )
         except TimeoutError:
             logger.error(
@@ -236,13 +261,83 @@ class AppointmentService:
             len(narrative),
         )
 
-        # Save to database
+        # Save narrative to database
         await self.appointment_repo.save_narrative(appointment_id, user_id, narrative)
+
+        # Save frequency stats so Step 5 can reuse them without re-querying logs
+        freq_stats_json = [s.model_dump() for s in frequency_stats]
+        coocc_stats_json = [p.model_dump() for p in cooccurrence_stats]
+        try:
+            await self.appointment_repo.save_frequency_stats(
+                appointment_id, user_id, freq_stats_json, coocc_stats_json
+            )
+        except Exception as exc:
+            # Non-critical — PDF generation degrades to empty table rather than failing
+            logger.warning(
+                "Failed to save frequency stats: appointment_id=%s error=%s",
+                appointment_id,
+                exc,
+            )
 
         return AppointmentPrepNarrativeResponse(
             appointment_id=appointment_id,
             narrative=narrative,
             next_step="prioritize",
+        )
+
+    # -------------------------------------------------------------------------
+    # Step 2b / 3.5: Save user-edited narrative and qualitative context
+    # -------------------------------------------------------------------------
+
+    async def save_narrative(
+        self,
+        appointment_id: str,
+        user_id: str,
+        narrative: str,
+    ) -> None:
+        """Save user-edited narrative to the appointment context.
+
+        Verifies ownership via get_context before saving.
+
+        Args:
+            appointment_id: UUID of the appointment context.
+            user_id: Authenticated user ID.
+            narrative: The user-edited narrative text to save.
+
+        Raises:
+            EntityNotFoundError: Appointment not found or doesn't belong to user.
+            DatabaseError: Database operation failed.
+        """
+        await self.appointment_repo.get_context(appointment_id, user_id)
+        await self.appointment_repo.save_narrative(appointment_id, user_id, narrative)
+
+    async def save_qualitative_context(
+        self,
+        appointment_id: str,
+        user_id: str,
+        ctx: SaveQualitativeContextRequest,
+    ) -> None:
+        """Save qualitative context fields to the appointment context.
+
+        Verifies ownership via get_context before saving.
+
+        Args:
+            appointment_id: UUID of the appointment context.
+            user_id: Authenticated user ID.
+            ctx: SaveQualitativeContextRequest with optional qualitative fields.
+
+        Raises:
+            EntityNotFoundError: Appointment not found or doesn't belong to user.
+            DatabaseError: Database operation failed.
+        """
+        await self.appointment_repo.get_context(appointment_id, user_id)
+        await self.appointment_repo.save_qualitative_context(
+            appointment_id,
+            user_id,
+            ctx.what_have_you_tried,
+            ctx.specific_ask,
+            ctx.history_clotting_risk,
+            ctx.history_breast_cancer,
         )
 
     # -------------------------------------------------------------------------
@@ -303,15 +398,61 @@ class AppointmentService:
             logger.warning("Failed to fetch concerns, using empty list: %s", exc)
             concerns = []
 
+        # Format concerns as strings for LLM prompt (comment appended when present)
+        concerns_for_llm = [
+            f"{c.text}; {c.comment}" if c.comment else c.text for c in concerns
+        ]
+
+        # Retrieve RAG chunks for each scenario to ground suggestions in real sources
+        all_rag_chunks: list[dict] = []
+        if self.rag_retriever is not None:
+            try:
+                chunk_results = await asyncio.gather(
+                    *[
+                        self.rag_retriever(s["title"], top_k=3, min_similarity=0.25)
+                        for s in scenarios_to_generate
+                    ]
+                )
+                for scenario, chunks in zip(scenarios_to_generate, chunk_results):
+                    for chunk in chunks:
+                        chunk["scenario_title"] = scenario["title"]
+                    all_rag_chunks.extend(chunks)
+
+                # Deduplicate by chunk id and cap dynamically (2 chunks per scenario)
+                chunks_per_scenario = 2
+                cap = len(scenarios_to_generate) * chunks_per_scenario
+                seen_ids: set[str] = set()
+                deduped: list[dict] = []
+                for chunk in all_rag_chunks:
+                    chunk_id = chunk.get("id")
+                    if chunk_id not in seen_ids:
+                        deduped.append(chunk)
+                        if chunk_id is not None:
+                            seen_ids.add(chunk_id)
+                all_rag_chunks = deduped[:cap]
+
+                logger.info(
+                    "RAG retrieval for scenarios: retrieved %d chunks across %d scenarios",
+                    len(all_rag_chunks),
+                    len(scenarios_to_generate),
+                )
+            except Exception as exc:
+                logger.warning(
+                    "RAG retrieval failed for scenarios, continuing without chunks: %s",
+                    exc,
+                )
+                all_rag_chunks = []
+
         # Call LLM
         try:
             raw_suggestions = await self.llm_service.generate_scenario_suggestions(
                 scenarios_to_generate=scenarios_to_generate,
-                concerns=concerns,
+                concerns=concerns_for_llm,
                 appointment_type=context.appointment_type.value,
                 goal=context.goal.value,
                 dismissed_before=context.dismissed_before.value,
                 user_age=age,
+                rag_chunks=all_rag_chunks,
             )
         except TimeoutError:
             logger.error(
@@ -344,28 +485,35 @@ class AppointmentService:
             )
             raise DatabaseError("Failed to parse scenario suggestions from LLM")
 
-        # Build scenario cards
+        # Build scenario cards — scenarios_to_generate is now list[dict] with
+        # "title" and "category" keys (category comes from config/scenarios.json)
         scenario_cards: list[ScenarioCard] = []
-        for idx, (scenario_title, suggestion_data) in enumerate(
+        for idx, (scenario, suggestion_data) in enumerate(
             zip(scenarios_to_generate, suggestions_list)
         ):
+            scenario_title = scenario["title"]
             suggestion_text = (
                 suggestion_data.get("suggestion", "")
                 if isinstance(suggestion_data, dict)
                 else str(suggestion_data)
             )
-            sources = (
+            raw_sources = (
                 suggestion_data.get("sources", [])
                 if isinstance(suggestion_data, dict)
                 else []
             )
+            sources = [
+                ScenarioSource(**s) if isinstance(s, dict) else s
+                for s in raw_sources
+                if isinstance(s, (dict, ScenarioSource))
+            ]
             scenario_cards.append(
                 ScenarioCard(
                     id=f"scenario-{idx + 1}",
                     title=scenario_title,
                     situation=f"If your provider says: '{scenario_title}'",
                     suggestion=suggestion_text,
-                    category=self._get_scenario_category(scenario_title),
+                    category=scenario["category"],
                     sources=sources,
                 )
             )
@@ -437,9 +585,14 @@ class AppointmentService:
             logger.error("Failed to fetch appointment data: %s", exc, exc_info=True)
             raise DatabaseError(f"Failed to generate PDF: {exc}") from exc
 
-        narrative = appointment_data.get("narrative", "No narrative available.")
-        concerns = appointment_data.get("concerns", [])
+        narrative = appointment_data.get("narrative")
+        if not narrative:
+            raise DatabaseError(
+                "Narrative not found — Step 2 must be completed before generating PDFs"
+            )
         scenarios_data = appointment_data.get("scenarios", [])
+        frequency_stats_data = appointment_data.get("frequency_stats") or []
+        cooccurrence_stats_data = appointment_data.get("cooccurrence_stats") or []
 
         # Fetch user context
         try:
@@ -456,7 +609,21 @@ class AppointmentService:
         narrative_text: str = (
             narrative if isinstance(narrative, str) else str(narrative)
         )
-        concerns_list: list = concerns if isinstance(concerns, list) else []
+
+        # Fetch concerns via repository (handles deserialization of both legacy string[]
+        # and current Concern[] formats stored in DB)
+        try:
+            concerns_list = await self.appointment_repo.get_concerns(
+                appointment_id, user_id
+            )
+        except Exception as exc:
+            logger.warning("Failed to fetch concerns, using empty list: %s", exc)
+            concerns_list = []
+
+        # Format concerns as strings for LLM prompts (comment appended when present)
+        concerns_for_llm: list[str] = [
+            f"{c.text}; {c.comment}" if c.comment else c.text for c in concerns_list
+        ]
 
         scenarios_for_pdf: list[dict] = []
         if scenarios_data and isinstance(scenarios_data, list):
@@ -464,67 +631,78 @@ class AppointmentService:
         elif isinstance(scenarios_data, dict):
             scenarios_for_pdf = [scenarios_data]
 
-        # Generate provider summary via LLM
+        # Deserialize saved frequency stats (empty list degrades gracefully in PDF)
+        frequency_stats: list[SymptomFrequency] = []
+        cooccurrence_stats: list[SymptomPair] = []
         try:
-            provider_summary_md = await self.llm_service.generate_pdf_content(
-                content_type="provider_summary",
-                narrative=narrative_text,
-                concerns=concerns_list,
-                appointment_type=context.appointment_type.value,
-                goal=context.goal.value,
-                user_age=age,
-                urgent_symptom=context.urgent_symptom,
+            frequency_stats = [SymptomFrequency(**s) for s in frequency_stats_data]
+            cooccurrence_stats = [SymptomPair(**p) for p in cooccurrence_stats_data]
+        except Exception as exc:
+            logger.warning(
+                "Failed to deserialize frequency stats, PDF will have empty table: %s",
+                exc,
+            )
+
+        # Generate provider summary and cheat sheet in parallel via LLM
+        provider_task = self.llm_service.generate_provider_summary_content(
+            concerns=concerns_for_llm,
+            appointment_type=context.appointment_type.value,
+            goal=context.goal.value,
+            user_age=age,
+            urgent_symptom=context.urgent_symptom,
+            what_have_you_tried=context.what_have_you_tried,
+            specific_ask=context.specific_ask,
+            history_clotting_risk=context.history_clotting_risk,
+            history_breast_cancer=context.history_breast_cancer,
+        )
+
+        cheatsheet_task = self.llm_service.generate_cheatsheet_content(
+            narrative=narrative_text,
+            concerns=concerns_for_llm,
+            appointment_type=context.appointment_type.value,
+            goal=context.goal.value,
+            user_age=age,
+            urgent_symptom=context.urgent_symptom,
+            scenarios=scenarios_for_pdf,
+            specific_ask=context.specific_ask,
+        )
+
+        try:
+            provider_summary_content, cheatsheet_content = await asyncio.gather(
+                provider_task, cheatsheet_task
             )
         except TimeoutError:
             logger.error(
-                "LLM timed out for provider summary: appointment_id=%s", appointment_id
+                "LLM timed out during PDF content generation: appointment_id=%s",
+                appointment_id,
             )
-            raise DatabaseError("LLM request timed out generating provider summary")
+            raise DatabaseError("LLM request timed out generating PDF content")
         except Exception as exc:
             logger.error(
-                "LLM failed for provider summary: appointment_id=%s error=%s",
+                "LLM failed during PDF content generation: appointment_id=%s error=%s",
                 appointment_id,
                 exc,
                 exc_info=True,
             )
-            raise DatabaseError(f"Failed to generate provider summary: {exc}") from exc
+            raise DatabaseError(f"Failed to generate PDF content: {exc}") from exc
 
-        # Generate personal cheat sheet via LLM
+        # Build structured PDFs
         try:
-            cheatsheet_md = await self.llm_service.generate_pdf_content(
-                content_type="personal_cheatsheet",
+            provider_summary_pdf = self.pdf_service.build_provider_summary_pdf(
+                content=provider_summary_content,
                 narrative=narrative_text,
+                frequency_stats=frequency_stats,
+                cooccurrence_stats=cooccurrence_stats,
                 concerns=concerns_list,
-                appointment_type=context.appointment_type.value,
-                goal=context.goal.value,
-                user_age=age,
-                urgent_symptom=context.urgent_symptom,
+            )
+            cheatsheet_pdf = self.pdf_service.build_cheatsheet_pdf(
+                content=cheatsheet_content,
+                concerns=concerns_list,
                 scenarios=scenarios_for_pdf,
-            )
-        except TimeoutError:
-            logger.error(
-                "LLM timed out for cheat sheet: appointment_id=%s", appointment_id
-            )
-            raise DatabaseError("LLM request timed out generating cheat sheet")
-        except Exception as exc:
-            logger.error(
-                "LLM failed for cheat sheet: appointment_id=%s error=%s",
-                appointment_id,
-                exc,
-                exc_info=True,
-            )
-            raise DatabaseError(f"Failed to generate cheat sheet: {exc}") from exc
-
-        # Convert markdown to PDFs
-        try:
-            provider_summary_pdf = self.pdf_service.markdown_to_pdf(
-                provider_summary_md, title="Provider Summary"
-            )
-            cheatsheet_pdf = self.pdf_service.markdown_to_pdf(
-                cheatsheet_md, title="Personal Cheat Sheet"
+                frequency_stats=frequency_stats,
             )
         except Exception as exc:
-            logger.error("Failed to convert markdown to PDF: %s", exc, exc_info=True)
+            logger.error("Failed to build PDFs: %s", exc, exc_info=True)
             raise DatabaseError(f"Failed to generate PDF: {exc}") from exc
 
         # Upload to Supabase Storage
@@ -574,88 +752,30 @@ class AppointmentService:
     # Private helpers
     # -------------------------------------------------------------------------
 
-    def _build_narrative_prompts(
-        self,
-        context: AppointmentContext,
-        frequency_stats: list,
-        cooccurrence_stats: list,
-        days_back: int,
-        start_date: Any,
-        end_date: Any,
-        journey_stage: str,
-        age: int | None,
-        current_medications: Optional[list] = None,
-    ) -> tuple[str, str]:
-        """Build system and user prompts for narrative LLM call."""
-        goal_str = context.goal.value.replace("_", " ").title()
-        appt_type_str = context.appointment_type.value.replace("_", " ").title()
-        age_str = str(age) if age else "not specified"
-
-        system_prompt = (
-            "You are preparing a clinical summary of symptom tracking data for a healthcare provider "
-            "appointment. Your role is to present objective patterns from personal health tracking — "
-            "not to diagnose, interpret causes, or recommend treatments.\n\n"
-            "Rules:\n"
-            "- Always use 'logs show' or 'data indicates' — never 'you have' or diagnose\n"
-            "- Never suggest a medical condition, cause, or specific treatment\n"
-            "- Frame observations as patterns worth discussing with a provider\n"
-            "- Professional, neutral, clinical tone\n"
-            "- Write 2–3 clear paragraphs suitable for a healthcare conversation\n"
-            "- End by noting these patterns are worth discussing with a provider"
-        )
-
-        freq_lines = [
-            f"- {s.symptom_name} ({s.category}): logged {s.count} time(s)"
-            for s in frequency_stats[:10]
-        ]
-        freq_text = "\n".join(freq_lines) if freq_lines else "No symptom data."
-
-        coocc_lines = [
-            f"- {p.symptom1_name} + {p.symptom2_name}: "
-            f"co-occurred {p.cooccurrence_count} time(s) "
-            f"({round(p.cooccurrence_rate * 100)}% of {p.symptom1_name} logs)"
-            for p in cooccurrence_stats[:5]
-        ]
-        coocc_text = (
-            "\n".join(coocc_lines)
-            if coocc_lines
-            else "No notable co-occurrence patterns."
-        )
-
-        med_section = ""
-        if current_medications:
-            med_lines = [
-                f"- {m.medication_name} {m.dose} ({m.delivery_method})"
-                + (f", started {m.start_date}" if m.start_date else "")
-                for m in current_medications
-            ]
-            med_section = "\n\nCurrent MHT medications:\n" + "\n".join(med_lines)
-
-        user_prompt = (
-            f"Write a 2–3 paragraph clinical summary for a healthcare appointment. "
-            f"Patient context: {appt_type_str} appointment, goal is '{goal_str}', "
-            f"age {age_str}, journey stage: {journey_stage}. "
-            f"Symptom tracking covers {days_back} days "
-            f"({start_date.strftime('%B %d, %Y')} to {end_date.strftime('%B %d, %Y')}).\n\n"
-            f"Most frequently logged symptoms:\n{freq_text}\n\n"
-            f"Symptom patterns (co-occurrences):\n{coocc_text}"
-            f"{med_section}\n\n"
-            "Write a clear, objective summary using 'logs show' language throughout. "
-            "No diagnoses. No treatment recommendations."
-        )
-
-        return system_prompt, user_prompt
+    def _load_scenario_config(self) -> dict:
+        """Load scenario config from JSON. Called once in __init__ — failure is immediate."""
+        config_path = Path(__file__).parent.parent.parent / "config" / "scenarios.json"
+        try:
+            with config_path.open() as f:
+                return json.load(f)
+        except FileNotFoundError as exc:
+            raise RuntimeError(
+                f"Scenario config not found at {config_path}. "
+                "Ensure config/scenarios.json is present."
+            ) from exc
 
     def _select_scenarios(
         self, context: AppointmentContext, journey_stage: str
-    ) -> list[str]:
-        """Select 5-7 dismissal scenarios based on appointment context.
+    ) -> list[dict]:
+        """Select 5-7 dismissal scenarios from JSON config based on appointment context.
 
-        When goal is urgent_symptom, selects scenarios specific to that symptom.
-        For other goals, uses goal-specific dismissal scenarios.
+        Returns list[dict] where each dict has "title" (str) and "category" (str).
+        When goal is urgent_symptom, matches against keyword groups. Falls back to
+        goal-specific scenarios for other goals.
         """
-        urgent_symptom = context.urgent_symptom
-        scenarios = []
+        config = self._scenario_config
+        scenarios: list[dict] = []
+        urgent_symptom = sanitize_urgent_symptom(context.urgent_symptom)
 
         if context.goal.value == "urgent_symptom" and not urgent_symptom:
             urgent_symptom = "perimenopause symptoms"
@@ -665,244 +785,37 @@ class AppointmentService:
             and urgent_symptom
             and urgent_symptom != "perimenopause symptoms"
         ):
-            if (
-                "brain fog" in urgent_symptom.lower()
-                or "cognitive" in urgent_symptom.lower()
-                or "concentration" in urgent_symptom.lower()
-            ):
-                scenarios.extend(
-                    [
-                        "Cognitive symptoms don't respond to hormone therapy",
-                        "Brain fog is just normal aging",
-                        "That's probably anxiety, not hormones",
-                        "You should see a neurologist, not a gynecologist",
-                        "Cognitive decline at your stage is expected",
-                    ]
-                )
-            elif (
-                "hot flash" in urgent_symptom.lower()
-                or "vasomotor" in urgent_symptom.lower()
-            ):
-                scenarios.extend(
-                    [
-                        "Hormone therapy increases breast cancer risk",
-                        "Hot flashes will go away on their own",
-                        "You just need to dress in layers and use a fan",
-                        "Hot flashes aren't a real medical symptom",
-                        "Let's try an antidepressant first",
-                    ]
-                )
-            elif (
-                "sleep" in urgent_symptom.lower()
-                or "insomnia" in urgent_symptom.lower()
-                or "waking" in urgent_symptom.lower()
-            ):
-                scenarios.extend(
-                    [
-                        "Sleep disruption at your age is normal",
-                        "You should see a sleep specialist, not discuss hormones",
-                        "Melatonin or sleep hygiene will fix this",
-                        "Hormone therapy doesn't help sleep",
-                        "Let's try an antidepressant first",
-                    ]
-                )
-            elif "anxiety" in urgent_symptom.lower():
-                scenarios.extend(
-                    [
-                        "That sounds like anxiety disorder, you need a psychiatrist",
-                        "Let's try an antidepressant first",
-                        "Hormone therapy won't help anxiety",
-                        "You're just stressed, try meditation",
-                        "Anxiety medications are better than hormone therapy",
-                    ]
-                )
-            elif (
-                "vaginal" in urgent_symptom.lower()
-                or "dryness" in urgent_symptom.lower()
-                or "sexual" in urgent_symptom.lower()
-            ):
-                scenarios.extend(
-                    [
-                        "Just use lube, that's the standard treatment",
-                        "That's a gynecology issue, not a hormone issue",
-                        "Vaginal issues are normal at this stage",
-                        "You don't need systemic treatment for local symptoms",
-                        "Let's try an antidepressant first",
-                    ]
-                )
-            elif "joint" in urgent_symptom.lower() or "pain" in urgent_symptom.lower():
-                scenarios.extend(
-                    [
-                        "Joint pain isn't related to hormones",
-                        "You should see a rheumatologist",
-                        "That's just arthritis, not perimenopause",
-                        "Exercise will fix this, not hormones",
-                        "Your symptoms aren't severe enough to treat",
-                    ]
-                )
-            elif (
-                "bladder" in urgent_symptom.lower()
-                or "urinary" in urgent_symptom.lower()
-                or "incontinence" in urgent_symptom.lower()
-            ):
-                scenarios.extend(
-                    [
-                        "Bladder issues are gynecological, not hormonal",
-                        "You need pelvic floor physical therapy, not hormones",
-                        "That's normal at your stage, you'll have to manage it",
-                        "Kegel exercises should be enough",
-                        "Hormone therapy doesn't help bladder symptoms",
-                    ]
-                )
-            elif (
-                "mood" in urgent_symptom.lower()
-                or "depression" in urgent_symptom.lower()
-            ):
-                scenarios.extend(
-                    [
-                        "That sounds like depression, you need an antidepressant",
-                        "Hormone therapy isn't approved for mood",
-                        "You should see a psychiatrist",
-                        "Mood changes are psychological, not hormonal",
-                        "Let's try an antidepressant first",
-                    ]
-                )
-            elif (
-                "fatigue" in urgent_symptom.lower() or "tired" in urgent_symptom.lower()
-            ):
-                scenarios.extend(
-                    [
-                        "Fatigue is normal aging, not hormonal",
-                        "You just need better sleep hygiene",
-                        "That sounds like thyroid or anemia, let me check labs",
-                        "Hormone therapy won't fix your energy",
-                        "You should get more exercise",
-                    ]
-                )
-            elif (
-                "skin" in urgent_symptom.lower()
-                or "hair" in urgent_symptom.lower()
-                or "nail" in urgent_symptom.lower()
-            ):
-                scenarios.extend(
-                    [
-                        "Skin changes are cosmetic, not medical",
-                        "You should see a dermatologist",
-                        "That's not related to perimenopause",
-                        "Hair loss is normal aging",
-                        "Hormone therapy doesn't improve skin quality",
-                    ]
-                )
-            else:
-                scenarios.extend(
-                    [
-                        "That symptom isn't really related to perimenopause",
-                        "Your symptoms aren't severe enough to treat",
-                        "Let's wait and see if it gets better",
-                        "That's probably something else, not hormones",
-                    ]
-                )
-            scenarios.extend(
-                [
-                    "Your symptoms will go away on their own",
-                    "You're just stressed or anxious",
-                ]
-            )
+            # Find the first keyword group that matches the symptom text
+            symptom_lower = urgent_symptom.lower()
+            matched = False
+            for group in config["symptom_scenarios"].values():
+                if any(kw in symptom_lower for kw in group["keywords"]):
+                    scenarios.extend(group["dismissals"])
+                    matched = True
+                    break
+
+            if not matched:
+                scenarios.extend(config["urgent_fallback_scenarios"])
+
+            scenarios.extend(config["universal_scenarios"])
         else:
-            if context.goal.value == "explore_hrt":
-                scenarios.extend(
-                    [
-                        "Hormone therapy increases breast cancer risk",
-                        "I don't prescribe that, I give the birth control pill instead",
-                        "Let's try an antidepressant first",
-                    ]
-                )
-            elif context.goal.value == "optimize_current_treatment":
-                scenarios.extend(
-                    [
-                        "Your symptoms aren't severe enough to treat",
-                        "That dose is already too high",
-                        "Let's try lifestyle changes first",
-                    ]
-                )
-            elif context.goal.value == "assess_status":
-                scenarios.extend(
-                    [
-                        "Your symptoms will go away on their own",
-                        "You're just stressed or anxious",
-                    ]
-                )
+            goal_key = context.goal.value
+            scenarios.extend(config["goal_scenarios"].get(goal_key, []))
+            # Note: dismissed_before scenarios removed — "What are the triggers?"
+            # is an open question, not a dismissal scenario (see config/_dismissed_before_removed)
 
-            if context.dismissed_before.value == "multiple_times":
-                scenarios.extend(["What are the triggers?"])
-            elif context.dismissed_before.value == "once_or_twice":
-                scenarios.extend(["What are the triggers?"])
+        # Deduplicate preserving order, cap at 7
+        seen: set[str] = set()
+        unique: list[dict] = []
+        for s in scenarios:
+            if s["title"] not in seen:
+                unique.append(s)
+                seen.add(s["title"])
 
-        # Deduplicate and limit to 7
-        scenarios = list(dict.fromkeys(scenarios))[:7]
-
+        result = unique[:7]
         logger.info(
             "Selected %d scenarios, has_urgent=%s",
-            len(scenarios),
+            len(result),
             bool(urgent_symptom),
         )
-        return scenarios
-
-    def _get_scenario_category(self, title: str) -> str:
-        """Determine scenario category from dismissal title for frontend grouping."""
-        title_lower = title.lower()
-
-        if "breast cancer" in title_lower or "hormone therapy increases" in title_lower:
-            return "hrt-safety"
-        elif "antidepressant" in title_lower or "psychiatrist" in title_lower:
-            return "wrong-specialist"
-        elif (
-            "normal" in title_lower
-            or "aging" in title_lower
-            or "expected" in title_lower
-            or "natural" in title_lower
-        ):
-            return "normalization"
-        elif (
-            "specialist" in title_lower
-            or "dermatologist" in title_lower
-            or "rheumatologist" in title_lower
-            or "neurologist" in title_lower
-            or "sleep specialist" in title_lower
-        ):
-            return "specialist-referral"
-        elif (
-            "won't help" in title_lower
-            or "doesn't" in title_lower
-            or "not related" in title_lower
-            or "isn't" in title_lower
-        ):
-            return "dismissal"
-        elif (
-            "lube" in title_lower
-            or "kegel" in title_lower
-            or "lifestyle" in title_lower
-            or "meditation" in title_lower
-            or "hygiene" in title_lower
-            or "dress" in title_lower
-            or "fan" in title_lower
-        ):
-            return "lifestyle-only"
-        elif "go away" in title_lower or "wait" in title_lower:
-            return "wait-and-see"
-        elif (
-            "stressed" in title_lower
-            or "anxious" in title_lower
-            or "psychological" in title_lower
-            or "anxiety" in title_lower
-        ):
-            return "psychology"
-        elif (
-            "severe" in title_lower
-            or "enough" in title_lower
-            or "dose" in title_lower
-            or "high" in title_lower
-        ):
-            return "dismissal"
-        else:
-            return "general"
+        return result

@@ -4,10 +4,7 @@ These tests verify endpoint structure and utility functions.
 Full integration tests require proper auth setup and database mocking.
 """
 
-import pytest
 from datetime import datetime
-
-from app.main import app
 
 
 class TestListConversationsEndpoint:

@@ -1,272 +1,138 @@
-"""Unit tests for appointment scenario selection and categorization.
+"""Unit tests for appointment scenario selection.
 
-Tests the _select_scenarios() and _get_scenario_category() helper functions
-to ensure realistic dismissal scenarios are properly selected based on context
-and correctly categorized.
+Tests the _select_scenarios() helper after the JSON-config refactor.
+_get_scenario_category() has been deleted — category comes from config/scenarios.json.
+
+Note: this file lives in tests/api/routes/ for historical reasons but tests a
+service-layer helper, not an HTTP route.
 """
 
-import sys
-from pathlib import Path
-
-# Add app to path for imports
-app_path = Path(__file__).parent.parent.parent.parent / "app"
-sys.path.insert(0, str(app_path.parent))
-
-from app.services.appointment import AppointmentService
-
-# Create a minimal service instance to access private helpers under test
-_svc = AppointmentService.__new__(AppointmentService)
-_select_scenarios = _svc._select_scenarios
-_get_scenario_category = _svc._get_scenario_category
 from app.models.appointment import (
     AppointmentContext,
-    AppointmentType,
     AppointmentGoal,
+    AppointmentType,
     DismissalExperience,
 )
+from app.services.appointment import AppointmentService
+
+_svc = AppointmentService.__new__(AppointmentService)
+_svc._scenario_config = _svc._load_scenario_config()
+_select_scenarios = _svc._select_scenarios
+
+VALID_CATEGORIES = {
+    "hrt-safety",
+    "wrong-specialist",
+    "normalization",
+    "specialist-referral",
+    "dismissal",
+    "lifestyle-only",
+    "wait-and-see",
+    "psychology",
+    "general",
+}
+
+
+def _ctx(goal, dismissed=DismissalExperience.no, urgent=None):
+    return AppointmentContext(
+        appointment_type=AppointmentType.new_provider,
+        goal=goal,
+        dismissed_before=dismissed,
+        urgent_symptom=urgent,
+    )
+
+
+def _titles(scenarios: list) -> list[str]:
+    return [s["title"] for s in scenarios]
 
 
 class TestSelectScenarios:
-    """Test scenario selection based on appointment context."""
+    """Scenario selection returns list[dict] with title and category from config."""
 
     def test_explore_hrt_goal_scenarios(self):
-        """For explore_hrt goal, select HRT-specific dismissals."""
-        context = AppointmentContext(
-            appointment_type=AppointmentType.new_provider,
-            goal=AppointmentGoal.explore_hrt,
-            dismissed_before=DismissalExperience.no,
-        )
-        scenarios = _select_scenarios(context, "exploration")
-
-        # Should include HRT-specific dismissals
-        assert "Hormone therapy increases breast cancer risk" in scenarios
-        assert (
-            "I don't prescribe that, I give the birth control pill instead" in scenarios
-        )
-        assert "Let's try an antidepressant first" in scenarios
+        # CATCHES: explore_hrt goal key mismatch in JSON lookup — returns [] instead
+        # of HRT-related scenarios
+        scenarios = _select_scenarios(_ctx(AppointmentGoal.explore_hrt), "exploration")
+        titles = _titles(scenarios)
+        assert "Hormone therapy increases breast cancer risk" in titles
+        assert "I don't prescribe that, I give the birth control pill instead" in titles
+        assert "Let's try an antidepressant first" in titles
         assert len(scenarios) <= 7
 
     def test_optimize_current_treatment_scenarios(self):
-        """For optimize_current_treatment goal, select treatment adjustment dismissals."""
-        context = AppointmentContext(
-            appointment_type=AppointmentType.established_relationship,
-            goal=AppointmentGoal.optimize_current_treatment,
-            dismissed_before=DismissalExperience.no,
+        # CATCHES: optimize_current_treatment key not found — treatment-adjustment
+        # dismissals would be missing for this common appointment goal
+        scenarios = _select_scenarios(
+            _ctx(AppointmentGoal.optimize_current_treatment), "active"
         )
-        scenarios = _select_scenarios(context, "active")
-
-        # Should include treatment adjustment dismissals
-        assert "Your symptoms aren't severe enough to treat" in scenarios
-        assert "That dose is already too high" in scenarios
-        assert "Let's try lifestyle changes first" in scenarios
+        titles = _titles(scenarios)
+        assert "Your symptoms aren't severe enough to treat" in titles
+        assert "That dose is already too high" in titles
+        assert "Let's try lifestyle changes first" in titles
         assert len(scenarios) <= 7
 
     def test_assess_status_goal_scenarios(self):
-        """For assess_status goal, select dismissal and deflection scenarios."""
-        context = AppointmentContext(
-            appointment_type=AppointmentType.new_provider,
-            goal=AppointmentGoal.assess_status,
-            dismissed_before=DismissalExperience.no,
+        # CATCHES: assess_status scenarios silently empty — common deflections
+        # ("go away on their own") would be absent for initial-assessment appointments
+        scenarios = _select_scenarios(
+            _ctx(AppointmentGoal.assess_status), "preparation"
         )
-        scenarios = _select_scenarios(context, "preparation")
-
-        # Should include time-based and psychology dismissals
-        assert "Your symptoms will go away on their own" in scenarios
-        assert "You're just stressed or anxious" in scenarios
+        titles = _titles(scenarios)
+        assert "Your symptoms will go away on their own" in titles
+        assert "You're just stressed or anxious" in titles
         assert len(scenarios) <= 7
 
-    def test_multiple_dismissals_adds_context_scenarios(self):
-        """Users dismissed multiple times get additional deflection scenarios."""
-        context = AppointmentContext(
-            appointment_type=AppointmentType.new_provider,
-            goal=AppointmentGoal.explore_hrt,
-            dismissed_before=DismissalExperience.multiple_times,
-        )
-        scenarios = _select_scenarios(context, "transition")
-
-        # Should include HRT scenarios + dismissal experience scenarios
-        assert "Hormone therapy increases breast cancer risk" in scenarios
-        assert "What are the triggers?" in scenarios
-        assert len(scenarios) <= 7
-
-    def test_once_or_twice_dismissal_adds_trigger_question(self):
-        """Users dismissed 1-2 times get trigger question scenario."""
-        context = AppointmentContext(
-            appointment_type=AppointmentType.new_provider,
-            goal=AppointmentGoal.explore_hrt,
-            dismissed_before=DismissalExperience.once_or_twice,
-        )
-        scenarios = _select_scenarios(context, "preparation")
-
-        # Should include HRT scenarios + trigger question
-        assert "Hormone therapy increases breast cancer risk" in scenarios
-        assert "What are the triggers?" in scenarios
-        assert len(scenarios) <= 7
-
-    def test_no_duplicate_scenarios(self):
-        """Scenario list is deduplicated when same scenario selected multiple times."""
-        # This scenario selection shouldn't have duplicates, but dedup is a safeguard
-        context = AppointmentContext(
-            appointment_type=AppointmentType.new_provider,
-            goal=AppointmentGoal.explore_hrt,
-            dismissed_before=DismissalExperience.multiple_times,
-        )
-        scenarios = _select_scenarios(context, "exploration")
-
-        # Check for duplicates
-        assert len(scenarios) == len(set(scenarios)), "Scenarios contain duplicates"
+    def test_no_duplicate_titles(self):
+        # CATCHES: dedup logic broken (e.g. comparing dicts by identity) —
+        # universal scenarios that overlap with goal scenarios would appear twice
+        scenarios = _select_scenarios(_ctx(AppointmentGoal.explore_hrt), "exploration")
+        titles = _titles(scenarios)
+        assert len(titles) == len(set(titles)), "Scenario titles contain duplicates"
 
     def test_max_seven_scenarios(self):
-        """Scenario list never exceeds 7 items."""
+        # CATCHES: cap removed from [:7] slice — LLM prompt for scenario suggestions
+        # could receive 10+ scenarios and exceed token budget
         for goal in [
             AppointmentGoal.explore_hrt,
             AppointmentGoal.optimize_current_treatment,
             AppointmentGoal.assess_status,
         ]:
-            for dismissed in [
-                DismissalExperience.no,
-                DismissalExperience.once_or_twice,
-                DismissalExperience.multiple_times,
-            ]:
-                context = AppointmentContext(
-                    appointment_type=AppointmentType.new_provider,
-                    goal=goal,
-                    dismissed_before=dismissed,
-                )
-                scenarios = _select_scenarios(context, "exploration")
-                assert len(scenarios) <= 7, (
-                    f"Too many scenarios for {goal}: {len(scenarios)}"
-                )
-
-    def test_all_scenarios_are_realistic_dismissals(self):
-        """All returned scenarios are real dismissals users experience."""
-        valid_scenarios = {
-            "Hormone therapy increases breast cancer risk",
-            "I don't prescribe that, I give the birth control pill instead",
-            "Let's try an antidepressant first",
-            "Your symptoms aren't severe enough to treat",
-            "That dose is already too high",
-            "Let's try lifestyle changes first",
-            "Your symptoms will go away on their own",
-            "You're just stressed or anxious",
-            "You're too old to start hormone therapy",
-            "What are the triggers?",
-        }
-
-        for goal in [
-            AppointmentGoal.explore_hrt,
-            AppointmentGoal.optimize_current_treatment,
-            AppointmentGoal.assess_status,
-        ]:
-            for dismissed in [
-                DismissalExperience.no,
-                DismissalExperience.once_or_twice,
-                DismissalExperience.multiple_times,
-            ]:
-                context = AppointmentContext(
-                    appointment_type=AppointmentType.new_provider,
-                    goal=goal,
-                    dismissed_before=dismissed,
-                )
-                scenarios = _select_scenarios(context, "exploration")
-                for scenario in scenarios:
-                    assert scenario in valid_scenarios, f"Invalid scenario: {scenario}"
-
-
-class TestGetScenarioCategory:
-    """Test scenario categorization."""
-
-    def test_hrt_concerns_category(self):
-        """Scenarios about HRT risks are categorized as hrt-safety."""
-        assert (
-            _get_scenario_category("Hormone therapy increases breast cancer risk")
-            == "hrt-safety"
-        )
-
-    def test_alternative_treatment_category(self):
-        """Scenarios offering alternative treatments are categorized correctly."""
-        assert (
-            _get_scenario_category(
-                "I don't prescribe that, I give the birth control pill instead"
+            scenarios = _select_scenarios(_ctx(goal), "exploration")
+            assert len(scenarios) <= 7, (
+                f"Too many scenarios for {goal}: {len(scenarios)}"
             )
-            == "general"  # Doesn't match specific patterns in new categorization
+
+    def test_dismissed_before_does_not_add_trigger_question(self):
+        # CATCHES: dismissed_before logic left in code — "What are the triggers?"
+        # is not a dismissal scenario and was intentionally removed
+        scenarios = _select_scenarios(
+            _ctx(
+                AppointmentGoal.explore_hrt,
+                dismissed=DismissalExperience.multiple_times,
+            ),
+            "transition",
         )
+        titles = _titles(scenarios)
+        assert "What are the triggers?" not in titles
 
-    def test_dismissal_psychology_category(self):
-        """Scenarios blaming psychology are categorized as wrong-specialist or psychology."""
-        assert (
-            _get_scenario_category("Let's try an antidepressant first")
-            == "wrong-specialist"
-        )
-        assert _get_scenario_category("You're just stressed or anxious") == "psychology"
-
-    def test_treatment_adjustment_category(self):
-        """Scenarios about dose/severity are categorized as dismissal."""
-        assert (
-            _get_scenario_category("Your symptoms aren't severe enough to treat")
-            == "dismissal"
-        )
-        assert _get_scenario_category("That dose is already too high") == "dismissal"
-
-    def test_deflection_category(self):
-        """Scenarios deflecting with questions/lifestyle are categorized by type."""
-        assert _get_scenario_category("What are the triggers?") == "general"
-        assert (
-            _get_scenario_category("Let's try lifestyle changes first")
-            == "lifestyle-only"
-        )
-
-    def test_dismissal_category(self):
-        """Scenarios about waiting it out are categorized as wait-and-see."""
-        assert (
-            _get_scenario_category("Your symptoms will go away on their own")
-            == "wait-and-see"
-        )
-
-    def test_category_case_insensitive(self):
-        """Category detection is case-insensitive."""
-        assert (
-            _get_scenario_category("HORMONE THERAPY INCREASES BREAST CANCER RISK")
-            == "hrt-safety"
-        )
-        assert _get_scenario_category("YOU'RE JUST STRESSED") == "psychology"
-
-    def test_unknown_scenario_defaults_to_general(self):
-        """Unknown scenarios default to 'general' category."""
-        assert _get_scenario_category("Some random provider comment") == "general"
-
-    def test_all_selected_scenarios_have_valid_categories(self):
-        """All scenarios selected in context have valid categories."""
-        valid_categories = {
-            "hrt-safety",
-            "wrong-specialist",
-            "normalization",
-            "specialist-referral",
-            "dismissal",
-            "lifestyle-only",
-            "wait-and-see",
-            "psychology",
-            "general",
-        }
-
+    def test_all_returned_scenarios_have_valid_categories(self):
+        # CATCHES: a scenario added to JSON with an unknown category value —
+        # frontend would silently render it without a style/group
         for goal in [
             AppointmentGoal.explore_hrt,
             AppointmentGoal.optimize_current_treatment,
             AppointmentGoal.assess_status,
         ]:
-            for dismissed in [
-                DismissalExperience.no,
-                DismissalExperience.once_or_twice,
-                DismissalExperience.multiple_times,
-            ]:
-                context = AppointmentContext(
-                    appointment_type=AppointmentType.new_provider,
-                    goal=goal,
-                    dismissed_before=dismissed,
+            scenarios = _select_scenarios(_ctx(goal), "exploration")
+            for s in scenarios:
+                assert s["category"] in VALID_CATEGORIES, (
+                    f"Invalid category '{s['category']}' for scenario '{s['title']}'"
                 )
-                scenarios = _select_scenarios(context, "exploration")
-                for scenario in scenarios:
-                    category = _get_scenario_category(scenario)
-                    assert category in valid_categories, (
-                        f"Invalid category '{category}' for scenario '{scenario}'"
-                    )
+
+    def test_all_returned_scenarios_are_dicts_with_required_keys(self):
+        # CATCHES: JSON loaded but scenario format changed — missing "title" or
+        # "category" key would crash generate_scenarios() with KeyError
+        scenarios = _select_scenarios(_ctx(AppointmentGoal.explore_hrt), "exploration")
+        for s in scenarios:
+            assert isinstance(s, dict)
+            assert "title" in s and isinstance(s["title"], str)
+            assert "category" in s and isinstance(s["category"], str)

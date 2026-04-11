@@ -9,11 +9,10 @@ from unittest.mock import AsyncMock, MagicMock
 
 from fastapi.testclient import TestClient
 
-from app.api.dependencies import get_export_service, get_llm_service
+from app.api.dependencies import get_export_service
 from app.core.supabase import get_client
 from app.main import app
 from app.models.export import ExportResponse
-from app.services.llm import LLMService
 
 # ---------------------------------------------------------------------------
 # Mock helpers (same pattern as test_symptoms.py)

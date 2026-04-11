@@ -1,7 +1,7 @@
 """Tests for ConversationRepository."""
 
 import pytest
-from uuid import UUID, uuid4
+from uuid import uuid4
 from unittest.mock import AsyncMock, MagicMock
 from app.exceptions import DatabaseError, EntityNotFoundError
 

@@ -259,7 +259,9 @@ def parse_address(addr_text: str) -> dict:
     result["zip_code"] = csz_match.group(3).split("-")[0]  # 5-digit only
 
     # Country: from any line after city/state/zip that isn't empty
-    lines_after = [l for l in lines[csz_idx + 1 :] if l and l.upper() not in ("USA",)]
+    lines_after = [
+        line for line in lines[csz_idx + 1 :] if line and line.upper() not in ("USA",)
+    ]
     result["country"] = lines_after[0] if lines_after else "USA"
 
     # Lines before city/state/zip: street ± practice name
@@ -677,7 +679,7 @@ def transform_all(raw_providers: list[dict]) -> list[dict]:
         if transformed:
             clean.append(transformed)
 
-    print(f"Transformation summary:")
+    print("Transformation summary:")
     print(f"  Input:      {len(raw_providers)} records")
     print(f"  Output:     {len(clean)} records")
     print(f"  Skipped (missing required fields): {skipped_missing}")

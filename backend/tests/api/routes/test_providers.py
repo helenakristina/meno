@@ -5,7 +5,7 @@ Provider endpoints are public — no auth required.
 Calling script endpoint requires auth — mocked via dependency_overrides.
 """
 
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
 from fastapi.testclient import TestClient
 

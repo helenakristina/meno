@@ -2,12 +2,11 @@
 
 import pytest
 from datetime import datetime, timedelta
-from uuid import UUID
 from unittest.mock import AsyncMock
 
 from app.repositories.conversation_repository import ConversationRepository
 from app.exceptions import DatabaseError
-from tests.fixtures.supabase import setup_supabase_response, setup_supabase_error
+from tests.fixtures.supabase import setup_supabase_response
 
 
 @pytest.fixture

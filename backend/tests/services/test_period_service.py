@@ -9,7 +9,6 @@ from app.models.period import (
     CycleAnalysisResponse,
     PeriodLogCreate,
     PeriodLogResponse,
-    PeriodLogUpdate,
 )
 from app.models.users import UserSettingsResponse
 from app.services.period import PeriodService
@@ -234,7 +233,7 @@ class TestGetAnalysis:
         repo = make_repo(get_analysis_return=None, get_all_return=logs)
         service = make_service(repo)
 
-        result = await service.get_analysis(USER_ID)
+        await service.get_analysis(USER_ID)
 
         # Should have called upsert since analysis was None
         repo.upsert_cycle_analysis.assert_called_once()

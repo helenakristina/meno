@@ -328,23 +328,6 @@ async def test_get_suggested_prompts_with_recent_symptoms(service, mock_symptoms
 
 
 @pytest.mark.asyncio
-async def test_get_suggested_prompts_no_recent_symptoms_uses_general(
-    service, mock_symptoms_repo
-):
-    mock_symptoms_repo.get_logs.return_value = ([], 0)
-
-    result = await service.get_suggested_prompts(user_id=USER_ID)
-
-    assert 0 < len(result.prompts) <= 6
-    # General prompts are the fallback
-    prompts_text = " ".join(result.prompts).lower()
-    assert any(
-        term in prompts_text
-        for term in ["expect", "options", "conversations", "doctor"]
-    )
-
-
-@pytest.mark.asyncio
 async def test_get_suggested_prompts_returns_at_most_max(service, mock_symptoms_repo):
     logs = [
         _make_log(

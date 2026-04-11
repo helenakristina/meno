@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { tick, onMount } from 'svelte';
+	import { tick, onMount, untrack } from 'svelte';
 	import { superForm } from 'sveltekit-superforms/client';
 	import { zod4 } from 'sveltekit-superforms/adapters';
 	import { chatMessageSchema } from '$lib/schemas/chat';
@@ -27,7 +27,7 @@
 	// Superforms Setup
 	// =========================================================================
 
-	const form = superForm(data.form, {
+	const form = superForm(untrack(() => data.form), {
 		validators: zod4(chatMessageSchema),
 		delayMs: 200
 	});
@@ -249,7 +249,7 @@
 						{#each Array(6) as _}
 							<div
 								class="h-[60px] animate-pulse rounded-xl border border-neutral-200 bg-neutral-100 px-4 py-3"
-							/>
+							></div>
 						{/each}
 					</div>
 				{:else if suggestedPrompts.length > 0}

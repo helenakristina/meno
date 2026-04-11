@@ -1,20 +1,25 @@
 <script lang="ts">
+	import { onMount, untrack } from 'svelte';
 	import { apiClient } from '$lib/api/client';
 	import type { ApiError } from '$lib/types';
 
 	let {
 		appointmentId,
+		existingNarrative = null,
 		onNext
 	}: {
 		appointmentId: string;
+		existingNarrative: string | null;
 		onNext: (narrative: string) => void;
 	} = $props();
 
-	let narrative = $state('');
-	let isLoading = $state(true);
+	let narrative = $state(untrack(() => existingNarrative ?? ''));
+	let isLoading = $state(untrack(() => existingNarrative === null));
+	let isSaving = $state(false);
 	let loadError = $state('');
 
-	$effect(() => {
+	onMount(() => {
+		if (existingNarrative !== null) return;
 		loadNarrative();
 	});
 
@@ -38,8 +43,24 @@
 		}
 	}
 
-	function handleNext() {
-		onNext(narrative);
+	async function handleNext() {
+		if (!narrative.trim()) return;
+		isSaving = true;
+		try {
+			await apiClient.put(
+				`/api/appointment-prep/${appointmentId}/narrative` as '/api/appointment-prep/{id}/narrative',
+				{ narrative }
+			);
+			onNext(narrative);
+		} catch (e) {
+			const msg =
+				e instanceof Error && 'detail' in e
+					? (e as ApiError).detail
+					: 'Failed to save narrative. Please try again.';
+			loadError = msg;
+		} finally {
+			isSaving = false;
+		}
 	}
 </script>
 
@@ -53,7 +74,7 @@
 			<div
 				class="h-8 w-8 animate-spin rounded-full border-4 border-primary-200 border-t-primary-600"
 			></div>
-			<p class="text-sm text-neutral-500" aria-live="polite">Generating your symptom summary…</p>
+			<p class="text-sm text-neutral-500" aria-live="polite">Generating your health picture…</p>
 		</div>
 	{:else if loadError}
 		<div
@@ -71,14 +92,16 @@
 		</div>
 	{:else}
 		<div
-			class="rounded-xl border border-warning bg-warning-light px-4 py-3 text-sm text-warning-dark"
+			class="rounded-xl border border-primary-200 bg-primary-50 px-4 py-3 text-sm text-primary-800"
 		>
-			AI-generated summary — review and edit before sharing with your provider.
+			This summary goes directly to your provider's document, word for word. Read it carefully and
+			edit anything that doesn't sound right or doesn't reflect your experience. This is the most
+			important thing you'll do in this process.
 		</div>
 
 		<div>
 			<label for="narrative" class="mb-2 block text-sm font-medium text-neutral-700">
-				Your symptom summary
+				Your health picture
 			</label>
 			<textarea
 				id="narrative"
@@ -88,17 +111,17 @@
 				aria-describedby="narrative-hint"
 			></textarea>
 			<p id="narrative-hint" class="mt-1 text-xs text-neutral-500">
-				Edit freely — this is your document.
+				What you see here is what your provider will read. Click Next to save your edits.
 			</p>
 		</div>
 
 		<button
 			type="button"
 			onclick={handleNext}
-			disabled={!narrative.trim()}
+			disabled={!narrative.trim() || isSaving}
 			class="w-full rounded-xl bg-primary-500 py-3 text-sm font-semibold text-white transition-colors hover:bg-primary-600 disabled:cursor-not-allowed disabled:opacity-40"
 		>
-			Next: Prioritize your concerns
+			{isSaving ? 'Saving…' : 'Next: Prioritize your concerns'}
 		</button>
 	{/if}
 </div>

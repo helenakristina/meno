@@ -1,7 +1,7 @@
 """Tests for retry utilities."""
 
 import pytest
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import MagicMock
 from app.utils.retry import retry_transient, is_retryable_exception
 
 

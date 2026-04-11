@@ -254,6 +254,7 @@ def get_appointment_service(
         storage_service=storage_service,
         pdf_service=pdf_service,
         medication_service=medication_service,
+        rag_retriever=retrieve_relevant_chunks,
     )
 
 

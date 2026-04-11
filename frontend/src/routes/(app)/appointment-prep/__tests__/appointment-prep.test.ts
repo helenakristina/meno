@@ -9,7 +9,7 @@ import {
 	APPOINTMENT_GOAL_LABELS,
 	DISMISSAL_EXPERIENCE_LABELS
 } from '$lib/types/appointment';
-import type { AppointmentPrepState, ScenarioCard } from '$lib/types/appointment';
+import type { AppointmentPrepState, Concern, ScenarioCard } from '$lib/types/appointment';
 import { contextSchema, prioritizeSchema } from '$lib/schemas/appointment';
 
 /**
@@ -95,9 +95,12 @@ describe('Appointment Prep — Context schema (Step 1)', () => {
 });
 
 describe('Appointment Prep — Prioritize schema (Step 3)', () => {
-	it('accepts non-empty concerns list', () => {
+	it('accepts non-empty concerns list with Concern objects', () => {
 		const result = prioritizeSchema.safeParse({
-			concerns: ['Discuss hormone therapy options', 'Understand risks']
+			concerns: [
+				{ text: 'Discuss hormone therapy options' },
+				{ text: 'Understand risks', comment: 'Especially clotting' }
+			]
 		});
 		expect(result.success).toBe(true);
 	});
@@ -107,14 +110,28 @@ describe('Appointment Prep — Prioritize schema (Step 3)', () => {
 		expect(result.success).toBe(false);
 	});
 
-	it('rejects concerns with empty strings', () => {
-		const result = prioritizeSchema.safeParse({ concerns: [''] });
+	it('rejects concern with empty text', () => {
+		const result = prioritizeSchema.safeParse({ concerns: [{ text: '' }] });
 		expect(result.success).toBe(false);
 	});
 
-	it('accepts single concern', () => {
-		const result = prioritizeSchema.safeParse({ concerns: ['My primary concern'] });
+	it('accepts single concern object', () => {
+		const result = prioritizeSchema.safeParse({ concerns: [{ text: 'My primary concern' }] });
 		expect(result.success).toBe(true);
+	});
+
+	it('accepts concern with optional comment', () => {
+		const result = prioritizeSchema.safeParse({
+			concerns: [{ text: 'Joint pain', comment: 'Limits daily activities' }]
+		});
+		expect(result.success).toBe(true);
+	});
+
+	it('rejects comment over 200 chars', () => {
+		const result = prioritizeSchema.safeParse({
+			concerns: [{ text: 'Joint pain', comment: 'a'.repeat(201) }]
+		});
+		expect(result.success).toBe(false);
 	});
 });
 
@@ -146,8 +163,8 @@ describe('Appointment Prep — Default concerns (Step 3)', () => {
 });
 
 describe('Appointment Prep — Step titles and labels', () => {
-	it('has a title for all 5 steps', () => {
-		for (let step = 1; step <= 5; step++) {
+	it('has a title for all 6 steps', () => {
+		for (let step = 1; step <= 6; step++) {
 			expect(STEP_TITLES[step]).toBeTruthy();
 		}
 	});
@@ -178,6 +195,7 @@ describe('Appointment Prep — State management', () => {
 			context: null,
 			narrative: null,
 			concerns: [],
+			qualitativeContext: null,
 			scenarios: [],
 			isLoading: false,
 			error: null,
@@ -194,6 +212,7 @@ describe('Appointment Prep — State management', () => {
 			context: null,
 			narrative: null,
 			concerns: [],
+			qualitativeContext: null,
 			scenarios: [],
 			isLoading: false,
 			error: null,
@@ -227,6 +246,7 @@ describe('Appointment Prep — State management', () => {
 			},
 			narrative,
 			concerns: [],
+			qualitativeContext: null,
 			scenarios: [],
 			isLoading: false,
 			error: null,
@@ -237,7 +257,10 @@ describe('Appointment Prep — State management', () => {
 	});
 
 	it('stores concerns after Step 3 completes', () => {
-		const concerns = ['Discuss HRT', 'Understand risks'];
+		const concerns: Concern[] = [
+			{ text: 'Discuss HRT' },
+			{ text: 'Understand risks', comment: 'Especially clotting risk' }
+		];
 		const state: AppointmentPrepState = {
 			appointmentId: 'appt-123',
 			context: {
@@ -247,16 +270,18 @@ describe('Appointment Prep — State management', () => {
 			},
 			narrative: 'Some narrative',
 			concerns,
+			qualitativeContext: null,
 			scenarios: [],
 			isLoading: false,
 			error: null,
 			currentStep: 4
 		};
 		expect(state.concerns).toEqual(concerns);
+		expect(state.concerns[1].comment).toBe('Especially clotting risk');
 		expect(state.currentStep).toBe(4);
 	});
 
-	it('stores scenarios after Step 4 completes', () => {
+	it('stores scenarios after Step 5 (scenarios) completes', () => {
 		const scenarios: ScenarioCard[] = [
 			{
 				id: 'scenario-1',
@@ -274,15 +299,16 @@ describe('Appointment Prep — State management', () => {
 				dismissed_before: DismissalExperience.no
 			},
 			narrative: 'Some narrative',
-			concerns: ['Discuss HRT'],
+			concerns: [{ text: 'Discuss HRT' }],
+			qualitativeContext: null,
 			scenarios,
 			isLoading: false,
 			error: null,
-			currentStep: 5
+			currentStep: 6
 		};
 		expect(state.scenarios).toHaveLength(1);
 		expect(state.scenarios[0].id).toBe('scenario-1');
-		expect(state.currentStep).toBe(5);
+		expect(state.currentStep).toBe(6);
 	});
 
 	it('resets to step 1 on start over', () => {
@@ -291,6 +317,7 @@ describe('Appointment Prep — State management', () => {
 			context: null,
 			narrative: null,
 			concerns: [],
+			qualitativeContext: null,
 			scenarios: [],
 			isLoading: false,
 			error: null,
@@ -303,47 +330,58 @@ describe('Appointment Prep — State management', () => {
 
 describe('Appointment Prep — Concern reordering logic (Step 3)', () => {
 	it('moves item up by swapping with previous', () => {
-		const concerns = ['A', 'B', 'C'];
+		const concerns: Concern[] = [{ text: 'A' }, { text: 'B' }, { text: 'C' }];
 		const index = 1;
 		const updated = [...concerns];
 		[updated[index - 1], updated[index]] = [updated[index], updated[index - 1]];
-		expect(updated).toEqual(['B', 'A', 'C']);
+		expect(updated.map((c) => c.text)).toEqual(['B', 'A', 'C']);
 	});
 
 	it('moves item down by swapping with next', () => {
-		const concerns = ['A', 'B', 'C'];
+		const concerns: Concern[] = [{ text: 'A' }, { text: 'B' }, { text: 'C' }];
 		const index = 1;
 		const updated = [...concerns];
 		[updated[index], updated[index + 1]] = [updated[index + 1], updated[index]];
-		expect(updated).toEqual(['A', 'C', 'B']);
+		expect(updated.map((c) => c.text)).toEqual(['A', 'C', 'B']);
 	});
 
 	it('cannot move first item up', () => {
-		const concerns = ['A', 'B', 'C'];
+		const concerns: Concern[] = [{ text: 'A' }, { text: 'B' }, { text: 'C' }];
 		const index = 0;
 		if (index === 0) {
-			expect(concerns).toEqual(['A', 'B', 'C']); // no change
+			expect(concerns.map((c) => c.text)).toEqual(['A', 'B', 'C']); // no change
 		}
 	});
 
 	it('cannot move last item down', () => {
-		const concerns = ['A', 'B', 'C'];
+		const concerns: Concern[] = [{ text: 'A' }, { text: 'B' }, { text: 'C' }];
 		const index = concerns.length - 1;
 		if (index === concerns.length - 1) {
-			expect(concerns).toEqual(['A', 'B', 'C']); // no change
+			expect(concerns.map((c) => c.text)).toEqual(['A', 'B', 'C']); // no change
 		}
 	});
 
 	it('removes concern by index', () => {
-		const concerns = ['A', 'B', 'C'];
+		const concerns: Concern[] = [{ text: 'A' }, { text: 'B' }, { text: 'C' }];
 		const filtered = concerns.filter((_, i) => i !== 1);
-		expect(filtered).toEqual(['A', 'C']);
+		expect(filtered.map((c) => c.text)).toEqual(['A', 'C']);
 	});
 
 	it('adds new concern at end', () => {
-		const concerns = ['A', 'B'];
-		const updated = [...concerns, 'C'];
-		expect(updated).toEqual(['A', 'B', 'C']);
+		const concerns: Concern[] = [{ text: 'A' }, { text: 'B' }];
+		const updated = [...concerns, { text: 'C' }];
+		expect(updated.map((c) => c.text)).toEqual(['A', 'B', 'C']);
+	});
+
+	it('concern can have optional comment', () => {
+		const concern: Concern = { text: 'Joint pain', comment: "Can't get through the workday" };
+		expect(concern.text).toBe('Joint pain');
+		expect(concern.comment).toBe("Can't get through the workday");
+	});
+
+	it('concern comment is optional', () => {
+		const concern: Concern = { text: 'Hot flashes' };
+		expect(concern.comment).toBeUndefined();
 	});
 
 	it('trims whitespace when adding concern', () => {
@@ -405,17 +443,24 @@ describe('Appointment Prep — Error handling', () => {
 });
 
 describe('Appointment Prep — Progress indicator', () => {
-	it('calculates progress percent for each step', () => {
+	it('calculates progress percent for each step in 6-step flow', () => {
+		// Component uses (step / 6) * 100
 		const cases = [
-			{ step: 1, expected: 20 },
-			{ step: 2, expected: 40 },
-			{ step: 3, expected: 60 },
-			{ step: 4, expected: 80 },
-			{ step: 5, expected: 100 }
+			{ step: 1, expected: 100 / 6 },
+			{ step: 2, expected: 200 / 6 },
+			{ step: 3, expected: 300 / 6 },
+			{ step: 4, expected: 400 / 6 },
+			{ step: 5, expected: 500 / 6 },
+			{ step: 6, expected: 100 }
 		];
 		for (const { step, expected } of cases) {
-			const percent = (step / 5) * 100;
-			expect(percent).toBe(expected);
+			const percent = (step / 6) * 100;
+			expect(percent).toBeCloseTo(expected, 5);
 		}
+	});
+
+	it('reaches exactly 100% at step 6', () => {
+		const percent = (6 / 6) * 100;
+		expect(percent).toBe(100);
 	});
 });

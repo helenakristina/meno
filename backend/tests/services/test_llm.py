@@ -498,113 +498,36 @@ class TestLLMServiceGenerateScenarioSuggestions:
             )
 
 
-class TestLLMServiceGeneratePdfContent:
-    """Tests for LLMService.generate_pdf_content()."""
+class TestLLMServiceGenerateProviderSummaryContent:
+    """Tests for LLMService.generate_provider_summary_content()."""
+
+    _VALID_JSON = '{"opening": "Patient presents.", "key_patterns": "Co-occur with night sweats."}'
 
     @pytest.mark.asyncio
-    async def test_generate_pdf_content_provider_summary(self, service, mock_provider):
-        """Test PDF content generation for provider summary."""
-        mock_response = "# Provider Summary\n\nPatient presents with..."
-        mock_provider.chat_completion.return_value = mock_response
+    async def test_returns_provider_summary_response(self, service, mock_provider):
+        # CATCHES: method returning str instead of ProviderSummaryResponse —
+        # appointment.py Step 5 passes return value directly to build_provider_summary_pdf
+        from app.models.appointment import ProviderSummaryResponse
 
-        result = await service.generate_pdf_content(
-            content_type="provider_summary",
-            narrative="Patient has hot flashes occurring daily",
-            concerns=["Hot flashes", "Sleep disruption"],
+        mock_provider.chat_completion.return_value = self._VALID_JSON
+
+        result = await service.generate_provider_summary_content(
+            concerns=["Discuss HRT"],
             appointment_type="new_provider",
             goal="explore_hrt",
             user_age=52,
         )
 
-        assert result == mock_response
-        call_args = mock_provider.chat_completion.call_args
-        assert (
-            "provider_summary" not in call_args.kwargs.get("system_prompt", "").lower()
-        )
-        assert "clinical summary" in call_args.kwargs["user_prompt"].lower()
+        assert isinstance(result, ProviderSummaryResponse)
+        assert result.opening == "Patient presents."
 
     @pytest.mark.asyncio
-    async def test_generate_pdf_content_personal_cheatsheet(
-        self, service, mock_provider
-    ):
-        """Test PDF content generation for personal cheat sheet."""
-        mock_response = "# Your Appointment Cheat Sheet\n\nKey points to discuss..."
-        mock_provider.chat_completion.return_value = mock_response
+    async def test_calls_provider_with_json_mode(self, service, mock_provider):
+        # CATCHES: calling provider without response_format="json" — LLM returns
+        # markdown instead of JSON, parse fails, DatabaseError raised every time
+        mock_provider.chat_completion.return_value = self._VALID_JSON
 
-        scenarios = [
-            {
-                "title": "Provider dismisses",
-                "suggestion": "Use evidence",
-                "sources": [],
-            },
-            {
-                "title": "Limited options",
-                "suggestion": "Ask specific questions",
-                "sources": [],
-            },
-        ]
-
-        result = await service.generate_pdf_content(
-            content_type="personal_cheatsheet",
-            narrative="You've experienced symptoms for 6 months",
-            concerns=["Brain fog", "Mood changes"],
-            appointment_type="established",
-            goal="assess_status",
-            user_age=48,
-            scenarios=scenarios,
-        )
-
-        assert result == mock_response
-
-    @pytest.mark.asyncio
-    async def test_generate_pdf_content_with_urgent_symptom(
-        self, service, mock_provider
-    ):
-        """Test PDF content with urgent symptom specified."""
-        mock_response = "# Provider Summary\n\nUrgent: Heart palpitations"
-        mock_provider.chat_completion.return_value = mock_response
-
-        result = await service.generate_pdf_content(
-            content_type="provider_summary",
-            narrative="Patient reports heart palpitations",
-            concerns=["Heart palpitations"],
-            appointment_type="new_provider",
-            goal="urgent_symptom",
-            user_age=55,
-            urgent_symptom="Heart palpitations",
-        )
-
-        assert result == mock_response
-        call_args = mock_provider.chat_completion.call_args
-        assert "Heart palpitations" in call_args.kwargs["user_prompt"]
-
-    @pytest.mark.asyncio
-    async def test_generate_pdf_content_without_age(self, service, mock_provider):
-        """Test PDF content generation without user age."""
-        mock_response = "# Content"
-        mock_provider.chat_completion.return_value = mock_response
-
-        await service.generate_pdf_content(
-            content_type="provider_summary",
-            narrative="Narrative",
-            concerns=["Concern"],
-            appointment_type="new_provider",
-            goal="explore_hrt",
-            user_age=None,
-        )
-
-        call_args = mock_provider.chat_completion.call_args
-        assert "not specified" in call_args.kwargs["user_prompt"]
-
-    @pytest.mark.asyncio
-    async def test_generate_pdf_content_empty_concerns(self, service, mock_provider):
-        """Test PDF content generation with empty concerns list."""
-        mock_response = "# Content"
-        mock_provider.chat_completion.return_value = mock_response
-
-        await service.generate_pdf_content(
-            content_type="provider_summary",
-            narrative="Narrative",
+        await service.generate_provider_summary_content(
             concerns=[],
             appointment_type="new_provider",
             goal="explore_hrt",
@@ -612,21 +535,165 @@ class TestLLMServiceGeneratePdfContent:
         )
 
         call_args = mock_provider.chat_completion.call_args
-        # Should handle empty concerns gracefully
-        assert "concerns" in call_args.kwargs["user_prompt"].lower()
+        assert call_args.kwargs["response_format"] == "json"
 
     @pytest.mark.asyncio
-    async def test_generate_pdf_content_provider_error(self, service, mock_provider):
-        """Test error handling when LLM provider fails."""
-        mock_provider.chat_completion.side_effect = TimeoutError("API timeout")
+    async def test_raises_database_error_on_invalid_json(self, service, mock_provider):
+        # CATCHES: json.JSONDecodeError propagating as RuntimeError — callers
+        # expect DatabaseError to trigger the retry flow, not a bare RuntimeError
+        from app.exceptions import DatabaseError
 
-        with pytest.raises(TimeoutError):
-            await service.generate_pdf_content(
-                content_type="provider_summary",
-                narrative="Narrative",
-                concerns=["Concern"],
+        mock_provider.chat_completion.return_value = "not json at all {"
+
+        with pytest.raises(DatabaseError, match="Failed to parse provider summary"):
+            await service.generate_provider_summary_content(
+                concerns=[],
                 appointment_type="new_provider",
                 goal="explore_hrt",
                 user_age=50,
             )
-        assert service.provider == mock_provider
+
+    @pytest.mark.asyncio
+    async def test_raises_database_error_on_missing_required_field(
+        self, service, mock_provider
+    ):
+        # CATCHES: ValidationError not converted to DatabaseError — missing "opening"
+        # from LLM would propagate as pydantic.ValidationError, not DatabaseError
+        from app.exceptions import DatabaseError
+
+        mock_provider.chat_completion.return_value = (
+            '{"key_patterns": "Only patterns, no opening."}'
+        )
+
+        with pytest.raises(DatabaseError, match="Failed to parse provider summary"):
+            await service.generate_provider_summary_content(
+                concerns=[],
+                appointment_type="new_provider",
+                goal="explore_hrt",
+                user_age=50,
+            )
+
+    @pytest.mark.asyncio
+    async def test_urgent_symptom_appears_in_user_prompt(self, service, mock_provider):
+        # CATCHES: urgent_symptom not forwarded to builder — provider summary
+        # for urgent appointments omits the primary concern entirely
+        mock_provider.chat_completion.return_value = self._VALID_JSON
+
+        await service.generate_provider_summary_content(
+            concerns=[],
+            appointment_type="new_provider",
+            goal="urgent_symptom",
+            user_age=50,
+            urgent_symptom="heart palpitations",
+        )
+
+        call_args = mock_provider.chat_completion.call_args
+        assert "heart palpitations" in call_args.kwargs["user_prompt"].lower()
+
+    @pytest.mark.asyncio
+    async def test_propagates_timeout_error(self, service, mock_provider):
+        # CATCHES: TimeoutError swallowed by the DatabaseError catch-all — callers
+        # need TimeoutError to bubble up so they can handle it separately
+        mock_provider.chat_completion.side_effect = TimeoutError("API timeout")
+
+        with pytest.raises(TimeoutError):
+            await service.generate_provider_summary_content(
+                concerns=[],
+                appointment_type="new_provider",
+                goal="explore_hrt",
+                user_age=50,
+            )
+
+
+class TestLLMServiceGenerateCheatsheetContent:
+    """Tests for LLMService.generate_cheatsheet_content()."""
+
+    _VALID_JSON = '{"opening_statement": "I am 50 experiencing hot flashes.", "question_groups": [{"topic": "Hot flashes", "questions": ["Could you help me understand..."]}]}'
+
+    @pytest.mark.asyncio
+    async def test_returns_cheatsheet_response(self, service, mock_provider):
+        # CATCHES: method returning str instead of CheatsheetResponse — appointment.py
+        # passes result directly to build_cheatsheet_pdf which expects the model
+        from app.models.appointment import CheatsheetResponse
+
+        mock_provider.chat_completion.return_value = self._VALID_JSON
+
+        result = await service.generate_cheatsheet_content(
+            narrative="Logs show hot flashes daily.",
+            concerns=["Discuss HRT"],
+            appointment_type="new_provider",
+            goal="explore_hrt",
+            user_age=50,
+        )
+
+        assert isinstance(result, CheatsheetResponse)
+        assert "50" in result.opening_statement
+        assert len(result.question_groups) == 1
+
+    @pytest.mark.asyncio
+    async def test_calls_provider_with_json_mode(self, service, mock_provider):
+        # CATCHES: missing response_format="json" — LLM returns freeform text,
+        # JSON parse fails, every Step 5 call raises DatabaseError
+        mock_provider.chat_completion.return_value = self._VALID_JSON
+
+        await service.generate_cheatsheet_content(
+            narrative="Narrative.",
+            concerns=[],
+            appointment_type="new_provider",
+            goal="explore_hrt",
+            user_age=50,
+        )
+
+        call_args = mock_provider.chat_completion.call_args
+        assert call_args.kwargs["response_format"] == "json"
+
+    @pytest.mark.asyncio
+    async def test_raises_database_error_on_invalid_json(self, service, mock_provider):
+        # CATCHES: parse error surfaces as RuntimeError — callers need DatabaseError
+        # to distinguish "retry this" from "provider is down"
+        from app.exceptions import DatabaseError
+
+        mock_provider.chat_completion.return_value = "not valid {"
+
+        with pytest.raises(DatabaseError, match="Failed to parse cheatsheet"):
+            await service.generate_cheatsheet_content(
+                narrative="Narrative.",
+                concerns=[],
+                appointment_type="new_provider",
+                goal="explore_hrt",
+                user_age=50,
+            )
+
+    @pytest.mark.asyncio
+    async def test_raises_database_error_on_missing_opening_statement(
+        self, service, mock_provider
+    ):
+        # CATCHES: opening_statement optional on model — missing field produces a
+        # cheatsheet PDF with a blank first section rather than hard-failing
+        from app.exceptions import DatabaseError
+
+        mock_provider.chat_completion.return_value = '{"question_groups": []}'
+
+        with pytest.raises(DatabaseError, match="Failed to parse cheatsheet"):
+            await service.generate_cheatsheet_content(
+                narrative="Narrative.",
+                concerns=[],
+                appointment_type="new_provider",
+                goal="explore_hrt",
+                user_age=50,
+            )
+
+    @pytest.mark.asyncio
+    async def test_propagates_timeout_error(self, service, mock_provider):
+        # CATCHES: TimeoutError caught by DatabaseError handler — calling code
+        # checks for TimeoutError specifically to show a "try again" message
+        mock_provider.chat_completion.side_effect = TimeoutError("Timeout")
+
+        with pytest.raises(TimeoutError):
+            await service.generate_cheatsheet_content(
+                narrative="Narrative.",
+                concerns=[],
+                appointment_type="new_provider",
+                goal="explore_hrt",
+                user_age=50,
+            )

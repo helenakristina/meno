@@ -312,7 +312,7 @@ class TestOpenAIProviderChatCompletion:
             mock_openai_class,
         )
 
-        provider = OpenAIProvider(api_key="sk-secret-key-123")
+        OpenAIProvider(api_key="sk-secret-key-123")
 
         # Verify AsyncOpenAI was initialized with the key
         mock_openai_class.assert_called_once_with(api_key="sk-secret-key-123")

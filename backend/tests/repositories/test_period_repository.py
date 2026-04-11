@@ -6,9 +6,9 @@ fail these tests before reaching production.
 """
 
 import pytest
-from unittest.mock import AsyncMock, MagicMock, call
+from unittest.mock import AsyncMock, MagicMock
 
-from app.exceptions import DatabaseError, EntityNotFoundError
+from app.exceptions import EntityNotFoundError
 from app.models.period import PeriodLogUpdate
 from app.repositories.period_repository import PeriodRepository
 

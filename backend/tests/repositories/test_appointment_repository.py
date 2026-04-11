@@ -5,9 +5,11 @@ from unittest.mock import AsyncMock, MagicMock
 
 from app.exceptions import DatabaseError, EntityNotFoundError
 from app.repositories.appointment_repository import AppointmentRepository
+from tests.fixtures.supabase import setup_supabase_response
 from app.models.appointment import (
     AppointmentType,
     AppointmentGoal,
+    Concern,
     DismissalExperience,
     AppointmentContext,
     ProviderSummary,
@@ -387,6 +389,27 @@ async def test_get_latest_db_error():
         await repo.get_latest("user-123")
 
 
+@pytest.mark.asyncio
+async def test_get_latest_includes_qualitative_context_columns():
+    """Test that get_latest selects the 4 qualitative context columns."""
+    mock_client = MagicMock()
+    setup_supabase_response(mock_client, data=[])
+
+    repo = AppointmentRepository(client=mock_client)
+    await repo.get_latest("user-123")
+
+    select_arg = mock_client.table.return_value.select.call_args[0][0]
+    for col in (
+        "what_have_you_tried",
+        "specific_ask",
+        "history_clotting_risk",
+        "history_breast_cancer",
+    ):
+        assert col in select_arg, (
+            f"Column '{col}' missing from get_latest select: {select_arg}"
+        )
+
+
 # ============================================================================
 # save_narrative() tests
 # ============================================================================
@@ -444,7 +467,10 @@ async def test_save_concerns_success():
     """Test saving prioritized concerns successfully."""
     appointment_id = "appt-123"
     user_id = "user-456"
-    concerns = ["Hot flashes affecting work", "Sleep disruption"]
+    concerns = [
+        Concern(text="Hot flashes affecting work", comment="Happens 3x daily"),
+        Concern(text="Sleep disruption"),
+    ]
 
     update_response = MagicMock(data=[{"id": appointment_id}])
     mock_client = make_sequential_client(update_response)

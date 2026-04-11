@@ -1,19 +1,30 @@
 <script lang="ts">
+	import { onMount } from 'svelte';
 	import { apiClient } from '$lib/api/client';
 	import type {
 		AppointmentContext,
+		Concern,
+		QualitativeContext,
 		ScenarioCard,
 		AppointmentPrepState
 	} from '$lib/types/appointment';
 	import { STEP_TITLES } from '$lib/types/appointment';
-	import type { ApiError } from '$lib/types';
+	import { ApiError } from '$lib/types/api';
+	import { authState } from '$lib/stores/auth';
 	import Step1Context from './Step1Context.svelte';
 	import Step2Narrative from './Step2Narrative.svelte';
 	import Step3Prioritize from './Step3Prioritize.svelte';
+	import Step3Qualitative from './Step3Qualitative.svelte';
 	import Step4Scenarios from './Step4Scenarios.svelte';
 	import Step5Generate from './Step5Generate.svelte';
 
 	let { data } = $props();
+
+	// =========================================================================
+	// Constants
+	// =========================================================================
+
+	const VALID_STEPS = [1, 2, 3, 4, 5, 6] as const;
 
 	// =========================================================================
 	// State
@@ -24,6 +35,7 @@
 		context: null,
 		narrative: null,
 		concerns: [],
+		qualitativeContext: null,
 		scenarios: [],
 		isLoading: false,
 		error: null,
@@ -32,20 +44,46 @@
 
 	let savedStateExists = $state(false);
 
-	let progressPercent = $derived((state.currentStep / 5) * 100);
+	let progressPercent = $derived((state.currentStep / 6) * 100);
+
+	// User-scoped session key — set in onMount after auth resolves to prevent
+	// medical data being written under a shared 'anon' key during auth hydration
+	let SESSION_KEY = '';
 
 	// =========================================================================
 	// State persistence
 	// =========================================================================
 
+	function isValidAppointmentPrepState(v: unknown): v is AppointmentPrepState {
+		if (typeof v !== 'object' || v === null) return false;
+		const s = v as Record<string, unknown>;
+		if (!(VALID_STEPS as readonly number[]).includes(s.currentStep as number)) return false;
+		// appointmentId must be string or null
+		if (s.appointmentId !== null && s.appointmentId !== undefined && typeof s.appointmentId !== 'string') return false;
+		// concerns must be an array if present
+		if (s.concerns !== undefined && !Array.isArray(s.concerns)) return false;
+		return true;
+	}
+
 	// Load saved state from sessionStorage on mount
-	$effect(() => {
-		const saved = sessionStorage.getItem('appointmentPrepState');
+	onMount(() => {
+		const userId = $authState.user?.id;
+		if (!userId) {
+			// Auth not resolved — don't restore, start fresh
+			return;
+		}
+		SESSION_KEY = `appointmentPrepState_${userId}`;
+		const saved = sessionStorage.getItem(SESSION_KEY);
 		if (saved) {
 			try {
 				const parsed = JSON.parse(saved);
-				state = parsed;
-				savedStateExists = true;
+				if (isValidAppointmentPrepState(parsed)) {
+					// Reset transient fields that should not be persisted across sessions
+					state = { ...parsed, isLoading: false, error: null };
+					savedStateExists = true;
+				} else {
+					console.warn('Discarding invalid appointment prep state from sessionStorage');
+				}
 			} catch (e) {
 				console.error('Failed to restore appointment prep state:', e);
 				savedStateExists = false;
@@ -53,14 +91,16 @@
 		}
 	});
 
-	// Save state to sessionStorage whenever it changes
-	$effect(() => {
-		sessionStorage.setItem('appointmentPrepState', JSON.stringify(state));
-	});
-
 	// =========================================================================
 	// Step handlers
 	// =========================================================================
+
+	function saveToSession() {
+		if (!SESSION_KEY) return; // auth not yet resolved
+		// Strip transient UI fields before persisting — they should always reset on restore
+		const { isLoading, error, ...persistable } = state;
+		sessionStorage.setItem(SESSION_KEY, JSON.stringify(persistable));
+	}
 
 	async function handleStep1(context: AppointmentContext) {
 		state.isLoading = true;
@@ -75,10 +115,11 @@
 			state.appointmentId = res.appointment_id;
 			state.context = context;
 			state.currentStep = 2;
+			saveToSession();
 		} catch (e) {
 			state.error =
-				e instanceof Error && 'detail' in e
-					? (e as ApiError).detail
+				e instanceof ApiError
+					? e.detail
 					: 'Failed to save your selections. Please try again.';
 		} finally {
 			state.isLoading = false;
@@ -88,16 +129,30 @@
 	function handleStep2(narrative: string) {
 		state.narrative = narrative;
 		state.currentStep = 3;
+		saveToSession();
 	}
 
-	function handleStep3(concerns: string[]) {
+	function handleConcernsChange(concerns: Concern[]) {
+		state.concerns = concerns;
+		saveToSession();
+	}
+
+	function handleStep3(concerns: Concern[]) {
 		state.concerns = concerns;
 		state.currentStep = 4;
+		saveToSession();
+	}
+
+	function handleStep3Qualitative(ctx: QualitativeContext) {
+		state.qualitativeContext = ctx;
+		state.currentStep = 5;
+		saveToSession();
 	}
 
 	function handleStep4(scenarios: ScenarioCard[]) {
 		state.scenarios = scenarios;
-		state.currentStep = 5;
+		state.currentStep = 6;
+		saveToSession();
 	}
 
 	function handleStepError(msg: string) {
@@ -107,7 +162,9 @@
 	function goBack() {
 		if (state.currentStep > 1) {
 			state.error = null;
-			state.currentStep = (state.currentStep - 1) as 1 | 2 | 3 | 4 | 5;
+			// Safe: guard above ensures currentStep > 1, so subtraction won't produce 0
+			state.currentStep = (state.currentStep - 1) as 1 | 2 | 3 | 4 | 5 | 6;
+			saveToSession();
 		}
 	}
 
@@ -117,12 +174,14 @@
 			context: null,
 			narrative: null,
 			concerns: [],
+			qualitativeContext: null,
 			scenarios: [],
 			isLoading: false,
 			error: null,
 			currentStep: 1
 		};
-		sessionStorage.removeItem('appointmentPrepState');
+		savedStateExists = false;
+		if (SESSION_KEY) sessionStorage.removeItem(SESSION_KEY);
 	}
 </script>
 
@@ -133,7 +192,7 @@
 			<div>
 				<h1 class="text-2xl font-bold text-neutral-800">Appointment Prep</h1>
 				<p class="mt-0.5 text-sm text-neutral-500">
-					Step {state.currentStep} of 5: {STEP_TITLES[state.currentStep]}
+					Step {state.currentStep} of 6: {STEP_TITLES[state.currentStep]}
 				</p>
 			</div>
 			{#if state.currentStep > 1}
@@ -154,8 +213,8 @@
 			role="progressbar"
 			aria-valuenow={state.currentStep}
 			aria-valuemin={1}
-			aria-valuemax={5}
-			aria-label="Step {state.currentStep} of 5"
+			aria-valuemax={6}
+			aria-label="Step {state.currentStep} of 6"
 		>
 			<div
 				class="h-full rounded-full bg-primary-500 transition-all duration-500"
@@ -201,7 +260,7 @@
 		aria-label="Appointment prep step {state.currentStep}"
 	>
 		{#if savedStateExists && state.currentStep > 1}
-			<div role="dialog" class="mb-6 rounded-lg border border-primary-200 bg-primary-50 p-4">
+			<div role="region" aria-label="Resume previous session" class="mb-6 rounded-lg border border-primary-200 bg-primary-50 p-4">
 				<div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
 					<div>
 						<h3 class="font-semibold text-primary-900">Resume Previous Session?</h3>
@@ -220,11 +279,7 @@
 						</button>
 						<button
 							type="button"
-							onclick={() => {
-								sessionStorage.removeItem('appointmentPrepState');
-								startOver();
-								savedStateExists = false;
-							}}
+							onclick={startOver}
 							class="rounded-lg border border-primary-500 px-3 py-2 text-sm font-semibold text-primary-600 transition-colors hover:bg-primary-50"
 						>
 							Start Fresh
@@ -235,19 +290,28 @@
 		{/if}
 
 		{#if state.currentStep === 1}
-			<Step1Context data={data.form} onNext={handleStep1} />
+			<Step1Context data={data.form} existingContext={state.context} onNext={handleStep1} />
 		{:else if state.currentStep === 2 && state.appointmentId}
-			<Step2Narrative appointmentId={state.appointmentId} onNext={handleStep2} />
+			<Step2Narrative appointmentId={state.appointmentId} existingNarrative={state.narrative} onNext={handleStep2} />
 		{:else if state.currentStep === 3 && state.appointmentId && state.context}
 			<Step3Prioritize
 				appointmentId={state.appointmentId}
 				context={state.context}
+				existingConcerns={state.concerns}
 				onNext={handleStep3}
+				onChange={handleConcernsChange}
 				onError={handleStepError}
 			/>
 		{:else if state.currentStep === 4 && state.appointmentId}
-			<Step4Scenarios appointmentId={state.appointmentId} onNext={handleStep4} />
+			<Step3Qualitative
+				appointmentId={state.appointmentId}
+				existingQualitativeContext={state.qualitativeContext}
+				onNext={handleStep3Qualitative}
+				onError={handleStepError}
+			/>
 		{:else if state.currentStep === 5 && state.appointmentId}
+			<Step4Scenarios appointmentId={state.appointmentId} existingScenarios={state.scenarios} onNext={handleStep4} />
+		{:else if state.currentStep === 6 && state.appointmentId}
 			<Step5Generate
 				appointmentId={state.appointmentId}
 				onStartOver={startOver}

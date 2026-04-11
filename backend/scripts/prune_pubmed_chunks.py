@@ -253,12 +253,12 @@ async def main(
 
     # Delete useless chunks
     logger.info("")
-    deleted = await delete_useless_chunks(useful_ids, dry_run=dry_run)
+    await delete_useless_chunks(useful_ids, dry_run=dry_run)
 
     # Show final state
     if not dry_run:
         final_stats = await get_pubmed_stats()
-        logger.info(f"\nFinal state:")
+        logger.info("\nFinal state:")
         logger.info(f"  Total chunks: {final_stats['total']}")
         logger.info(f"  PubMed chunks: {final_stats['pubmed']}")
         logger.info(f"  Non-PubMed chunks: {final_stats['non_pubmed']}")

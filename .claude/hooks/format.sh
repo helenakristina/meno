@@ -9,10 +9,10 @@ fi
 
 case "$FILE_PATH" in
   *.js|*.jsx|*.ts|*.tsx|*.json|*.css|*.md)
-    npx prettier --write "$FILE_PATH" 2>/dev/null
+    npx prettier --write "$FILE_PATH"
     ;;
   *.py)
-    ruff format "$FILE_PATH" 2>/dev/null
+    ruff format "$FILE_PATH"
     ;;
 esac
 
