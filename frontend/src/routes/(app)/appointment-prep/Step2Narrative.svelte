@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
+	import { onMount, untrack } from 'svelte';
 	import { apiClient } from '$lib/api/client';
 	import type { ApiError } from '$lib/types';
 
@@ -13,8 +13,8 @@
 		onNext: (narrative: string) => void;
 	} = $props();
 
-	let narrative = $state(existingNarrative ?? '');
-	let isLoading = $state(existingNarrative === null);
+	let narrative = $state(untrack(() => existingNarrative ?? ''));
+	let isLoading = $state(untrack(() => existingNarrative === null));
 	let isSaving = $state(false);
 	let loadError = $state('');
 

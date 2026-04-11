@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
+	import { onMount, untrack } from 'svelte';
 	import { apiClient } from '$lib/api/client';
 	import type { ScenarioCard } from '$lib/types/appointment';
 	import type { ApiError } from '$lib/types';
@@ -14,8 +14,8 @@
 		onNext: (scenarios: ScenarioCard[]) => void;
 	} = $props();
 
-	let scenarios = $state<ScenarioCard[]>(existingScenarios);
-	let isLoading = $state(existingScenarios.length === 0);
+	let scenarios = $state<ScenarioCard[]>(untrack(() => existingScenarios));
+	let isLoading = $state(untrack(() => existingScenarios.length === 0));
 	let loadError = $state('');
 
 	onMount(() => {

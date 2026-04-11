@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
+	import { onMount, untrack } from 'svelte';
 	import { superForm } from 'sveltekit-superforms/client';
 	import { zod4 } from 'sveltekit-superforms/adapters';
 	import type { SuperValidated } from 'sveltekit-superforms';
@@ -25,7 +25,7 @@
 		onNext: (context: AppointmentContext) => void;
 	} = $props();
 
-	const form = superForm(data, {
+	const form = superForm(untrack(() => data), {
 		validators: zod4(contextSchema),
 		delayMs: 200
 	});

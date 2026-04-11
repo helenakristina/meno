@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { untrack } from 'svelte';
 	import { apiClient } from '$lib/api/client';
 	import type { QualitativeContext } from '$lib/types/appointment';
 	import { ApiError } from '$lib/types/api';
@@ -15,13 +16,13 @@
 		onError: (msg: string) => void;
 	} = $props();
 
-	let what_have_you_tried = $state(existingQualitativeContext?.what_have_you_tried ?? '');
-	let specific_ask = $state(existingQualitativeContext?.specific_ask ?? '');
+	let what_have_you_tried = $state(untrack(() => existingQualitativeContext?.what_have_you_tried ?? ''));
+	let specific_ask = $state(untrack(() => existingQualitativeContext?.specific_ask ?? ''));
 	let history_clotting_risk = $state<'yes' | 'no' | 'not_sure' | null>(
-		existingQualitativeContext?.history_clotting_risk ?? null
+		untrack(() => existingQualitativeContext?.history_clotting_risk ?? null)
 	);
 	let history_breast_cancer = $state<'yes' | 'no' | 'not_sure' | null>(
-		existingQualitativeContext?.history_breast_cancer ?? null
+		untrack(() => existingQualitativeContext?.history_breast_cancer ?? null)
 	);
 	let isSaving = $state(false);
 

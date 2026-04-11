@@ -3,7 +3,7 @@
 	import { DEFAULT_CONCERNS } from '$lib/types/appointment';
 	import type { AppointmentContext, AppointmentGoal, Concern } from '$lib/types/appointment';
 	import { ApiError } from '$lib/types/api';
-	import { onDestroy } from 'svelte';
+	import { onDestroy, untrack } from 'svelte';
 
 	let {
 		appointmentId,
@@ -22,9 +22,11 @@
 	} = $props();
 
 	let concerns = $state<Concern[]>(
-		existingConcerns.length > 0
-			? existingConcerns
-			: DEFAULT_CONCERNS[context.goal as AppointmentGoal].map((text) => ({ text }))
+		untrack(() =>
+			existingConcerns.length > 0
+				? existingConcerns
+				: DEFAULT_CONCERNS[context.goal as AppointmentGoal].map((text) => ({ text }))
+		)
 	);
 	let newConcernText = $state('');
 	let isSaving = $state(false);
