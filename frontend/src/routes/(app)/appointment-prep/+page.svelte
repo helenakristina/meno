@@ -58,14 +58,13 @@
 		}
 	});
 
-	// Save state to sessionStorage whenever it changes
-	$effect(() => {
-		sessionStorage.setItem('appointmentPrepState', JSON.stringify(state));
-	});
-
 	// =========================================================================
 	// Step handlers
 	// =========================================================================
+
+	function saveToSession() {
+		sessionStorage.setItem('appointmentPrepState', JSON.stringify(state));
+	}
 
 	async function handleStep1(context: AppointmentContext) {
 		state.isLoading = true;
@@ -80,6 +79,7 @@
 			state.appointmentId = res.appointment_id;
 			state.context = context;
 			state.currentStep = 2;
+			saveToSession();
 		} catch (e) {
 			state.error =
 				e instanceof Error && 'detail' in e
@@ -93,21 +93,25 @@
 	function handleStep2(narrative: string) {
 		state.narrative = narrative;
 		state.currentStep = 3;
+		saveToSession();
 	}
 
 	function handleStep3(concerns: Concern[]) {
 		state.concerns = concerns;
 		state.currentStep = 4;
+		saveToSession();
 	}
 
 	function handleStep3Qualitative(ctx: QualitativeContext) {
 		state.qualitativeContext = ctx;
 		state.currentStep = 5;
+		saveToSession();
 	}
 
 	function handleStep4(scenarios: ScenarioCard[]) {
 		state.scenarios = scenarios;
 		state.currentStep = 6;
+		saveToSession();
 	}
 
 	function handleStepError(msg: string) {
@@ -118,6 +122,7 @@
 		if (state.currentStep > 1) {
 			state.error = null;
 			state.currentStep = (state.currentStep - 1) as 1 | 2 | 3 | 4 | 5 | 6;
+			saveToSession();
 		}
 	}
 
@@ -248,7 +253,7 @@
 		{#if state.currentStep === 1}
 			<Step1Context data={data.form} onNext={handleStep1} />
 		{:else if state.currentStep === 2 && state.appointmentId}
-			<Step2Narrative appointmentId={state.appointmentId} onNext={handleStep2} />
+			<Step2Narrative appointmentId={state.appointmentId} existingNarrative={state.narrative} onNext={handleStep2} />
 		{:else if state.currentStep === 3 && state.appointmentId && state.context}
 			<Step3Prioritize
 				appointmentId={state.appointmentId}
@@ -264,7 +269,7 @@
 				onError={handleStepError}
 			/>
 		{:else if state.currentStep === 5 && state.appointmentId}
-			<Step4Scenarios appointmentId={state.appointmentId} onNext={handleStep4} />
+			<Step4Scenarios appointmentId={state.appointmentId} existingScenarios={state.scenarios} onNext={handleStep4} />
 		{:else if state.currentStep === 6 && state.appointmentId}
 			<Step5Generate
 				appointmentId={state.appointmentId}

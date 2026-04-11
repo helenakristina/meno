@@ -5,18 +5,21 @@
 
 	let {
 		appointmentId,
+		existingNarrative = null,
 		onNext
 	}: {
 		appointmentId: string;
+		existingNarrative: string | null;
 		onNext: (narrative: string) => void;
 	} = $props();
 
-	let narrative = $state('');
-	let isLoading = $state(true);
+	let narrative = $state(existingNarrative ?? '');
+	let isLoading = $state(existingNarrative === null);
 	let isSaving = $state(false);
 	let loadError = $state('');
 
 	onMount(() => {
+		if (existingNarrative !== null) return;
 		loadNarrative();
 	});
 

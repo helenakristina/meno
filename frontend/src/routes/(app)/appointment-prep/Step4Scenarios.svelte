@@ -6,17 +6,20 @@
 
 	let {
 		appointmentId,
+		existingScenarios = [],
 		onNext
 	}: {
 		appointmentId: string;
+		existingScenarios: ScenarioCard[];
 		onNext: (scenarios: ScenarioCard[]) => void;
 	} = $props();
 
-	let scenarios = $state<ScenarioCard[]>([]);
-	let isLoading = $state(true);
+	let scenarios = $state<ScenarioCard[]>(existingScenarios);
+	let isLoading = $state(existingScenarios.length === 0);
 	let loadError = $state('');
 
 	onMount(() => {
+		if (existingScenarios.length > 0) return;
 		loadScenarios();
 	});
 
