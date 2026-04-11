@@ -138,6 +138,7 @@
 			error: null,
 			currentStep: 1
 		};
+		savedStateExists = false;
 		sessionStorage.removeItem('appointmentPrepState');
 	}
 </script>
@@ -236,11 +237,7 @@
 						</button>
 						<button
 							type="button"
-							onclick={() => {
-								sessionStorage.removeItem('appointmentPrepState');
-								startOver();
-								savedStateExists = false;
-							}}
+							onclick={startOver}
 							class="rounded-lg border border-primary-500 px-3 py-2 text-sm font-semibold text-primary-600 transition-colors hover:bg-primary-50"
 						>
 							Start Fresh

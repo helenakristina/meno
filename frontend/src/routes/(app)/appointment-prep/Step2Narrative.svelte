@@ -111,7 +111,7 @@
 				aria-describedby="narrative-hint"
 			></textarea>
 			<p id="narrative-hint" class="mt-1 text-xs text-neutral-500">
-				Your edits are saved automatically. What you see here is what your provider will read.
+				What you see here is what your provider will read. Click Next to save your edits.
 			</p>
 		</div>
 
