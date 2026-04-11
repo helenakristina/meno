@@ -47,8 +47,8 @@ class TestProviderSummaryResponse:
         assert m.key_patterns == ""
 
     def test_ignores_extra_fields(self):
-        # CATCHES: extra="forbid" — any unexpected LLM field (e.g. "confidence_score")
-        # would raise ValidationError instead of being silently dropped
+        # CATCHES: extra="ignore" — any unexpected LLM field (e.g. "confidence_score")
+        # would be ignored
         m = ProviderSummaryResponse(
             opening="O",
             unexpected_llm_field="value",  # type: ignore
@@ -113,8 +113,8 @@ class TestCheatsheetResponse:
         assert m.question_groups == []
 
     def test_ignores_extra_fields(self):
-        # CATCHES: extra="forbid" — LLM frequently adds explanatory fields not
-        # in the schema; these would crash parsing instead of being dropped
+        # CATCHES: extra="ignore" — LLM frequently adds explanatory fields not
+        # in the schema; these would not crash parsing
         m = CheatsheetResponse(
             opening_statement="O",
             unexpected_field="x",

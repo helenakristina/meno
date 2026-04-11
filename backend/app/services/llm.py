@@ -487,8 +487,7 @@ class LLMService:
         )
 
         logger.info(
-            "Generating cheatsheet content: age=%s goal=%s",
-            age_str,
+            "Generating cheatsheet content: goal=%s",
             goal,
         )
 
