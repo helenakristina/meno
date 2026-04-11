@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { apiClient } from '$lib/api/client';
 	import type { QualitativeContext } from '$lib/types/appointment';
-	import type { ApiError } from '$lib/types';
+	import { ApiError } from '$lib/types';
 
 	let {
 		appointmentId,
@@ -10,7 +10,7 @@
 		onError
 	}: {
 		appointmentId: string;
-		existingQualitativeContext: QualitativeContext | null;
+		existingQualitativeContext?: QualitativeContext | null;
 		onNext: (ctx: QualitativeContext) => void;
 		onError: (msg: string) => void;
 	} = $props();
@@ -34,16 +34,14 @@
 			history_breast_cancer: history_breast_cancer
 		};
 		try {
+			// Cast required: typed client uses static string keys; dynamic interpolation needs an explicit cast
 			await apiClient.put(
 				`/api/appointment-prep/${appointmentId}/qualitative-context` as '/api/appointment-prep/{id}/qualitative-context',
 				payload
 			);
 			onNext(payload);
 		} catch (e) {
-			const msg =
-				e instanceof Error && 'detail' in e
-					? (e as ApiError).detail
-					: 'Failed to save. Please try again.';
+			const msg = e instanceof ApiError ? e.detail : 'Failed to save. Please try again.';
 			onError(msg);
 		} finally {
 			isSaving = false;
@@ -59,16 +57,14 @@
 			history_breast_cancer: null
 		};
 		try {
+			// Cast required: typed client uses static string keys; dynamic interpolation needs an explicit cast
 			await apiClient.put(
 				`/api/appointment-prep/${appointmentId}/qualitative-context` as '/api/appointment-prep/{id}/qualitative-context',
 				payload
 			);
 			onNext(payload);
 		} catch (e) {
-			const msg =
-				e instanceof Error && 'detail' in e
-					? (e as ApiError).detail
-					: 'Failed to save. Please try again.';
+			const msg = e instanceof ApiError ? e.detail : 'Failed to save. Please try again.';
 			onError(msg);
 		} finally {
 			isSaving = false;

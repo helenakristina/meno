@@ -9,7 +9,8 @@
 		AppointmentPrepState
 	} from '$lib/types/appointment';
 	import { STEP_TITLES } from '$lib/types/appointment';
-	import type { ApiError } from '$lib/types';
+	import { ApiError } from '$lib/types/api';
+	import { authState } from '$lib/stores/auth';
 	import Step1Context from './Step1Context.svelte';
 	import Step2Narrative from './Step2Narrative.svelte';
 	import Step3Prioritize from './Step3Prioritize.svelte';
@@ -39,18 +40,33 @@
 
 	let progressPercent = $derived((state.currentStep / 6) * 100);
 
+	// User-scoped session key prevents state leaking between accounts
+	const SESSION_KEY = $derived(`appointmentPrepState_${$authState.user?.id ?? 'anon'}`);
+
 	// =========================================================================
 	// State persistence
 	// =========================================================================
 
+	function isValidAppointmentPrepState(v: unknown): v is AppointmentPrepState {
+		if (typeof v !== 'object' || v === null) return false;
+		const s = v as Record<string, unknown>;
+		const validSteps = [1, 2, 3, 4, 5, 6];
+		return validSteps.includes(s.currentStep as number);
+	}
+
 	// Load saved state from sessionStorage on mount
 	onMount(() => {
-		const saved = sessionStorage.getItem('appointmentPrepState');
+		const saved = sessionStorage.getItem(SESSION_KEY);
 		if (saved) {
 			try {
 				const parsed = JSON.parse(saved);
-				state = parsed;
-				savedStateExists = true;
+				if (isValidAppointmentPrepState(parsed)) {
+					// Reset transient fields that should not be persisted across sessions
+					state = { ...parsed, isLoading: false, error: null };
+					savedStateExists = true;
+				} else {
+					console.warn('Discarding invalid appointment prep state from sessionStorage');
+				}
 			} catch (e) {
 				console.error('Failed to restore appointment prep state:', e);
 				savedStateExists = false;
@@ -63,7 +79,9 @@
 	// =========================================================================
 
 	function saveToSession() {
-		sessionStorage.setItem('appointmentPrepState', JSON.stringify(state));
+		// Strip transient UI fields before persisting — they should always reset on restore
+		const { isLoading, error, ...persistable } = state;
+		sessionStorage.setItem(SESSION_KEY, JSON.stringify(persistable));
 	}
 
 	async function handleStep1(context: AppointmentContext) {
@@ -82,8 +100,8 @@
 			saveToSession();
 		} catch (e) {
 			state.error =
-				e instanceof Error && 'detail' in e
-					? (e as ApiError).detail
+				e instanceof ApiError
+					? e.detail
 					: 'Failed to save your selections. Please try again.';
 		} finally {
 			state.isLoading = false;
@@ -126,6 +144,7 @@
 	function goBack() {
 		if (state.currentStep > 1) {
 			state.error = null;
+			// Safe: guard above ensures currentStep > 1, so subtraction won't produce 0
 			state.currentStep = (state.currentStep - 1) as 1 | 2 | 3 | 4 | 5 | 6;
 			saveToSession();
 		}
@@ -144,7 +163,7 @@
 			currentStep: 1
 		};
 		savedStateExists = false;
-		sessionStorage.removeItem('appointmentPrepState');
+		sessionStorage.removeItem(SESSION_KEY);
 	}
 </script>
 
@@ -260,7 +279,7 @@
 			<Step3Prioritize
 				appointmentId={state.appointmentId}
 				context={state.context}
-				initialConcerns={state.concerns}
+				existingConcerns={state.concerns}
 				onNext={handleStep3}
 				onChange={handleConcernsChange}
 				onError={handleStepError}

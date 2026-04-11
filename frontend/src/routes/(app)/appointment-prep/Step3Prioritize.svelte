@@ -2,27 +2,27 @@
 	import { apiClient } from '$lib/api/client';
 	import { DEFAULT_CONCERNS } from '$lib/types/appointment';
 	import type { AppointmentContext, AppointmentGoal, Concern } from '$lib/types/appointment';
-	import type { ApiError } from '$lib/types';
+	import { ApiError } from '$lib/types';
 
 	let {
 		appointmentId,
 		context,
-		initialConcerns = [],
+		existingConcerns = [],
 		onNext,
-		onChange = null,
+		onChange,
 		onError
 	}: {
 		appointmentId: string;
 		context: AppointmentContext;
-		initialConcerns?: Concern[];
+		existingConcerns?: Concern[];
 		onNext: (concerns: Concern[]) => void;
-		onChange?: ((concerns: Concern[]) => void) | null;
+		onChange?: (concerns: Concern[]) => void;
 		onError: (msg: string) => void;
 	} = $props();
 
 	let concerns = $state<Concern[]>(
-		initialConcerns.length > 0
-			? initialConcerns
+		existingConcerns.length > 0
+			? existingConcerns
 			: DEFAULT_CONCERNS[context.goal as AppointmentGoal].map((text) => ({ text }))
 	);
 	let newConcernText = $state('');
@@ -68,11 +68,18 @@
 		}
 	}
 
+	let commentDebounceTimer: ReturnType<typeof setTimeout> | null = null;
+
 	function updateComment(index: number, comment: string) {
 		const updated = [...concerns];
 		updated[index] = { ...updated[index], comment: comment || undefined };
-		concerns = updated;
-		onChange?.(updated);
+		concerns = updated; // immediate local update for UI
+
+		if (commentDebounceTimer) clearTimeout(commentDebounceTimer);
+		commentDebounceTimer = setTimeout(() => {
+			onChange?.(updated);
+			commentDebounceTimer = null;
+		}, 300);
 	}
 
 	// Drag and drop handlers
@@ -110,16 +117,14 @@
 		if (concerns.length === 0) return;
 		isSaving = true;
 		try {
+			// Cast required: typed client uses static string keys; dynamic interpolation needs an explicit cast
 			await apiClient.put(
 				`/api/appointment-prep/${appointmentId}/prioritize` as '/api/appointment-prep/{id}/prioritize',
 				{ concerns }
 			);
 			onNext(concerns);
 		} catch (e) {
-			const msg =
-				e instanceof Error && 'detail' in e
-					? (e as ApiError).detail
-					: 'Failed to save concerns. Please try again.';
+			const msg = e instanceof ApiError ? e.detail : 'Failed to save concerns. Please try again.';
 			onError(msg);
 		} finally {
 			isSaving = false;
