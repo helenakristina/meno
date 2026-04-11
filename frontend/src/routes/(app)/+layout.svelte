@@ -31,6 +31,16 @@
 		}
 	});
 
+	// Clear appointment prep health data on token expiry / external sign-out
+	onMount(() => {
+		const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+			if (event === 'SIGNED_OUT') {
+				clearAppointmentPrepStorage();
+			}
+		});
+		return () => subscription.unsubscribe();
+	});
+
 	// Load settings into store — nav reactively derives periodTrackingEnabled from it
 	onMount(async () => {
 		try {
@@ -42,8 +52,18 @@
 	});
 
 	async function handleLogout() {
+		// Clear appointment prep health data from sessionStorage before sign-out
+		clearAppointmentPrepStorage();
 		await supabase.auth.signOut();
 		goto('/login');
+	}
+
+	function clearAppointmentPrepStorage() {
+		for (const key of Object.keys(sessionStorage)) {
+			if (key.startsWith('appointmentPrepState')) {
+				sessionStorage.removeItem(key);
+			}
+		}
 	}
 
 	function closeMenu() {

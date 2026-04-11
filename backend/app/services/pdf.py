@@ -27,7 +27,8 @@ from reportlab.platypus import (
     TableStyle,
 )
 
-from app.models.appointment import CheatsheetResponse, ProviderSummaryResponse
+from app.models.appointment import Concern, CheatsheetResponse, ProviderSummaryResponse
+from app.utils.sanitize import sanitize_xml_tags
 from app.models.symptoms import SymptomFrequency, SymptomPair
 
 logger = logging.getLogger(__name__)
@@ -473,18 +474,19 @@ class PdfService:
     def build_provider_summary_pdf(
         self,
         content: ProviderSummaryResponse,
+        narrative: str,
         frequency_stats: list[SymptomFrequency],
         cooccurrence_stats: list[SymptomPair],
-        concerns: list[str],
+        concerns: list[Concern],
     ) -> bytes:
         """Build a clinical provider-facing appointment summary PDF.
 
         Args:
-            content: Structured LLM response with opening, symptom_picture,
-                     key_patterns, and closing prose sections.
+            content: Structured LLM response with opening and key_patterns.
+            narrative: User's narrative text, inserted verbatim as "My Health Picture".
             frequency_stats: Symptom frequency data to render as a table.
             cooccurrence_stats: Co-occurring symptom pairs to render as a table.
-            concerns: Patient's prioritized concerns list.
+            concerns: Patient's prioritized concerns (with optional comments).
 
         Returns:
             PDF file content as bytes.
@@ -502,6 +504,14 @@ class PdfService:
             leftIndent=14,
             spaceAfter=4,
         )
+        concern_comment_style = ParagraphStyle(
+            "PSConcernComment",
+            parent=body_style,
+            leftIndent=28,
+            fontSize=8,
+            textColor=HexColor("#6b7280"),
+            spaceAfter=6,
+        )
 
         story = []
 
@@ -518,16 +528,16 @@ class PdfService:
 
         # --- Opening ---
         story.append(Paragraph("Overview", heading_style))
-        story.append(Paragraph(content.opening, body_style))
+        story.append(Paragraph(sanitize_xml_tags(content.opening), body_style))
 
-        # --- Symptom Picture ---
-        story.append(Paragraph("Symptom Picture", heading_style))
-        story.append(Paragraph(content.symptom_picture, body_style))
+        # --- My Health Picture (verbatim from user's narrative) ---
+        story.append(Paragraph("My Health Picture", heading_style))
+        story.append(Paragraph(narrative, body_style))
 
         # --- Key Patterns (optional) ---
         if content.key_patterns:
             story.append(Paragraph("Key Patterns", heading_style))
-            story.append(Paragraph(content.key_patterns, body_style))
+            story.append(Paragraph(sanitize_xml_tags(content.key_patterns), body_style))
 
         # --- Symptom Frequency Table ---
         if frequency_stats:
@@ -561,13 +571,11 @@ class PdfService:
 
         # --- Concerns ---
         if concerns:
-            story.append(Paragraph("Patient's Prioritized Concerns", heading_style))
+            story.append(Paragraph("My Prioritized Concerns", heading_style))
             for i, c in enumerate(concerns, 1):
-                story.append(Paragraph(f"{i}. {c}", concern_style))
-
-        # --- Closing ---
-        story.append(Paragraph("Next Steps", heading_style))
-        story.append(Paragraph(content.closing, body_style))
+                story.append(Paragraph(f"{i}. {c.text}", concern_style))
+                if c.comment:
+                    story.append(Paragraph(c.comment, concern_comment_style))
 
         story.append(Spacer(1, 14))
         story.append(
@@ -588,7 +596,7 @@ class PdfService:
     def build_cheatsheet_pdf(
         self,
         content: CheatsheetResponse,
-        concerns: list[str],
+        concerns: list[Concern],
         scenarios: list[dict],
         frequency_stats: list[SymptomFrequency],
     ) -> bytes:
@@ -597,7 +605,7 @@ class PdfService:
         Args:
             content: Structured LLM response with opening_statement and
                      question_groups (topic + questions per group).
-            concerns: Patient's prioritized concerns list.
+            concerns: Patient's prioritized concerns (with optional comments).
             scenarios: Scenario cards from Step 4 (each has 'title' and 'suggestion').
             frequency_stats: Symptom frequency data for the top symptoms section.
 
@@ -619,7 +627,7 @@ class PdfService:
             fontSize=10,
             textColor=_NEUTRAL_DARK,
             fontName="Helvetica-Bold",
-            spaceBefore=8,
+            spaceBefore=14,
             spaceAfter=4,
         )
         item_style = ParagraphStyle(
@@ -644,7 +652,9 @@ class PdfService:
 
         # --- Opening Statement ---
         story.append(Paragraph("My Opening Statement", heading_style))
-        story.append(Paragraph(content.opening_statement, body_style))
+        story.append(
+            Paragraph(sanitize_xml_tags(content.opening_statement), body_style)
+        )
 
         # --- Top Symptoms ---
         if frequency_stats:
@@ -655,11 +665,22 @@ class PdfService:
                     Paragraph(f"{i}. {s.symptom_name} ({cat}) — {s.count}x", item_style)
                 )
 
+        cs_comment_style = ParagraphStyle(
+            "CSConcernComment",
+            parent=body_style,
+            leftIndent=28,
+            fontSize=8,
+            textColor=HexColor("#6b7280"),
+            spaceAfter=6,
+        )
+
         # --- Prioritized Concerns ---
         if concerns:
             story.append(Paragraph("What I Most Want to Address", heading_style))
             for i, c in enumerate(concerns, 1):
-                story.append(Paragraph(f"{i}. {c}", item_style))
+                story.append(Paragraph(f"{i}. {c.text}", item_style))
+                if c.comment:
+                    story.append(Paragraph(c.comment, cs_comment_style))
 
         # --- Questions by Topic Group ---
         if content.question_groups:
@@ -678,17 +699,23 @@ class PdfService:
                     body_style,
                 )
             )
-            for s in scenarios:
-                title = s.get("title", "")
-                suggestion = s.get("suggestion", "")
-                if title:
-                    story.append(Paragraph(title, subheading_style))
-                if suggestion:
-                    story.append(Paragraph(suggestion, item_style))
-
+        for i, s in enumerate(scenarios):
+            title = s.get("title", "")
+            suggestion = s.get("suggestion", "")
+            if title:
+                story.append(Paragraph(f"<b>{title}</b>", body_style))
+            if suggestion:
+                story.append(Spacer(1, 4))
+                story.append(Paragraph(suggestion, item_style))
+            if i < len(scenarios) - 1:
+                story.append(Spacer(1, 8))
+                story.append(
+                    HRFlowable(width="100%", thickness=0.5, color=_BORDER, spaceAfter=8)
+                )
         # --- What to Bring (static) ---
         story.append(Paragraph("What to Bring", heading_style))
         for item in [
+            "Your provider summary (the other document in your packet)",
             "This cheat sheet",
             "A list of all current medications and supplements",
             "Any recent lab results or test reports",

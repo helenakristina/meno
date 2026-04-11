@@ -18,6 +18,7 @@ from app.models.appointment import (
     AppointmentPrepScenariosResponse,
     AppointmentType,
     CheatsheetResponse,
+    Concern,
     DismissalExperience,
     ProviderSummaryResponse,
     QuestionGroup,
@@ -51,10 +52,13 @@ def mock_appointment_repo(context):
         "sym-1": {"name": "Hot flashes", "category": "vasomotor"},
         "sym-2": {"name": "Night sweats", "category": "vasomotor"},
     }
-    mock.get_concerns.return_value = ["Discuss HRT options", "Ask about dosage"]
+    mock.get_concerns.return_value = [
+        Concern(text="Discuss HRT options"),
+        Concern(text="Ask about dosage"),
+    ]
     mock.get_appointment_data.return_value = {
         "narrative": "Logs show frequent hot flashes and night sweats.",
-        "concerns": ["Discuss HRT options"],
+        "concerns": [{"text": "Discuss HRT options", "comment": None}],
         "scenarios": [{"id": "scenario-1", "title": "HRT risk", "suggestion": "..."}],
         "frequency_stats": [],
         "cooccurrence_stats": [],
@@ -95,9 +99,7 @@ def mock_llm_service():
     svc.generate_provider_summary_content = AsyncMock(
         return_value=ProviderSummaryResponse(
             opening="Patient presents for discussion.",
-            symptom_picture="Logs show hot flashes.",
             key_patterns="Hot flashes co-occur with night sweats.",
-            closing="Patient seeks treatment options.",
         )
     )
     svc.generate_cheatsheet_content = AsyncMock(
@@ -129,6 +131,12 @@ def mock_pdf_service():
 
 
 @pytest.fixture
+def mock_rag_retriever():
+    retriever = AsyncMock(return_value=[])
+    return retriever
+
+
+@pytest.fixture
 def service(
     mock_appointment_repo,
     mock_symptoms_repo,
@@ -136,6 +144,7 @@ def service(
     mock_llm_service,
     mock_storage_service,
     mock_pdf_service,
+    mock_rag_retriever,
 ):
     return AppointmentService(
         appointment_repo=mock_appointment_repo,
@@ -144,6 +153,7 @@ def service(
         llm_service=mock_llm_service,
         storage_service=mock_storage_service,
         pdf_service=mock_pdf_service,
+        rag_retriever=mock_rag_retriever,
     )
 
 
@@ -170,7 +180,6 @@ class TestGenerateNarrative:
 
         mock_llm_service.generate_narrative.assert_called_once()
         call_kwargs = mock_llm_service.generate_narrative.call_args[1]
-        assert "logs show" in call_kwargs["system_prompt"].lower()
         assert "system_prompt" in call_kwargs
         assert "user_prompt" in call_kwargs
 
@@ -319,6 +328,75 @@ class TestGenerateScenarios:
 
         with pytest.raises(DatabaseError, match="Failed to parse"):
             await service.generate_scenarios("appt-123", "user-456")
+
+    @pytest.mark.asyncio
+    async def test_rag_retriever_called_for_each_scenario(
+        self, service, mock_rag_retriever
+    ):
+        # CATCHES: rag_retriever not wired into generate_scenarios — scenario
+        # suggestions would be generated without any RAG grounding, sources empty
+        await service.generate_scenarios("appt-123", "user-456")
+
+        # rag_retriever should be called at least once (once per selected scenario)
+        assert mock_rag_retriever.call_count >= 1
+
+    @pytest.mark.asyncio
+    async def test_rag_chunks_passed_to_llm_service(
+        self, service, mock_rag_retriever, mock_llm_service
+    ):
+        # CATCHES: rag_chunks collected but not forwarded to LLM — prompt builder
+        # never sees the source documents and scenario suggestions remain ungrounded
+        mock_rag_retriever.return_value = [
+            {
+                "title": "NAMS 2022",
+                "content": "MHT is effective for vasomotor symptoms.",
+            }
+        ]
+
+        await service.generate_scenarios("appt-123", "user-456")
+
+        call_kwargs = mock_llm_service.generate_scenario_suggestions.call_args[1]
+        assert "rag_chunks" in call_kwargs
+        assert (
+            call_kwargs["rag_chunks"] is not None and len(call_kwargs["rag_chunks"]) > 0
+        )
+
+    @pytest.mark.asyncio
+    async def test_scenarios_generated_without_rag_when_retriever_returns_empty(
+        self, service, mock_rag_retriever, mock_llm_service
+    ):
+        # CATCHES: empty RAG result causes crash — fallback must work cleanly
+        # when no relevant chunks are found (no-source generation is valid)
+        mock_rag_retriever.return_value = []
+
+        result = await service.generate_scenarios("appt-123", "user-456")
+
+        assert isinstance(result, AppointmentPrepScenariosResponse)
+        call_kwargs = mock_llm_service.generate_scenario_suggestions.call_args[1]
+        # Empty chunks still passed (not None) — prompt builder handles it
+        assert "rag_chunks" in call_kwargs
+
+    @pytest.mark.asyncio
+    async def test_duplicate_rag_chunks_deduplicated_before_llm_call(
+        self, service, mock_rag_retriever, mock_llm_service
+    ):
+        # CATCHES: same chunk returned for multiple scenarios passed to LLM
+        # multiple times — inflates prompt size and wastes tokens
+        duplicate_chunk = {
+            "id": "chunk-1",
+            "title": "NAMS 2022",
+            "content": "MHT is effective.",
+        }
+        mock_rag_retriever.return_value = [duplicate_chunk]
+
+        await service.generate_scenarios("appt-123", "user-456")
+
+        call_kwargs = mock_llm_service.generate_scenario_suggestions.call_args[1]
+        rag_chunks = call_kwargs["rag_chunks"]
+        # Even though each scenario retrieval returns the same chunk, only one copy
+        # should reach the LLM
+        chunk_ids = [c.get("id") for c in rag_chunks]
+        assert chunk_ids.count("chunk-1") == 1
 
 
 # ---------------------------------------------------------------------------
@@ -487,6 +565,24 @@ class TestSelectScenarios:
         # scenario list with LLM suggestions and must stay within token budget
         svc = self._make_service()
         ctx = self._context(AppointmentGoal.urgent_symptom, urgent="brain fog")
+        scenarios = svc._select_scenarios(ctx, "perimenopause")
+        assert len(scenarios) <= 7
+
+    def test_cap_at_7_when_many_unique_scenarios(self):
+        # CATCHES: comment says "cap at 7" but no [:7] slice exists — deduplicated
+        # list with 10+ entries would be returned in full, exceeding token budget
+        svc = self._make_service()
+        # Inject a bloated config with 10+ unique scenarios for a goal
+        import copy
+
+        original_config = svc._scenario_config
+        bloated_config = copy.deepcopy(original_config)
+        bloated_config["goal_scenarios"]["assess_status"] = [
+            {"title": f"Unique scenario title {i}", "category": "general"}
+            for i in range(12)
+        ]
+        svc._scenario_config = bloated_config
+        ctx = self._context(AppointmentGoal.assess_status)
         scenarios = svc._select_scenarios(ctx, "perimenopause")
         assert len(scenarios) <= 7
 
@@ -704,21 +800,18 @@ class TestSelectScenarios:
 
     def test_sanitize_urgent_symptom_returns_none_for_empty_input(self):
         # CATCHES: None or empty string not handled — would cause downstream errors
-        svc = self._make_service()
         assert sanitize_urgent_symptom(None) is None
         assert sanitize_urgent_symptom("") is None
         assert sanitize_urgent_symptom("   ") is None
 
     def test_sanitize_urgent_symptom_limits_length(self):
         # CATCHES: no length limit — potential DoS with extremely long strings
-        svc = self._make_service()
         long_symptom = "a" * 500
         result = sanitize_urgent_symptom(long_symptom)
         assert len(result) <= 200
 
     def test_sanitize_urgent_symptom_removes_special_characters(self):
         # CATCHES: injection risk — special characters like < > & should be stripped
-        svc = self._make_service()
         result = sanitize_urgent_symptom("brain fog <script>alert('xss')</script>")
         assert "<" not in result
         assert ">" not in result
@@ -727,13 +820,11 @@ class TestSelectScenarios:
 
     def test_sanitize_urgent_symptom_allows_valid_characters(self):
         # CATCHES: overly aggressive sanitization breaking valid input
-        svc = self._make_service()
         result = sanitize_urgent_symptom("Hot flashes (night sweats), fatigue.")
         assert result == "Hot flashes (night sweats), fatigue."
 
     def test_sanitize_urgent_symptom_strips_whitespace(self):
         # CATCHES: leading/trailing whitespace not trimmed — affects matching
-        svc = self._make_service()
         result = sanitize_urgent_symptom("  brain fog  ")
         assert result == "brain fog"
 

@@ -501,7 +501,7 @@ class TestLLMServiceGenerateScenarioSuggestions:
 class TestLLMServiceGenerateProviderSummaryContent:
     """Tests for LLMService.generate_provider_summary_content()."""
 
-    _VALID_JSON = '{"opening": "Patient presents.", "symptom_picture": "Logs show hot flashes.", "key_patterns": "Co-occur with night sweats.", "closing": "Seeks treatment discussion."}'
+    _VALID_JSON = '{"opening": "Patient presents.", "key_patterns": "Co-occur with night sweats."}'
 
     @pytest.mark.asyncio
     async def test_returns_provider_summary_response(self, service, mock_provider):
@@ -512,7 +512,6 @@ class TestLLMServiceGenerateProviderSummaryContent:
         mock_provider.chat_completion.return_value = self._VALID_JSON
 
         result = await service.generate_provider_summary_content(
-            narrative="Logs show hot flashes daily.",
             concerns=["Discuss HRT"],
             appointment_type="new_provider",
             goal="explore_hrt",
@@ -529,7 +528,6 @@ class TestLLMServiceGenerateProviderSummaryContent:
         mock_provider.chat_completion.return_value = self._VALID_JSON
 
         await service.generate_provider_summary_content(
-            narrative="Narrative.",
             concerns=[],
             appointment_type="new_provider",
             goal="explore_hrt",
@@ -549,7 +547,6 @@ class TestLLMServiceGenerateProviderSummaryContent:
 
         with pytest.raises(DatabaseError, match="Failed to parse provider summary"):
             await service.generate_provider_summary_content(
-                narrative="Narrative.",
                 concerns=[],
                 appointment_type="new_provider",
                 goal="explore_hrt",
@@ -565,12 +562,11 @@ class TestLLMServiceGenerateProviderSummaryContent:
         from app.exceptions import DatabaseError
 
         mock_provider.chat_completion.return_value = (
-            '{"symptom_picture": "S", "closing": "C"}'
+            '{"key_patterns": "Only patterns, no opening."}'
         )
 
         with pytest.raises(DatabaseError, match="Failed to parse provider summary"):
             await service.generate_provider_summary_content(
-                narrative="Narrative.",
                 concerns=[],
                 appointment_type="new_provider",
                 goal="explore_hrt",
@@ -584,7 +580,6 @@ class TestLLMServiceGenerateProviderSummaryContent:
         mock_provider.chat_completion.return_value = self._VALID_JSON
 
         await service.generate_provider_summary_content(
-            narrative="Narrative.",
             concerns=[],
             appointment_type="new_provider",
             goal="urgent_symptom",
@@ -603,7 +598,6 @@ class TestLLMServiceGenerateProviderSummaryContent:
 
         with pytest.raises(TimeoutError):
             await service.generate_provider_summary_content(
-                narrative="Narrative.",
                 concerns=[],
                 appointment_type="new_provider",
                 goal="explore_hrt",

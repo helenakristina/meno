@@ -11,9 +11,11 @@ from typing import Any, Optional
 from supabase import AsyncClient
 
 from app.exceptions import DatabaseError, EntityNotFoundError
+from app.utils.logging import hash_user_id
 
 from app.models.appointment import (
     AppointmentContext,
+    Concern,
     ProviderSummary,
     PersonalCheatSheet,
 )
@@ -59,6 +61,10 @@ class AppointmentRepository:
                 "goal": context.goal.value,
                 "dismissed_before": context.dismissed_before.value,
                 "urgent_symptom": context.urgent_symptom,
+                "what_have_you_tried": context.what_have_you_tried,
+                "specific_ask": context.specific_ask,
+                "history_clotting_risk": context.history_clotting_risk,
+                "history_breast_cancer": context.history_breast_cancer,
             }
             response = (
                 await self.client.table("appointment_prep_contexts")
@@ -68,7 +74,7 @@ class AppointmentRepository:
         except Exception as exc:
             logger.error(
                 "DB insert failed creating appointment context for user %s: %s",
-                user_id,
+                hash_user_id(user_id),
                 exc,
                 exc_info=True,
             )
@@ -77,7 +83,7 @@ class AppointmentRepository:
         if not response.data or not isinstance(response.data, list):
             logger.error(
                 "Supabase returned no data after appointment context insert for user %s",
-                user_id,
+                hash_user_id(user_id),
             )
             raise DatabaseError(
                 "Failed to create appointment context: no data returned"
@@ -88,7 +94,7 @@ class AppointmentRepository:
         logger.info(
             "Appointment context created: id=%s user=%s appointment_type=%s",
             context_id,
-            user_id,
+            hash_user_id(user_id),
             context.appointment_type.value,
         )
         return context_id
@@ -140,6 +146,10 @@ class AppointmentRepository:
             goal=row["goal"],
             dismissed_before=row["dismissed_before"],
             urgent_symptom=row.get("urgent_symptom"),
+            what_have_you_tried=row.get("what_have_you_tried"),
+            specific_ask=row.get("specific_ask"),
+            history_clotting_risk=row.get("history_clotting_risk"),
+            history_breast_cancer=row.get("history_breast_cancer"),
         )
 
     async def save_outputs(
@@ -281,7 +291,7 @@ class AppointmentRepository:
             response = (
                 await self.client.table("appointment_prep_outputs")
                 .select(
-                    "*, appointment_prep_contexts(appointment_type, goal, dismissed_before, urgent_symptom, created_at)"
+                    "*, appointment_prep_contexts(appointment_type, goal, dismissed_before, urgent_symptom, created_at, what_have_you_tried, specific_ask, history_clotting_risk, history_breast_cancer)"
                 )
                 .eq("user_id", user_id)
                 .order("created_at", desc=True)
@@ -353,25 +363,27 @@ class AppointmentRepository:
         )
 
     async def save_concerns(
-        self, appointment_id: str, user_id: str, concerns: list[str]
+        self, appointment_id: str, user_id: str, concerns: list[Concern]
     ) -> None:
         """Save prioritized concerns to the appointment context.
 
         Updates the appointment_prep_contexts.concerns field with the ranked list.
+        Serialises each Concern as a JSONB object: {"text": "...", "comment": "..."}.
 
         Args:
             appointment_id: ID of the appointment context.
             user_id: ID of the user (for ownership verification).
-            concerns: Ordered list of prioritized concerns.
+            concerns: Ordered list of Concern objects.
 
         Raises:
             EntityNotFoundError: If the appointment context doesn't exist or doesn't belong to user.
             DatabaseError: If the database update fails.
         """
+        serialized = [c.model_dump() for c in concerns]
         try:
             response = (
                 await self.client.table("appointment_prep_contexts")
-                .update({"concerns": concerns})
+                .update({"concerns": serialized})
                 .eq("id", appointment_id)
                 .eq("user_id", user_id)
                 .execute()
@@ -396,6 +408,67 @@ class AppointmentRepository:
             "Concerns saved: appointment_id=%s concerns_count=%d",
             appointment_id,
             len(concerns),
+        )
+
+    async def save_qualitative_context(
+        self,
+        appointment_id: str,
+        user_id: str,
+        what_have_you_tried: str | None,
+        specific_ask: str | None,
+        history_clotting_risk: str | None,
+        history_breast_cancer: str | None,
+    ) -> None:
+        """Save Step 3.5 qualitative context fields.
+
+        Updates only the four qualitative fields on appointment_prep_contexts.
+        None values are written as NULL (clearing previously saved values).
+
+        Args:
+            appointment_id: ID of the appointment context.
+            user_id: ID of the user (for ownership verification).
+            what_have_you_tried: Treatments/approaches already tried (may be None).
+            specific_ask: What the user specifically wants (may be None).
+            history_clotting_risk: "yes" | "no" | "not_sure" | None.
+            history_breast_cancer: "yes" | "no" | "not_sure" | None.
+
+        Raises:
+            EntityNotFoundError: If the appointment context doesn't exist or doesn't belong to user.
+            DatabaseError: If the database update fails.
+        """
+        data = {
+            "what_have_you_tried": what_have_you_tried,
+            "specific_ask": specific_ask,
+            "history_clotting_risk": history_clotting_risk,
+            "history_breast_cancer": history_breast_cancer,
+        }
+        try:
+            response = (
+                await self.client.table("appointment_prep_contexts")
+                .update(data)
+                .eq("id", appointment_id)
+                .eq("user_id", user_id)
+                .execute()
+            )
+        except Exception as exc:
+            logger.error(
+                "DB update failed saving qualitative context for appointment %s: %s",
+                appointment_id,
+                exc,
+                exc_info=True,
+            )
+            raise DatabaseError(f"Failed to save qualitative context: {exc}") from exc
+
+        if (
+            not response.data
+            or not isinstance(response.data, list)
+            or len(response.data) == 0
+        ):
+            raise EntityNotFoundError("Appointment context not found")
+
+        logger.info(
+            "Qualitative context saved: appointment_id=%s",
+            appointment_id,
         )
 
     async def save_scenarios(
@@ -592,18 +665,21 @@ class AppointmentRepository:
             logger.error("Failed to fetch symptom reference: %s", exc, exc_info=True)
             raise DatabaseError(f"Failed to fetch symptom reference: {exc}") from exc
 
-    async def get_concerns(self, appointment_id: str, user_id: str) -> list[str]:
+    async def get_concerns(self, appointment_id: str, user_id: str) -> list[Concern]:
         """Fetch prioritized concerns from appointment context.
 
         Returns the concerns list saved in Step 3. Returns empty list if
         concerns haven't been saved yet (Step 3 not completed).
+
+        Handles backward compatibility: old data may be stored as list[str]
+        (pre-Phase 5). These are converted to Concern(text=str) transparently.
 
         Args:
             appointment_id: ID of the appointment context.
             user_id: ID of the user (for ownership verification).
 
         Returns:
-            List of concern strings, or empty list if not set.
+            List of Concern objects, or empty list if not set.
 
         Raises:
             DatabaseError: If the database query fails.
@@ -619,9 +695,15 @@ class AppointmentRepository:
             if response.data and len(response.data) > 0:
                 data = response.data[0]
                 if isinstance(data, dict):
-                    concerns = data.get("concerns")
-                    if isinstance(concerns, list):
-                        return concerns
+                    raw = data.get("concerns")
+                    if isinstance(raw, list):
+                        result: list[Concern] = []
+                        for item in raw:
+                            if isinstance(item, str):
+                                result.append(Concern(text=item))
+                            elif isinstance(item, dict):
+                                result.append(Concern(**item))
+                        return result
             return []
         except Exception as exc:
             logger.error(
@@ -654,7 +736,8 @@ class AppointmentRepository:
             response = (
                 await self.client.table("appointment_prep_contexts")
                 .select(
-                    "narrative, concerns, scenarios, frequency_stats, cooccurrence_stats"
+                    "narrative, concerns, scenarios, frequency_stats, cooccurrence_stats, "
+                    "what_have_you_tried, specific_ask, history_clotting_risk, history_breast_cancer"
                 )
                 .eq("id", appointment_id)
                 .eq("user_id", user_id)
@@ -725,7 +808,7 @@ class AppointmentRepository:
 
             logger.info(
                 "Fetched appointment prep history: user=%s count=%d total=%d",
-                user_id,
+                hash_user_id(user_id),
                 len(preps),
                 total,
             )

@@ -32,16 +32,24 @@ from app.utils.sanitize import sanitize_prompt_input
 # ---------------------------------------------------------------------------
 
 NARRATIVE_SYSTEM = (
-    "You are preparing a clinical summary of symptom tracking data for a healthcare provider "
-    "appointment. Your role is to present objective patterns from personal health tracking — "
-    "not to diagnose, interpret causes, or recommend treatments.\n\n"
+    "You are helping a woman describe her menopause or perimenopause experience "
+    "in her own words, for a document she will bring to a healthcare appointment.\n\n"
+    "Voice:\n"
+    "- Write in first person ('I've been experiencing', 'I've noticed', 'Over the past X days')\n"
+    "- Conversational but composed — the way a confident, informed woman would describe "
+    "her health to a doctor she respects\n"
+    "- Warm, not clinical. Specific, not vague.\n\n"
     "Rules:\n"
-    "- Always use 'logs show' or 'data indicates' — never 'you have' or diagnose\n"
-    "- Never suggest a medical condition, cause, or specific treatment\n"
-    "- Frame observations as patterns worth discussing with a provider\n"
-    "- Professional, neutral, clinical tone\n"
-    "- Write 2–3 clear paragraphs suitable for a healthcare conversation\n"
-    "- End by noting these patterns are worth discussing with a provider"
+    "- Ground every observation in the data provided — no invented symptoms or frequencies\n"
+    "- Lead with what's most frequent or most impactful, not what comes first in the data\n"
+    "- Include medication context naturally, as part of the picture\n"
+    "- Describe patterns as observations, not causes — never say one symptom 'contributes to', 'leads to', or 'causes' another\n"
+    "- Use measured language for co-occurrences — 'often appeared together' or 'frequently logged together' rather than stating exact percentages or implying causation\n"
+    "- No journey language ('perimenopause journey', 'this chapter', etc.)\n"
+    "- Do not describe functional impact unless it is explicitly in the data\n"
+    "- Never diagnose, speculate about causes, or recommend treatments\n"
+    "- Never end with 'discuss with your provider' — she's already doing that\n"
+    "- 2–3 paragraphs maximum\n"
 )
 
 SYMPTOM_SUMMARY_SYSTEM = (
@@ -77,48 +85,67 @@ PROVIDER_QUESTIONS_SYSTEM = (
 )
 
 SCENARIO_SUGGESTIONS_SYSTEM = (
-    "You are helping a woman prepare for a healthcare appointment about perimenopause or menopause. "
-    "Your role is to help her respond to common dismissals she might encounter from healthcare providers.\n\n"
+    "You are helping a woman prepare for a healthcare appointment about "
+    "perimenopause or menopause. Your role is to help her respond confidently "
+    "to common dismissals she might encounter from her provider.\n\n"
     "Guidelines:\n"
-    "- Ground responses in current evidence and research (NAMS guidelines, peer-reviewed studies, major medical organizations)\n"
-    "- Address the specific dismissal directly and acknowledge the provider's perspective\n"
-    "- Provide concrete language she can use in the appointment\n"
-    "- Reference specific research/statistics when relevant (e.g., 'Research shows...', 'The NAMS guidelines state...')\n"
-    "- Never diagnose or prescribe, but DO reference evidence-based information\n"
-    "- Empower her to advocate for herself\n"
-    "- Acknowledge her experience and validate her concerns\n"
-    "- Make responses conversational and natural (2-3 sentences max)\n"
-    "- Return ONLY a valid JSON array with no markdown, no explanation\n"
-    '- Each object must have: {"scenario_title": string, "suggestion": string}'
+    "- Address the dismissal directly and acknowledge the provider's perspective\n"
+    "- Provide concrete language she can actually say in the appointment\n"
+    "- Responses must be conversational — 2-3 sentences she could speak out loud\n"
+    "- When source documents are provided, weave the finding into her response "
+    "naturally — do not quote titles verbatim or use academic citation format\n"
+    "- When no source documents are provided, ground her response in her own "
+    "experience and what she's there to discuss — confident first-person language "
+    "is more effective in an appointment than vague appeals to unnamed research\n"
+    "- Never diagnose or prescribe\n"
+    "- Never fabricate citations or invent source titles\n"
+    "- Empower her to advocate for herself without being confrontational\n"
+    "- Return ONLY valid JSON, no markdown, no explanation\n"
+    '- Each object must have: {"scenario_title": string, "suggestion": string, '
+    '"sources": [{"title": string, "excerpt": string}]}'
 )
 
 PROVIDER_SUMMARY_SYSTEM = (
-    "You are a clinical writing expert specializing in perimenopause and menopause. "
-    "Your role is to help women prepare for healthcare appointments by generating "
-    "clinically-grounded, specific, actionable documents for their providers.\n\n"
+    "You are helping a woman speak for herself in a healthcare appointment "
+    "about perimenopause or menopause. You are writing in her voice, for a "
+    "document she will bring to her provider.\n\n"
+    "Voice:\n"
+    "- First person throughout — this is her speaking, not a report about her\n"
+    "- Conversational but composed — the way a confident, informed woman speaks "
+    "to a doctor she respects\n"
+    "- Direct and specific — no hedging, no platitudes, no motivational language\n"
+    "- Warm but not cheerful — this is a medical appointment, not a pep rally\n\n"
     "Style Requirements:\n"
-    "- Professional, clinical tone (no platitudes, encouragement, or motivational language)\n"
     "- Specific to perimenopause/menopause (not generic health appointments)\n"
-    "- Grounded in current evidence and guidelines (reference research where relevant)\n"
-    "- Actionable (provider can use this to have an informed conversation)\n"
+    "- Only describe what is in the data provided — do not invent symptoms, "
+    "patterns, or connections\n"
     "- Prioritized by impact, not frequency\n"
-    "- No phrases like 'Hello Future Me', 'You've got this!', 'Hello Warrior', etc.\n\n"
-    "Remember: You're writing for a provider reading a one-page summary before a 15-minute appointment."
+    "- No encouragement, motivational language, or journey framing\n\n"
+    "Remember: You're writing for a provider reading a one-page summary before "
+    "a 15-minute appointment. Every word needs to earn its place."
 )
 
 CHEATSHEET_SYSTEM = (
-    "You are a clinical writing expert specializing in perimenopause and menopause. "
-    "Your role is to help women prepare for healthcare appointments by generating "
-    "clinically-grounded, specific, actionable documents they carry into the room.\n\n"
+    "You are helping a woman prepare for a healthcare appointment about "
+    "perimenopause or menopause. You are writing in her voice — this is a "
+    "working document she carries into the room and refers to during the visit.\n\n"
+    "Voice:\n"
+    "- First person throughout\n"
+    "- Conversational and direct — the way she'd actually speak in the room\n"
+    "- Confident but not confrontational\n"
+    "- Warm but not cheerful — no motivational language, no journey framing, "
+    "no phrases like 'You've got this!', 'Hello Warrior', or 'Hello Future Me'\n\n"
     "Style Requirements:\n"
-    "- Professional, clinical tone (no platitudes, encouragement, or motivational language)\n"
     "- Specific to perimenopause/menopause (not generic health appointments)\n"
-    "- Grounded in current evidence and guidelines (reference research where relevant)\n"
-    "- Actionable (user can actually use this language in an appointment)\n"
+    "- Only use information provided — do not invent symptoms, patterns, or context\n"
     "- Prioritized by impact, not frequency\n"
-    "- Anticipate common provider dismissals and responses\n"
-    "- No phrases like 'Hello Future Me', 'You've got this!', 'Hello Warrior', etc.\n\n"
-    "Remember: You're writing for an informed patient who knows her body and deserves to be heard."
+    "- Questions must be short and natural — things she would actually say out loud, "
+    "not formal sentence constructions she would read from a script\n"
+    "- Bad example: 'Could you help me understand the different types of hormone "
+    "therapies available for menopause?'\n"
+    "- Good example: 'What are my hormone therapy options?'\n\n"
+    "Remember: She's informed, she knows her body, and she deserves to be heard. "
+    "Write like she's already in the room."
 )
 
 
@@ -138,18 +165,32 @@ def build_narrative_user_prompt(
     freq_text: str,
     coocc_text: str,
     med_section: str,
+    what_have_you_tried: str | None = None,
+    specific_ask: str | None = None,
 ) -> str:
     """Build user prompt for clinical narrative generation (Step 2)."""
+    # Sanitize user-generated content to prevent prompt injection
+    sanitized_tried = sanitize_prompt_input(what_have_you_tried)
+    sanitized_ask = sanitize_prompt_input(specific_ask)
+
+    qualitative_section = ""
+    if sanitized_tried != "not provided":
+        qualitative_section += f"\nWhat the patient has tried: {sanitized_tried}"
+    if sanitized_ask != "not provided":
+        qualitative_section += (
+            f"\nPatient's specific ask for this appointment: {sanitized_ask}"
+        )
     return (
         f"Write a 2–3 paragraph clinical summary for a healthcare appointment. "
         f"Patient context: {appt_type_str} appointment, goal is '{goal_str}', "
-        f"age {age_str}, journey stage: {journey_stage}. "
+        f"age {age_str}, menopause stage: {journey_stage}. "
         f"Symptom tracking covers {days_back} days "
         f"({start_date.strftime('%B %d, %Y')} to {end_date.strftime('%B %d, %Y')}).\n\n"
         f"Most frequently logged symptoms:\n{freq_text}\n\n"
         f"Symptom patterns (co-occurrences):\n{coocc_text}"
-        f"{med_section}\n\n"
-        "Write a clear, objective summary using 'logs show' language throughout. "
+        f"{med_section}"
+        f"{qualitative_section}\n\n"
+        "Write a clear, objective summary. "
         "No diagnoses. No treatment recommendations."
     )
 
@@ -204,10 +245,25 @@ def build_scenario_suggestions_user_prompt(
     goal: str,
     dismissed_before: str,
     age_str: str,
+    rag_chunks: list[dict] | None = None,
 ) -> str:
     """Build user prompt for scenario suggestion generation (Step 4)."""
     # Sanitize user-generated content to prevent prompt injection
     sanitized_concerns = sanitize_prompt_input(concerns_text)
+
+    sources_section = ""
+    if rag_chunks:
+        sources_lines = []
+        for chunk in rag_chunks:
+            title = chunk.get("title", "Source")
+            content = chunk.get("content", "")
+            sources_lines.append(f"[{title}]: {content}")
+        sources_section = (
+            "\nSource documents to ground your responses:\n"
+            + "\n".join(sources_lines)
+            + "\n"
+        )
+
     return (
         f"A woman (age {age_str}) is preparing for a healthcare appointment. "
         f"She may encounter these dismissals specific to her situation:\n\n"
@@ -216,38 +272,67 @@ def build_scenario_suggestions_user_prompt(
         f"- Appointment type: {appointment_type.replace('_', ' ')}\n"
         f"- What she's here to discuss: {goal.replace('_', ' ')}\n"
         f"- Prior dismissal experience: {dismissed_before.replace('_', ' ')}\n"
-        f"- Her top concerns (in order):\n{sanitized_concerns}\n\n"
+        f"- Her top concerns (in order):\n{sanitized_concerns}"
+        f"{sources_section}\n\n"
         f"For EACH dismissal scenario above, generate a confident, evidence-based response "
         f"she can use IN THIS EXACT APPOINTMENT. Requirements:\n\n"
         f"1. Acknowledge the provider's concern (don't dismiss them)\n"
-        f"2. Provide evidence-based reasoning (don't make up sources)\n"
+        f"2. Provide evidence-based reasoning (only from the provided sources if available)\n"
         f"3. Redirect to actionable discussion\n"
         f"4. Keep to 2-3 sentences (realistic for appointment)\n"
         f"5. Use conversational 'I' language\n\n"
-        f"CRITICAL: Do NOT include URLs or citations. We don't have verified sources to cite yet.\n"
-        f"Focus on clear, confident, evidence-based language.\n\n"
         f"Return ONLY valid JSON with this exact structure, no markdown or explanation:\n"
         f'{{"scenarios": [{{"scenario_title": "...", "suggestion": "...", "sources": []}}]}}'
     )
 
 
 def build_provider_summary_user_prompt(
-    narrative: str,
     concerns_text: str,
     appointment_type: str,
     goal: str,
     age_str: str,
     urgent_symptom: str | None = None,
+    what_have_you_tried: str | None = None,
+    specific_ask: str | None = None,
+    history_clotting_risk: str | None = None,
+    history_breast_cancer: str | None = None,
 ) -> str:
     """Build user prompt for provider summary PDF generation (Step 5).
 
     Requests structured JSON output matching ProviderSummaryResponse.
     """
     # Sanitize user-generated content to prevent prompt injection
-    sanitized_narrative = sanitize_prompt_input(narrative)
     sanitized_concerns = sanitize_prompt_input(concerns_text)
     sanitized_urgent = sanitize_prompt_input(urgent_symptom)
-    urgent_concern = sanitized_urgent
+    sanitized_tried = sanitize_prompt_input(what_have_you_tried)
+    sanitized_ask = sanitize_prompt_input(specific_ask)
+
+    urgent_line = (
+        f"- Urgent Concern: {sanitized_urgent}\n"
+        if sanitized_urgent != "not provided"
+        else ""
+    )
+    tried_line = (
+        f"- What she has tried: {sanitized_tried}\n"
+        if sanitized_tried != "not provided"
+        else ""
+    )
+    ask_line = (
+        f"- Specific ask for this appointment: {sanitized_ask}\n"
+        if sanitized_ask != "not provided"
+        else ""
+    )
+    clotting_line = (
+        f"- History of clotting risk: {history_clotting_risk}\n"
+        if history_clotting_risk == "yes"
+        else ""
+    )
+    breast_cancer_line = (
+        f"- History of breast cancer risk: {history_breast_cancer}\n"
+        if history_breast_cancer == "yes"
+        else ""
+    )
+
     return (
         f"Write a clinical appointment summary for a healthcare provider.\n"
         f"The provider will read this in 2 minutes — be specific, scannable, useful.\n\n"
@@ -257,14 +342,15 @@ def build_provider_summary_user_prompt(
         f"- Age: {age_str}\n"
         f"- Appointment Type: {appointment_type.replace('_', ' ')}\n"
         f"- Goal: {goal.replace('_', ' ')}\n"
-        f"- Urgent Concern: {urgent_concern}\n"
-        f"- Narrative Summary: {sanitized_narrative}\n"
+        f"{urgent_line}"
+        f"{tried_line}"
+        f"{ask_line}"
+        f"{clotting_line}"
+        f"{breast_cancer_line}"
         f"- Concerns List: {sanitized_concerns}\n\n"
-        f"Return ONLY a valid JSON object with exactly these four fields:\n"
+        f"Return ONLY a valid JSON object with exactly these two fields:\n"
         f'{{"opening": "2-3 sentence intro: who, why here, urgent concern if any", '
-        f'"symptom_picture": "3-4 sentences describing what she experiences (from narrative only)", '
-        f'"key_patterns": "2-3 sentences on co-occurring patterns if present, else empty string", '
-        f'"closing": "1-2 sentences on what the patient is seeking from this appointment"}}\n\n'
+        f'"key_patterns": "2-3 sentences on co-occurring patterns if present, else empty string"}}\n\n'
         f"No markdown. No explanation. No extra fields. Valid JSON only."
     )
 
@@ -277,6 +363,7 @@ def build_cheatsheet_user_prompt(
     age_str: str,
     urgent_symptom: str | None = None,
     scenarios: list[dict] | None = None,
+    specific_ask: str | None = None,
 ) -> str:
     """Build user prompt for personal cheatsheet PDF generation (Step 5).
 
@@ -288,7 +375,17 @@ def build_cheatsheet_user_prompt(
     sanitized_narrative = sanitize_prompt_input(narrative)
     sanitized_concerns = sanitize_prompt_input(concerns_text)
     sanitized_urgent = sanitize_prompt_input(urgent_symptom)
-    urgent_concern = sanitized_urgent
+    sanitized_ask = sanitize_prompt_input(specific_ask)
+
+    urgent_line = (
+        f"- Urgent Concern: {sanitized_urgent}\n"
+        if sanitized_urgent != "not provided"
+        else ""
+    )
+    ask_line = (
+        f"- Specific ask: {sanitized_ask}\n" if sanitized_ask != "not provided" else ""
+    )
+
     return (
         f"Write a personal appointment preparation document for a patient.\n"
         f"This is her working document — concise, actionable, no fluff.\n\n"
@@ -298,7 +395,8 @@ def build_cheatsheet_user_prompt(
         f"- Age: {age_str}\n"
         f"- Appointment Type: {appointment_type.replace('_', ' ')}\n"
         f"- Primary Goal: {goal.replace('_', ' ')}\n"
-        f"- Urgent Concern: {urgent_concern}\n"
+        f"{urgent_line}"
+        f"{ask_line}"
         f"- Prioritized Concerns: {sanitized_concerns}\n"
         f"- Narrative Summary: {sanitized_narrative}\n\n"
         f"Return ONLY a valid JSON object with exactly these fields:\n"

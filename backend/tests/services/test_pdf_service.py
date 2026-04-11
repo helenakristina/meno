@@ -6,6 +6,7 @@ import pytest
 
 from app.models.appointment import (
     CheatsheetResponse,
+    Concern,
     ProviderSummaryResponse,
     QuestionGroup,
 )
@@ -224,9 +225,7 @@ def _pair(s1, s2, count, rate):
 def _provider_content(**overrides):
     defaults = dict(
         opening="Patient is 52 presenting with hot flashes.",
-        symptom_picture="Logs show 12 hot flash episodes.",
         key_patterns="Hot flashes co-occur with night sweats.",
-        closing="Patient seeks discussion of treatment options.",
     )
     return ProviderSummaryResponse(**{**defaults, **overrides})
 
@@ -243,15 +242,19 @@ def _cheatsheet_content(**overrides):
     return CheatsheetResponse(**{**defaults, **overrides})
 
 
+_NARRATIVE = "Logs show 12 hot flash episodes over 60 days, often co-occurring with night sweats."
+
+
 class TestBuildProviderSummaryPdf:
     def test_returns_bytes(self, svc):
         # CATCHES: method not implemented — appointment Step 5 would crash calling
         # a method that doesn't exist on PdfService
         result = svc.build_provider_summary_pdf(
             content=_provider_content(),
+            narrative=_NARRATIVE,
             frequency_stats=[],
             cooccurrence_stats=[],
-            concerns=["Understand options"],
+            concerns=[Concern(text="Understand options")],
         )
         assert isinstance(result, bytes)
 
@@ -260,6 +263,7 @@ class TestBuildProviderSummaryPdf:
         # PDF, causing Supabase upload to produce a corrupt file
         result = svc.build_provider_summary_pdf(
             content=_provider_content(),
+            narrative=_NARRATIVE,
             frequency_stats=[],
             cooccurrence_stats=[],
             concerns=[],
@@ -271,9 +275,10 @@ class TestBuildProviderSummaryPdf:
         # have no symptom data table, making it useless for the provider
         result = svc.build_provider_summary_pdf(
             content=_provider_content(),
+            narrative=_NARRATIVE,
             frequency_stats=[_freq("Hot flashes", "vasomotor", 15)],
             cooccurrence_stats=[],
-            concerns=["Discuss treatment"],
+            concerns=[Concern(text="Discuss treatment")],
         )
         assert result[:4] == b"%PDF"
 
@@ -282,9 +287,10 @@ class TestBuildProviderSummaryPdf:
         # from provider summary, losing a key clinical pattern indicator
         result = svc.build_provider_summary_pdf(
             content=_provider_content(),
+            narrative=_NARRATIVE,
             frequency_stats=[_freq("Hot flashes", "vasomotor", 12)],
             cooccurrence_stats=[_pair("Hot flashes", "Night sweats", 8, 0.8)],
-            concerns=["Discuss HRT"],
+            concerns=[Concern(text="Discuss HRT")],
         )
         assert result[:4] == b"%PDF"
 
@@ -293,6 +299,47 @@ class TestBuildProviderSummaryPdf:
         # omits this section when no clear patterns exist
         result = svc.build_provider_summary_pdf(
             content=_provider_content(key_patterns=""),
+            narrative=_NARRATIVE,
+            frequency_stats=[],
+            cooccurrence_stats=[],
+            concerns=[],
+        )
+        assert result[:4] == b"%PDF"
+
+    def test_narrative_parameter_accepted(self, svc):
+        # CATCHES: narrative parameter not wired in — PDF builder ignores the
+        # narrative argument and produces a PDF with a blank Symptom Summary section
+        result = svc.build_provider_summary_pdf(
+            content=_provider_content(),
+            narrative="Logs show seventeen distinct vasomotor events over 60 days.",
+            frequency_stats=[],
+            cooccurrence_stats=[],
+            concerns=[],
+        )
+        # Confirms the PDF builds successfully when narrative is provided
+        assert result[:4] == b"%PDF"
+
+    def test_concern_comment_accepted(self, svc):
+        # CATCHES: concern comment field causes TypeError — PDF builder must accept
+        # Concern objects with optional comment, not just strings
+        result = svc.build_provider_summary_pdf(
+            content=_provider_content(),
+            narrative=_NARRATIVE,
+            frequency_stats=[],
+            cooccurrence_stats=[],
+            concerns=[Concern(text="Joint pain", comment="Can't get through workday")],
+        )
+        # Confirms the PDF builds without error when a concern has a comment
+        assert result[:4] == b"%PDF"
+
+    def test_survives_llm_output_with_xml_tags(self, svc):
+        # CATCHES: ReportLab ValueError when LLM returns XML-like tags in opening/key_patterns
+        result = svc.build_provider_summary_pdf(
+            content=_provider_content(
+                opening="Patient has <b>severe</b> hot flashes & night sweats.",
+                key_patterns="Hot flashes <i>often</i> co-occur with sweats.",
+            ),
+            narrative=_NARRATIVE,
             frequency_stats=[],
             cooccurrence_stats=[],
             concerns=[],
@@ -302,13 +349,11 @@ class TestBuildProviderSummaryPdf:
     def test_no_user_name_in_content(self, svc):
         # CATCHES: user name interpolated into PDF — privacy requirement that no
         # personal identifiers appear in generated PDFs
-        content = _provider_content(
-            opening="The patient is presenting today.",
-            symptom_picture="Logs show symptoms.",
-            closing="Seeking discussion.",
-        )
         result = svc.build_provider_summary_pdf(
-            content=content,
+            content=_provider_content(
+                opening="The patient is presenting today.",
+            ),
+            narrative="Logs show symptoms.",
             frequency_stats=[],
             cooccurrence_stats=[],
             concerns=[],
@@ -324,7 +369,7 @@ class TestBuildCheatsheetPdf:
         # build_cheatsheet_pdf which doesn't exist on PdfService yet
         result = svc.build_cheatsheet_pdf(
             content=_cheatsheet_content(),
-            concerns=["Understand options"],
+            concerns=[Concern(text="Understand options")],
             scenarios=[],
             frequency_stats=[],
         )
@@ -352,7 +397,7 @@ class TestBuildCheatsheetPdf:
         ]
         result = svc.build_cheatsheet_pdf(
             content=_cheatsheet_content(),
-            concerns=["Discuss HRT"],
+            concerns=[Concern(text="Discuss HRT")],
             scenarios=scenarios,
             frequency_stats=[],
         )
@@ -363,7 +408,7 @@ class TestBuildCheatsheetPdf:
         # would be empty, removing the key talking-point summary
         result = svc.build_cheatsheet_pdf(
             content=_cheatsheet_content(),
-            concerns=["Get a plan"],
+            concerns=[Concern(text="Get a plan")],
             scenarios=[],
             frequency_stats=[_freq("Hot flashes", "vasomotor", 12)],
         )
@@ -374,7 +419,18 @@ class TestBuildCheatsheetPdf:
         # without going through Step 4 (user skips scenario practice)
         result = svc.build_cheatsheet_pdf(
             content=_cheatsheet_content(),
-            concerns=["Ask about HRT"],
+            concerns=[Concern(text="Ask about HRT")],
+            scenarios=[],
+            frequency_stats=[],
+        )
+        assert result[:4] == b"%PDF"
+
+    def test_concern_comment_accepted(self, svc):
+        # CATCHES: concern comment field causes TypeError in cheatsheet PDF builder —
+        # must accept Concern objects with optional comment, not just strings
+        result = svc.build_cheatsheet_pdf(
+            content=_cheatsheet_content(),
+            concerns=[Concern(text="Joint pain", comment="Limits daily activities")],
             scenarios=[],
             frequency_stats=[],
         )

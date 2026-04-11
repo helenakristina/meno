@@ -84,3 +84,18 @@ def sanitize_urgent_symptom(symptom: str | None) -> str | None:
     symptom = symptom.strip()
 
     return symptom if symptom else None
+
+
+def sanitize_xml_tags(text: str) -> str:
+    """Strip XML-like tags from text to prevent downstream parser errors.
+
+    Used to clean LLM output before passing to ReportLab or other XML-sensitive
+    renderers that cannot handle raw angle-bracket tags.
+
+    Args:
+        text: Text potentially containing XML-like tags.
+
+    Returns:
+        Text with all <...> tags removed and whitespace stripped.
+    """
+    return re.sub(r"<[^>]+>", "", text).strip()

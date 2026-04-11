@@ -1,15 +1,16 @@
 `---
 name: backend-development
 description: >
-  Use when writing, modifying, or reviewing any backend code (FastAPI routes,
-  services, repositories, utilities, tests). Enforces this project's architectural
-  patterns: dependency injection via ABCs, repository pattern with domain exceptions,
-  thin routes, safe logging, and resilience patterns.
+Use when writing, modifying, or reviewing any backend code (FastAPI routes,
+services, repositories, utilities, tests). Enforces this project's architectural
+patterns: dependency injection via ABCs, repository pattern with domain exceptions,
+thin routes, safe logging, and resilience patterns.
 when_to_use: >
-  Any backend task: new features, bug fixes, refactoring, code review, or test writing
-  in the backend/ directory.
+Any backend task: new features, bug fixes, refactoring, code review, or test writing
+in the backend/ directory.
 version: 1.0.0
 languages: [python]
+
 ---
 
 # Backend Development
@@ -39,7 +40,7 @@ Routes do orchestration only. 20-40 lines maximum.
 
 **Routes MUST:**
 
-- Accept request, call services/repos, return response
+- Accept request, call services, return response
 - Validate input via Pydantic models
 - Inject all dependencies via FastAPI `Depends()`
 - Use `CurrentUser` dependency for auth
@@ -49,24 +50,35 @@ Routes do orchestration only. 20-40 lines maximum.
 **Routes MUST NOT:**
 
 - Contain business logic
-- Access the database directly (that's the repository's job)
-- Instantiate services or providers (that's `dependencies.py`)
+- Call repositories directly — routes talk to services, never repositories
+- Instantiate services or repositories (that's `dependencies.py`)
 - Exceed 40 lines
 
 ```python
-# YES — route orchestrates, services do the work
+# YES — route calls the service; the service calls the repo
 @router.post("/api/items", status_code=201, response_model=ItemResponse)
 async def create_item(
     payload: CreateItemRequest,
-    user_id: CurrentUser,
-    item_repo: ItemRepository = Depends(get_item_repo),
+    user: User = Depends(get_current_user),
     item_service: ItemService = Depends(get_item_service),
 ) -> ItemResponse:
     """Create a new item."""
-    validated = item_service.validate_and_prepare(payload)
-    item = await item_repo.create(user_id, validated)
+    return await item_service.create(user_id=user.id, payload=payload)
+
+
+# NO — route is calling the repository directly (violation)
+@router.post("/api/items", status_code=201, response_model=ItemResponse)
+async def create_item(
+    payload: CreateItemRequest,
+    user: User = Depends(get_current_user),
+    item_repo: ItemRepository = Depends(get_item_repo),  # ← violation
+) -> ItemResponse:
+    item = await item_repo.create(user.id, payload)  # ← repo called from route
     return ItemResponse(**item.model_dump())
 ```
+
+The route's only job is to hand off to the service and return the result.
+If a route needs a repository, that's a signal the logic belongs in a service.
 
 ### Services — Business Logic & Orchestration
 
@@ -76,16 +88,61 @@ access the database directly.
 **Services MUST:**
 
 - Take dependencies in `__init__` (never create them)
-- Use injected providers for external API calls
 - Use injected repositories for data access
+- Use injected providers for external API calls
 - Contain business logic, prompt building, data transformation
-- Have complete type hints and docstrings
+- Raise domain exceptions (`ValidationError`, etc.) — never `HTTPException`
+- Have complete type hints and Google-style docstrings
 
 **Services MUST NOT:**
 
 - Import or instantiate `AsyncClient`, `AsyncOpenAI`, or any concrete client
 - Raise `HTTPException` (that's the route's job)
 - Access `settings` directly for API keys (receive via DI)
+- Call Supabase directly (that's the repository's job)
+
+```python
+# YES — service receives its dependencies, never builds them
+class ItemService:
+    def __init__(
+        self,
+        item_repo: ItemRepository,
+        llm_provider: LLMProviderBase,  # ABC, not a concrete class
+    ) -> None:
+        self._repo = item_repo
+        self._llm = llm_provider
+
+    async def create(self, user_id: str, payload: CreateItemRequest) -> ItemResponse:
+        """Validate, enrich, and persist a new item.
+
+        Args:
+            user_id: Authenticated user's ID.
+            payload: Validated request data.
+
+        Returns:
+            The created item.
+
+        Raises:
+            ValidationError: If business rules are violated.
+            DatabaseError: If persistence fails.
+        """
+        if not payload.name.strip():
+            raise ValidationError("Item name cannot be blank")
+
+        item = await self._repo.create(user_id=user_id, data=payload)
+        return ItemResponse(**item.model_dump())
+
+
+# NO — service instantiating its own dependencies (violation)
+class ItemService:
+    def __init__(self) -> None:
+        self._repo = ItemRepository(client=get_supabase_client())  # ← violation
+        self._llm = OpenAIProvider(api_key=settings.OPENAI_API_KEY)  # ← violation
+```
+
+**The `__init__` rule in plain English:** if you see `=` followed by a class
+instantiation inside `__init__`, it's almost certainly a violation. Dependencies
+arrive as arguments — they don't get created here.
 
 ### Repositories — Data Access Only
 
@@ -152,26 +209,72 @@ that could be reused across services, background jobs, CLI scripts, or exports.
 
 Utils are the easiest code to test — no mocks needed, just input → output.
 
+**The mock test:** if you could test this function with no mocks — just
+input → output — it belongs in utils. If it needs a mock, it belongs
+in a service or repository.
+
+**Belongs in utils:** date calculations, stat formatting, text sanitization,
+token counting, PII hashing, unit conversions.
+
+**Does NOT belong in utils:** anything that calls `self._repo`, `self._llm`,
+or touches `AsyncClient`. That's a service or repository.
+
 ---
 
 ## Dependency Injection Wiring
 
+**IMPORTANT: Routes NEVER instantiate repositories or services directly. No exceptions.**
+
 All DI wiring lives in `backend/app/api/dependencies.py`. This is the only place
-where concrete implementations are instantiated.
+where concrete implementations are instantiated. Routes receive dependencies via
+`Depends()` — they never construct anything themselves.
+
+### The rule in plain English
+
+- Routes → call services (injected via `Depends`)
+- Services → call repositories (injected via constructor, wired in `dependencies.py`)
+- Repositories → call Supabase (injected via constructor, wired in `dependencies.py`)
+- `dependencies.py` → the ONLY place `SomeClass(arg=...)` appears
+
+### Correct pattern
 
 ```python
-# dependencies.py — the ONLY place concrete classes are created
-def get_llm_service() -> LLMService:
-    provider = OpenAIProvider(api_key=settings.OPENAI_API_KEY)
-    return LLMService(provider=provider)
+# dependencies.py — concrete classes are instantiated HERE and only here
+def get_symptom_repo(client: AsyncClient = Depends(get_client)) -> SymptomRepository:
+    return SymptomRepository(client=client)
 
-def get_item_repo(client: AsyncClient = Depends(get_client)) -> ItemRepository:
-    return ItemRepository(client=client)
+def get_symptom_service(
+    repo: SymptomRepository = Depends(get_symptom_repo),
+) -> SymptomService:
+    return SymptomService(repo=repo)
+
+# routes/symptoms.py — routes receive dependencies, never build them
+@router.get("/symptoms")
+async def get_symptoms(
+    service: SymptomService = Depends(get_symptom_service),
+    user: User = Depends(get_current_user),
+) -> list[SymptomResponse]:
+    return await service.get_symptoms(user_id=user.id)
 ```
 
-When creating a new service or repository, always add its factory function here.
+### What a violation looks like — NEVER do this
 
----
+```python
+# ❌ WRONG — repository instantiated directly in a route
+@router.get("/symptoms")
+async def get_symptoms(client: AsyncClient = Depends(get_client)):
+    repo = SymptomRepository(client=client)  # ← violation
+    return await repo.get_symptoms()
+
+# ❌ WRONG — service instantiated directly in a route
+@router.post("/symptoms")
+async def log_symptom(data: SymptomCreate):
+    service = SymptomService(repo=SymptomRepository(...))  # ← violation
+    return await service.create(data)
+```
+
+When creating a new service or repository, always add its factory function to
+`dependencies.py` before writing the route.
 
 ## Domain Exceptions
 
@@ -310,4 +413,4 @@ specific to this backend:
   overrides
 - **Utils:** No mocks — pure input/output testing
 - **Every test** must have a `# CATCHES:` comment per the testing-discipline skill
-`
+  `

@@ -13,7 +13,7 @@ import json
 import logging
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Optional
+from typing import Callable, Optional
 
 from app.exceptions import DatabaseError, EntityNotFoundError
 from app.models.appointment import (
@@ -21,7 +21,9 @@ from app.models.appointment import (
     AppointmentPrepGenerateResponse,
     AppointmentPrepNarrativeResponse,
     AppointmentPrepScenariosResponse,
+    SaveQualitativeContextRequest,
     ScenarioCard,
+    ScenarioSource,
 )
 from app.models.symptoms import SymptomFrequency, SymptomPair
 from app.repositories.appointment_repository import AppointmentRepository
@@ -61,6 +63,7 @@ class AppointmentService:
         storage_service: StorageService,
         pdf_service: PdfService,
         medication_service: Optional[MedicationServiceBase] = None,
+        rag_retriever: Optional[Callable] = None,
     ):
         self.appointment_repo = appointment_repo
         self.symptoms_repo = symptoms_repo
@@ -69,6 +72,7 @@ class AppointmentService:
         self.storage_service = storage_service
         self.pdf_service = pdf_service
         self.medication_service = medication_service
+        self.rag_retriever = rag_retriever
         self._scenario_config = self._load_scenario_config()
 
     # -------------------------------------------------------------------------
@@ -223,6 +227,8 @@ class AppointmentService:
             freq_text=freq_text,
             coocc_text=coocc_text,
             med_section=med_section,
+            what_have_you_tried=context.what_have_you_tried,
+            specific_ask=context.specific_ask,
         )
 
         # Call LLM
@@ -277,6 +283,61 @@ class AppointmentService:
             appointment_id=appointment_id,
             narrative=narrative,
             next_step="prioritize",
+        )
+
+    # -------------------------------------------------------------------------
+    # Step 2b / 3.5: Save user-edited narrative and qualitative context
+    # -------------------------------------------------------------------------
+
+    async def save_narrative(
+        self,
+        appointment_id: str,
+        user_id: str,
+        narrative: str,
+    ) -> None:
+        """Save user-edited narrative to the appointment context.
+
+        Verifies ownership via get_context before saving.
+
+        Args:
+            appointment_id: UUID of the appointment context.
+            user_id: Authenticated user ID.
+            narrative: The user-edited narrative text to save.
+
+        Raises:
+            EntityNotFoundError: Appointment not found or doesn't belong to user.
+            DatabaseError: Database operation failed.
+        """
+        await self.appointment_repo.get_context(appointment_id, user_id)
+        await self.appointment_repo.save_narrative(appointment_id, user_id, narrative)
+
+    async def save_qualitative_context(
+        self,
+        appointment_id: str,
+        user_id: str,
+        ctx: SaveQualitativeContextRequest,
+    ) -> None:
+        """Save qualitative context fields to the appointment context.
+
+        Verifies ownership via get_context before saving.
+
+        Args:
+            appointment_id: UUID of the appointment context.
+            user_id: Authenticated user ID.
+            ctx: SaveQualitativeContextRequest with optional qualitative fields.
+
+        Raises:
+            EntityNotFoundError: Appointment not found or doesn't belong to user.
+            DatabaseError: Database operation failed.
+        """
+        await self.appointment_repo.get_context(appointment_id, user_id)
+        await self.appointment_repo.save_qualitative_context(
+            appointment_id,
+            user_id,
+            ctx.what_have_you_tried,
+            ctx.specific_ask,
+            ctx.history_clotting_risk,
+            ctx.history_breast_cancer,
         )
 
     # -------------------------------------------------------------------------
@@ -337,15 +398,61 @@ class AppointmentService:
             logger.warning("Failed to fetch concerns, using empty list: %s", exc)
             concerns = []
 
+        # Format concerns as strings for LLM prompt (comment appended when present)
+        concerns_for_llm = [
+            f"{c.text}; {c.comment}" if c.comment else c.text for c in concerns
+        ]
+
+        # Retrieve RAG chunks for each scenario to ground suggestions in real sources
+        all_rag_chunks: list[dict] = []
+        if self.rag_retriever is not None:
+            try:
+                chunk_results = await asyncio.gather(
+                    *[
+                        self.rag_retriever(s["title"], top_k=3, min_similarity=0.25)
+                        for s in scenarios_to_generate
+                    ]
+                )
+                for scenario, chunks in zip(scenarios_to_generate, chunk_results):
+                    for chunk in chunks:
+                        chunk["scenario_title"] = scenario["title"]
+                    all_rag_chunks.extend(chunks)
+
+                # Deduplicate by chunk id and cap dynamically (2 chunks per scenario)
+                chunks_per_scenario = 2
+                cap = len(scenarios_to_generate) * chunks_per_scenario
+                seen_ids: set[str] = set()
+                deduped: list[dict] = []
+                for chunk in all_rag_chunks:
+                    chunk_id = chunk.get("id")
+                    if chunk_id not in seen_ids:
+                        deduped.append(chunk)
+                        if chunk_id is not None:
+                            seen_ids.add(chunk_id)
+                all_rag_chunks = deduped[:cap]
+
+                logger.info(
+                    "RAG retrieval for scenarios: retrieved %d chunks across %d scenarios",
+                    len(all_rag_chunks),
+                    len(scenarios_to_generate),
+                )
+            except Exception as exc:
+                logger.warning(
+                    "RAG retrieval failed for scenarios, continuing without chunks: %s",
+                    exc,
+                )
+                all_rag_chunks = []
+
         # Call LLM
         try:
             raw_suggestions = await self.llm_service.generate_scenario_suggestions(
                 scenarios_to_generate=scenarios_to_generate,
-                concerns=concerns,
+                concerns=concerns_for_llm,
                 appointment_type=context.appointment_type.value,
                 goal=context.goal.value,
                 dismissed_before=context.dismissed_before.value,
                 user_age=age,
+                rag_chunks=all_rag_chunks,
             )
         except TimeoutError:
             logger.error(
@@ -390,11 +497,16 @@ class AppointmentService:
                 if isinstance(suggestion_data, dict)
                 else str(suggestion_data)
             )
-            sources = (
+            raw_sources = (
                 suggestion_data.get("sources", [])
                 if isinstance(suggestion_data, dict)
                 else []
             )
+            sources = [
+                ScenarioSource(**s) if isinstance(s, dict) else s
+                for s in raw_sources
+                if isinstance(s, (dict, ScenarioSource))
+            ]
             scenario_cards.append(
                 ScenarioCard(
                     id=f"scenario-{idx + 1}",
@@ -473,8 +585,11 @@ class AppointmentService:
             logger.error("Failed to fetch appointment data: %s", exc, exc_info=True)
             raise DatabaseError(f"Failed to generate PDF: {exc}") from exc
 
-        narrative = appointment_data.get("narrative", "No narrative available.")
-        concerns = appointment_data.get("concerns", [])
+        narrative = appointment_data.get("narrative")
+        if not narrative:
+            raise DatabaseError(
+                "Narrative not found — Step 2 must be completed before generating PDFs"
+            )
         scenarios_data = appointment_data.get("scenarios", [])
         frequency_stats_data = appointment_data.get("frequency_stats") or []
         cooccurrence_stats_data = appointment_data.get("cooccurrence_stats") or []
@@ -494,7 +609,21 @@ class AppointmentService:
         narrative_text: str = (
             narrative if isinstance(narrative, str) else str(narrative)
         )
-        concerns_list: list = concerns if isinstance(concerns, list) else []
+
+        # Fetch concerns via repository (handles deserialization of both legacy string[]
+        # and current Concern[] formats stored in DB)
+        try:
+            concerns_list = await self.appointment_repo.get_concerns(
+                appointment_id, user_id
+            )
+        except Exception as exc:
+            logger.warning("Failed to fetch concerns, using empty list: %s", exc)
+            concerns_list = []
+
+        # Format concerns as strings for LLM prompts (comment appended when present)
+        concerns_for_llm: list[str] = [
+            f"{c.text}; {c.comment}" if c.comment else c.text for c in concerns_list
+        ]
 
         scenarios_for_pdf: list[dict] = []
         if scenarios_data and isinstance(scenarios_data, list):
@@ -516,22 +645,26 @@ class AppointmentService:
 
         # Generate provider summary and cheat sheet in parallel via LLM
         provider_task = self.llm_service.generate_provider_summary_content(
-            narrative=narrative_text,
-            concerns=concerns_list,
+            concerns=concerns_for_llm,
             appointment_type=context.appointment_type.value,
             goal=context.goal.value,
             user_age=age,
             urgent_symptom=context.urgent_symptom,
+            what_have_you_tried=context.what_have_you_tried,
+            specific_ask=context.specific_ask,
+            history_clotting_risk=context.history_clotting_risk,
+            history_breast_cancer=context.history_breast_cancer,
         )
 
         cheatsheet_task = self.llm_service.generate_cheatsheet_content(
             narrative=narrative_text,
-            concerns=concerns_list,
+            concerns=concerns_for_llm,
             appointment_type=context.appointment_type.value,
             goal=context.goal.value,
             user_age=age,
             urgent_symptom=context.urgent_symptom,
             scenarios=scenarios_for_pdf,
+            specific_ask=context.specific_ask,
         )
 
         try:
@@ -557,6 +690,7 @@ class AppointmentService:
         try:
             provider_summary_pdf = self.pdf_service.build_provider_summary_pdf(
                 content=provider_summary_content,
+                narrative=narrative_text,
                 frequency_stats=frequency_stats,
                 cooccurrence_stats=cooccurrence_stats,
                 concerns=concerns_list,
@@ -678,9 +812,10 @@ class AppointmentService:
                 unique.append(s)
                 seen.add(s["title"])
 
+        result = unique[:7]
         logger.info(
             "Selected %d scenarios, has_urgent=%s",
-            len(unique),
+            len(result),
             bool(urgent_symptom),
         )
-        return unique
+        return result

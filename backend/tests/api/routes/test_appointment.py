@@ -10,6 +10,7 @@ from fastapi.testclient import TestClient
 
 from app.core.supabase import get_client
 from app.main import app
+from tests.fixtures.supabase import setup_supabase_response
 
 
 # ---------------------------------------------------------------------------
@@ -544,5 +545,103 @@ class TestGenerateAppointmentNarrative:
 
             assert response.status_code == 401
             assert "Missing authorization header" in response.json()["detail"]
+        finally:
+            cleanup()
+
+
+# ============================================================================
+# PUT /api/appointment-prep/{id}/narrative (Step 2 — user edit)
+# ============================================================================
+
+
+class TestSaveNarrative:
+    """Tests for PUT /api/appointment-prep/{id}/narrative endpoint."""
+
+    def _make_update_client(self, empty_context=False) -> MagicMock:
+        """Build a mock Supabase client that handles get_context + save_narrative."""
+        mock = MagicMock()
+        mock.auth.get_user = AsyncMock(
+            return_value=MagicMock(user=MagicMock(id=USER_ID))
+        )
+        context_data = (
+            []
+            if empty_context
+            else [
+                {
+                    "id": CONTEXT_ID,
+                    "user_id": USER_ID,
+                    "appointment_type": "new_provider",
+                    "goal": "explore_hrt",
+                    "dismissed_before": "once_or_twice",
+                    "narrative": "old narrative",
+                }
+            ]
+        )
+
+        setup_supabase_response(mock, data=context_data)
+        return mock
+
+    def test_save_narrative_success(self):
+        # CATCHES: PUT narrative endpoint missing — frontend edit cannot persist
+        # user changes, narrative reverts to LLM-generated on next reload
+        mock = self._make_update_client()
+        cleanup = override(mock)
+        try:
+            with TestClient(app) as client:
+                response = client.put(
+                    f"/api/appointment-prep/{CONTEXT_ID}/narrative",
+                    json={"narrative": "My edited narrative text."},
+                    headers=AUTH_HEADER,
+                )
+            assert response.status_code == 200
+            data = response.json()
+            assert "narrative" in data
+            assert data["appointment_id"] == CONTEXT_ID
+        finally:
+            cleanup()
+
+    def test_save_narrative_missing_auth(self):
+        # CATCHES: auth not enforced on PUT narrative — anyone could overwrite
+        # another user's narrative without a valid JWT
+        mock = self._make_update_client()
+        cleanup = override(mock)
+        try:
+            with TestClient(app) as client:
+                response = client.put(
+                    f"/api/appointment-prep/{CONTEXT_ID}/narrative",
+                    json={"narrative": "Edited text."},
+                )
+            assert response.status_code == 401
+        finally:
+            cleanup()
+
+    def test_save_narrative_not_found(self):
+        # CATCHES: 404 not returned for non-existent appointment — service raises
+        # EntityNotFoundError but route returns 500 if not mapped correctly
+        mock = self._make_update_client(empty_context=True)
+        cleanup = override(mock)
+        try:
+            with TestClient(app) as client:
+                response = client.put(
+                    f"/api/appointment-prep/{CONTEXT_ID}/narrative",
+                    json={"narrative": "Edited text."},
+                    headers=AUTH_HEADER,
+                )
+            assert response.status_code == 404
+        finally:
+            cleanup()
+
+    def test_save_narrative_empty_body_rejected(self):
+        # CATCHES: empty narrative accepted — PDF would render blank Symptom Summary
+        mock = self._make_update_client()
+        cleanup = override(mock)
+        try:
+            with TestClient(app) as client:
+                response = client.put(
+                    f"/api/appointment-prep/{CONTEXT_ID}/narrative",
+                    json={"narrative": ""},
+                    headers=AUTH_HEADER,
+                )
+            assert response.status_code == 422
         finally:
             cleanup()

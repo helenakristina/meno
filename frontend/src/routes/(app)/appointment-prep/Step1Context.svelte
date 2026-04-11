@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { onMount, untrack } from 'svelte';
 	import { superForm } from 'sveltekit-superforms/client';
 	import { zod4 } from 'sveltekit-superforms/adapters';
 	import type { SuperValidated } from 'sveltekit-superforms';
@@ -16,22 +17,33 @@
 
 	let {
 		data,
+		existingContext = null,
 		onNext
 	}: {
 		data: SuperValidated<AppointmentContextForm>;
+		existingContext?: AppointmentContext | null;
 		onNext: (context: AppointmentContext) => void;
 	} = $props();
 
-	const form = superForm(data, {
+	const form = superForm(untrack(() => data), {
 		validators: zod4(contextSchema),
 		delayMs: 200
 	});
 
 	const { form: formData, errors } = form;
 
+	onMount(() => {
+		if (existingContext) {
+			$formData.appointment_type = existingContext.appointment_type;
+			$formData.goal = existingContext.goal;
+			$formData.dismissed_before = existingContext.dismissed_before;
+			$formData.urgent_symptom = existingContext.urgent_symptom ?? '';
+		}
+	});
+
 	let showUrgentSymptomField = $derived($formData.goal === AppointmentGoal.urgent_symptom);
 
-	let canSubmit = $derived(() => {
+	let canSubmit = $derived.by(() => {
 		const hasRequired =
 			!!$formData.appointment_type && !!$formData.goal && !!$formData.dismissed_before;
 		const urgentSymptomValid = showUrgentSymptomField ? !!$formData.urgent_symptom?.trim() : true;
@@ -39,7 +51,7 @@
 	});
 
 	function handleNext() {
-		if (!canSubmit()) return;
+		if (!canSubmit) return;
 		onNext({
 			appointment_type: $formData.appointment_type as AppointmentType,
 			goal: $formData.goal as AppointmentGoal,
@@ -164,10 +176,10 @@
 	<button
 		type="button"
 		onclick={handleNext}
-		disabled={!canSubmit()}
+		disabled={!canSubmit}
 		class="w-full rounded-xl bg-primary-500 py-3 text-sm font-semibold text-white transition-colors hover:bg-primary-600 disabled:cursor-not-allowed disabled:opacity-40"
-		aria-disabled={!canSubmit()}
+		aria-disabled={!canSubmit}
 	>
-		Next: Generate symptom summary
+		Next: Generate health picture
 	</button>
 </div>
