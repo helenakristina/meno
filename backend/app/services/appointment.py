@@ -387,7 +387,7 @@ class AppointmentService:
             raise DatabaseError(f"Failed to generate scenarios: {exc}") from exc
 
         # Select dismissal scenarios based on context
-        scenarios_to_generate = self._select_scenarios(context, journey_stage)
+        scenarios_to_generate = self._select_scenarios(context, journey_stage)[:7]
 
         logger.info("Selected %d scenarios for generation", len(scenarios_to_generate))
 
@@ -409,14 +409,18 @@ class AppointmentService:
             try:
                 chunk_results = await asyncio.gather(
                     *[
-                        self.rag_retriever(s["title"], top_k=5, min_similarity=0.25)
+                        self.rag_retriever(s["title"], top_k=3, min_similarity=0.25)
                         for s in scenarios_to_generate
                     ]
                 )
-                for chunks in chunk_results:
+                for scenario, chunks in zip(scenarios_to_generate, chunk_results):
+                    for chunk in chunks:
+                        chunk["scenario_title"] = scenario["title"]
                     all_rag_chunks.extend(chunks)
 
-                # Deduplicate by chunk id and cap at 12 to stay within token budget
+                # Deduplicate by chunk id and cap dynamically (2 chunks per scenario)
+                chunks_per_scenario = 2
+                cap = len(scenarios_to_generate) * chunks_per_scenario
                 seen_ids: set[str] = set()
                 deduped: list[dict] = []
                 for chunk in all_rag_chunks:
@@ -425,7 +429,7 @@ class AppointmentService:
                         deduped.append(chunk)
                         if chunk_id is not None:
                             seen_ids.add(chunk_id)
-                all_rag_chunks = deduped[:12]
+                all_rag_chunks = deduped[:cap]
 
                 logger.info(
                     "RAG retrieval for scenarios: retrieved %d chunks across %d scenarios",
@@ -813,4 +817,4 @@ class AppointmentService:
             len(unique),
             bool(urgent_symptom),
         )
-        return unique[:7]
+        return unique

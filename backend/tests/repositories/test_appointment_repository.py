@@ -5,6 +5,7 @@ from unittest.mock import AsyncMock, MagicMock
 
 from app.exceptions import DatabaseError, EntityNotFoundError
 from app.repositories.appointment_repository import AppointmentRepository
+from tests.fixtures.supabase import setup_supabase_response
 from app.models.appointment import (
     AppointmentType,
     AppointmentGoal,
@@ -391,26 +392,13 @@ async def test_get_latest_db_error():
 @pytest.mark.asyncio
 async def test_get_latest_includes_qualitative_context_columns():
     """Test that get_latest selects the 4 qualitative context columns."""
-    selected_columns: list[str] = []
-
     mock_client = MagicMock()
-
-    def capture_select(columns):
-        selected_columns.append(columns)
-        chain = MagicMock()
-        chain.eq.return_value = chain
-        chain.order.return_value = chain
-        chain.limit.return_value = chain
-        chain.execute = AsyncMock(return_value=MagicMock(data=[]))
-        return chain
-
-    mock_client.table.return_value.select.side_effect = capture_select
+    setup_supabase_response(mock_client, data=[])
 
     repo = AppointmentRepository(client=mock_client)
     await repo.get_latest("user-123")
 
-    assert selected_columns, "select() was never called"
-    select_arg = selected_columns[0]
+    select_arg = mock_client.table.return_value.select.call_args[0][0]
     for col in (
         "what_have_you_tried",
         "specific_ask",

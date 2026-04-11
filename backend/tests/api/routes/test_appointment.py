@@ -10,6 +10,7 @@ from fastapi.testclient import TestClient
 
 from app.core.supabase import get_client
 from app.main import app
+from tests.fixtures.supabase import setup_supabase_response
 
 
 # ---------------------------------------------------------------------------
@@ -577,15 +578,7 @@ class TestSaveNarrative:
             ]
         )
 
-        def table_side_effect(table_name):
-            builder = MagicMock()
-            builder.select.return_value = builder
-            builder.update.return_value = builder
-            builder.eq.return_value = builder
-            builder.execute = AsyncMock(return_value=MagicMock(data=context_data))
-            return builder
-
-        mock.table.side_effect = table_side_effect
+        setup_supabase_response(mock, data=context_data)
         return mock
 
     def test_save_narrative_success(self):

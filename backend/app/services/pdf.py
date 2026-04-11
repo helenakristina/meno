@@ -28,6 +28,7 @@ from reportlab.platypus import (
 )
 
 from app.models.appointment import Concern, CheatsheetResponse, ProviderSummaryResponse
+from app.utils.sanitize import sanitize_xml_tags
 from app.models.symptoms import SymptomFrequency, SymptomPair
 
 logger = logging.getLogger(__name__)
@@ -123,11 +124,6 @@ def _create_base_styles(prefix: str) -> dict:
             leading=11,
         ),
     }
-
-
-def _strip_llm_tags(text: str) -> str:
-    """Strip XML-like tags from LLM output to prevent ReportLab parse errors."""
-    return re.sub(r"<[^>]+>", "", text).strip()
 
 
 def _build_table_style(data_rows: int, align_col: int | None = None) -> list:
@@ -532,7 +528,7 @@ class PdfService:
 
         # --- Opening ---
         story.append(Paragraph("Overview", heading_style))
-        story.append(Paragraph(_strip_llm_tags(content.opening), body_style))
+        story.append(Paragraph(sanitize_xml_tags(content.opening), body_style))
 
         # --- My Health Picture (verbatim from user's narrative) ---
         story.append(Paragraph("My Health Picture", heading_style))
@@ -541,7 +537,7 @@ class PdfService:
         # --- Key Patterns (optional) ---
         if content.key_patterns:
             story.append(Paragraph("Key Patterns", heading_style))
-            story.append(Paragraph(_strip_llm_tags(content.key_patterns), body_style))
+            story.append(Paragraph(sanitize_xml_tags(content.key_patterns), body_style))
 
         # --- Symptom Frequency Table ---
         if frequency_stats:
@@ -656,7 +652,9 @@ class PdfService:
 
         # --- Opening Statement ---
         story.append(Paragraph("My Opening Statement", heading_style))
-        story.append(Paragraph(_strip_llm_tags(content.opening_statement), body_style))
+        story.append(
+            Paragraph(sanitize_xml_tags(content.opening_statement), body_style)
+        )
 
         # --- Top Symptoms ---
         if frequency_stats:
