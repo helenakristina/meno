@@ -387,7 +387,7 @@ class AppointmentService:
             raise DatabaseError(f"Failed to generate scenarios: {exc}") from exc
 
         # Select dismissal scenarios based on context
-        scenarios_to_generate = self._select_scenarios(context, journey_stage)[:7]
+        scenarios_to_generate = self._select_scenarios(context, journey_stage)
 
         logger.info("Selected %d scenarios for generation", len(scenarios_to_generate))
 
@@ -812,9 +812,10 @@ class AppointmentService:
                 unique.append(s)
                 seen.add(s["title"])
 
+        result = unique[:7]
         logger.info(
             "Selected %d scenarios, has_urgent=%s",
-            len(unique),
+            len(result),
             bool(urgent_symptom),
         )
-        return unique
+        return result
