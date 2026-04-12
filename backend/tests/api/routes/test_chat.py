@@ -200,7 +200,6 @@ def test_chat_requires_auth(client):
     # Mock needed: FastAPI instantiates get_client during DI even when auth fails on a
     # missing header, so without an override the real Supabase client raises
     # SupabaseException before the 401 can be returned.
-    assert False
     mock_client = make_mock_client()
     clear = override(mock_client)
     try:

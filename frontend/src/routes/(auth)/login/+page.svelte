@@ -11,7 +11,7 @@
 		loading = true;
 		error = '';
 
-		const { data, error: authError } = await supabase.auth.signInWithPassword({
+		const { error: authError } = await supabase.auth.signInWithPassword({
 			email,
 			password
 		});
@@ -21,27 +21,7 @@
 		if (authError) {
 			error = authError.message;
 		} else {
-			// Success! Redirect to dashboard
 			goto('/dashboard');
-		}
-	}
-
-	async function handleSignup() {
-		loading = true;
-		error = '';
-
-		const { data, error: authError } = await supabase.auth.signUp({
-			email,
-			password
-		});
-
-		loading = false;
-
-		if (authError) {
-			error = authError.message;
-		} else {
-			// Success! Redirect to onboarding
-			goto('/onboarding');
 		}
 	}
 </script>
@@ -49,8 +29,10 @@
 <div class="flex min-h-screen items-center justify-center bg-neutral-50 px-4">
 	<div class="w-full max-w-md">
 		<div class="mb-8 text-center">
-			<h1 class="text-3xl font-bold text-neutral-800">Welcome to Meno</h1>
-			<p class="mt-2 text-neutral-600">Sign in or create an account</p>
+			<h1 class="text-3xl font-bold text-neutral-800">Sign in to Meno</h1>
+			<p class="mt-2 text-neutral-500">
+				Meno is currently available to invited users only.
+			</p>
 		</div>
 
 		<div class="rounded-lg border border-neutral-200 bg-white p-8 shadow-sm">
@@ -62,7 +44,7 @@
 				}}
 			>
 				<div>
-					<label for="email" class="mb-1 block text-sm font-medium text-neutral-700"> Email </label>
+					<label for="email" class="mb-1 block text-sm font-medium text-neutral-700">Email</label>
 					<input
 						type="email"
 						id="email"
@@ -96,23 +78,13 @@
 					</div>
 				{/if}
 
-				<div class="flex gap-3">
-					<button
-						type="submit"
-						disabled={loading}
-						class="flex-1 rounded-md bg-primary-500 px-4 py-2 text-sm font-semibold text-white hover:bg-primary-600 disabled:cursor-not-allowed disabled:bg-neutral-300"
-					>
-						{loading ? 'Loading...' : 'Sign In'}
-					</button>
-					<button
-						type="button"
-						onclick={handleSignup}
-						disabled={loading}
-						class="flex-1 rounded-md border border-neutral-300 px-4 py-2 text-sm font-semibold text-neutral-700 hover:bg-neutral-50 disabled:cursor-not-allowed disabled:bg-neutral-100"
-					>
-						Sign Up
-					</button>
-				</div>
+				<button
+					type="submit"
+					disabled={loading}
+					class="w-full rounded-md bg-primary-500 px-4 py-2 text-sm font-semibold text-white hover:bg-primary-600 disabled:cursor-not-allowed disabled:bg-neutral-300"
+				>
+					{loading ? 'Signing in...' : 'Sign in'}
+				</button>
 			</form>
 		</div>
 	</div>

@@ -1,29 +1,29 @@
 <script lang="ts">
-	function scrollToFeatures(e: MouseEvent) {
-		e.preventDefault();
-		document.getElementById('features')?.scrollIntoView({ behavior: 'smooth' });
-	}
+	import logo from '$lib/assets/logo.png';
 </script>
 
 <svelte:head>
-	<title>Meno — Understand Your Perimenopause and Menopause Symptoms</title>
+	<title>Meno: Perimenopause and Menopause Support</title>
 	<meta
 		name="description"
-		content="Meno helps you track symptoms, discover patterns, and prepare for healthcare conversations with evidence-based insights."
+		content="Find a specialist who knows menopause, track your symptoms, and walk into every appointment knowing exactly what to say."
 	/>
 </svelte:head>
 
 <!-- ======================================================================
      Navigation
      ====================================================================== -->
-<header class="sticky top-0 z-10 border-b border-neutral-100 bg-white/90 backdrop-blur-sm">
+<header class="sticky top-0 z-10 border-b border-neutral-200 bg-white/90 backdrop-blur-sm">
 	<div class="mx-auto flex max-w-5xl items-center justify-between px-6 py-4">
-		<span class="text-xl font-bold tracking-tight text-primary-600">Meno</span>
+		<div class="flex items-center gap-2.5">
+			<img src={logo} alt="" class="h-8 w-8 rounded-lg" aria-hidden="true" />
+			<span class="text-xl font-bold tracking-tight text-neutral-800">Meno</span>
+		</div>
 		<a
 			href="/login"
-			class="rounded-lg bg-primary-500 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-primary-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-400"
+			class="rounded-md border border-neutral-300 px-4 py-2 text-sm font-semibold text-neutral-700 transition-colors hover:bg-neutral-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-400"
 		>
-			Get Started
+			Sign in
 		</a>
 	</div>
 </header>
@@ -31,84 +31,46 @@
 <!-- ======================================================================
      Hero
      ====================================================================== -->
-<section
-	class="relative overflow-hidden bg-gradient-to-b from-white via-primary-50/40 to-white px-6 py-24 sm:py-32"
->
-	<!-- Subtle background accent -->
-	<div
-		class="pointer-events-none absolute -top-32 left-1/2 h-96 w-96 -translate-x-1/2 rounded-full bg-primary-100/50 blur-3xl"
-		aria-hidden="true"
-	></div>
-
-	<div class="relative mx-auto max-w-3xl text-center">
-		<p class="mb-4 text-sm font-medium tracking-widest text-primary-600 uppercase">
-			Symptom tracking &amp; pattern insight
+<section class="px-6 py-24 sm:py-32">
+	<div class="mx-auto max-w-3xl text-center">
+		<p class="mb-5 text-xs font-semibold tracking-widest text-primary-500 uppercase">
+			Perimenopause and menopause support
 		</p>
 
 		<h1 class="text-4xl leading-tight font-bold tracking-tight text-neutral-800 sm:text-5xl">
-			Understand Your Perimenopause<br class="hidden sm:block" /> and Menopause Symptoms
+			Your doctor has ten minutes.<br />
+			<span class="text-primary-500">Make them count.</span>
 		</h1>
 
-		<p class="mx-auto mt-6 max-w-xl text-lg leading-relaxed text-neutral-600">
-			Track symptoms, discover patterns, and prepare for healthcare conversations with
-			evidence-based insights — all in one private, supportive space.
+		<p class="mx-auto mt-6 max-w-xl text-lg leading-relaxed text-neutral-500">
+			Find a specialist who knows menopause, track your symptoms, and walk into every appointment
+			knowing exactly what to say.
 		</p>
 
-		<div class="mt-10 flex flex-wrap items-center justify-center gap-4">
-			<a
-				href="/login"
-				class="rounded-xl bg-primary-500 px-7 py-3 text-base font-semibold text-white shadow-sm transition-colors hover:bg-primary-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-400"
+		<div class="mt-8 flex flex-wrap items-center justify-center gap-3">
+			<span
+				class="rounded-full border border-neutral-200 bg-white px-4 py-1.5 text-sm text-neutral-500"
 			>
-				Get Started — it's free
-			</a>
-			<a
-				href="#features"
-				onclick={scrollToFeatures}
-				class="flex items-center gap-1.5 rounded-xl border border-neutral-200 bg-white px-7 py-3 text-base font-semibold text-neutral-700 shadow-sm transition-colors hover:bg-neutral-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-400"
-			>
-				Learn more
-				<svg
-					xmlns="http://www.w3.org/2000/svg"
-					viewBox="0 0 20 20"
-					fill="currentColor"
-					class="h-4 w-4"
-					aria-hidden="true"
-				>
-					<path
-						fill-rule="evenodd"
-						d="M10 3a.75.75 0 01.75.75v10.638l3.96-4.158a.75.75 0 111.08 1.04l-5.25 5.5a.75.75 0 01-1.08 0l-5.25-5.5a.75.75 0 111.08-1.04l3.96 4.158V3.75A.75.75 0 0110 3z"
-						clip-rule="evenodd"
-					/>
-				</svg>
-			</a>
+				Currently in private beta
+			</span>
 		</div>
 
-		<!-- Social proof / reassurance line -->
-		<p class="mt-10 text-sm text-neutral-400">
-			Private by design. Your data is yours — never sold, never shared.
+		<p class="mt-6 text-sm text-neutral-400">
+			Private by design. Your data is yours, never sold, never shared.
 		</p>
 	</div>
 </section>
 
 <!-- ======================================================================
-     Features
+     Feature cards
      ====================================================================== -->
-<section id="features" class="px-6 py-24">
-	<div class="mx-auto max-w-5xl">
-		<div class="mb-16 text-center">
-			<h2 class="text-3xl font-bold tracking-tight text-neutral-800">
-				Everything you need, nothing you don't
-			</h2>
-			<p class="mt-4 text-neutral-500">
-				Simple tools designed around what matters most during this transition.
-			</p>
-		</div>
-
-		<div class="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
-			<!-- Feature 1: Track -->
-			<div class="rounded-2xl border border-neutral-100 bg-white p-6 shadow-sm">
+<section class="px-6 py-16">
+	<div class="mx-auto max-w-3xl">
+		<div class="grid gap-6 sm:grid-cols-2">
+			<!-- Ask Meno -->
+			<div class="rounded-2xl border border-neutral-200 bg-white p-6 shadow-sm">
 				<div
-					class="mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-primary-50"
+					class="mb-4 flex h-10 w-10 items-center justify-center rounded-xl bg-primary-50"
 					aria-hidden="true"
 				>
 					<svg
@@ -117,7 +79,35 @@
 						viewBox="0 0 24 24"
 						stroke-width="1.5"
 						stroke="currentColor"
-						class="h-6 w-6 text-primary-600"
+						class="h-5 w-5 text-primary-500"
+					>
+						<path
+							stroke-linecap="round"
+							stroke-linejoin="round"
+							d="M8.625 12a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H8.25m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H12m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0h-.375M21 12c0 4.556-4.03 8.25-9 8.25a9.764 9.764 0 01-2.555-.337A5.972 5.972 0 015.41 20.97a5.969 5.969 0 01-.474-.065 4.48 4.48 0 00.978-2.025c.09-.457-.133-.901-.467-1.226C3.93 16.178 3 14.189 3 12c0-4.556 4.03-8.25 9-8.25s9 3.694 9 8.25z"
+						/>
+					</svg>
+				</div>
+				<h3 class="mb-2 font-semibold text-neutral-800">Ask Meno</h3>
+				<p class="text-sm leading-relaxed text-neutral-500">
+					Evidence-based answers to the questions your doctor didn't have time for. Sourced from
+					peer-reviewed research, cited at the paragraph level.
+				</p>
+			</div>
+
+			<!-- Appointment prep -->
+			<div class="rounded-2xl border border-neutral-200 bg-white p-6 shadow-sm">
+				<div
+					class="mb-4 flex h-10 w-10 items-center justify-center rounded-xl bg-primary-50"
+					aria-hidden="true"
+				>
+					<svg
+						xmlns="http://www.w3.org/2000/svg"
+						fill="none"
+						viewBox="0 0 24 24"
+						stroke-width="1.5"
+						stroke="currentColor"
+						class="h-5 w-5 text-primary-500"
 					>
 						<path
 							stroke-linecap="round"
@@ -126,17 +116,17 @@
 						/>
 					</svg>
 				</div>
-				<h3 class="mb-2 font-semibold text-neutral-800">Track Daily Symptoms</h3>
+				<h3 class="mb-2 font-semibold text-neutral-800">Appointment prep</h3>
 				<p class="text-sm leading-relaxed text-neutral-500">
-					Simple, intuitive logging. Record how you feel each day and watch your experience take
-					shape over time.
+					Walk in with a provider summary written in your words, your concerns prioritized, and
+					evidence-based responses ready if things go sideways.
 				</p>
 			</div>
 
-			<!-- Feature 2: Patterns -->
-			<div class="rounded-2xl border border-neutral-100 bg-white p-6 shadow-sm">
+			<!-- Symptom tracking -->
+			<div class="rounded-2xl border border-neutral-200 bg-white p-6 shadow-sm">
 				<div
-					class="mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-primary-50"
+					class="mb-4 flex h-10 w-10 items-center justify-center rounded-xl bg-primary-50"
 					aria-hidden="true"
 				>
 					<svg
@@ -145,26 +135,26 @@
 						viewBox="0 0 24 24"
 						stroke-width="1.5"
 						stroke="currentColor"
-						class="h-6 w-6 text-primary-600"
+						class="h-5 w-5 text-primary-500"
 					>
 						<path
 							stroke-linecap="round"
 							stroke-linejoin="round"
-							d="M7.5 14.25v2.25m3-4.5v4.5m3-6.75v6.75m3-9v9M6 20.25h12A2.25 2.25 0 0020.25 18V6A2.25 2.25 0 0018 3.75H6A2.25 2.25 0 003.75 6v12A2.25 2.25 0 006 20.25z"
+							d="M3 12h2.25l2.25-6 3 12 3-9 2.25 6H21"
 						/>
 					</svg>
 				</div>
-				<h3 class="mb-2 font-semibold text-neutral-800">Discover Patterns</h3>
+				<h3 class="mb-2 font-semibold text-neutral-800">Symptom tracking</h3>
 				<p class="text-sm leading-relaxed text-neutral-500">
-					See which symptoms occur together and how often. Your experience is real — these
-					connections matter and are worth understanding.
+					Log how you feel each day and watch patterns emerge over time. Your experience is real and
+					worth understanding.
 				</p>
 			</div>
 
-			<!-- Feature 3: Evidence -->
-			<div class="rounded-2xl border border-neutral-100 bg-white p-6 shadow-sm">
+			<!-- Provider finder -->
+			<div class="rounded-2xl border border-neutral-200 bg-white p-6 shadow-sm">
 				<div
-					class="mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-primary-50"
+					class="mb-4 flex h-10 w-10 items-center justify-center rounded-xl bg-primary-50"
 					aria-hidden="true"
 				>
 					<svg
@@ -173,35 +163,7 @@
 						viewBox="0 0 24 24"
 						stroke-width="1.5"
 						stroke="currentColor"
-						class="h-6 w-6 text-primary-600"
-					>
-						<path
-							stroke-linecap="round"
-							stroke-linejoin="round"
-							d="M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0018 18a8.967 8.967 0 00-6 2.292m0-14.25v14.25"
-						/>
-					</svg>
-				</div>
-				<h3 class="mb-2 font-semibold text-neutral-800">Evidence-Based Information</h3>
-				<p class="text-sm leading-relaxed text-neutral-500">
-					All information sourced from current research and trusted medical organizations, cited
-					throughout. No outdated advice, no guesswork.
-				</p>
-			</div>
-
-			<!-- Feature 4: Providers -->
-			<div class="rounded-2xl border border-neutral-100 bg-white p-6 shadow-sm">
-				<div
-					class="mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-primary-50"
-					aria-hidden="true"
-				>
-					<svg
-						xmlns="http://www.w3.org/2000/svg"
-						fill="none"
-						viewBox="0 0 24 24"
-						stroke-width="1.5"
-						stroke="currentColor"
-						class="h-6 w-6 text-primary-600"
+						class="h-5 w-5 text-primary-500"
 					>
 						<path
 							stroke-linecap="round"
@@ -215,10 +177,10 @@
 						/>
 					</svg>
 				</div>
-				<h3 class="mb-2 font-semibold text-neutral-800">Find the Right Provider</h3>
+				<h3 class="mb-2 font-semibold text-neutral-800">Provider finder</h3>
 				<p class="text-sm leading-relaxed text-neutral-500">
-					Connect with healthcare providers who specialize in menopause care and will take your
-					symptoms seriously.
+					Search NAMS-certified menopause specialists by state, provider type, and insurance. Track
+					who you've called, who called back, and who you've booked.
 				</p>
 			</div>
 		</div>
@@ -226,79 +188,55 @@
 </section>
 
 <!-- ======================================================================
-     How it works — brief three-step flow
+     Pullquote
      ====================================================================== -->
-<section class="bg-primary-50/60 px-6 py-24">
-	<div class="mx-auto max-w-3xl text-center">
-		<h2 class="mb-16 text-3xl font-bold tracking-tight text-neutral-800">
-			From logging to understanding
-		</h2>
-
-		<div class="grid gap-10 sm:grid-cols-3">
-			<div class="flex flex-col items-center">
-				<div
-					class="mb-4 flex h-10 w-10 items-center justify-center rounded-full bg-primary-500 text-sm font-bold text-white"
-					aria-hidden="true"
+<section class="bg-neutral-50 px-6 py-20">
+	<div class="mx-auto max-w-2xl">
+		<blockquote>
+			<p class="text-lg leading-relaxed text-neutral-700">
+				"One appointment with someone who actually knew menopause changed everything. Most women
+				don't know they can navigate around a system that isn't working for them. That's what Meno
+				is for."
+			</p>
+			<footer class="mt-6 text-sm text-neutral-400">
+				<a
+					href="https://helena-lucia.vercel.app/meno"
+					target="_blank"
+					rel="noopener noreferrer"
+					class="underline underline-offset-2 transition-colors hover:text-neutral-600"
 				>
-					1
-				</div>
-				<h3 class="mb-2 font-semibold text-neutral-800">Log what you feel</h3>
-				<p class="text-sm text-neutral-500">
-					Select from a curated symptom list or write in your own words — takes under a minute.
-				</p>
-			</div>
-
-			<div class="flex flex-col items-center">
-				<div
-					class="mb-4 flex h-10 w-10 items-center justify-center rounded-full bg-primary-500 text-sm font-bold text-white"
-					aria-hidden="true"
-				>
-					2
-				</div>
-				<h3 class="mb-2 font-semibold text-neutral-800">See the patterns</h3>
-				<p class="text-sm text-neutral-500">
-					Your dashboard surfaces frequency trends and co-occurring symptoms automatically.
-				</p>
-			</div>
-
-			<div class="flex flex-col items-center">
-				<div
-					class="mb-4 flex h-10 w-10 items-center justify-center rounded-full bg-primary-500 text-sm font-bold text-white"
-					aria-hidden="true"
-				>
-					3
-				</div>
-				<h3 class="mb-2 font-semibold text-neutral-800">Go to appointments informed</h3>
-				<p class="text-sm text-neutral-500">
-					Bring concrete data and evidence-based questions to every healthcare conversation.
-				</p>
-			</div>
-		</div>
+					Helena Lucia, founder and developer.
+				</a>
+			</footer>
+		</blockquote>
 	</div>
 </section>
 
 <!-- ======================================================================
-     CTA band
+     CTA
      ====================================================================== -->
 <section class="px-6 py-24">
 	<div class="mx-auto max-w-2xl text-center">
-		<h2 class="text-3xl font-bold tracking-tight text-neutral-800">
+		<span
+			class="inline-block rounded-full bg-primary-50 px-3 py-1 text-xs font-semibold text-primary-600"
+		>
+			Private beta
+		</span>
+		<h2 class="mt-5 text-3xl font-bold tracking-tight text-neutral-800">
 			Your symptoms deserve to be understood.
 		</h2>
-		<p class="mt-4 text-lg text-neutral-500">
-			Start tracking today. It's free, private, and takes less than a minute to set up.
-		</p>
+		<p class="mt-4 text-neutral-500">Meno is currently available to invited users only.</p>
 		<a
 			href="/login"
 			class="mt-8 inline-block rounded-xl bg-primary-500 px-8 py-3.5 text-base font-semibold text-white shadow-sm transition-colors hover:bg-primary-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-400"
 		>
-			Create your free account
+			Sign in to your account
 		</a>
 	</div>
 </section>
 
 <!-- ======================================================================
-     Disclaimer / Trust
+     Disclaimer
      ====================================================================== -->
 <section class="border-t border-neutral-100 bg-neutral-50 px-6 py-16">
 	<div class="mx-auto max-w-2xl text-center">
@@ -309,7 +247,7 @@
 			Meno provides educational information and symptom tracking. It is not a medical tool and
 			cannot diagnose conditions or replace the advice of a healthcare provider. All information is
 			sourced from peer-reviewed research and reputable medical organizations. Meno is designed to
-			help you have more informed conversations with your doctor — not to replace them.
+			help you have more informed conversations with your doctor, not to replace them.
 		</p>
 	</div>
 </section>
@@ -319,7 +257,7 @@
      ====================================================================== -->
 <footer class="border-t border-neutral-100 bg-white px-6 py-10">
 	<div class="mx-auto flex max-w-5xl flex-col items-center gap-4 sm:flex-row sm:justify-between">
-		<span class="text-sm font-semibold text-primary-600">Meno</span>
+		<span class="text-sm font-bold tracking-tight text-neutral-800">Meno</span>
 
 		<nav aria-label="Footer navigation">
 			<ul class="flex flex-wrap items-center gap-x-6 gap-y-2 text-sm text-neutral-400">
