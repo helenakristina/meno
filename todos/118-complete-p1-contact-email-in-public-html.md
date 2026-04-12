@@ -12,7 +12,7 @@ tags: [code-review, security, frontend, contact]
 `frontend/src/routes/contact/+page.svelte` line 40 emits a personal email address verbatim into the page's HTML:
 
 ```html
-<input type="hidden" name="_replyto" value="helenalucia@fastmail.com" />
+<input type="hidden" name="_replyto" value="" />
 ```
 
 `type="hidden"` hides the field from the rendered UI but not from the HTML source. Spam harvesters and scrapers that specifically target form hidden fields will index it. For a health app, the operator's personal email being publicly scrapeable is a phishing and spam surface.
