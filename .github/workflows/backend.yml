@@ -4,6 +4,7 @@ env:
   SUPABASE_URL: https://fake.supabase.co
   SUPABASE_SERVICE_KEY: fake-service-key
   ANTHROPIC_API_KEY: fake-anthropic-key
+  OPENAI_API_KEY: fake-openai-key
 
 on:
   push:
