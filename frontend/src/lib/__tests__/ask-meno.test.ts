@@ -9,7 +9,6 @@ import { renderMarkdown, sanitizeMarkdownHtml } from '../markdown';
 describe('Ask Meno - Chat Functionality', () => {
 	describe('Message validation', () => {
 		it('validates message is not empty', () => {
-			expect.assertions(0);
 			const message = '';
 			const isValid = message.trim().length > 0 && message.length <= 2000;
 			expect(isValid).toBe(false);
