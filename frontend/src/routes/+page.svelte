@@ -3,7 +3,7 @@
 </script>
 
 <svelte:head>
-	<title>Meno — Perimenopause and Menopause Support</title>
+	<title>Meno: Perimenopause and Menopause Support</title>
 	<meta
 		name="description"
 		content="Find a specialist who knows menopause, track your symptoms, and walk into every appointment knowing exactly what to say."
@@ -67,7 +67,6 @@
 <section class="px-6 py-16">
 	<div class="mx-auto max-w-3xl">
 		<div class="grid gap-6 sm:grid-cols-2">
-
 			<!-- Ask Meno -->
 			<div class="rounded-2xl border border-neutral-200 bg-white p-6 shadow-sm">
 				<div
@@ -184,7 +183,6 @@
 					who you've called, who called back, and who you've booked.
 				</p>
 			</div>
-
 		</div>
 	</div>
 </section>
