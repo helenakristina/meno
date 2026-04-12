@@ -22,7 +22,7 @@ class Settings(BaseSettings):
     LLM_PROVIDER: str = "openai"
 
     # CORS
-    ALLOWED_ORIGINS: List[str] = ["http://localhost:5173"]
+    ALLOWED_ORIGINS: List[str] = ["*"]
 
 
 settings = Settings()
