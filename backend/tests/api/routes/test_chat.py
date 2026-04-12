@@ -197,8 +197,18 @@ def client():
 
 
 def test_chat_requires_auth(client):
-    response = client.post("/api/chat", json={"message": "What causes hot flashes?"})
-    assert response.status_code == 401
+    # Mock needed: FastAPI instantiates get_client during DI even when auth fails on a
+    # missing header, so without an override the real Supabase client raises
+    # SupabaseException before the 401 can be returned.
+    mock_client = make_mock_client()
+    clear = override(mock_client)
+    try:
+        response = client.post(
+            "/api/chat", json={"message": "What causes hot flashes?"}
+        )
+        assert response.status_code == 401
+    finally:
+        clear()
 
 
 def test_chat_rejects_invalid_token(client):
