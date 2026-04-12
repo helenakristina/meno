@@ -1,13 +1,6 @@
 name: Backend CI
 
 on:
-
-env:
-  SUPABASE_URL: https://fake.supabase.co
-  SUPABASE_SERVICE_KEY: fake-service-key
-  ANTHROPIC_API_KEY: fake-anthropic-key
-  OPENAI_API_KEY: fake-openai-key
-
   push:
     paths:
       - "backend/**"
@@ -16,6 +9,12 @@ env:
     paths:
       - "backend/**"
       - ".github/workflows/backend.yml"
+
+env:
+  SUPABASE_URL: https://fake.supabase.co
+  SUPABASE_SERVICE_KEY: fake-service-key
+  ANTHROPIC_API_KEY: fake-anthropic-key
+  OPENAI_API_KEY: fake-openai-key
 
 jobs:
   test:
