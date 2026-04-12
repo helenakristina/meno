@@ -1,14 +1,19 @@
 name: Backend CI
 
+env:
+  SUPABASE_URL: https://fake.supabase.co
+  SUPABASE_SERVICE_KEY: fake-service-key
+  ANTHROPIC_API_KEY: fake-anthropic-key
+
 on:
   push:
     paths:
-      - 'backend/**'
-      - '.github/workflows/backend.yml'
+      - "backend/**"
+      - ".github/workflows/backend.yml"
   pull_request:
     paths:
-      - 'backend/**'
-      - '.github/workflows/backend.yml'
+      - "backend/**"
+      - ".github/workflows/backend.yml"
 
 jobs:
   test:
