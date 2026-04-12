@@ -2,13 +2,9 @@ name: Backend CI
 
 on:
   push:
-    paths:
-      - "backend/**"
-      - ".github/workflows/backend.yml"
+    branches: [main]
   pull_request:
-    paths:
-      - "backend/**"
-      - ".github/workflows/backend.yml"
+    branches: [main]
 
 env:
   SUPABASE_URL: https://fake.supabase.co
