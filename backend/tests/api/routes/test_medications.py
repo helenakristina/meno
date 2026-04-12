@@ -94,8 +94,13 @@ class TestSearchReference:
         assert resp.json()[0]["generic_name"] == "estradiol"
 
     def test_search_reference_requires_auth(self):
-        with TestClient(app) as client:
-            resp = client.get("/api/medications/reference")
+        # Mock needed: prevents SupabaseException during DI before the 401 fires.
+        override_auth(make_auth_client())
+        try:
+            with TestClient(app) as client:
+                resp = client.get("/api/medications/reference")
+        finally:
+            clear_overrides()
         assert resp.status_code == 401
 
 
@@ -159,8 +164,13 @@ class TestGetCurrentMedications:
         assert resp.json() == []
 
     def test_get_current_requires_auth(self):
-        with TestClient(app) as client:
-            resp = client.get("/api/medications/current")
+        # Mock needed: prevents SupabaseException during DI before the 401 fires.
+        override_auth(make_auth_client())
+        try:
+            with TestClient(app) as client:
+                resp = client.get("/api/medications/current")
+        finally:
+            clear_overrides()
         assert resp.status_code == 401
 
 
@@ -232,8 +242,13 @@ class TestCreateMedication:
         assert resp.status_code == 400
 
     def test_create_requires_auth(self):
-        with TestClient(app) as client:
-            resp = client.post("/api/medications", json={})
+        # Mock needed: prevents SupabaseException during DI before the 401 fires.
+        override_auth(make_auth_client())
+        try:
+            with TestClient(app) as client:
+                resp = client.post("/api/medications", json={})
+        finally:
+            clear_overrides()
         assert resp.status_code == 401
 
 
@@ -458,6 +473,11 @@ class TestSymptomComparison:
         assert resp.status_code == 404
 
     def test_comparison_requires_auth(self):
-        with TestClient(app) as client:
-            resp = client.get(f"/api/medications/{MED_ID}/symptom-comparison")
+        # Mock needed: prevents SupabaseException during DI before the 401 fires.
+        override_auth(make_auth_client())
+        try:
+            with TestClient(app) as client:
+                resp = client.get(f"/api/medications/{MED_ID}/symptom-comparison")
+        finally:
+            clear_overrides()
         assert resp.status_code == 401
