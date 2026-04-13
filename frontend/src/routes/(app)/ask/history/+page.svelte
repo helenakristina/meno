@@ -147,6 +147,10 @@
 	}
 </script>
 
+<svelte:head>
+	<title>Ask Meno History - Meno</title>
+</svelte:head>
+
 <div class="min-h-screen bg-neutral-50 px-4 py-8 sm:px-6 lg:px-8">
 	<div class="mx-auto max-w-4xl">
 		<!-- Header -->

@@ -382,6 +382,10 @@
 	});
 </script>
 
+<svelte:head>
+	<title>Find a Provider - Meno</title>
+</svelte:head>
+
 <div class="w-full max-w-full overflow-hidden px-4 py-8 sm:px-6 lg:px-8">
 	<!-- Page header -->
 	<div class="mb-8">
