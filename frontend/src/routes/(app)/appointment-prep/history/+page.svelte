@@ -65,6 +65,10 @@
 	}
 </script>
 
+<svelte:head>
+	<title>Appointment Prep History - Meno</title>
+</svelte:head>
+
 <div class="space-y-6">
 	<!-- Header -->
 	<div>

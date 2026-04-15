@@ -124,7 +124,7 @@
 </script>
 
 <svelte:head>
-	<title>Cycles — Meno</title>
+	<title>Cycles - Meno</title>
 </svelte:head>
 
 <div class="mx-auto max-w-xl">

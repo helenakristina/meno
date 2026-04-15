@@ -134,7 +134,7 @@
 </script>
 
 <svelte:head>
-	<title>Settings — Meno</title>
+	<title>Settings - Meno</title>
 </svelte:head>
 
 <div class="mx-auto max-w-2xl">

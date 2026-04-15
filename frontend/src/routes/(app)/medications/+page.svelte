@@ -44,7 +44,7 @@
 </script>
 
 <svelte:head>
-	<title>MHT Medications — Meno</title>
+	<title>MHT Medications - Meno</title>
 </svelte:head>
 
 <div class="mx-auto max-w-2xl">

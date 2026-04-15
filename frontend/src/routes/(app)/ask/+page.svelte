@@ -205,6 +205,10 @@
 	}
 </script>
 
+<svelte:head>
+	<title>Ask Meno - Meno</title>
+</svelte:head>
+
 <!-- Outer container fills viewport height -->
 <div class="flex flex-col" style="height: calc(100vh - 7rem);">
 	<!-- Page header -->

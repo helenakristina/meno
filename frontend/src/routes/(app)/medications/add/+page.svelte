@@ -180,7 +180,7 @@
 </script>
 
 <svelte:head>
-	<title>Add Medication — Meno</title>
+	<title>Add Medication - Meno</title>
 </svelte:head>
 
 <div class="mx-auto max-w-lg">

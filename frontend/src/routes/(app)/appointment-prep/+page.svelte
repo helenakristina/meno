@@ -185,6 +185,10 @@
 	}
 </script>
 
+<svelte:head>
+	<title>Appointment Prep - Meno</title>
+</svelte:head>
+
 <div class="flex flex-col" style="height: calc(100vh - 7rem);">
 	<!-- Header with step indicator -->
 	<div class="flex-shrink-0 border-b border-neutral-200 bg-white px-4 py-4 sm:px-6 lg:px-8">

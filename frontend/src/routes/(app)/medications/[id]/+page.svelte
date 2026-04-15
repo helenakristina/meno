@@ -165,7 +165,7 @@
 </script>
 
 <svelte:head>
-	<title>{medication ? medication.medication_name : 'Medication'} — Meno</title>
+	<title>{medication ? medication.medication_name : 'Medication'} - Meno</title>
 </svelte:head>
 
 <div class="mx-auto max-w-lg">

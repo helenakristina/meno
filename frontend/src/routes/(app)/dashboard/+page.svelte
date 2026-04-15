@@ -238,6 +238,10 @@
 	}
 </script>
 
+<svelte:head>
+	<title>Dashboard - Meno</title>
+</svelte:head>
+
 <div class="w-full max-w-full overflow-hidden px-4 py-8 sm:px-6 lg:px-8">
 	<!-- Header -->
 	<div class="mb-8 flex flex-wrap items-start justify-between gap-4">

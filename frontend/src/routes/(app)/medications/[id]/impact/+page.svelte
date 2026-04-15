@@ -57,7 +57,7 @@
 
 <svelte:head>
 	<title>
-		{data ? `${data.medication_name} — Symptom Impact` : 'Symptom Impact'} — Meno
+		{data ? `${data.medication_name} - Symptom Impact` : 'Symptom Impact'} - Meno
 	</title>
 </svelte:head>
 
