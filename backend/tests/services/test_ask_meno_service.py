@@ -98,11 +98,6 @@ def mock_citation_service():
         source_index=1,
     )
     svc.render_structured_response.return_value = (LLM_RESPONSE, [_citation])
-    # Fallback free-text path
-    sanitize_result = MagicMock()
-    sanitize_result.text = LLM_RESPONSE
-    svc.sanitize_and_renumber.return_value = sanitize_result
-    svc.verify_citations.return_value = (LLM_RESPONSE, [])
     svc.extract.return_value = [_citation]
     return svc
 
@@ -541,32 +536,20 @@ async def test_delete_conversation_not_found_raises(service, mock_conversation_r
 
 
 @pytest.mark.asyncio
-async def test_v1_json_format_triggers_fallback(
+async def test_malformed_json_from_llm_raises_exception(
     mock_user_repo,
     mock_symptoms_repo,
     mock_conversation_repo,
     mock_citation_service,
     mock_rag_retriever,
 ):
-    """CATCHES: v1 claims-based JSON format silently accepted instead of triggering fallback."""
-    # LLM returns the old v1 format (claims[] instead of body + source_index)
-    v1_json = json.dumps(
-        {
-            "sections": [
-                {
-                    "heading": None,
-                    "claims": [
-                        {"text": "Hot flashes are common.", "source_indices": [1]}
-                    ],
-                }
-            ],
-            "disclaimer": None,
-            "insufficient_sources": False,
-        }
-    )
+    """CATCHES: malformed LLM JSON silently swallowed instead of raising.
 
+    The structured response pipeline has confirmed reliability in production.
+    Failures must surface as errors — not degrade silently.
+    """
     llm_service = MagicMock()
-    llm_service.chat_completion = AsyncMock(return_value=v1_json)
+    llm_service.chat_completion = AsyncMock(return_value="not valid json {{")
 
     svc = AskMenoService(
         user_repo=mock_user_repo,
@@ -577,12 +560,5 @@ async def test_v1_json_format_triggers_fallback(
         rag_retriever=mock_rag_retriever,
     )
 
-    result = await svc.ask(USER_ID, "What causes hot flashes?")
-
-    # v1 format fails Pydantic validation → falls back to free-text pipeline
-    # The fallback calls sanitize_and_renumber, not render_structured_response
-    mock_citation_service.sanitize_and_renumber.assert_called_once()
-    # render_structured_response should NOT have been called with the bad data
-    mock_citation_service.render_structured_response.assert_not_called()
-    # Result is still a valid ChatResponse
-    assert result.message is not None
+    with pytest.raises(Exception):
+        await svc.ask(USER_ID, "What causes hot flashes?")

@@ -295,33 +295,14 @@ class AskMenoService:
                 len(citations),
             )
         except Exception as exc:
-            logger.warning(
-                "Failed to parse structured LLM response for user=%s (%s: %s) — "
-                "falling back to free-text pipeline",
+            logger.error(
+                "Structured response parse failed for user=%s (%s: %s)",
                 hash_user_id(user_id),
                 type(exc).__name__,
                 exc,
+                exc_info=True,
             )
-            # Fallback: run old sanitize → verify → extract pipeline on raw text
-            sanitize_result = self.citation_service.sanitize_and_renumber(
-                response_text, len(chunks)
-            )
-            response_text = sanitize_result.text
-            response_text, stripped = self.citation_service.verify_citations(
-                response_text, chunks
-            )
-            if stripped:
-                logger.warning(
-                    "Fallback pipeline stripped %d citations for user=%s",
-                    len(stripped),
-                    hash_user_id(user_id),
-                )
-            citations = self.citation_service.extract(response_text, chunks)
-            logger.info(
-                "Fallback pipeline extracted %d citation(s) for user=%s",
-                len(citations),
-                hash_user_id(user_id),
-            )
+            raise DatabaseError("Failed to parse structured LLM response") from exc
 
         # Build updated messages list for storage
         user_msg = ChatMessage(role="user", content=message)

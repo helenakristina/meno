@@ -51,12 +51,10 @@ SAMPLE_CHUNKS = [
     },
 ]
 
-OPENAI_RESPONSE = (
-    "Hot flashes affect up to 80% of women during perimenopause [Source 1]. "
-    "Current guidelines support hormone therapy for eligible women [Source 2]."
-)
+# All LLM responses must now be valid v2 structured JSON.
+# The fallback free-text pipeline was removed — the primary path is render_structured_response.
 
-# Valid v2 structured JSON response — exercises the render_structured_response path
+# Single-section response citing source 1
 V2_OPENAI_RESPONSE = json.dumps(
     {
         "sections": [
@@ -65,6 +63,86 @@ V2_OPENAI_RESPONSE = json.dumps(
                 "body": "Hot flashes are one of the most common symptoms of perimenopause.",
                 "source_index": 1,
             }
+        ],
+        "disclaimer": None,
+        "insufficient_sources": False,
+    }
+)
+
+# Two-section response citing sources 1 and 2
+V2_TWO_SOURCE_RESPONSE = json.dumps(
+    {
+        "sections": [
+            {
+                "heading": None,
+                "body": "Hot flashes affect up to 80% of women during perimenopause.",
+                "source_index": 1,
+            },
+            {
+                "heading": None,
+                "body": "Current guidelines support hormone therapy for eligible women.",
+                "source_index": 2,
+            },
+        ],
+        "disclaimer": None,
+        "insufficient_sources": False,
+    }
+)
+
+# Response with no source citations
+V2_NO_CITATIONS_RESPONSE = json.dumps(
+    {
+        "sections": [
+            {
+                "heading": None,
+                "body": "I'm only able to help with menopause and perimenopause education.",
+                "source_index": None,
+            }
+        ],
+        "disclaimer": None,
+        "insufficient_sources": False,
+    }
+)
+
+# Response where both sections cite the same source (deduplication test)
+V2_DUPLICATE_SOURCE_RESPONSE = json.dumps(
+    {
+        "sections": [
+            {
+                "heading": None,
+                "body": "Hot flashes are common vasomotor symptoms.",
+                "source_index": 1,
+            },
+            {
+                "heading": None,
+                "body": "They are the most frequently reported symptom.",
+                "source_index": 1,
+            },
+        ],
+        "disclaimer": None,
+        "insufficient_sources": False,
+    }
+)
+
+# Response with an out-of-range source_index (phantom citation equivalent)
+V2_PHANTOM_SOURCE_RESPONSE = json.dumps(
+    {
+        "sections": [
+            {
+                "heading": None,
+                "body": "Hot flashes are common.",
+                "source_index": 1,
+            },
+            {
+                "heading": None,
+                "body": "HRT is a treatment option.",
+                "source_index": 2,
+            },
+            {
+                "heading": None,
+                "body": "Additional research suggests other options.",
+                "source_index": 3,  # out of range — only 2 chunks available
+            },
         ],
         "disclaimer": None,
         "insufficient_sources": False,
@@ -242,7 +320,7 @@ def test_chat_rejects_empty_message(client):
             patch("app.api.dependencies.OpenAIProvider") as MockProvider,
         ):
             mock_instance = AsyncMock()
-            mock_instance.chat_completion.return_value = OPENAI_RESPONSE
+            mock_instance.chat_completion.return_value = V2_OPENAI_RESPONSE
             MockProvider.return_value = mock_instance
 
             response = client.post(
@@ -284,7 +362,7 @@ def test_chat_success_returns_message_and_citations(client):
             patch("app.api.dependencies.OpenAIProvider") as MockProvider,
         ):
             mock_instance = AsyncMock()
-            mock_instance.chat_completion.return_value = OPENAI_RESPONSE
+            mock_instance.chat_completion.return_value = V2_TWO_SOURCE_RESPONSE
             MockProvider.return_value = mock_instance
 
             response = client.post(
@@ -295,7 +373,7 @@ def test_chat_success_returns_message_and_citations(client):
 
         assert response.status_code == 200
         body = response.json()
-        assert body["message"] == OPENAI_RESPONSE
+        assert "hot flashes" in body["message"].lower()
         assert len(body["citations"]) == 2
         assert body["citations"][0]["url"] == "https://menopausewiki.ca/hot-flashes"
         assert body["citations"][0]["title"] == "Perimenopause Overview"
@@ -306,10 +384,7 @@ def test_chat_success_returns_message_and_citations(client):
 
 
 def test_chat_deduplicates_citations(client):
-    """Multiple [Source 1] references in the response produce one citation entry."""
-    response_text = (
-        "Hot flashes are common [Source 1]. They are vasomotor symptoms [Source 1]."
-    )
+    """Multiple sections citing the same source_index produce one citation entry."""
     mock_client = make_mock_client()
     clear = override(mock_client)
     try:
@@ -321,7 +396,7 @@ def test_chat_deduplicates_citations(client):
             patch("app.api.dependencies.OpenAIProvider") as MockProvider,
         ):
             mock_instance = AsyncMock()
-            mock_instance.chat_completion.return_value = response_text
+            mock_instance.chat_completion.return_value = V2_DUPLICATE_SOURCE_RESPONSE
             MockProvider.return_value = mock_instance
 
             response = client.post(
@@ -339,7 +414,7 @@ def test_chat_deduplicates_citations(client):
 
 
 def test_chat_returns_empty_citations_when_no_sources_cited(client):
-    """Response with no [Source N] references produces an empty citations list."""
+    """Response with source_index=None in all sections produces an empty citations list."""
     mock_client = make_mock_client()
     clear = override(mock_client)
     try:
@@ -351,9 +426,7 @@ def test_chat_returns_empty_citations_when_no_sources_cited(client):
             patch("app.api.dependencies.OpenAIProvider") as MockProvider,
         ):
             mock_instance = AsyncMock()
-            mock_instance.chat_completion.return_value = (
-                "I'm only able to help with menopause and perimenopause education."
-            )
+            mock_instance.chat_completion.return_value = V2_NO_CITATIONS_RESPONSE
             MockProvider.return_value = mock_instance
 
             response = client.post(
@@ -424,7 +497,7 @@ def test_chat_creates_new_conversation_when_no_id_provided(client):
             patch("app.api.dependencies.OpenAIProvider") as MockProvider,
         ):
             mock_instance = AsyncMock()
-            mock_instance.chat_completion.return_value = OPENAI_RESPONSE
+            mock_instance.chat_completion.return_value = V2_OPENAI_RESPONSE
             MockProvider.return_value = mock_instance
 
             response = client.post(
@@ -483,9 +556,7 @@ def test_chat_degrades_gracefully_when_rag_fails(client):
             patch("app.api.dependencies.OpenAIProvider") as MockProvider,
         ):
             mock_instance = AsyncMock()
-            mock_instance.chat_completion.return_value = (
-                "I can share general information about perimenopause."
-            )
+            mock_instance.chat_completion.return_value = V2_NO_CITATIONS_RESPONSE
             MockProvider.return_value = mock_instance
 
             response = client.post(
@@ -544,7 +615,7 @@ def test_chat_uses_defaults_when_user_profile_missing(client):
             patch("app.api.dependencies.OpenAIProvider") as MockProvider,
         ):
             mock_instance = AsyncMock()
-            mock_instance.chat_completion.return_value = OPENAI_RESPONSE
+            mock_instance.chat_completion.return_value = V2_OPENAI_RESPONSE
             MockProvider.return_value = mock_instance
 
             response = client.post(
@@ -571,7 +642,7 @@ def test_chat_uses_default_summary_when_cache_missing(client):
             patch("app.api.dependencies.OpenAIProvider") as MockProvider,
         ):
             mock_instance = AsyncMock()
-            mock_instance.chat_completion.return_value = OPENAI_RESPONSE
+            mock_instance.chat_completion.return_value = V2_OPENAI_RESPONSE
             MockProvider.return_value = mock_instance
 
             response = client.post(
@@ -591,13 +662,8 @@ def test_chat_uses_default_summary_when_cache_missing(client):
 
 
 def test_chat_sanitizes_phantom_citations(client):
-    """Phantom citations like [Source 3] when only 2 sources exist are removed."""
-    # Response references [Source 3] but only 2 sources are provided
-    response_text = (
-        "Hot flashes are common [Source 1]. "
-        "HRT is an option [Source 2]. "
-        "Additional research shows more options [Source 3]."
-    )
+    """Out-of-range source_index in structured response produces no citation marker."""
+    # V2_PHANTOM_SOURCE_RESPONSE has source_index: 3 but only 2 chunks available
     mock_client = make_mock_client()
     clear = override(mock_client)
     try:
@@ -609,7 +675,7 @@ def test_chat_sanitizes_phantom_citations(client):
             patch("app.api.dependencies.OpenAIProvider") as MockProvider,
         ):
             mock_instance = AsyncMock()
-            mock_instance.chat_completion.return_value = response_text
+            mock_instance.chat_completion.return_value = V2_PHANTOM_SOURCE_RESPONSE
             MockProvider.return_value = mock_instance
 
             response = client.post(
@@ -620,12 +686,12 @@ def test_chat_sanitizes_phantom_citations(client):
 
         assert response.status_code == 200
         body = response.json()
-        # The message should have [Source 3] removed
+        # out-of-range source_index (3) produces no [Source 3] marker in rendered text
         assert "[Source 3]" not in body["message"]
-        # But [Source 1] and [Source 2] should remain
+        # Valid source_index values produce markers
         assert "[Source 1]" in body["message"]
         assert "[Source 2]" in body["message"]
-        # Citations should only include 2 entries
+        # Citations should only include 2 entries (source_index 3 is out of range)
         assert len(body["citations"]) == 2
     finally:
         clear()
@@ -644,7 +710,7 @@ def test_chat_citations_include_section_names(client):
             patch("app.api.dependencies.OpenAIProvider") as MockProvider,
         ):
             mock_instance = AsyncMock()
-            mock_instance.chat_completion.return_value = OPENAI_RESPONSE
+            mock_instance.chat_completion.return_value = V2_TWO_SOURCE_RESPONSE
             MockProvider.return_value = mock_instance
 
             response = client.post(
@@ -666,12 +732,22 @@ def test_chat_citations_include_section_names(client):
 
 
 def test_chat_handles_multiple_phantom_citations(client):
-    """Multiple phantom citations are all removed."""
-    response_text = (
-        "Hot flashes [Source 1]. "
-        "Night sweats [Source 4]. "
-        "Brain fog [Source 5]. "
-        "HRT [Source 2]."
+    """Multiple out-of-range source indices are all dropped from rendered output."""
+    response_json = json.dumps(
+        {
+            "sections": [
+                {"heading": None, "body": "Hot flashes are common.", "source_index": 1},
+                {
+                    "heading": None,
+                    "body": "Night sweats also occur.",
+                    "source_index": 4,
+                },
+                {"heading": None, "body": "Brain fog is frequent.", "source_index": 5},
+                {"heading": None, "body": "HRT may help.", "source_index": 2},
+            ],
+            "disclaimer": None,
+            "insufficient_sources": False,
+        }
     )
     mock_client = make_mock_client()
     clear = override(mock_client)
@@ -684,7 +760,7 @@ def test_chat_handles_multiple_phantom_citations(client):
             patch("app.api.dependencies.OpenAIProvider") as MockProvider,
         ):
             mock_instance = AsyncMock()
-            mock_instance.chat_completion.return_value = response_text
+            mock_instance.chat_completion.return_value = response_json
             MockProvider.return_value = mock_instance
 
             response = client.post(
@@ -695,10 +771,10 @@ def test_chat_handles_multiple_phantom_citations(client):
 
         assert response.status_code == 200
         body = response.json()
-        # Phantom citations [Source 4] and [Source 5] should be removed
+        # Out-of-range source indices (4 and 5) produce no markers
         assert "[Source 4]" not in body["message"]
         assert "[Source 5]" not in body["message"]
-        # Valid citations should remain
+        # Valid source indices produce markers
         assert "[Source 1]" in body["message"]
         assert "[Source 2]" in body["message"]
         # Only 2 valid citations
@@ -707,14 +783,8 @@ def test_chat_handles_multiple_phantom_citations(client):
         clear()
 
 
-def test_chat_sanitizes_plain_bracket_phantom_citations(client):
-    """Phantom citations using plain [N] format are also removed."""
-    # Response uses plain [N] format instead of [Source N]
-    response_text = (
-        "Hot flashes affect women [1]. "
-        "Some researchers found [4]. "
-        "HRT options include [2]."
-    )
+def test_chat_malformed_json_from_llm_returns_500(client):
+    """Malformed JSON from the LLM raises rather than silently degrading."""
     mock_client = make_mock_client()
     clear = override(mock_client)
     try:
@@ -726,7 +796,7 @@ def test_chat_sanitizes_plain_bracket_phantom_citations(client):
             patch("app.api.dependencies.OpenAIProvider") as MockProvider,
         ):
             mock_instance = AsyncMock()
-            mock_instance.chat_completion.return_value = response_text
+            mock_instance.chat_completion.return_value = "not valid json {{"
             MockProvider.return_value = mock_instance
 
             response = client.post(
@@ -735,14 +805,6 @@ def test_chat_sanitizes_plain_bracket_phantom_citations(client):
                 headers=AUTH_HEADER,
             )
 
-        assert response.status_code == 200
-        body = response.json()
-        # Phantom citation [4] should be removed
-        assert "[4]" not in body["message"]
-        # Valid citations should remain
-        assert "[1]" in body["message"]
-        assert "[2]" in body["message"]
-        # Only 2 valid citations
-        assert len(body["citations"]) == 2
+        assert response.status_code == 500
     finally:
         clear()

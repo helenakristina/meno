@@ -1,24 +1,16 @@
-"""Citation extraction and sanitization service for Ask Meno responses.
+"""Citation rendering and extraction service for Ask Meno responses.
 
-Handles phantom citation removal, renumbering, relevance verification, and
-extraction of Citation objects from LLM responses. All functions are pure
-(no side effects, no external dependencies).
+Handles structured LLM response rendering with inline citation markers,
+relevance verification via keyword overlap, and extraction of Citation objects.
+All methods are pure (no side effects, no external dependencies).
 """
 
 import logging
 import re
-from typing import NamedTuple
 
 from app.models.chat import Citation, StructuredLLMResponse
 
 logger = logging.getLogger(__name__)
-
-
-class CitationExtractResult(NamedTuple):
-    """Result of citation sanitization: cleaned text and list of removed indices."""
-
-    text: str
-    removed_indices: list[int]
 
 
 class CitationService:
@@ -196,186 +188,6 @@ class CitationService:
             claim_end = search_end
 
         return text[claim_start:claim_end].strip()
-
-    def verify_citations(
-        self, response_text: str, chunks: list[dict]
-    ) -> tuple[str, list[int]]:
-        """Strip citations where the surrounding claim has low overlap with the source.
-
-        Scans for every [Source N] or [N] marker, extracts the sentence around it,
-        and checks whether the claim's keywords appear in the cited chunk. If
-        overlap is below _RELEVANCE_MIN_OVERLAP, the citation marker is removed.
-
-        This catches the most common misattribution pattern: the LLM generates a
-        claim from its training data and attaches a citation to the nearest
-        topically-related source, even though that source says nothing about the
-        specific claim.
-
-        Args:
-            response_text: LLM response with citation markers.
-            chunks: The RAG chunks that were passed to the LLM (in order).
-
-        Returns:
-            Tuple of (cleaned_text, list_of_stripped_source_indices).
-        """
-        if self._RELEVANCE_MIN_OVERLAP <= 0.0:
-            return response_text, []
-
-        stripped_indices: list[int] = []
-        # Process in reverse order so removals don't shift positions
-        # Collect all citation matches first
-        pattern = re.compile(r"\[Source (\d+)\]|\[(\d+)\]")
-        matches = list(pattern.finditer(response_text))
-
-        for match in reversed(matches):
-            source_num = int(match.group(1) or match.group(2))
-            chunk_idx = source_num - 1
-
-            if chunk_idx < 0 or chunk_idx >= len(chunks):
-                continue  # Phantom citation — handled by sanitize_and_renumber
-
-            chunk_content = chunks[chunk_idx].get("content", "")
-            claim_text = self._extract_claim_context(
-                response_text, match.start(), match.end()
-            )
-            overlap = self._claim_source_overlap(claim_text, chunk_content)
-
-            if overlap < self._RELEVANCE_MIN_OVERLAP:
-                logger.warning(
-                    "Citation relevance check FAILED: [Source %d] overlap=%.2f "
-                    "(threshold=%.2f) claim='%s' source_title='%s'",
-                    source_num,
-                    overlap,
-                    self._RELEVANCE_MIN_OVERLAP,
-                    claim_text[:120],
-                    chunks[chunk_idx].get("title", "untitled")[:60],
-                )
-                # Remove the citation marker
-                response_text = (
-                    response_text[: match.start()] + response_text[match.end() :]
-                )
-                stripped_indices.append(source_num)
-            else:
-                logger.debug(
-                    "Citation relevance check PASSED: [Source %d] overlap=%.2f "
-                    "claim='%s'",
-                    source_num,
-                    overlap,
-                    claim_text[:80],
-                )
-
-        # Clean up whitespace artifacts from removals
-        if stripped_indices:
-            response_text = re.sub(r"\s+([.,:;!?])", r"\1", response_text)
-            response_text = re.sub(r" {2,}", " ", response_text)
-            logger.info(
-                "Citation relevance check stripped %d citations: sources %s",
-                len(stripped_indices),
-                sorted(set(stripped_indices)),
-            )
-
-        return response_text, stripped_indices
-
-    def sanitize_and_renumber(
-        self, response_text: str, max_valid_sources: int
-    ) -> CitationExtractResult:
-        """Remove invalid citations and renumber valid ones to match extracted citations.
-
-        Process:
-        1. Identify all citations in the text (both [Source N] and [N] formats)
-        2. Remove citations that reference sources beyond max_valid_sources (phantom citations)
-        3. Renumber remaining citations to 1, 2, 3... to match the extraction order
-
-        This ensures citation numbers in the text always match the SOURCES section.
-
-        Args:
-            response_text: Raw response from LLM
-            max_valid_sources: Number of unique chunks that were shown in the prompt (post-dedup)
-
-        Returns:
-            CitationExtractResult with cleaned_text and removed_indices
-        """
-        removed_indices: list[int] = []
-        cleaned_text = response_text
-
-        # First, find all citation indices that actually appear in the text
-        found_indices: set[int] = set()
-        for match in re.finditer(r"\[Source (\d+)\]", cleaned_text):
-            found_indices.add(int(match.group(1)))
-        for match in re.finditer(r"(?<![\/\w])\[(\d+)\](?![\w])", cleaned_text):
-            start = match.start()
-            if start == 0 or cleaned_text[start - 1] in (
-                " ",
-                ".",
-                ":",
-                ";",
-                ",",
-                ")",
-                "—",
-            ):
-                found_indices.add(int(match.group(1)))
-
-        # Separate valid citations from phantom ones
-        valid_indices = sorted(
-            [i for i in found_indices if 1 <= i <= max_valid_sources]
-        )
-        phantom_indices = [i for i in found_indices if i > max_valid_sources]
-
-        # Remove phantom citations
-        for source_num in phantom_indices:
-            pattern = f"[Source {source_num}]"
-            while pattern in cleaned_text:
-                cleaned_text = cleaned_text.replace(pattern, "", 1)
-                removed_indices.append(source_num)
-
-            pattern = f"[{source_num}]"
-            while pattern in cleaned_text:
-                cleaned_text = cleaned_text.replace(pattern, "", 1)
-                if source_num not in removed_indices:
-                    removed_indices.append(source_num)
-
-        # Renumber valid citations to 1, 2, 3, ... to match extraction order
-        # Map old index -> new index
-        renumber_map = {
-            old_idx: new_idx for new_idx, old_idx in enumerate(valid_indices, start=1)
-        }
-
-        # Apply renumbering in reverse order to avoid position shifts
-        for old_idx in sorted(renumber_map.keys(), reverse=True):
-            new_idx = renumber_map[old_idx]
-            if old_idx != new_idx:
-                # Renumber [Source N] format
-                pattern = f"[Source {old_idx}]"
-                cleaned_text = cleaned_text.replace(pattern, f"[Source {new_idx}]")
-
-                # Renumber plain [N] format
-                # Use word boundaries to avoid replacing [11] when looking for [1]
-                cleaned_text = re.sub(
-                    rf"(?<![\/\w])\[{old_idx}\](?![\w\d])", f"[{new_idx}]", cleaned_text
-                )
-
-        # Clean up extra whitespace
-        cleaned_text = re.sub(r"\s+([.,:;!?])", r"\1", cleaned_text)
-        cleaned_text = re.sub(r" {2,}", " ", cleaned_text)
-
-        if removed_indices:
-            logger.warning(
-                "Removed phantom citations: %s (max valid sources: %d)",
-                sorted(set(removed_indices)),
-                max_valid_sources,
-            )
-
-        if any(renumber_map[old] != old for old in renumber_map):
-            logger.info(
-                "Renumbered citations: %s",
-                {
-                    old: renumber_map[old]
-                    for old in renumber_map
-                    if renumber_map[old] != old
-                },
-            )
-
-        return CitationExtractResult(text=cleaned_text, removed_indices=removed_indices)
 
     def render_structured_response(
         self,
