@@ -86,7 +86,9 @@ class ContextBuilder:
                     method = sanitize_prompt_input(med.delivery_method, max_length=50)
                     parts = [f"  - {name} {dose} ({method})"]
                     if med.frequency:
-                        parts[0] += f" — {sanitize_prompt_input(med.frequency, max_length=50)}"
+                        parts[0] += (
+                            f" — {sanitize_prompt_input(med.frequency, max_length=50)}"
+                        )
                     if med.start_date:
                         parts[0] += f", started {med.start_date}"
                     med_lines.extend(parts)

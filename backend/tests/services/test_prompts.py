@@ -123,4 +123,3 @@ class TestDynamicContextLayer:
         )
         assert "28" in prompt
         assert "months since last period: 3" in prompt.lower()
-
