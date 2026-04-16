@@ -300,8 +300,8 @@ class CitationService:
 
         Parses [Source 1], [Source 2], etc. OR [1], [2], etc. and maps them to the corresponding
         chunk's source_url and title. Includes section_name if available in chunk metadata.
-        References beyond the available chunks are silently ignored (should be removed by
-        sanitize_and_renumber first).
+        References beyond the available chunks are silently ignored. Out-of-range source
+        indices are handled by bounds checking in `render_structured_response`.
 
         Args:
             response_text: The response text containing citation references
