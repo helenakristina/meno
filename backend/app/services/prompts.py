@@ -10,7 +10,7 @@ from app.llm.system_prompts import (
     LAYER_3_SOURCE_RULES,
     LAYER_4_SCOPE,
 )
-from app.utils.context_builder import ContextBuilder
+from app.utils.context_builder import build_context_block
 
 if TYPE_CHECKING:
     from app.models.medications import MedicationContext
@@ -44,7 +44,7 @@ class PromptService:
         Returns:
             Complete five-layer system prompt ready for LLM consumption.
         """
-        context_block = ContextBuilder.build(
+        context_block = build_context_block(
             journey_stage=journey_stage,
             age=age,
             symptom_summary=symptom_summary,
