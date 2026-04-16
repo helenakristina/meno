@@ -11,7 +11,7 @@ from uuid import UUID
 
 import pytest
 
-from app.exceptions import DatabaseError, EntityNotFoundError
+from app.exceptions import DatabaseError, EntityNotFoundError, LLMError
 from app.models.chat import Citation
 from app.models.symptoms import SymptomDetail, SymptomLogResponse
 from app.services.ask_meno import AskMenoService
@@ -214,7 +214,7 @@ async def test_ask_raises_database_error_when_user_context_fails(
 ):
     mock_user_repo.get_context.side_effect = Exception("DB connection error")
 
-    with pytest.raises(DatabaseError, match="Failed to process question"):
+    with pytest.raises(DatabaseError, match="Failed to fetch user context"):
         await service.ask(USER_ID, "What causes hot flashes?")
 
 
@@ -224,7 +224,7 @@ async def test_ask_raises_database_error_when_symptom_summary_fails(
 ):
     mock_symptoms_repo.get_summary.side_effect = Exception("Timeout")
 
-    with pytest.raises(DatabaseError, match="Failed to process question"):
+    with pytest.raises(DatabaseError, match="Failed to fetch symptom summary"):
         await service.ask(USER_ID, "What causes hot flashes?")
 
 
@@ -243,10 +243,10 @@ async def test_ask_degrades_gracefully_when_rag_fails(
 
 
 @pytest.mark.asyncio
-async def test_ask_raises_database_error_when_llm_fails(service, mock_llm_service):
+async def test_ask_raises_llm_error_when_llm_fails(service, mock_llm_service):
     mock_llm_service.chat_completion.side_effect = Exception("LLM timeout")
 
-    with pytest.raises(DatabaseError, match="LLM call failed"):
+    with pytest.raises(LLMError, match="LLM call failed"):
         await service.ask(USER_ID, "What causes hot flashes?")
 
 

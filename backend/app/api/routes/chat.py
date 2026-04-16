@@ -21,7 +21,7 @@ from app.models.chat import (
     ConversationMessagesResponse,
     SuggestedPromptsResponse,
 )
-from app.exceptions import DatabaseError, EntityNotFoundError
+from app.exceptions import DatabaseError, EntityNotFoundError, LLMError
 from app.utils.logging import hash_user_id
 
 logger = logging.getLogger(__name__)
@@ -70,7 +70,7 @@ async def ask_meno(
             message=message,
             conversation_id=payload.conversation_id,
         )
-    except DatabaseError as exc:
+    except (DatabaseError, LLMError) as exc:
         logger.error(
             "Ask Meno failed for user=%s: %s", hash_user_id(user_id), exc, exc_info=True
         )

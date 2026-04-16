@@ -101,3 +101,16 @@ class DuplicateEntityError(MenoBaseError):
     """
 
     pass
+
+
+class LLMError(MenoBaseError):
+    """LLM call or response parsing failure.
+
+    Raised when:
+    - LLM API call fails (timeout, quota, network error)
+    - LLM response cannot be parsed (malformed JSON, Pydantic validation failure)
+
+    HTTP Mapping: 500 Internal Server Error
+    """
+
+    pass

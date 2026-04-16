@@ -23,7 +23,7 @@ from urllib.parse import urlparse
 from uuid import UUID
 
 
-from app.exceptions import DatabaseError
+from app.exceptions import DatabaseError, LLMError
 from app.models.chat import (
     ChatMessage,
     ChatResponse,
@@ -119,7 +119,7 @@ class AskMenoService:
                 exc,
                 exc_info=True,
             )
-            raise DatabaseError(f"Failed to process question: {exc}") from exc
+            raise DatabaseError("Failed to fetch user context") from exc
 
         try:
             symptom_summary = await self.symptoms_repo.get_summary(user_id)
@@ -130,7 +130,7 @@ class AskMenoService:
                 exc,
                 exc_info=True,
             )
-            raise DatabaseError(f"Failed to process question: {exc}") from exc
+            raise DatabaseError("Failed to fetch symptom summary") from exc
 
         # Fetch optional enrichment data concurrently — all are supplementary
         cycle_context: dict | None = None
@@ -261,7 +261,7 @@ class AskMenoService:
                 exc,
                 exc_info=True,
             )
-            raise DatabaseError("LLM call failed") from exc
+            raise LLMError("LLM call failed") from exc
 
         logger.info(
             "LLM completed: user=%s chunks=%d response_len=%d",
@@ -326,7 +326,7 @@ class AskMenoService:
                 exc,
                 exc_info=True,
             )
-            raise DatabaseError(f"Failed to save conversation: {exc}") from exc
+            raise DatabaseError("Failed to save conversation") from exc
 
         return ChatResponse(
             message=response_text,
@@ -409,7 +409,7 @@ class AskMenoService:
             raise
         except Exception as exc:
             logger.error("Failed to generate prompts: %s", exc, exc_info=True)
-            raise DatabaseError(f"Failed to generate prompts: {str(exc)}") from exc
+            raise DatabaseError("Failed to generate prompts") from exc
 
     def _load_prompt_config(self) -> dict:
         """Load prompt config from JSON file, caching on first call."""
