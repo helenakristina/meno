@@ -39,7 +39,7 @@ def build_context_block(
 
     source_lines = []
     for i, chunk in enumerate(chunks, start=1):
-        url = chunk.get("source_url", "")[:500]
+        url = sanitize_prompt_input(chunk.get("source_url", ""), max_length=500)
         title = sanitize_prompt_input(chunk.get("title", ""), max_length=200)
         content = sanitize_prompt_input(chunk.get("content", ""), max_length=2000)
         source_lines.append(f"(Source {i}) {title}\nURL: {url}\nContent: {content}")
@@ -87,7 +87,10 @@ def build_context_block(
                 name = sanitize_prompt_input(med.medication_name, max_length=100)
                 dose = sanitize_prompt_input(med.dose, max_length=50)
                 method = sanitize_prompt_input(med.delivery_method, max_length=50)
-                end = sanitize_prompt_input(str(med.end_date), max_length=50)
+                end = sanitize_prompt_input(
+                    str(med.end_date) if med.end_date else "date unknown",
+                    max_length=50,
+                )
                 change_lines.append(f"  - {name} {dose} ({method}), stopped {end}")
             med_block += "\n- Recently stopped MHT medications:\n" + "\n".join(
                 change_lines
