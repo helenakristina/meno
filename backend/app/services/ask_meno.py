@@ -302,7 +302,7 @@ class AskMenoService:
                 exc,
                 exc_info=True,
             )
-            raise DatabaseError("Failed to parse structured LLM response") from exc
+            raise LLMError("Failed to parse structured LLM response") from exc
 
         # Build updated messages list for storage
         user_msg = ChatMessage(role="user", content=message)

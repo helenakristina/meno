@@ -560,5 +560,5 @@ async def test_malformed_json_from_llm_raises_exception(
         rag_retriever=mock_rag_retriever,
     )
 
-    with pytest.raises(Exception):
+    with pytest.raises(LLMError, match="Failed to parse structured LLM response"):
         await svc.ask(USER_ID, "What causes hot flashes?")
