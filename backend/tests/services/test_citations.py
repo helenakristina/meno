@@ -43,141 +43,6 @@ def sample_chunks():
     ]
 
 
-class TestExtract:
-    """Tests for the extract method."""
-
-    def test_extract_single_citation(self, service, sample_chunks):
-        """Extract a single citation from text."""
-        text = "Research shows [Source 1] about perimenopause."
-        citations = service.extract(text, sample_chunks)
-
-        assert len(citations) == 1
-        assert citations[0].url == "https://menopausewiki.ca/overview"
-        assert citations[0].title == "Perimenopause Overview"
-        assert citations[0].section == "Definition"
-        assert citations[0].source_index == 1
-
-    def test_extract_multiple_citations(self, service, sample_chunks):
-        """Extract multiple citations in order."""
-        text = "First [Source 1], then [Source 2], finally [Source 3]."
-        citations = service.extract(text, sample_chunks)
-
-        assert len(citations) == 3
-        assert citations[0].source_index == 1
-        assert citations[1].source_index == 2
-        assert citations[2].source_index == 3
-
-    def test_extract_plain_format_citations(self, service, sample_chunks):
-        """Extract [N] format citations."""
-        text = "Research [1] and [2] show this."
-        citations = service.extract(text, sample_chunks)
-
-        assert len(citations) == 2
-        assert citations[0].source_index == 1
-        assert citations[1].source_index == 2
-
-    def test_extract_mixed_formats(self, service, sample_chunks):
-        """Extract both [Source N] and [N] formats together."""
-        text = "Data [Source 1] and [2] and [Source 3] combined."
-        citations = service.extract(text, sample_chunks)
-
-        assert len(citations) == 3
-        assert citations[0].source_index == 1
-        assert citations[1].source_index == 2
-        assert citations[2].source_index == 3
-
-    def test_extract_no_citations(self, service, sample_chunks):
-        """Text with no citations should return empty list."""
-        text = "This is a response with no citations at all."
-        citations = service.extract(text, sample_chunks)
-
-        assert citations == []
-
-    def test_extract_phantom_citations_ignored(self, service, sample_chunks):
-        """References beyond available chunks are ignored."""
-        text = "Data [Source 1] and [Source 4] and [Source 5]."
-        citations = service.extract(text, sample_chunks)
-
-        # Only [1] is valid (only 3 chunks)
-        assert len(citations) == 1
-        assert citations[0].source_index == 1
-
-    def test_extract_without_section_name(self, service):
-        """Chunks without section_name should have None for section."""
-        chunks = [
-            {
-                "source_url": "https://example.com",
-                "title": "Example",
-                # No section_name
-            }
-        ]
-        text = "Reference [Source 1]."
-        citations = service.extract(text, chunks)
-
-        assert len(citations) == 1
-        assert citations[0].section is None
-
-    def test_extract_without_url_skipped(self, service):
-        """Chunks without url should be skipped (not added to citations)."""
-        chunks = [
-            {
-                "title": "Example",
-                "section_name": "Intro",
-                # No source_url
-            }
-        ]
-        text = "Reference [Source 1]."
-        citations = service.extract(text, chunks)
-
-        # Should be empty because chunk has no URL
-        assert len(citations) == 0
-
-    def test_extract_duplicate_references(self, service, sample_chunks):
-        """Same citation referenced twice should appear once (deduplicated via set)."""
-        text = "First [Source 1] and later [Source 1] again."
-        citations = service.extract(text, sample_chunks)
-
-        # Extract uses a set so duplicates are deduplicated
-        assert len(citations) == 1
-        assert citations[0].source_index == 1
-
-    def test_extract_out_of_order_citations(self, service, sample_chunks):
-        """Citations in non-sequential order should be returned sorted by index."""
-        text = "Evidence [Source 3], then [Source 1], then [Source 2]."
-        citations = service.extract(text, sample_chunks)
-
-        assert len(citations) == 3
-        # Returned in sorted order of indices (1, 2, 3)
-        assert citations[0].source_index == 1
-        assert citations[1].source_index == 2
-        assert citations[2].source_index == 3
-
-    def test_extract_edge_case_false_positives(self, service, sample_chunks):
-        """Should not match [N] patterns that aren't citations."""
-        text = "File path [/items/5] is mentioned. Range [5-10] also."
-        citations = service.extract(text, sample_chunks)
-
-        # The [5] in [5-10] might be caught, but [/items/5] should not
-        # This documents actual behavior (regex isn't perfect)
-        # Should be minimal matches
-        assert len(citations) <= 1  # At most the [5] from [5-10]
-
-    def test_extract_empty_chunks_list(self, service):
-        """Empty chunks list should return no citations."""
-        text = "This has [Source 1] reference."
-        citations = service.extract(text, [])
-
-        assert citations == []
-
-    def test_extract_all_plain_format(self, service, sample_chunks):
-        """All citations in plain format."""
-        text = "Data [1] shows [2] that [3] is true."
-        citations = service.extract(text, sample_chunks)
-
-        assert len(citations) == 3
-        assert [c.source_index for c in citations] == [1, 2, 3]
-
-
 # ---------------------------------------------------------------------------
 # TestRenderStructuredResponse
 # Tests for the v2 paragraph-based render_structured_response method.
@@ -402,6 +267,29 @@ class TestRenderStructuredResponse:
         assert "Second section body." in rendered
         assert "[Source" not in rendered
         assert len(citations) == 0
+
+    def test_non_http_source_url_is_dropped(self, service):
+        """Citations with non-HTTP source_url (e.g. javascript:) produce no citation."""
+        chunks = [
+            {
+                "source_url": "javascript:alert(1)",
+                "title": "Malicious Source",
+                "section_name": "Intro",
+                "content": "Perimenopause hot flashes are common vasomotor symptoms.",
+            }
+        ]
+        structured = StructuredLLMResponse(
+            sections=[
+                ResponseSection(
+                    body="Hot flashes are common vasomotor symptoms.",
+                    source_index=1,
+                )
+            ],
+            insufficient_sources=False,
+        )
+        rendered, citations = service.render_structured_response(structured, chunks)
+        assert citations == []
+        assert "javascript:" not in rendered
 
     # CATCHES: empty-body + not insufficient_sources + no disclaimer falling into
     # wrong branch and returning empty string or raising

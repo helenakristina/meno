@@ -244,6 +244,8 @@ class CitationService:
                                 overlap,
                             )
                         url = chunk.get("source_url", "")
+                        if not url.startswith(("https://", "http://")):
+                            url = ""
                         title = chunk.get("title", "")
                         section_name = chunk.get("section_name")
                         if url:
@@ -294,56 +296,3 @@ class CitationService:
         )
 
         return rendered_text, citations
-
-    def extract(self, response_text: str, chunks: list[dict]) -> list[Citation]:
-        """Map [Source N] or [N] references in the response to Citation objects with section context.
-
-        Parses [Source 1], [Source 2], etc. OR [1], [2], etc. and maps them to the corresponding
-        chunk's source_url and title. Includes section_name if available in chunk metadata.
-        References beyond the available chunks are silently ignored. Out-of-range source
-        indices are handled by bounds checking in `render_structured_response`.
-
-        Args:
-            response_text: The response text containing citation references
-            chunks: List of chunk dicts with keys: source_url, title, section_name (optional)
-
-        Returns:
-            List of Citation objects in order they appear in the response
-        """
-        # Find which citations are actually used in the response
-        found_indices: set[int] = set()
-        # Match both [Source N] and plain [N] formats
-        for match in re.finditer(r"\[Source (\d+)\]", response_text):
-            found_indices.add(int(match.group(1)))
-        for match in re.finditer(r"(?<![\/\w])\[(\d+)\](?![\w])", response_text):
-            # Extra check: only treat as citation if preceded by appropriate context
-            start = match.start()
-            if start == 0 or response_text[start - 1] in (
-                " ",
-                ".",
-                ":",
-                ";",
-                ",",
-                ")",
-                "—",
-            ):
-                found_indices.add(int(match.group(1)))
-
-        citations: list[Citation] = []
-
-        for idx in sorted(found_indices):
-            chunk_index = idx - 1  # Source N is 1-indexed
-            if 0 <= chunk_index < len(chunks):
-                chunk = chunks[chunk_index]
-                url = chunk.get("source_url", "")
-                title = chunk.get("title", "")
-                section = chunk.get("section_name")  # May be None
-
-                if url:
-                    citations.append(
-                        Citation(
-                            url=url, title=title, section=section, source_index=idx
-                        )
-                    )
-
-        return citations
