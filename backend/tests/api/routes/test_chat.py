@@ -275,6 +275,8 @@ def client():
 
 
 def test_chat_requires_auth(client):
+    # CATCHES: Missing or bypassed auth check allows unauthenticated requests to reach
+    # the chat handler and access user data without a valid JWT.
     # Mock needed: FastAPI instantiates get_client during DI even when auth fails on a
     # missing header, so without an override the real Supabase client raises
     # SupabaseException before the 401 can be returned.
@@ -290,6 +292,8 @@ def test_chat_requires_auth(client):
 
 
 def test_chat_rejects_invalid_token(client):
+    # CATCHES: Token validation is skipped or swallows auth exceptions, allowing
+    # requests with invalid JWTs to pass through and impersonate any user.
     mock_client = make_mock_client(auth_error=Exception("Invalid token"))
     clear = override(mock_client)
     try:
@@ -309,6 +313,8 @@ def test_chat_rejects_invalid_token(client):
 
 
 def test_chat_rejects_empty_message(client):
+    # CATCHES: Whitespace-only messages bypass validation and are forwarded to the LLM,
+    # wasting tokens and returning a nonsensical response instead of a 400 error.
     mock_client = make_mock_client()
     clear = override(mock_client)
     try:
@@ -335,7 +341,8 @@ def test_chat_rejects_empty_message(client):
 
 
 def test_chat_rejects_missing_message_field(client):
-    """Pydantic validation error (422) for payload missing required 'message' field."""
+    # CATCHES: Payload missing the required 'message' field returns 200 or 500
+    # instead of a 422 Pydantic validation error.
     mock_client = make_mock_client()
     clear = override(mock_client)
     try:
@@ -351,6 +358,8 @@ def test_chat_rejects_missing_message_field(client):
 
 
 def test_chat_success_returns_message_and_citations(client):
+    # CATCHES: Structured LLM response is not rendered correctly, or citations are
+    # dropped from the response body so callers receive an empty citations list.
     mock_client = make_mock_client()
     clear = override(mock_client)
     try:
@@ -384,7 +393,8 @@ def test_chat_success_returns_message_and_citations(client):
 
 
 def test_chat_deduplicates_citations(client):
-    """Multiple sections citing the same source_index produce one citation entry."""
+    # CATCHES: Multiple sections citing the same source_index produce duplicate citation
+    # entries instead of being collapsed into one.
     mock_client = make_mock_client()
     clear = override(mock_client)
     try:
@@ -414,7 +424,8 @@ def test_chat_deduplicates_citations(client):
 
 
 def test_chat_returns_empty_citations_when_no_sources_cited(client):
-    """Response with source_index=None in all sections produces an empty citations list."""
+    # CATCHES: Sections with source_index=None produce spurious citation entries in
+    # the response instead of an empty list.
     mock_client = make_mock_client()
     clear = override(mock_client)
     try:
@@ -443,7 +454,8 @@ def test_chat_returns_empty_citations_when_no_sources_cited(client):
 
 
 def test_chat_when_llm_returns_v2_json_then_structured_path_exercised(client):
-    """LLM returning valid v2 JSON exercises render_structured_response, not the fallback."""
+    # CATCHES: Valid v2 JSON bypasses render_structured_response and falls through to a
+    # different code path, so body text and citations are not rendered from the structure.
     mock_client = make_mock_client()
     clear = override(mock_client)
     try:
@@ -484,6 +496,8 @@ def test_chat_when_llm_returns_v2_json_then_structured_path_exercised(client):
 
 
 def test_chat_creates_new_conversation_when_no_id_provided(client):
+    # CATCHES: Missing conversation_id fails to create a new conversation, or the
+    # returned conversation_id does not match what was persisted.
     mock_client = make_mock_client(
         conversation_save_data=[{"id": CONVERSATION_UUID, "messages": "[]"}]
     )
@@ -514,6 +528,8 @@ def test_chat_creates_new_conversation_when_no_id_provided(client):
 
 
 def test_chat_404_for_unknown_conversation_id(client):
+    # CATCHES: An unknown conversation_id silently starts a new conversation and returns
+    # 200 instead of raising a 404, mixing message history across conversations.
     # conversations table returns empty for the load query
     mock_client = make_mock_client(conversation_load_data=[])
     clear = override(mock_client)
@@ -544,7 +560,9 @@ def test_chat_404_for_unknown_conversation_id(client):
 
 
 def test_chat_degrades_gracefully_when_rag_fails(client):
-    """RAG retrieval failure should not crash the endpoint — degrade to no sources."""
+    # CATCHES: A pgvector/RAG exception propagates to the HTTP layer and returns 500
+    # instead of degrading to a sourceless LLM response. Also catches the case where
+    # the endpoint returns 200 but skips the LLM call entirely, returning an empty body.
     mock_client = make_mock_client()
     clear = override(mock_client)
     try:
@@ -566,11 +584,18 @@ def test_chat_degrades_gracefully_when_rag_fails(client):
             )
 
         assert response.status_code == 200
+        body = response.json()
+        assert body["message"]
+        assert "citations" in body
+        assert "conversation_id" in body
+        mock_instance.chat_completion.assert_called_once()
     finally:
         clear()
 
 
 def test_chat_500_when_openai_fails(client):
+    # CATCHES: LLM exception is swallowed and the endpoint returns 200 with an empty or
+    # corrupt response body instead of propagating a 500.
     mock_client = make_mock_client()
     clear = override(mock_client)
     try:
@@ -603,7 +628,9 @@ def test_chat_500_when_openai_fails(client):
 
 
 def test_chat_uses_defaults_when_user_profile_missing(client):
-    """Missing user profile gracefully falls back to journey_stage='unsure', age=None."""
+    # CATCHES: Missing user profile row raises KeyError or 500 instead of defaulting to
+    # journey_stage='unsure' and age=None. Also catches a regression where the LLM is
+    # never called (early exit) when defaults are substituted for missing profile data.
     mock_client = make_mock_client(user_data=[])  # no profile row
     clear = override(mock_client)
     try:
@@ -625,12 +652,21 @@ def test_chat_uses_defaults_when_user_profile_missing(client):
             )
 
         assert response.status_code == 200
+        body = response.json()
+        assert body["message"]
+        assert "citations" in body
+        assert "conversation_id" in body
+        mock_instance.chat_completion.assert_called_once()
+        system_prompt = mock_instance.chat_completion.call_args[1]["system_prompt"]
+        assert "unsure" in system_prompt
     finally:
         clear()
 
 
 def test_chat_uses_default_summary_when_cache_missing(client):
-    """Missing symptom summary cache falls back to 'No symptom data logged yet.'"""
+    # CATCHES: Missing symptom summary cache row raises an exception instead of
+    # defaulting to a safe fallback string. Also catches the case where the fallback
+    # string is not forwarded into the LLM system prompt, silently omitting it.
     mock_client = make_mock_client(summary_data=[])  # no cache row
     clear = override(mock_client)
     try:
@@ -652,6 +688,11 @@ def test_chat_uses_default_summary_when_cache_missing(client):
             )
 
         assert response.status_code == 200
+        body = response.json()
+        assert body["message"]
+        mock_instance.chat_completion.assert_called_once()
+        system_prompt = mock_instance.chat_completion.call_args[1]["system_prompt"]
+        assert "No symptom data logged yet." in system_prompt
     finally:
         clear()
 
@@ -662,7 +703,8 @@ def test_chat_uses_default_summary_when_cache_missing(client):
 
 
 def test_chat_sanitizes_phantom_citations(client):
-    """Out-of-range source_index in structured response produces no citation marker."""
+    # CATCHES: An out-of-range source_index produces a [Source N] marker in the rendered
+    # text with no matching citation entry, leaving the user a dangling reference.
     # V2_PHANTOM_SOURCE_RESPONSE has source_index: 3 but only 2 chunks available
     mock_client = make_mock_client()
     clear = override(mock_client)
@@ -698,7 +740,8 @@ def test_chat_sanitizes_phantom_citations(client):
 
 
 def test_chat_citations_include_section_names(client):
-    """Citations include section names from chunk metadata when available."""
+    # CATCHES: Section names from chunk metadata are dropped during citation assembly,
+    # returning null section fields that break the frontend citation display.
     mock_client = make_mock_client()
     clear = override(mock_client)
     try:
@@ -732,7 +775,8 @@ def test_chat_citations_include_section_names(client):
 
 
 def test_chat_handles_multiple_phantom_citations(client):
-    """Multiple out-of-range source indices are all dropped from rendered output."""
+    # CATCHES: Only the first out-of-range source_index is dropped; subsequent ones still
+    # produce [Source N] markers or citation entries in the response.
     response_json = json.dumps(
         {
             "sections": [
@@ -784,7 +828,8 @@ def test_chat_handles_multiple_phantom_citations(client):
 
 
 def test_chat_malformed_json_from_llm_returns_500(client):
-    """Malformed JSON from the LLM raises rather than silently degrading."""
+    # CATCHES: Malformed JSON from the LLM is silently swallowed and the endpoint
+    # returns 200 with an empty message rather than surfacing a 500 error.
     mock_client = make_mock_client()
     clear = override(mock_client)
     try:
