@@ -166,15 +166,15 @@ class TestCycleContextBlock:
         assert "Months since last period" not in result
         assert "Has uterus" not in result
 
-    # CATCHES: has_uterus dropped
+    # CATCHES: has_uterus=True dropped or rendered as "no" in the context block
     def test_build_when_has_uterus_true_then_present_in_output(self):
         result = _build(has_uterus=True)
-        assert "yes" in result.lower()
+        assert "Has uterus: yes" in result
 
-    # CATCHES: has_uterus=False producing wrong value
-    def test_build_when_has_uterus_false_then_no_in_output(self):
+    # CATCHES: has_uterus=False dropped or rendered as "yes" in the context block
+    def test_build_when_has_uterus_false_then_present_in_output(self):
         result = _build(has_uterus=False)
-        assert "no" in result.lower()
+        assert "Has uterus: no" in result
 
     # CATCHES: cycle length dropped
     def test_build_when_cycle_context_has_length_then_length_in_output(self):
