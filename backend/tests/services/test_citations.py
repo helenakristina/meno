@@ -269,7 +269,8 @@ class TestRenderStructuredResponse:
         assert len(citations) == 0
 
     def test_non_http_source_url_is_dropped(self, service):
-        """Citations with non-HTTP source_url (e.g. javascript:) produce no citation."""
+        # CATCHES: A chunk with a non-HTTP source_url (e.g. javascript:alert(1)) is
+        # included as a citation, creating an XSS vector in the rendered frontend output.
         chunks = [
             {
                 "source_url": "javascript:alert(1)",
