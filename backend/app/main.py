@@ -21,6 +21,7 @@ from app.exceptions import (
     UnauthorizedError,
     PermissionError,
     DuplicateEntityError,
+    LLMError,
 )
 
 logging.basicConfig(
@@ -93,6 +94,18 @@ async def duplicate_entity_handler(request: Request, exc: DuplicateEntityError):
     return JSONResponse(
         status_code=409,
         content={"detail": str(exc)},
+    )
+
+
+@app.exception_handler(LLMError)
+async def llm_error_handler(request: Request, exc: LLMError):
+    """Convert LLMError to 500 response."""
+    logger.error("LLMError: %s", exc, exc_info=True)
+    return JSONResponse(
+        status_code=500,
+        content={
+            "detail": "The AI assistant is temporarily unavailable. Please try again in a moment."
+        },
     )
 
 

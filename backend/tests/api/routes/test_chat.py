@@ -51,12 +51,10 @@ SAMPLE_CHUNKS = [
     },
 ]
 
-OPENAI_RESPONSE = (
-    "Hot flashes affect up to 80% of women during perimenopause [Source 1]. "
-    "Current guidelines support hormone therapy for eligible women [Source 2]."
-)
+# All LLM responses must now be valid v2 structured JSON.
+# The fallback free-text pipeline was removed — the primary path is render_structured_response.
 
-# Valid v2 structured JSON response — exercises the render_structured_response path
+# Single-section response citing source 1
 V2_OPENAI_RESPONSE = json.dumps(
     {
         "sections": [
@@ -65,6 +63,86 @@ V2_OPENAI_RESPONSE = json.dumps(
                 "body": "Hot flashes are one of the most common symptoms of perimenopause.",
                 "source_index": 1,
             }
+        ],
+        "disclaimer": None,
+        "insufficient_sources": False,
+    }
+)
+
+# Two-section response citing sources 1 and 2
+V2_TWO_SOURCE_RESPONSE = json.dumps(
+    {
+        "sections": [
+            {
+                "heading": None,
+                "body": "Hot flashes affect up to 80% of women during perimenopause.",
+                "source_index": 1,
+            },
+            {
+                "heading": None,
+                "body": "Current guidelines support hormone therapy for eligible women.",
+                "source_index": 2,
+            },
+        ],
+        "disclaimer": None,
+        "insufficient_sources": False,
+    }
+)
+
+# Response with no source citations
+V2_NO_CITATIONS_RESPONSE = json.dumps(
+    {
+        "sections": [
+            {
+                "heading": None,
+                "body": "I'm only able to help with menopause and perimenopause education.",
+                "source_index": None,
+            }
+        ],
+        "disclaimer": None,
+        "insufficient_sources": False,
+    }
+)
+
+# Response where both sections cite the same source (deduplication test)
+V2_DUPLICATE_SOURCE_RESPONSE = json.dumps(
+    {
+        "sections": [
+            {
+                "heading": None,
+                "body": "Hot flashes are common vasomotor symptoms.",
+                "source_index": 1,
+            },
+            {
+                "heading": None,
+                "body": "They are the most frequently reported symptom.",
+                "source_index": 1,
+            },
+        ],
+        "disclaimer": None,
+        "insufficient_sources": False,
+    }
+)
+
+# Response with an out-of-range source_index (phantom citation equivalent)
+V2_PHANTOM_SOURCE_RESPONSE = json.dumps(
+    {
+        "sections": [
+            {
+                "heading": None,
+                "body": "Hot flashes are common.",
+                "source_index": 1,
+            },
+            {
+                "heading": None,
+                "body": "HRT is a treatment option.",
+                "source_index": 2,
+            },
+            {
+                "heading": None,
+                "body": "Additional research suggests other options.",
+                "source_index": 3,  # out of range — only 2 chunks available
+            },
         ],
         "disclaimer": None,
         "insufficient_sources": False,
@@ -197,6 +275,8 @@ def client():
 
 
 def test_chat_requires_auth(client):
+    # CATCHES: Missing or bypassed auth check allows unauthenticated requests to reach
+    # the chat handler and access user data without a valid JWT.
     # Mock needed: FastAPI instantiates get_client during DI even when auth fails on a
     # missing header, so without an override the real Supabase client raises
     # SupabaseException before the 401 can be returned.
@@ -212,6 +292,8 @@ def test_chat_requires_auth(client):
 
 
 def test_chat_rejects_invalid_token(client):
+    # CATCHES: Token validation is skipped or swallows auth exceptions, allowing
+    # requests with invalid JWTs to pass through and impersonate any user.
     mock_client = make_mock_client(auth_error=Exception("Invalid token"))
     clear = override(mock_client)
     try:
@@ -231,6 +313,8 @@ def test_chat_rejects_invalid_token(client):
 
 
 def test_chat_rejects_empty_message(client):
+    # CATCHES: Whitespace-only messages bypass validation and are forwarded to the LLM,
+    # wasting tokens and returning a nonsensical response instead of a 400 error.
     mock_client = make_mock_client()
     clear = override(mock_client)
     try:
@@ -242,7 +326,7 @@ def test_chat_rejects_empty_message(client):
             patch("app.api.dependencies.OpenAIProvider") as MockProvider,
         ):
             mock_instance = AsyncMock()
-            mock_instance.chat_completion.return_value = OPENAI_RESPONSE
+            mock_instance.chat_completion.return_value = V2_OPENAI_RESPONSE
             MockProvider.return_value = mock_instance
 
             response = client.post(
@@ -257,7 +341,8 @@ def test_chat_rejects_empty_message(client):
 
 
 def test_chat_rejects_missing_message_field(client):
-    """Pydantic validation error (422) for payload missing required 'message' field."""
+    # CATCHES: Payload missing the required 'message' field returns 200 or 500
+    # instead of a 422 Pydantic validation error.
     mock_client = make_mock_client()
     clear = override(mock_client)
     try:
@@ -273,6 +358,8 @@ def test_chat_rejects_missing_message_field(client):
 
 
 def test_chat_success_returns_message_and_citations(client):
+    # CATCHES: Structured LLM response is not rendered correctly, or citations are
+    # dropped from the response body so callers receive an empty citations list.
     mock_client = make_mock_client()
     clear = override(mock_client)
     try:
@@ -284,7 +371,7 @@ def test_chat_success_returns_message_and_citations(client):
             patch("app.api.dependencies.OpenAIProvider") as MockProvider,
         ):
             mock_instance = AsyncMock()
-            mock_instance.chat_completion.return_value = OPENAI_RESPONSE
+            mock_instance.chat_completion.return_value = V2_TWO_SOURCE_RESPONSE
             MockProvider.return_value = mock_instance
 
             response = client.post(
@@ -295,7 +382,7 @@ def test_chat_success_returns_message_and_citations(client):
 
         assert response.status_code == 200
         body = response.json()
-        assert body["message"] == OPENAI_RESPONSE
+        assert "hot flashes" in body["message"].lower()
         assert len(body["citations"]) == 2
         assert body["citations"][0]["url"] == "https://menopausewiki.ca/hot-flashes"
         assert body["citations"][0]["title"] == "Perimenopause Overview"
@@ -306,10 +393,8 @@ def test_chat_success_returns_message_and_citations(client):
 
 
 def test_chat_deduplicates_citations(client):
-    """Multiple [Source 1] references in the response produce one citation entry."""
-    response_text = (
-        "Hot flashes are common [Source 1]. They are vasomotor symptoms [Source 1]."
-    )
+    # CATCHES: Multiple sections citing the same source_index produce duplicate citation
+    # entries instead of being collapsed into one.
     mock_client = make_mock_client()
     clear = override(mock_client)
     try:
@@ -321,7 +406,7 @@ def test_chat_deduplicates_citations(client):
             patch("app.api.dependencies.OpenAIProvider") as MockProvider,
         ):
             mock_instance = AsyncMock()
-            mock_instance.chat_completion.return_value = response_text
+            mock_instance.chat_completion.return_value = V2_DUPLICATE_SOURCE_RESPONSE
             MockProvider.return_value = mock_instance
 
             response = client.post(
@@ -339,7 +424,8 @@ def test_chat_deduplicates_citations(client):
 
 
 def test_chat_returns_empty_citations_when_no_sources_cited(client):
-    """Response with no [Source N] references produces an empty citations list."""
+    # CATCHES: Sections with source_index=None produce spurious citation entries in
+    # the response instead of an empty list.
     mock_client = make_mock_client()
     clear = override(mock_client)
     try:
@@ -351,9 +437,7 @@ def test_chat_returns_empty_citations_when_no_sources_cited(client):
             patch("app.api.dependencies.OpenAIProvider") as MockProvider,
         ):
             mock_instance = AsyncMock()
-            mock_instance.chat_completion.return_value = (
-                "I'm only able to help with menopause and perimenopause education."
-            )
+            mock_instance.chat_completion.return_value = V2_NO_CITATIONS_RESPONSE
             MockProvider.return_value = mock_instance
 
             response = client.post(
@@ -370,7 +454,8 @@ def test_chat_returns_empty_citations_when_no_sources_cited(client):
 
 
 def test_chat_when_llm_returns_v2_json_then_structured_path_exercised(client):
-    """LLM returning valid v2 JSON exercises render_structured_response, not the fallback."""
+    # CATCHES: Valid v2 JSON bypasses render_structured_response and falls through to a
+    # different code path, so body text and citations are not rendered from the structure.
     mock_client = make_mock_client()
     clear = override(mock_client)
     try:
@@ -411,6 +496,8 @@ def test_chat_when_llm_returns_v2_json_then_structured_path_exercised(client):
 
 
 def test_chat_creates_new_conversation_when_no_id_provided(client):
+    # CATCHES: Missing conversation_id fails to create a new conversation, or the
+    # returned conversation_id does not match what was persisted.
     mock_client = make_mock_client(
         conversation_save_data=[{"id": CONVERSATION_UUID, "messages": "[]"}]
     )
@@ -424,7 +511,7 @@ def test_chat_creates_new_conversation_when_no_id_provided(client):
             patch("app.api.dependencies.OpenAIProvider") as MockProvider,
         ):
             mock_instance = AsyncMock()
-            mock_instance.chat_completion.return_value = OPENAI_RESPONSE
+            mock_instance.chat_completion.return_value = V2_OPENAI_RESPONSE
             MockProvider.return_value = mock_instance
 
             response = client.post(
@@ -441,6 +528,8 @@ def test_chat_creates_new_conversation_when_no_id_provided(client):
 
 
 def test_chat_404_for_unknown_conversation_id(client):
+    # CATCHES: An unknown conversation_id silently starts a new conversation and returns
+    # 200 instead of raising a 404, mixing message history across conversations.
     # conversations table returns empty for the load query
     mock_client = make_mock_client(conversation_load_data=[])
     clear = override(mock_client)
@@ -471,7 +560,9 @@ def test_chat_404_for_unknown_conversation_id(client):
 
 
 def test_chat_degrades_gracefully_when_rag_fails(client):
-    """RAG retrieval failure should not crash the endpoint — degrade to no sources."""
+    # CATCHES: A pgvector/RAG exception propagates to the HTTP layer and returns 500
+    # instead of degrading to a sourceless LLM response. Also catches the case where
+    # the endpoint returns 200 but skips the LLM call entirely, returning an empty body.
     mock_client = make_mock_client()
     clear = override(mock_client)
     try:
@@ -483,9 +574,7 @@ def test_chat_degrades_gracefully_when_rag_fails(client):
             patch("app.api.dependencies.OpenAIProvider") as MockProvider,
         ):
             mock_instance = AsyncMock()
-            mock_instance.chat_completion.return_value = (
-                "I can share general information about perimenopause."
-            )
+            mock_instance.chat_completion.return_value = V2_NO_CITATIONS_RESPONSE
             MockProvider.return_value = mock_instance
 
             response = client.post(
@@ -495,11 +584,18 @@ def test_chat_degrades_gracefully_when_rag_fails(client):
             )
 
         assert response.status_code == 200
+        body = response.json()
+        assert body["message"]
+        assert "citations" in body
+        assert "conversation_id" in body
+        mock_instance.chat_completion.assert_called_once()
     finally:
         clear()
 
 
 def test_chat_500_when_openai_fails(client):
+    # CATCHES: LLM exception is swallowed and the endpoint returns 200 with an empty or
+    # corrupt response body instead of propagating a 500.
     mock_client = make_mock_client()
     clear = override(mock_client)
     try:
@@ -532,7 +628,9 @@ def test_chat_500_when_openai_fails(client):
 
 
 def test_chat_uses_defaults_when_user_profile_missing(client):
-    """Missing user profile gracefully falls back to journey_stage='unsure', age=None."""
+    # CATCHES: Missing user profile row raises KeyError or 500 instead of defaulting to
+    # journey_stage='unsure' and age=None. Also catches a regression where the LLM is
+    # never called (early exit) when defaults are substituted for missing profile data.
     mock_client = make_mock_client(user_data=[])  # no profile row
     clear = override(mock_client)
     try:
@@ -544,7 +642,7 @@ def test_chat_uses_defaults_when_user_profile_missing(client):
             patch("app.api.dependencies.OpenAIProvider") as MockProvider,
         ):
             mock_instance = AsyncMock()
-            mock_instance.chat_completion.return_value = OPENAI_RESPONSE
+            mock_instance.chat_completion.return_value = V2_OPENAI_RESPONSE
             MockProvider.return_value = mock_instance
 
             response = client.post(
@@ -554,12 +652,21 @@ def test_chat_uses_defaults_when_user_profile_missing(client):
             )
 
         assert response.status_code == 200
+        body = response.json()
+        assert body["message"]
+        assert "citations" in body
+        assert "conversation_id" in body
+        mock_instance.chat_completion.assert_called_once()
+        system_prompt = mock_instance.chat_completion.call_args[1]["system_prompt"]
+        assert "unsure" in system_prompt
     finally:
         clear()
 
 
 def test_chat_uses_default_summary_when_cache_missing(client):
-    """Missing symptom summary cache falls back to 'No symptom data logged yet.'"""
+    # CATCHES: Missing symptom summary cache row raises an exception instead of
+    # defaulting to a safe fallback string. Also catches the case where the fallback
+    # string is not forwarded into the LLM system prompt, silently omitting it.
     mock_client = make_mock_client(summary_data=[])  # no cache row
     clear = override(mock_client)
     try:
@@ -571,7 +678,7 @@ def test_chat_uses_default_summary_when_cache_missing(client):
             patch("app.api.dependencies.OpenAIProvider") as MockProvider,
         ):
             mock_instance = AsyncMock()
-            mock_instance.chat_completion.return_value = OPENAI_RESPONSE
+            mock_instance.chat_completion.return_value = V2_OPENAI_RESPONSE
             MockProvider.return_value = mock_instance
 
             response = client.post(
@@ -581,6 +688,11 @@ def test_chat_uses_default_summary_when_cache_missing(client):
             )
 
         assert response.status_code == 200
+        body = response.json()
+        assert body["message"]
+        mock_instance.chat_completion.assert_called_once()
+        system_prompt = mock_instance.chat_completion.call_args[1]["system_prompt"]
+        assert "No symptom data logged yet." in system_prompt
     finally:
         clear()
 
@@ -591,13 +703,9 @@ def test_chat_uses_default_summary_when_cache_missing(client):
 
 
 def test_chat_sanitizes_phantom_citations(client):
-    """Phantom citations like [Source 3] when only 2 sources exist are removed."""
-    # Response references [Source 3] but only 2 sources are provided
-    response_text = (
-        "Hot flashes are common [Source 1]. "
-        "HRT is an option [Source 2]. "
-        "Additional research shows more options [Source 3]."
-    )
+    # CATCHES: An out-of-range source_index produces a [Source N] marker in the rendered
+    # text with no matching citation entry, leaving the user a dangling reference.
+    # V2_PHANTOM_SOURCE_RESPONSE has source_index: 3 but only 2 chunks available
     mock_client = make_mock_client()
     clear = override(mock_client)
     try:
@@ -609,7 +717,7 @@ def test_chat_sanitizes_phantom_citations(client):
             patch("app.api.dependencies.OpenAIProvider") as MockProvider,
         ):
             mock_instance = AsyncMock()
-            mock_instance.chat_completion.return_value = response_text
+            mock_instance.chat_completion.return_value = V2_PHANTOM_SOURCE_RESPONSE
             MockProvider.return_value = mock_instance
 
             response = client.post(
@@ -620,19 +728,20 @@ def test_chat_sanitizes_phantom_citations(client):
 
         assert response.status_code == 200
         body = response.json()
-        # The message should have [Source 3] removed
+        # out-of-range source_index (3) produces no [Source 3] marker in rendered text
         assert "[Source 3]" not in body["message"]
-        # But [Source 1] and [Source 2] should remain
+        # Valid source_index values produce markers
         assert "[Source 1]" in body["message"]
         assert "[Source 2]" in body["message"]
-        # Citations should only include 2 entries
+        # Citations should only include 2 entries (source_index 3 is out of range)
         assert len(body["citations"]) == 2
     finally:
         clear()
 
 
 def test_chat_citations_include_section_names(client):
-    """Citations include section names from chunk metadata when available."""
+    # CATCHES: Section names from chunk metadata are dropped during citation assembly,
+    # returning null section fields that break the frontend citation display.
     mock_client = make_mock_client()
     clear = override(mock_client)
     try:
@@ -644,7 +753,7 @@ def test_chat_citations_include_section_names(client):
             patch("app.api.dependencies.OpenAIProvider") as MockProvider,
         ):
             mock_instance = AsyncMock()
-            mock_instance.chat_completion.return_value = OPENAI_RESPONSE
+            mock_instance.chat_completion.return_value = V2_TWO_SOURCE_RESPONSE
             MockProvider.return_value = mock_instance
 
             response = client.post(
@@ -666,12 +775,23 @@ def test_chat_citations_include_section_names(client):
 
 
 def test_chat_handles_multiple_phantom_citations(client):
-    """Multiple phantom citations are all removed."""
-    response_text = (
-        "Hot flashes [Source 1]. "
-        "Night sweats [Source 4]. "
-        "Brain fog [Source 5]. "
-        "HRT [Source 2]."
+    # CATCHES: Only the first out-of-range source_index is dropped; subsequent ones still
+    # produce [Source N] markers or citation entries in the response.
+    response_json = json.dumps(
+        {
+            "sections": [
+                {"heading": None, "body": "Hot flashes are common.", "source_index": 1},
+                {
+                    "heading": None,
+                    "body": "Night sweats also occur.",
+                    "source_index": 4,
+                },
+                {"heading": None, "body": "Brain fog is frequent.", "source_index": 5},
+                {"heading": None, "body": "HRT may help.", "source_index": 2},
+            ],
+            "disclaimer": None,
+            "insufficient_sources": False,
+        }
     )
     mock_client = make_mock_client()
     clear = override(mock_client)
@@ -684,7 +804,7 @@ def test_chat_handles_multiple_phantom_citations(client):
             patch("app.api.dependencies.OpenAIProvider") as MockProvider,
         ):
             mock_instance = AsyncMock()
-            mock_instance.chat_completion.return_value = response_text
+            mock_instance.chat_completion.return_value = response_json
             MockProvider.return_value = mock_instance
 
             response = client.post(
@@ -695,10 +815,10 @@ def test_chat_handles_multiple_phantom_citations(client):
 
         assert response.status_code == 200
         body = response.json()
-        # Phantom citations [Source 4] and [Source 5] should be removed
+        # Out-of-range source indices (4 and 5) produce no markers
         assert "[Source 4]" not in body["message"]
         assert "[Source 5]" not in body["message"]
-        # Valid citations should remain
+        # Valid source indices produce markers
         assert "[Source 1]" in body["message"]
         assert "[Source 2]" in body["message"]
         # Only 2 valid citations
@@ -707,14 +827,9 @@ def test_chat_handles_multiple_phantom_citations(client):
         clear()
 
 
-def test_chat_sanitizes_plain_bracket_phantom_citations(client):
-    """Phantom citations using plain [N] format are also removed."""
-    # Response uses plain [N] format instead of [Source N]
-    response_text = (
-        "Hot flashes affect women [1]. "
-        "Some researchers found [4]. "
-        "HRT options include [2]."
-    )
+def test_chat_malformed_json_from_llm_returns_500(client):
+    # CATCHES: Malformed JSON from the LLM is silently swallowed and the endpoint
+    # returns 200 with an empty message rather than surfacing a 500 error.
     mock_client = make_mock_client()
     clear = override(mock_client)
     try:
@@ -726,7 +841,7 @@ def test_chat_sanitizes_plain_bracket_phantom_citations(client):
             patch("app.api.dependencies.OpenAIProvider") as MockProvider,
         ):
             mock_instance = AsyncMock()
-            mock_instance.chat_completion.return_value = response_text
+            mock_instance.chat_completion.return_value = "not valid json {{"
             MockProvider.return_value = mock_instance
 
             response = client.post(
@@ -735,14 +850,6 @@ def test_chat_sanitizes_plain_bracket_phantom_citations(client):
                 headers=AUTH_HEADER,
             )
 
-        assert response.status_code == 200
-        body = response.json()
-        # Phantom citation [4] should be removed
-        assert "[4]" not in body["message"]
-        # Valid citations should remain
-        assert "[1]" in body["message"]
-        assert "[2]" in body["message"]
-        # Only 2 valid citations
-        assert len(body["citations"]) == 2
+        assert response.status_code == 500
     finally:
         clear()

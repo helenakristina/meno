@@ -11,7 +11,7 @@ from uuid import UUID
 
 import pytest
 
-from app.exceptions import DatabaseError, EntityNotFoundError
+from app.exceptions import DatabaseError, EntityNotFoundError, LLMError
 from app.models.chat import Citation
 from app.models.symptoms import SymptomDetail, SymptomLogResponse
 from app.services.ask_meno import AskMenoService
@@ -98,11 +98,6 @@ def mock_citation_service():
         source_index=1,
     )
     svc.render_structured_response.return_value = (LLM_RESPONSE, [_citation])
-    # Fallback free-text path
-    sanitize_result = MagicMock()
-    sanitize_result.text = LLM_RESPONSE
-    svc.sanitize_and_renumber.return_value = sanitize_result
-    svc.verify_citations.return_value = (LLM_RESPONSE, [])
     svc.extract.return_value = [_citation]
     return svc
 
@@ -138,6 +133,8 @@ def service(
 
 @pytest.mark.asyncio
 async def test_ask_returns_chat_response(service):
+    # CATCHES: Service returns wrong message text or does not thread citations through
+    # to the ChatResponse, leaving callers with an empty or mismatched response.
     result = await service.ask(USER_ID, "What causes hot flashes?")
 
     assert result.message == LLM_RESPONSE
@@ -150,6 +147,8 @@ async def test_ask_returns_chat_response(service):
 async def test_ask_with_existing_conversation_loads_messages(
     service, mock_conversation_repo
 ):
+    # CATCHES: Providing a conversation_id doesn't trigger conversation loading,
+    # causing prior message history to be silently discarded.
     existing = [{"role": "user", "content": "previous question", "citations": []}]
     mock_conversation_repo.load.return_value = existing
 
@@ -160,6 +159,8 @@ async def test_ask_with_existing_conversation_loads_messages(
 
 @pytest.mark.asyncio
 async def test_ask_without_conversation_id_skips_load(service, mock_conversation_repo):
+    # CATCHES: Service calls load() even when no conversation_id is provided, causing
+    # an unnecessary DB round-trip or an error on a None argument.
     await service.ask(USER_ID, "New question", conversation_id=None)
 
     mock_conversation_repo.load.assert_not_called()
@@ -167,6 +168,8 @@ async def test_ask_without_conversation_id_skips_load(service, mock_conversation
 
 @pytest.mark.asyncio
 async def test_ask_persists_conversation(service, mock_conversation_repo):
+    # CATCHES: Conversation is not saved after a successful exchange, or the saved
+    # messages list has wrong structure (missing role, wrong order, missing content).
     await service.ask(USER_ID, "What is HRT?")
 
     mock_conversation_repo.save.assert_called_once()
@@ -182,6 +185,8 @@ async def test_ask_persists_conversation(service, mock_conversation_repo):
 async def test_ask_deduplicates_chunks(
     service, mock_rag_retriever, mock_citation_service
 ):
+    # CATCHES: Duplicate RAG chunks (same source_url + section_name) are both forwarded
+    # to the citation renderer, producing duplicate source entries in the response.
     duplicate_chunks = [
         {
             "id": "chunk-1",
@@ -217,9 +222,11 @@ async def test_ask_deduplicates_chunks(
 async def test_ask_raises_database_error_when_user_context_fails(
     service, mock_user_repo
 ):
+    # CATCHES: DB failure in get_context propagates as a raw Exception instead of
+    # being wrapped in DatabaseError, breaking callers that catch domain exceptions.
     mock_user_repo.get_context.side_effect = Exception("DB connection error")
 
-    with pytest.raises(DatabaseError, match="Failed to process question"):
+    with pytest.raises(DatabaseError, match="Failed to fetch user context"):
         await service.ask(USER_ID, "What causes hot flashes?")
 
 
@@ -227,9 +234,11 @@ async def test_ask_raises_database_error_when_user_context_fails(
 async def test_ask_raises_database_error_when_symptom_summary_fails(
     service, mock_symptoms_repo
 ):
+    # CATCHES: DB failure in get_summary propagates as a raw Exception instead of
+    # being wrapped in DatabaseError, breaking callers that catch domain exceptions.
     mock_symptoms_repo.get_summary.side_effect = Exception("Timeout")
 
-    with pytest.raises(DatabaseError, match="Failed to process question"):
+    with pytest.raises(DatabaseError, match="Failed to fetch symptom summary"):
         await service.ask(USER_ID, "What causes hot flashes?")
 
 
@@ -237,7 +246,8 @@ async def test_ask_raises_database_error_when_symptom_summary_fails(
 async def test_ask_degrades_gracefully_when_rag_fails(
     service, mock_rag_retriever, mock_llm_service
 ):
-    """RAG failure should degrade to no-source response, not raise."""
+    # CATCHES: A pgvector/RAG exception propagates out of the service instead of
+    # degrading gracefully to an LLM call with an empty chunk list.
     mock_rag_retriever.side_effect = Exception("pgvector unavailable")
 
     result = await service.ask(USER_ID, "What is perimenopause?")
@@ -248,10 +258,12 @@ async def test_ask_degrades_gracefully_when_rag_fails(
 
 
 @pytest.mark.asyncio
-async def test_ask_raises_database_error_when_llm_fails(service, mock_llm_service):
+async def test_ask_raises_llm_error_when_llm_fails(service, mock_llm_service):
+    # CATCHES: LLM failure propagates as a raw Exception instead of LLMError,
+    # so the route handler's domain-exception mapping returns the wrong HTTP status.
     mock_llm_service.chat_completion.side_effect = Exception("LLM timeout")
 
-    with pytest.raises(DatabaseError, match="LLM call failed"):
+    with pytest.raises(LLMError, match="LLM call failed"):
         await service.ask(USER_ID, "What causes hot flashes?")
 
 
@@ -259,6 +271,8 @@ async def test_ask_raises_database_error_when_llm_fails(service, mock_llm_servic
 async def test_ask_raises_database_error_when_conversation_save_fails(
     service, mock_conversation_repo
 ):
+    # CATCHES: Write failure propagates as a raw Exception instead of DatabaseError,
+    # making it indistinguishable from an LLM failure at the route layer.
     mock_conversation_repo.save.side_effect = Exception("Write failed")
 
     with pytest.raises(DatabaseError, match="Failed to save conversation"):
@@ -274,6 +288,8 @@ async def test_ask_raises_database_error_when_conversation_save_fails(
 async def test_ask_with_empty_rag_results_still_calls_llm(
     service, mock_rag_retriever, mock_llm_service
 ):
+    # CATCHES: Empty RAG results cause an early return before the LLM is called,
+    # so the user receives no response when no relevant chunks are found.
     mock_rag_retriever.return_value = []
 
     result = await service.ask(USER_ID, "What is perimenopause?")
@@ -300,6 +316,8 @@ def _make_log(log_id: str, symptoms: list[SymptomDetail]) -> SymptomLogResponse:
 
 @pytest.mark.asyncio
 async def test_get_suggested_prompts_with_recent_symptoms(service, mock_symptoms_repo):
+    # CATCHES: Generated prompts ignore the user's actual symptoms and return only
+    # generic placeholder text rather than symptom-specific questions.
     logs = [
         _make_log(
             "log-1",
@@ -329,6 +347,8 @@ async def test_get_suggested_prompts_with_recent_symptoms(service, mock_symptoms
 
 @pytest.mark.asyncio
 async def test_get_suggested_prompts_returns_at_most_max(service, mock_symptoms_repo):
+    # CATCHES: max_prompts parameter is ignored and more than the requested number of
+    # prompts are returned, overwhelming the UI with options.
     logs = [
         _make_log(
             "log-1",
@@ -360,6 +380,8 @@ async def test_get_suggested_prompts_returns_at_most_max(service, mock_symptoms_
 
 @pytest.mark.asyncio
 async def test_get_suggested_prompts_no_duplicates(service, mock_symptoms_repo):
+    # CATCHES: The same symptom generates multiple identical prompt strings in the
+    # result list, showing repeated suggestions in the UI.
     logs = [
         _make_log(
             "log-1",
@@ -378,6 +400,8 @@ async def test_get_suggested_prompts_no_duplicates(service, mock_symptoms_repo):
 
 @pytest.mark.asyncio
 async def test_get_suggested_prompts_raises_database_error(service, mock_symptoms_repo):
+    # CATCHES: DatabaseError from the repo is double-wrapped or swallowed, hiding the
+    # original error and breaking callers that specifically catch DatabaseError.
     mock_symptoms_repo.get_logs.side_effect = DatabaseError("Query failed")
 
     with pytest.raises(DatabaseError):
@@ -388,6 +412,8 @@ async def test_get_suggested_prompts_raises_database_error(service, mock_symptom
 async def test_get_suggested_prompts_wraps_unexpected_error(
     service, mock_symptoms_repo
 ):
+    # CATCHES: Unexpected exceptions from the repo propagate as raw Exceptions instead
+    # of being wrapped in DatabaseError, bypassing error handling at the route layer.
     mock_symptoms_repo.get_logs.side_effect = Exception("Unexpected")
 
     with pytest.raises(DatabaseError, match="Failed to generate prompts"):
@@ -396,18 +422,29 @@ async def test_get_suggested_prompts_wraps_unexpected_error(
 
 @pytest.mark.asyncio
 async def test_get_suggested_prompts_respects_days_back(service, mock_symptoms_repo):
+    # CATCHES: days_back parameter is ignored and get_logs is called without date
+    # filters, fetching all historical logs rather than the requested 7-day window.
+    from datetime import date, timedelta
+
     mock_symptoms_repo.get_logs.return_value = ([], 0)
 
     await service.get_suggested_prompts(user_id=USER_ID, days_back=7)
 
-    call_args = mock_symptoms_repo.get_logs.call_args
-    assert call_args[1]["user_id"] == USER_ID
+    call_kwargs = mock_symptoms_repo.get_logs.call_args[1]
+    assert call_kwargs["user_id"] == USER_ID
+    assert "start_date" in call_kwargs
+    assert "end_date" in call_kwargs
+    today = date.today()
+    assert call_kwargs["end_date"] == today
+    assert call_kwargs["start_date"] == today - timedelta(days=7)
 
 
 @pytest.mark.asyncio
 async def test_get_suggested_prompts_handles_empty_symptom_lists(
     service, mock_symptoms_repo
 ):
+    # CATCHES: A log with an empty symptom list raises IndexError or AttributeError
+    # instead of being skipped, crashing prompt generation entirely.
     logs = [
         _make_log("log-1", []),  # Empty symptoms
         _make_log(
@@ -422,15 +459,6 @@ async def test_get_suggested_prompts_handles_empty_symptom_lists(
     assert len(result.prompts) > 0
 
 
-@pytest.mark.asyncio
-async def test_get_suggested_prompts_caches_config(service, mock_symptoms_repo):
-    mock_symptoms_repo.get_logs.return_value = ([], 0)
-
-    await service.get_suggested_prompts(user_id=USER_ID)
-    await service.get_suggested_prompts(user_id="user-other")
-
-    assert service._prompt_config is not None
-
 
 # ---------------------------------------------------------------------------
 # list_conversations()
@@ -439,6 +467,8 @@ async def test_get_suggested_prompts_caches_config(service, mock_symptoms_repo):
 
 @pytest.mark.asyncio
 async def test_list_conversations_returns_response(service, mock_conversation_repo):
+    # CATCHES: list() result is not mapped correctly, returning wrong total count,
+    # missing has_more flag, or malformed conversation objects to the caller.
     mock_conversation_repo.list.return_value = (
         [
             {
@@ -461,6 +491,8 @@ async def test_list_conversations_returns_response(service, mock_conversation_re
 
 @pytest.mark.asyncio
 async def test_list_conversations_has_more(service, mock_conversation_repo):
+    # CATCHES: has_more flag is always False regardless of whether total exceeds the
+    # page limit, preventing the frontend from fetching subsequent pages.
     rows = [
         {
             "id": str(CONVERSATION_UUID),
@@ -478,6 +510,8 @@ async def test_list_conversations_has_more(service, mock_conversation_repo):
 
 @pytest.mark.asyncio
 async def test_list_conversations_empty(service, mock_conversation_repo):
+    # CATCHES: Empty result set raises an IndexError instead of returning an empty
+    # conversations list, crashing the history endpoint for new users.
     mock_conversation_repo.list.return_value = ([], 0)
 
     result = await service.list_conversations(USER_ID, limit=20, offset=0)
@@ -494,6 +528,8 @@ async def test_list_conversations_empty(service, mock_conversation_repo):
 
 @pytest.mark.asyncio
 async def test_get_conversation_returns_messages(service, mock_conversation_repo):
+    # CATCHES: Loaded messages are not converted to ConversationMessage objects,
+    # causing type errors or missing role/content fields in the API response.
     mock_conversation_repo.load.return_value = [
         {"role": "user", "content": "Hello", "citations": []},
         {"role": "assistant", "content": "Hi there!", "citations": []},
@@ -509,6 +545,8 @@ async def test_get_conversation_returns_messages(service, mock_conversation_repo
 
 @pytest.mark.asyncio
 async def test_get_conversation_not_found_raises(service, mock_conversation_repo):
+    # CATCHES: EntityNotFoundError from load() is swallowed and returns an empty
+    # conversation instead of propagating, hiding data-access errors from callers.
     mock_conversation_repo.load.side_effect = EntityNotFoundError("Not found")
 
     with pytest.raises(EntityNotFoundError):
@@ -522,6 +560,8 @@ async def test_get_conversation_not_found_raises(service, mock_conversation_repo
 
 @pytest.mark.asyncio
 async def test_delete_conversation_calls_repo(service, mock_conversation_repo):
+    # CATCHES: delete_conversation silently returns success without calling the repo,
+    # so the conversation remains in the database after the user requests deletion.
     await service.delete_conversation(CONVERSATION_UUID, USER_ID)
 
     mock_conversation_repo.delete.assert_called_once_with(CONVERSATION_UUID, USER_ID)
@@ -529,6 +569,8 @@ async def test_delete_conversation_calls_repo(service, mock_conversation_repo):
 
 @pytest.mark.asyncio
 async def test_delete_conversation_not_found_raises(service, mock_conversation_repo):
+    # CATCHES: EntityNotFoundError from repo.delete is swallowed and returns 200
+    # instead of propagating, masking deletes of conversations that don't exist.
     mock_conversation_repo.delete.side_effect = EntityNotFoundError("Not found")
 
     with pytest.raises(EntityNotFoundError):
@@ -541,32 +583,20 @@ async def test_delete_conversation_not_found_raises(service, mock_conversation_r
 
 
 @pytest.mark.asyncio
-async def test_v1_json_format_triggers_fallback(
+async def test_malformed_json_from_llm_raises_exception(
     mock_user_repo,
     mock_symptoms_repo,
     mock_conversation_repo,
     mock_citation_service,
     mock_rag_retriever,
 ):
-    """CATCHES: v1 claims-based JSON format silently accepted instead of triggering fallback."""
-    # LLM returns the old v1 format (claims[] instead of body + source_index)
-    v1_json = json.dumps(
-        {
-            "sections": [
-                {
-                    "heading": None,
-                    "claims": [
-                        {"text": "Hot flashes are common.", "source_indices": [1]}
-                    ],
-                }
-            ],
-            "disclaimer": None,
-            "insufficient_sources": False,
-        }
-    )
+    """CATCHES: malformed LLM JSON silently swallowed instead of raising.
 
+    The structured response pipeline has confirmed reliability in production.
+    Failures must surface as errors — not degrade silently.
+    """
     llm_service = MagicMock()
-    llm_service.chat_completion = AsyncMock(return_value=v1_json)
+    llm_service.chat_completion = AsyncMock(return_value="not valid json {{")
 
     svc = AskMenoService(
         user_repo=mock_user_repo,
@@ -577,12 +607,5 @@ async def test_v1_json_format_triggers_fallback(
         rag_retriever=mock_rag_retriever,
     )
 
-    result = await svc.ask(USER_ID, "What causes hot flashes?")
-
-    # v1 format fails Pydantic validation → falls back to free-text pipeline
-    # The fallback calls sanitize_and_renumber, not render_structured_response
-    mock_citation_service.sanitize_and_renumber.assert_called_once()
-    # render_structured_response should NOT have been called with the bad data
-    mock_citation_service.render_structured_response.assert_not_called()
-    # Result is still a valid ChatResponse
-    assert result.message is not None
+    with pytest.raises(LLMError, match="Failed to parse structured LLM response"):
+        await svc.ask(USER_ID, "What causes hot flashes?")
