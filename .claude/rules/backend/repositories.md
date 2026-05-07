@@ -1,5 +1,6 @@
 ---
-paths: [backend/app/repositories/**/*.py]
+paths:
+  - backend/app/repositories/**/*.py
 ---
 
 # Repository Rules

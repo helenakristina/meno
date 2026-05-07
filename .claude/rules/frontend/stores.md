@@ -1,5 +1,6 @@
 ---
-paths: [frontend/src/lib/stores/**/*.ts]
+paths:
+  - frontend/src/lib/stores/**/*.ts
 ---
 
 # Store Rules
@@ -10,7 +11,7 @@ Runes (`$state`, `$derived`, `$effect`) do not work here.
 ## Use Svelte Store Primitives
 
 ```typescript
-import { writable, derived, get } from 'svelte/store';
+import { writable, derived, get } from "svelte/store";
 
 // Writable store
 export const authUser = writable<User | null>(null);
@@ -21,11 +22,11 @@ export const isAuthenticated = derived(authUser, ($user) => $user !== null);
 
 ## Decision Guide
 
-| State scope | Use |
-|---|---|
-| Only used in one component | `$state` in the `.svelte` file |
-| Shared across pages or components | `writable` store in this directory |
-| Computed from other state | `derived` store here, or `$derived` in `.svelte` |
+| State scope                       | Use                                              |
+| --------------------------------- | ------------------------------------------------ |
+| Only used in one component        | `$state` in the `.svelte` file                   |
+| Shared across pages or components | `writable` store in this directory               |
+| Computed from other state         | `derived` store here, or `$derived` in `.svelte` |
 
 ## No Business Logic in Stores
 
@@ -49,13 +50,13 @@ export const symptoms = writable([]);
 Test the logic, not the reactivity mechanism. Use `get()` to read current value.
 
 ```typescript
-import { get } from 'svelte/store';
+import { get } from "svelte/store";
 
 // CATCHES: Filter includes archived items in the active view
-test('activeItems excludes archived', () => {
+test("activeItems excludes archived", () => {
   const store = createItemStore([
-    { id: '1', archived: false },
-    { id: '2', archived: true },
+    { id: "1", archived: false },
+    { id: "2", archived: true },
   ]);
   expect(get(store.activeItems)).toHaveLength(1);
 });

@@ -1,5 +1,7 @@
 ---
-paths: [frontend/src/**/+page.server.ts, frontend/src/**/+layout.server.ts]
+paths:
+  - frontend/src/**/+page.server.ts
+  - frontend/src/**/+layout.server.ts]
 ---
 
 # Server Action Rules

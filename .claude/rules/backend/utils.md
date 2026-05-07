@@ -1,5 +1,6 @@
 ---
-paths: [backend/app/utils/**/*.py]
+paths:
+  - backend/app/utils/**/*.py
 ---
 
 # Utils Rules

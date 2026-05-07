@@ -1,5 +1,6 @@
 ---
-paths: [backend/app/api/dependencies.py]
+paths:
+  - backend/app/api/dependencies.py
 ---
 
 # Dependency Injection Rules

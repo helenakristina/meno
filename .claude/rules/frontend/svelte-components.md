@@ -1,5 +1,6 @@
 ---
-paths: [frontend/src/**/*.svelte]
+paths:
+  - frontend/src/**/*.svelte
 ---
 
 # Svelte Component Rules

@@ -1,5 +1,6 @@
 ---
-paths: [backend/app/providers/**/*.py]
+paths:
+  - backend/app/providers/**/*.py
 ---
 
 # Provider Rules
@@ -9,11 +10,11 @@ Services depend on the ABC — they never know which concrete provider they are 
 
 ## Three-File Pattern (Mandatory)
 
-| File | Purpose |
-|---|---|
-| `[name]_base.py` | ABC defining the interface contract |
+| File                 | Purpose                                     |
+| -------------------- | ------------------------------------------- |
+| `[name]_base.py`     | ABC defining the interface contract         |
 | `[name]_provider.py` | Concrete implementation with real API calls |
-| `[name].py` | (or the service itself) accepts the ABC |
+| `[name].py`          | (or the service itself) accepts the ABC     |
 
 Swapping providers = changing one line in `dependencies.py`. Nothing else changes.
 

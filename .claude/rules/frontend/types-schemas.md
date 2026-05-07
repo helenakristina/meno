@@ -1,5 +1,7 @@
 ---
-paths: ["frontend/src/lib/{types,schemas}/**/*.ts"]
+paths:
+  - frontend/src/lib/schemas/**/*.ts
+  - frontend/src/lib/types/**/*.ts
 ---
 
 # Types and Schemas Rules

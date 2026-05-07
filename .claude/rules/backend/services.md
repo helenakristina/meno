@@ -1,5 +1,6 @@
 ---
-paths: [backend/app/services/**/*.py]
+paths:
+  - backend/app/services/**/*.py
 ---
 
 # Service Rules
@@ -23,7 +24,7 @@ They never touch the database directly and never raise HTTPException.
 - Access `settings` directly for API keys — receive via DI
 - Call Supabase directly — that is the repository's job
 
-## The __init__ Rule
+## The **init** Rule
 
 If `__init__` contains `SomeClass(arg=...)` on the right side of `=`, it is almost
 certainly a violation. Dependencies arrive as arguments — they are not created here.

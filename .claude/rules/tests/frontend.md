@@ -1,5 +1,7 @@
 ---
-paths: [frontend/src/**/*.test.ts, frontend/src/**/*.spec.ts]
+paths:
+  - frontend/src/**/*.test.ts
+  - frontend/src/**/*.spec.ts
 ---
 
 # Frontend Test Rules

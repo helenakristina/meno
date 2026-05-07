@@ -1,5 +1,6 @@
 ---
-paths: [backend/app/api/routes/**/*.py]
+paths:
+  - backend/app/api/routes/**/*.py
 ---
 
 # Route Rules

@@ -1,5 +1,6 @@
 ---
-paths: [backend/tests/**/*.py]
+paths:
+  - backend/tests/**/*.py
 ---
 
 # Backend Test Rules
